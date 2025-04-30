@@ -1,0 +1,159 @@
+// lib/data/models/product_model.dart
+class ProductModel {
+  final String id;
+  final String pCode;
+  final String pcodeImg;
+  final String barcode;
+  final String productName;
+  final String productDescription;
+  final double packageSize;
+  final String packageUnit;
+  final double productMrp;
+  final double ourPrice;
+  final String brandName;
+  final String storeCode;
+  final String pcodestatus;
+  final String deptId;
+  final String categoryId;
+  final String subCategoryId;
+  final int storeQuantity;
+  final int maxQuantityAllowed;
+
+  ProductModel({
+    required this.id,
+    required this.pCode,
+    required this.pcodeImg,
+    required this.barcode,
+    required this.productName,
+    required this.productDescription,
+    required this.packageSize,
+    required this.packageUnit,
+    required this.productMrp,
+    required this.ourPrice,
+    required this.brandName,
+    required this.storeCode,
+    required this.pcodestatus,
+    required this.deptId,
+    required this.categoryId,
+    required this.subCategoryId,
+    required this.storeQuantity,
+    required this.maxQuantityAllowed,
+  });
+
+  factory ProductModel.fromJson(Map<String, dynamic> json) {
+    return ProductModel(
+      id: json['_id'] ?? '',
+      pCode: json['p_code'] ?? '',
+      pcodeImg: json['pcode_img'] ?? '',
+      barcode: json['barcode'] ?? '',
+      productName: json['product_name'] ?? '',
+      productDescription: json['product_description'] ?? '',
+      packageSize: _parseDoubleOrInt(json['package_size']),
+      packageUnit: json['package_unit'] ?? '',
+      productMrp: _parseDoubleOrInt(json['product_mrp']),
+      ourPrice: _parseDoubleOrInt(json['our_price']),
+      brandName: json['brand_name'] ?? '',
+      storeCode: json['store_code'] ?? '',
+      pcodestatus: json['pcode_status'] ?? '',
+      deptId: json['dept_id'] ?? '',
+      categoryId: json['category_id'] ?? '',
+      subCategoryId: json['sub_category_id'] ?? '',
+      storeQuantity: _parseInt(json['store_quantity']),
+      maxQuantityAllowed: _parseInt(json['max_quantity_allowed']),
+    );
+  }
+
+  static double _parseDoubleOrInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is String) {
+      try {
+        return double.parse(value);
+      } catch (_) {
+        return 0;
+      }
+    }
+    return 0;
+  }
+
+  static int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      try {
+        return int.parse(value);
+      } catch (_) {
+        return 0;
+      }
+    }
+    return 0;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'p_code': pCode,
+      'pcode_img': pcodeImg,
+      'barcode': barcode,
+      'product_name': productName,
+      'product_description': productDescription,
+      'package_size': packageSize,
+      'package_unit': packageUnit,
+      'product_mrp': productMrp,
+      'our_price': ourPrice,
+      'brand_name': brandName,
+      'store_code': storeCode,
+      'pcode_status': pcodestatus,
+      'dept_id': deptId,
+      'category_id': categoryId,
+      'sub_category_id': subCategoryId,
+      'store_quantity': storeQuantity,
+      'max_quantity_allowed': maxQuantityAllowed,
+    };
+  }
+  
+  // Added copyWith method to allow updating product properties
+  ProductModel copyWith({
+    String? id,
+    String? pCode,
+    String? pcodeImg,
+    String? barcode,
+    String? productName,
+    String? productDescription,
+    double? packageSize,
+    String? packageUnit,
+    double? productMrp,
+    double? ourPrice,
+    String? brandName,
+    String? storeCode,
+    String? pcodestatus,
+    String? deptId,
+    String? categoryId,
+    String? subCategoryId,
+    int? storeQuantity,
+    int? maxQuantityAllowed,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      pCode: pCode ?? this.pCode,
+      pcodeImg: pcodeImg ?? this.pcodeImg,
+      barcode: barcode ?? this.barcode,
+      productName: productName ?? this.productName,
+      productDescription: productDescription ?? this.productDescription,
+      packageSize: packageSize ?? this.packageSize,
+      packageUnit: packageUnit ?? this.packageUnit,
+      productMrp: productMrp ?? this.productMrp,
+      ourPrice: ourPrice ?? this.ourPrice,
+      brandName: brandName ?? this.brandName,
+      storeCode: storeCode ?? this.storeCode,
+      pcodestatus: pcodestatus ?? this.pcodestatus,
+      deptId: deptId ?? this.deptId,
+      categoryId: categoryId ?? this.categoryId,
+      subCategoryId: subCategoryId ?? this.subCategoryId,
+      storeQuantity: storeQuantity ?? this.storeQuantity,
+      maxQuantityAllowed: maxQuantityAllowed ?? this.maxQuantityAllowed,
+    );
+  }
+}
