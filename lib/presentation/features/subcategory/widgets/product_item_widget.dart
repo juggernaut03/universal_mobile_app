@@ -1,13 +1,16 @@
 // lib/presentation/features/subcategory/widgets/product_item_widget.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/cached_network_image_widget.dart';
 import '../../../../data/models/product_model.dart';
+import '../../../providers/cart_provider.dart';
+import '../../../providers/outlet_provider.dart';
 
-class ProductItemWidget extends StatefulWidget {
+class ProductItemWidget extends ConsumerStatefulWidget {
   final ProductModel product;
   final VoidCallback onAddToCart;
   final VoidCallback onToggleFavorite;
@@ -20,53 +23,45 @@ class ProductItemWidget extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<ProductItemWidget> createState() => _ProductItemWidgetState();
+  ConsumerState<ProductItemWidget> createState() => _ProductItemWidgetState();
 }
 
-class _ProductItemWidgetState extends State<ProductItemWidget> {
-  bool _isInCart = false;
-  int _quantity = 1;
-
+class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
   void _addToCart() {
-    widget.onAddToCart();
-    setState(() {
-      _isInCart = true;
-    });
+    ref.read(cartProvider.notifier).addItem(widget.product);
   }
 
   void _incrementQuantity() {
-    setState(() {
-      if (_quantity < widget.product.maxQuantityAllowed) {
-        _quantity++;
-      }
-    });
-    // Here you would call a function to update cart quantity
+    ref.read(cartProvider.notifier).incrementQuantity(widget.product);
   }
 
   void _decrementQuantity() {
-    setState(() {
-      if (_quantity > 1) {
-        _quantity--;
-      } else {
-        _isInCart = false;
-      }
-    });
-    // Here you would call a function to update cart quantity
+    ref.read(cartProvider.notifier).decrementQuantity(widget.product);
   }
 
-void _navigateToProductDetail() {
-  // Ensure p_code is properly formatted
-  final pCode = widget.product.pCode;
-  final storeCode = widget.product.storeCode;
-  
-  print('Navigating to product: p_code=$pCode, store_code=$storeCode'); // Add logging
-  
-  // Use the go_router path parameters format correctly
-  context.push('/product/$pCode?storeCode=$storeCode');
-}
+  void _navigateToProductDetail() {
+    // Ensure p_code is properly formatted
+    final pCode = widget.product.pCode;
+    
+    // Get storeCode from the selected outlet instead of using static value
+    final selectedOutlet = ref.read(selectedOutletProvider).value;
+    final storeCode = selectedOutlet?.storeCode ?? widget.product.storeCode;
+    
+    // Use the go_router path parameters format correctly
+    context.push('/product/$pCode?storeCode=$storeCode');
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Get cart information from provider to check if this product is in cart
+    final cartItems = ref.watch(cartProvider);
+    final cartItem = cartItems.where((item) => 
+      item.product.pCode == widget.product.pCode).toList();
+    
+    // Determine if product is in cart and its quantity
+    final bool isInCart = cartItem.isNotEmpty;
+    final int quantity = isInCart ? cartItem.first.quantity : 0;
+    
     // Calculate price per unit
     final pricePerUnit = widget.product.packageSize > 0 
         ? (widget.product.ourPrice / widget.product.packageSize) 
@@ -137,7 +132,7 @@ void _navigateToProductDetail() {
                         ),
                       ),
                       child: Text(
-                        "${discountPercent.toStringAsFixed(1)}% OFF",
+                        "${discountPercent.toStringAsFixed(0)}% OFF",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -229,7 +224,7 @@ void _navigateToProductDetail() {
                         
                         // Add to cart button or quantity selector
                         Expanded(
-                          child: _isInCart
+                          child: isInCart
                               ? Container(
                                   height: 40,
                                   decoration: BoxDecoration(
@@ -266,7 +261,7 @@ void _navigateToProductDetail() {
                                           alignment: Alignment.center,
                                           color: Colors.white,
                                           child: Text(
-                                            _quantity.toString(),
+                                            quantity.toString(),
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,

@@ -1,3 +1,4 @@
+// lib/presentation/features/cart/widgets/persistent_cart_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +19,9 @@ class PersistentCartWidget extends ConsumerWidget {
     if (cartItems.isEmpty) {
       return const SizedBox.shrink();
     }
+    
+    // Calculate total items (including quantities)
+    final totalItems = cartItems.fold(0, (sum, item) => sum + item.quantity);
     
     return Container(
       height: 72,
@@ -73,7 +77,7 @@ class PersistentCartWidget extends ConsumerWidget {
                           shape: BoxShape.circle,
                         ),
                         child: Text(
-                          '${cartItems.length}',
+                          '$totalItems',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,
@@ -94,14 +98,14 @@ class PersistentCartWidget extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '₹$cartTotal Cart Total',
+                        '₹${cartTotal.toStringAsFixed(0)} Cart Total',
                         style: AppTextStyles.labelLarge.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        '${cartItems.length} Item(s) • ₹$cartSavings Saved',
+                        '${cartItems.length} Item(s) • ₹${cartSavings.toStringAsFixed(0)} Saved',
                         style: AppTextStyles.labelSmall.copyWith(
                           color: Colors.white.withOpacity(0.8),
                         ),

@@ -16,6 +16,8 @@ import '../../providers/outlet_provider.dart';
 import 'widgets/cart_item_widget.dart';
 import 'widgets/section_header_widget.dart';
 import 'widgets/cart_validation_dialog.dart';
+import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
+
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -665,8 +667,8 @@ class CartScreen extends ConsumerWidget {
       }
       
       // Retry saving the cart
-      final cartValidator = ref.read(cartValidatorProvider);
-      final saveSuccess = await cartValidator.retrySaveCart(
+       final cartValidator = ref.read(validator.cartValidatorProvider);
+       final saveSuccess = await cartValidator.retrySaveCart(
         ref.read(cartProvider), 
         storeCode
       );

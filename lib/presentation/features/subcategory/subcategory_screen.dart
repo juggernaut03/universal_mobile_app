@@ -11,6 +11,7 @@ import '../../../core/widgets/bottom_navigation_widget.dart';
 import '../../../core/widgets/error_widgets.dart';
 import '../../providers/subcategory_providers.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/outlet_provider.dart';
 import 'widgets/product_item_widget.dart';
 
 
@@ -33,7 +34,7 @@ class SubcategoryScreen extends ConsumerStatefulWidget {
 class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with TickerProviderStateMixin {
   TabController? _tabController;
   int _selectedIndex = 0;
-  int _navIndex = 0;
+  int _navIndex = 1; // Starting on category tab index
   bool _isRefreshing = false;
 
   @override
@@ -57,61 +58,65 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with Tick
 
   // Handle refresh action
   Future<void> _handleRefresh() async {
-  if (_isRefreshing) return;
-  
-  setState(() {
-    _isRefreshing = true;
-  });
-  
-  try {
-    // Set the refresh flag to true which will trigger cache clearing in the providers
-    ref.read(refreshSubcategoryProvider.notifier).state = true;
+    if (_isRefreshing) return;
     
-    // Re-fetch the subcategories
-    await ref.refresh(subcategoriesProvider(widget.categoryId).future);
+    setState(() {
+      _isRefreshing = true;
+    });
     
-    // Get the subcategories data, handling the AsyncValue properly
-    final subcategoriesAsync = ref.read(subcategoriesProvider(widget.categoryId));
-    
-    // Setup filter parameters based on selected tab
-    String subCategoryId = "0"; // Default to "ALL"
-    
-    // Only try to access subcategory ID if we have data and the selected index is valid
-    if (_selectedIndex > 0) {
-      subcategoriesAsync.whenData((subcategories) {
-        if (_selectedIndex <= subcategories.length) {
-          subCategoryId = subcategories[_selectedIndex - 1].subCategoryId;
-        }
-      });
-    }
-    
-    final filterParams = ProductFilterParams(
-      deptId: widget.deptId,
-      categoryId: widget.categoryId,
-      subCategoryId: subCategoryId,
-      storeCode: "TTL",
-    );
-    
-    // Re-fetch the products
-    await ref.refresh(productsProvider(filterParams).future);
-  } catch (e) {
-    // Show error message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to refresh: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+    try {
+      // Set the refresh flag to true which will trigger cache clearing in the providers
+      ref.read(refreshSubcategoryProvider.notifier).state = true;
+      
+      // Re-fetch the subcategories
+      await ref.refresh(subcategoriesProvider(widget.categoryId).future);
+      
+      // Get the subcategories data, handling the AsyncValue properly
+      final subcategoriesAsync = ref.read(subcategoriesProvider(widget.categoryId));
+      
+      // Setup filter parameters based on selected tab
+      String subCategoryId = "0"; // Default to "ALL"
+      
+      // Only try to access subcategory ID if we have data and the selected index is valid
+      if (_selectedIndex > 0) {
+        subcategoriesAsync.whenData((subcategories) {
+          if (_selectedIndex <= subcategories.length) {
+            subCategoryId = subcategories[_selectedIndex - 1].subCategoryId;
+          }
+        });
+      }
+      
+      // Get store code from selected outlet
+      final selectedOutlet = ref.read(selectedOutletProvider).valueOrNull;
+      final storeCode = selectedOutlet?.storeCode ?? "TTL"; // Fallback to TTL if no outlet selected
+      
+      final filterParams = ProductFilterParams(
+        deptId: widget.deptId,
+        categoryId: widget.categoryId,
+        subCategoryId: subCategoryId,
+        storeCode: storeCode,
       );
-    }
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isRefreshing = false;
-      });
+      
+      // Re-fetch the products
+      await ref.refresh(productsProvider(filterParams).future);
+    } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +148,10 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with Tick
       }
     });
     
+    // Get the store code from the selected outlet
+    final selectedOutletAsync = ref.watch(selectedOutletProvider);
+    final storeCode = selectedOutletAsync.asData?.value?.storeCode ?? "TTL";
+    
     // Setup filter parameters based on selected tab
     final filterParams = subcategoriesAsync.valueOrNull != null && 
                          subcategoriesAsync.valueOrNull!.isNotEmpty && 
@@ -152,13 +161,13 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with Tick
             deptId: widget.deptId,
             categoryId: widget.categoryId,
             subCategoryId: subcategoriesAsync.valueOrNull![_selectedIndex - 1].subCategoryId,
-            storeCode: "TTL",
+            storeCode: storeCode,
           )
         : ProductFilterParams(
             deptId: widget.deptId,
             categoryId: widget.categoryId,
             subCategoryId: "0", // Default to "ALL"
-            storeCode: "TTL",
+            storeCode: storeCode,
           );
     
     final productsAsync = ref.watch(productsProvider(filterParams));
@@ -353,13 +362,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with Tick
                                   return ProductItemWidget(
                                     product: product,
                                     onAddToCart: () {
-                                      ref.read(cartProvider.notifier).addItem(product);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('${product.productName} added to cart'),
-                                          duration: const Duration(seconds: 1),
-                                        ),
-                                      );
+                                      // This is now handled directly in the ProductItemWidget
                                     },
                                     onToggleFavorite: () {
                                       // TODO: Implement favorite functionality
@@ -387,7 +390,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with Tick
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // This is our new persistent cart widget
+          // This is our persistent cart widget
           const PersistentCartWidget(),
           
           // The existing bottom navigation bar
@@ -460,7 +463,6 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with Tick
               "Price: High to Low",
               SortOption.priceHighToLow,
             ),
-            // Add more sort options as needed
           ],
         ),
       ),
@@ -541,36 +543,36 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with Tick
 
   // Shimmer for tab bar loading
   Widget _buildTabBarShimmer() {
-  return Container(
-    height: 50,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withOpacity(0.2),
-          spreadRadius: 1,
-          blurRadius: 2,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: 5, // Show 5 tab placeholders
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          width: index == 0 ? 80 : 120, // First tab (ALL) might be smaller
-          height: 30,
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(20),
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 2,
+            offset: const Offset(0, 2),
           ),
-        );
-      },
-    ),
-  );
-}
+        ],
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 5, // Show 5 tab placeholders
+        itemBuilder: (context, index) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            width: index == 0 ? 80 : 120, // First tab (ALL) might be smaller
+            height: 30,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(20),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   // Shimmer for products loading
   Widget _buildProductsShimmer() {

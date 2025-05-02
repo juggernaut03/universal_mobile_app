@@ -1,6 +1,10 @@
 // lib/presentation/providers/cart_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../data/models/product_model.dart';
+import '../../core/utils/logger.dart';
+import '../../data/services/cart_validator.dart';
+
 
 // Cart item model
 class CartItem {
@@ -32,9 +36,18 @@ class CartItem {
   double get savings => totalMrp - totalPrice;
 }
 
+// Provider for cart validator
+final cartValidatorProvider = Provider((ref) {
+  final logger = ref.watch(loggerProvider);
+  return CartValidator(logger: logger);
+});
+
 // Cart state notifier
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+  // Store a reference to Ref for accessing other providers
+  final Ref _ref;
+  
+  CartNotifier(this._ref) : super([]);
 
   // Add item to cart
   void addItem(ProductModel product) {
@@ -127,9 +140,27 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     state = state.where((item) => item.product.pCode != product.pCode).toList();
   }
 
-  // Clear cart
-  void clearCart() {
+  // Clear cart and optionally clear cart key in storage
+  Future<void> clearCart({bool clearCartKeyInStorage = false}) async {
+    // Clear cart items in state
     state = [];
+    
+    // If requested, also clear the cart key in storage
+    if (clearCartKeyInStorage) {
+      try {
+        // Access the CartValidator through ref
+        final cartValidator = _ref.read(cartValidatorProvider);
+        await cartValidator.clearCartData();
+        
+        // Log the complete cart clearing
+        final logger = _ref.read(loggerProvider);
+        logger.log('Cart and cart key completely cleared');
+      } catch (e) {
+        // Log error but don't fail the cart clearing operation
+        final logger = _ref.read(loggerProvider);
+        logger.error('Error clearing cart key: $e');
+      }
+    }
   }
   
   // Apply validation changes automatically
@@ -169,9 +200,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 }
 
-// Cart provider
+// Cart provider - updated to pass Ref to CartNotifier
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
+  return CartNotifier(ref);
 });
 
 // Cart total provider

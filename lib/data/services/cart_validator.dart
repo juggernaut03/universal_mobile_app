@@ -17,6 +17,7 @@ class CartValidator {
   // Keys for storing cart information
   static const String _cartKeyPrefKey = 'current_cart_key';
   static const String _deviceIdPrefKey = 'device_id';
+  static const String _tempOrderIdPrefKey = 'temp_order_id';
   
   static const String _saveCartUrl = '${ApiConstants.baseUrl}/save_cart';
   static const String _validateCartUrl = '${ApiConstants.baseUrl}/validate_cart';
@@ -24,6 +25,7 @@ class CartValidator {
   // Instance variables to maintain consistency between operations
   String? _currentCartKey;
   String? _currentDeviceId;
+  String? _currentTempOrderId;
   
   CartValidator({
     http.Client? client,
@@ -34,28 +36,41 @@ class CartValidator {
     // Load saved cart key and device ID on initialization
     _loadSavedCartInfo();
   }
-   Future<String?> getCurrentCartKey() async {
-  // If we don't have a cart key loaded yet, try to load it
-  if (_currentCartKey == null) {
-    await _loadSavedCartInfo();
+  
+  /// Get the current cart key used for operations
+  Future<String?> getCurrentCartKey() async {
+    // If we don't have a cart key loaded yet, try to load it
+    if (_currentCartKey == null) {
+      await _loadSavedCartInfo();
+    }
+    return _currentCartKey;
   }
-  return _currentCartKey;
-}
 
-// Get the current device ID
-Future<String?> getCurrentDeviceId() async {
-  // If we don't have a device ID loaded yet, try to load it
-  if (_currentDeviceId == null) {
-    await _loadSavedCartInfo();
+  /// Get the current device ID
+  Future<String?> getCurrentDeviceId() async {
+    // If we don't have a device ID loaded yet, try to load it
+    if (_currentDeviceId == null) {
+      await _loadSavedCartInfo();
+    }
+    return _currentDeviceId;
   }
-  return _currentDeviceId;
-}
+  
+  /// Get the current temp order ID
+  Future<String?> getCurrentTempOrderId() async {
+    // If we don't have a temp order ID loaded yet, try to load it
+    if (_currentTempOrderId == null) {
+      await _loadSavedCartInfo();
+    }
+    return _currentTempOrderId;
+  }
+
   /// Initialize cart info from SharedPreferences
   Future<void> _loadSavedCartInfo() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _currentCartKey = prefs.getString(_cartKeyPrefKey);
       _currentDeviceId = prefs.getString(_deviceIdPrefKey);
+      _currentTempOrderId = prefs.getString(_tempOrderIdPrefKey);
       
       if (_currentCartKey != null) {
         _logger.log('Loaded saved cart key: $_currentCartKey');
@@ -65,6 +80,11 @@ Future<String?> getCurrentDeviceId() async {
       if (_currentDeviceId == null) {
         _currentDeviceId = _generateDeviceId();
         await prefs.setString(_deviceIdPrefKey, _currentDeviceId!);
+      }
+      
+      if (_currentTempOrderId == null) {
+        _currentTempOrderId = _generateOrderId(_currentDeviceId!);
+        await prefs.setString(_tempOrderIdPrefKey, _currentTempOrderId!);
       }
     } catch (e) {
       _logger.error('Error loading saved cart info: $e');
@@ -79,6 +99,17 @@ Future<String?> getCurrentDeviceId() async {
       _currentCartKey = cartKey;
     } catch (e) {
       _logger.error('Error saving cart key: $e');
+    }
+  }
+  
+  /// Save the current temp order ID to persistent storage
+  Future<void> _saveTempOrderId(String tempOrderId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tempOrderIdPrefKey, tempOrderId);
+      _currentTempOrderId = tempOrderId;
+    } catch (e) {
+      _logger.error('Error saving temp order ID: $e');
     }
   }
 
@@ -109,70 +140,98 @@ Future<String?> getCurrentDeviceId() async {
     return _currentDeviceId ?? _generateDeviceId();
   }
   
-  /// Get consistent order ID
-  String _getOrderId() {
+  /// Generate a consistent order ID based on device ID
+  String _generateOrderId(String deviceId) {
     // Use a fixed order ID format that will be consistent for this device
     // This ensures we update the same cart entry rather than creating new ones
-    return "AND_${_getDeviceId().replaceAll('DEVICE_', '')}";
+    return "AND_${deviceId.replaceAll('DEVICE_', '')}";
+  }
+  
+  /// Get consistent order ID
+  String _getOrderId() {
+    final deviceId = _getDeviceId();
+    if (_currentTempOrderId != null) {
+      return _currentTempOrderId!;
+    }
+    
+    final tempOrderId = _generateOrderId(deviceId);
+    _saveTempOrderId(tempOrderId);
+    return tempOrderId;
   }
   
   /// Generate a new cart key
   String _generateCartKey() {
-    return 'CART_KEY_${DateTime.now().millisecondsSinceEpoch}';
+    final deviceId = _getDeviceId();
+    return 'CART_KEY_${deviceId.replaceAll('DEVICE_', '')}';
   }
   
   /// Save the cart to the server
-  Future<bool> saveCart(List<CartItem> cartItems, String storeCode) async {
-    try {
-      // Use the existing cart key or generate a new one
-      final customerCartKey = _currentCartKey ?? _generateCartKey();
-      final deviceId = _getDeviceId();
-      final tempOrderId = _getOrderId();
+ // Modify the saveCart method to generate a new cart key for each order confirmation
+// but use consistent temp_order_id and device_id for the session
+
+Future<bool> saveCart(List<CartItem> cartItems, String storeCode, 
+  {bool isOrderConfirmation = false}) async {
+  try {
+    final deviceId = _getDeviceId();
+    String customerCartKey;
+    
+    if (isOrderConfirmation) {
+      // For order confirmation, generate a NEW cart key to create a new document
+      // This ensures we preserve history of all confirmed orders
+      customerCartKey = 'CART_KEY_ORDER_${DateTime.now().millisecondsSinceEpoch}';
+      _logger.log('Generated new cart key for order confirmation: $customerCartKey');
+    } else {
+      // For regular cart operations, use the existing cart key or generate a consistent one
+      customerCartKey = _currentCartKey ?? _generateCartKey();
+    }
+    
+    final tempOrderId = _getOrderId();
+    
+    // Convert cart items to API format
+    final List<Map<String, dynamic>> apiItems = cartItems
+        .map((item) => _convertCartItemToApi(item))
+        .toList();
+    
+    // Create request body - set status based on operation type
+    final requestBody = {
+      'project_code': ApiConstants.projectCode,
+      'temp_order_id': tempOrderId,
+      'customer_cart_key': customerCartKey,
+      'store_code': storeCode,
+      'device_id': deviceId,
+      'cart_items': apiItems,
+      'order_status': isOrderConfirmation ? "Order Confirmed" : "In Cart",
+    };
+    
+    _logger.log('Saving cart with ${apiItems.length} items, cart key: $customerCartKey, '
+        'temp_order_id: $tempOrderId, order status: ${isOrderConfirmation ? "Order Confirmed" : "In Cart"}');
+    
+    final response = await _client.post(
+      Uri.parse(_saveCartUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(requestBody),
+    ).timeout(const Duration(seconds: 30));
+    
+    // Check if the response is successful
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      _logger.log('Cart saved successfully: ${responseData['message']}');
       
-      // Convert cart items to API format
-      final List<Map<String, dynamic>> apiItems = cartItems
-          .map((item) => _convertCartItemToApi(item))
-          .toList();
-      
-      final requestBody = {
-        'project_code': ApiConstants.projectCode,
-        'temp_order_id': tempOrderId,
-        'customer_cart_key': customerCartKey,
-        'store_code': storeCode,
-        'device_id': deviceId,
-        'cart_items': apiItems,
-      };
-      
-      _logger.log('Saving cart with ${apiItems.length} items, cart key: $customerCartKey');
-      
-      print('SAVE CART REQUEST: ${jsonEncode(requestBody)}');
-      
-      final response = await _client.post(
-        Uri.parse(_saveCartUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: 30));
-      
-      print('SAVE CART RESPONSE [${response.statusCode}]: ${response.body}');
-      
-      // Check if the response is successful
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
-        _logger.log('Cart saved successfully: ${responseData['message']}');
-        
-        // Store the cart key for future operations
+      // Store the cart key for future operations (only for non-order-confirmation)
+      if (!isOrderConfirmation) {
         await _saveCartKey(customerCartKey);
-        
-        return true;
-      } else {
-        _logger.error('Failed to save cart: ${response.statusCode} - ${response.body}');
-        return false;
       }
-    } catch (e) {
-      _logger.error('Error saving cart: $e');
+      
+      return true;
+    } else {
+      _logger.error('Failed to save cart: ${response.statusCode} - ${response.body}');
       return false;
     }
+  } catch (e) {
+    _logger.error('Error saving cart: $e');
+    return false;
   }
+}
   
   /// Validate the cart with the server
   Future<CartValidationResult?> validateCart(List<CartItem> cartItems, String storeCode) async {
@@ -206,17 +265,13 @@ Future<String?> getCurrentDeviceId() async {
         'cart_items': apiItems,
       };
       
-      _logger.log('Validating cart with ${apiItems.length} items, cart key: $customerCartKey');
-      
-      print('VALIDATE CART REQUEST: ${jsonEncode(requestBody)}');
+      _logger.log('Validating cart with ${apiItems.length} items, cart key: $customerCartKey, temp_order_id: $tempOrderId');
       
       final response = await _client.post(
         Uri.parse(_validateCartUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
       ).timeout(const Duration(seconds: 30));
-      
-      print('VALIDATE CART RESPONSE [${response.statusCode}]: ${response.body}');
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Parse response
@@ -257,11 +312,8 @@ Future<String?> getCurrentDeviceId() async {
               
               // Check for validation text
               if (validation != null && validation.toString().isNotEmpty) {
-                print('Item has validation text: $validation');
-                
                 // Check for out of stock items
                 if (validation.toString().toLowerCase().contains('out of stock')) {
-                  print('Item is out of stock');
                   result.removedItems.add(RemovedCartItem(
                     product: cartItem.product,
                     reason: validation.toString(),
@@ -270,7 +322,6 @@ Future<String?> getCurrentDeviceId() async {
                   continue;
                 } else {
                   // Add as item with issue if not specifically out of stock
-                  print('Item has other issue');
                   result.itemsWithIssues.add(CartItemWithIssue(
                     product: cartItem.product,
                     issue: validation.toString(),
@@ -282,7 +333,6 @@ Future<String?> getCurrentDeviceId() async {
               // Check for price changes
               final validatedPrice = _toDouble(validatedItem['selling_price']);
               if ((validatedPrice - cartItem.product.ourPrice).abs() > 0.01) {
-                print('Item price changed from ${cartItem.product.ourPrice} to $validatedPrice');
                 result.priceChangedItems.add(PriceChangedCartItem(
                   product: cartItem.product,
                   oldPrice: cartItem.product.ourPrice,
@@ -294,7 +344,6 @@ Future<String?> getCurrentDeviceId() async {
               // Check if quantity is 0 (out of stock)
               final quantity = validatedItem['quantity'] ?? 0;
               if (quantity == 0) {
-                print('Item quantity is 0');
                 if (!result.removedItems.any((item) => item.product.pCode == pcode)) {
                   result.removedItems.add(RemovedCartItem(
                     product: cartItem.product,
@@ -396,21 +445,22 @@ Future<String?> getCurrentDeviceId() async {
     }
   }
   
-  /// Clear the current cart key (for checkout completion or cart clearing)
-  Future<void> clearCartKey() async {
+  /// Clear the current cart key and all related data (for checkout completion or cart clearing)
+  Future<void> clearCartData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_cartKeyPrefKey);
+      await prefs.remove(_tempOrderIdPrefKey);
       _currentCartKey = null;
-      _logger.log('Cart key cleared');
+      _currentTempOrderId = null;
+      _logger.log('Cart data cleared');
     } catch (e) {
-      _logger.error('Error clearing cart key: $e');
+      _logger.error('Error clearing cart data: $e');
     }
   }
   
   /// Retry saving the cart (used when first attempt failed)
   Future<bool> retrySaveCart(List<CartItem> cartItems, String storeCode) async {
-    print('Retrying cart save operation');
     try {
       // Generate a new cart key but keep the same order ID to update the entry
       _currentCartKey = _generateCartKey();
