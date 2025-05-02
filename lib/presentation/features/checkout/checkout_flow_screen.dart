@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart';
+import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/order_providers.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,6 +16,8 @@ import '../../../data/models/outlet_model.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
 import '../account/address_book_screen.dart';
+import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
+
 
 // Checkout step enum to track progress
 enum CheckoutStep {
@@ -1804,219 +1807,233 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
       ),
     );
   }
+  
 
-  Future<void> _placeOrder() async {
-    // Save instructions
-    widget.checkoutData.specialInstructions = _instructionsController.text;
+// This snippet shows the changes needed in the checkout_flow_screen.dart file
+// for the _placeOrder method to use the new parameters
+
+Future<void> _placeOrder() async {
+  // Save instructions
+  widget.checkoutData.specialInstructions = _instructionsController.text;
+  
+  // Save all checkout data
+  await widget.checkoutData.saveToPrefs();
+  
+  // Validate order data
+  if (!_validateOrderData()) {
+    return;
+  }
+  
+  setState(() {
+    _isPlacingOrder = true;
+  });
+  
+  try {
+    // Access logger through provider
+    final logger = ref.read(loggerProvider);
     
-    // Save all checkout data
-    await widget.checkoutData.saveToPrefs();
+    // Update order process status
+    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.validatingCart;
     
-    // Validate order data
-    if (!_validateOrderData()) {
+    // Get required data
+    final cartItems = ref.read(cartProvider);
+    final selectedOutlet = ref.read(selectedOutletProvider).value!;
+    final cartValidator = ref.read(validator.cartValidatorProvider);
+
+    // Get the current cart key, device ID, and temp order ID before proceeding
+    final currentCartKey = await cartValidator.getCurrentCartKey();
+    final currentDeviceId = await cartValidator.getCurrentDeviceId();
+    final currentTempOrderId = await cartValidator.getCurrentTempOrderId();
+    
+    // If any required values are missing, show error
+    if (currentCartKey == null || currentDeviceId == null || currentTempOrderId == null) {
+      setState(() {
+        _isPlacingOrder = false;
+      });
+      _showErrorSnackBar("Cart information is missing. Please try again.");
       return;
     }
     
-    setState(() {
-      _isPlacingOrder = true;
-    });
+    String deviceId = currentDeviceId;
+    String cartKey = currentCartKey;
+    String tempOrderId = currentTempOrderId;
     
-    try {
-      // Update order process status
-      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.validatingCart;
+    logger.log('Using existing cart identifiers for reference: cartKey=$cartKey, deviceId=$deviceId, tempOrderId=$tempOrderId');
+    
+    // Convert delivery address to API format
+    final Address deliveryAddress = widget.checkoutData.selectedAddress ?? 
+        Address(
+          id: '1',
+          fullName: 'Guest User',
+          mobileNumber: '',
+          emailId: '',
+          deliveryAddrLine1: '',
+          deliveryAddrLine2: '',
+          deliveryAddrCity: '',
+          deliveryAddrPincode: '',
+          isDefault: 'No',
+          areaId: '1',
+          landmark: '',
+          state: '',
+        );
+    
+    final Map<String, dynamic> formattedAddress = {
+      "full_name": deliveryAddress.fullName,
+      "contact_no": deliveryAddress.mobileNumber,
+      "email": deliveryAddress.emailId,
+      "address_1": deliveryAddress.deliveryAddrLine1,
+      "address_2": deliveryAddress.deliveryAddrLine2,
+      "area": deliveryAddress.areaId,
+      "landmart": deliveryAddress.landmark, // Note the API expects "landmart" not "landmark"
+      "city": deliveryAddress.deliveryAddrCity,
+      "state": deliveryAddress.state,
+    };
+    
+    // Calculate order amounts
+    final cartTotal = ref.read(cartTotalProvider);
+    final cartSavings = ref.read(cartSavingsProvider);
+    final deliveryCharge = 0.0; // Assuming free delivery, modify as needed
+    final finalAmount = cartTotal + deliveryCharge;
+    
+    // Determine delivery mode
+    final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery
+        ? "Home Delivery"
+        : "Self Pickup";
+    
+    // Determine payment mode for API
+    final paymentMode = _selectedPaymentMethod == "CARD" || _selectedPaymentMethod == "UPI" || _selectedPaymentMethod == "NET_BANKING"
+        ? "ONLINE"
+        : "POD";
+    
+    String? transactionId;
+    
+    // Handle online payment if selected
+    if (paymentMode == "ONLINE") {
+      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.processingPayment;
       
-      // Get required data
-      final cartItems = ref.read(cartProvider);
-      final selectedOutlet = ref.read(selectedOutletProvider).value!;
-      final cartValidator = ref.read(cartValidatorProvider);
+      // Initialize payment service
+      final paymentService = ref.read(paymentServiceProvider);
       
-      // Validate cart with server
-      final cartValidationResult = await cartValidator.processCartValidation(
-        cartItems, 
-        selectedOutlet.storeCode
+      // Start Razorpay payment
+      final paymentResult = await paymentService.startPayment(
+        amount: finalAmount,
+        description: 'Order Payment',
+        customerName: deliveryAddress.fullName,
+        customerEmail: deliveryAddress.emailId,
+        customerPhone: deliveryAddress.mobileNumber,
       );
       
-      if (cartValidationResult == null || !cartValidationResult.isValid) {
-        // Handle validation failure
+      // Store payment result
+      ref.read(paymentResultProvider.notifier).state = paymentResult;
+      
+      if (!paymentResult.success) {
+        // Payment failed or was cancelled
         ref.read(orderErrorMessageProvider.notifier).state = 
-            'Cart validation failed. Please try again.';
+            paymentResult.message ?? 'Payment failed. Please try again.';
         ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
         
         if (mounted) {
           setState(() {
             _isPlacingOrder = false;
           });
-          _showErrorSnackBar('Cart validation failed. Please try again.');
+          _showErrorSnackBar(paymentResult.message ?? 'Payment failed. Please try again.');
         }
         return;
       }
       
-      // Get the current cart key from the validator
-      final cartKey = await cartValidator.getCurrentCartKey() ?? 'CART_KEY_${DateTime.now().millisecondsSinceEpoch}';
-      final deviceId = await cartValidator.getCurrentDeviceId() ?? 'DEVICE_${DateTime.now().millisecondsSinceEpoch}';
+      // Set transaction ID from payment
+      transactionId = paymentResult.paymentId;
+      logger.log('Payment successful with transaction ID: $transactionId');
+    }
+    
+    // Continue with order confirmation
+    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.confirmingOrder;
+    
+    // Get delivery date and time slot
+    final String deliveryDate = widget.checkoutData.deliveryDate != null
+        ? '${widget.checkoutData.deliveryDate!.year}-${widget.checkoutData.deliveryDate!.month.toString().padLeft(2, '0')}-${widget.checkoutData.deliveryDate!.day.toString().padLeft(2, '0')}'
+        : DateTime.now().add(Duration(days: 1)).toString().split(' ')[0];
+    
+    final String deliverySlot = widget.checkoutData.deliveryTimeSlot ?? "Standard Delivery";
+    
+    // Log order details before sending
+    logger.log('Sending order confirmation with identifiers: deviceId=$deviceId, tempOrderId=$tempOrderId');
+    logger.log('Order details: ${cartItems.length} items, $deliveryMode, $paymentMode');
+    
+    // Call order service to confirm order, passing all three identifiers
+    final orderService = ref.read(orderServiceProvider);
+    final orderResult = await orderService.confirmOrder(
+      deviceId: deviceId,
+      cartKey: cartKey,  // This will be used as reference only
+      tempOrderId: tempOrderId,
+      storeCode: selectedOutlet.storeCode,
+      cartItems: cartItems,
+      deliveryAddress: formattedAddress,
+      deliverySlot: deliverySlot,
+      deliveryDate: deliveryDate,
+      deliveryMode: deliveryMode,
+      paymentMode: paymentMode,
+      totalMrp: cartTotal + cartSavings,
+      totalOurPrice: cartTotal,
+      discount: cartSavings,
+      deliveryCharges: deliveryCharge,
+      discountedAmount: cartTotal,
+      finalPayableAmount: finalAmount,
+      paidAmount: paymentMode == "ONLINE" ? finalAmount.toString() : "0",
+      transactionId: transactionId,
+      specialNotes: _instructionsController.text,
+    );
+    
+    // Store order result
+    ref.read(orderConfirmationResultProvider.notifier).state = orderResult;
+    
+    if (orderResult.success) {
+      // Order confirmed successfully
+      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
       
-      // Calculate order amounts
-      final cartTotal = ref.read(cartTotalProvider);
-      final cartSavings = ref.read(cartSavingsProvider);
-      final deliveryCharge = 0.0; // Assuming free delivery, modify as needed
-      final finalAmount = cartTotal + deliveryCharge;
+      // Clear cart after successful order
+      ref.read(cartProvider.notifier).clearCart();
       
-      // Convert delivery address to API format
-      final Address deliveryAddress = widget.checkoutData.selectedAddress ?? 
-          Address(
-            id: '1',
-            fullName: 'Guest User',
-            mobileNumber: '',
-            emailId: '',
-            deliveryAddrLine1: '',
-            deliveryAddrLine2: '',
-            deliveryAddrCity: '',
-            deliveryAddrPincode: '',
-            isDefault: 'No',
-            areaId: '1',
-          );
+      // Clear the cart data (ONLY cart key, but keep device ID and temp order ID for consistency)
+      await cartValidator.clearCartData();
       
-      final Map<String, dynamic> formattedAddress = {
-        "full_name": deliveryAddress.fullName,
-        "contact_no": deliveryAddress.mobileNumber,
-        "email": deliveryAddress.emailId,
-        "address_1": deliveryAddress.deliveryAddrLine1,
-        "address_2": deliveryAddress.deliveryAddrLine2,
-        "area": deliveryAddress.areaId,
-        "landmart": deliveryAddress.landmark,
-        "city": deliveryAddress.deliveryAddrCity,
-        "state": deliveryAddress.state,
-      };
+      // Clear checkout data
+      await CheckoutData.clearFromPrefs();
       
-      // Determine delivery mode
-      final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery
-          ? "Home Delivery"
-          : "Self Pickup";
-      
-      // Determine payment mode for API
-      final paymentMode = _selectedPaymentMethod == "CARD" || _selectedPaymentMethod == "UPI" || _selectedPaymentMethod == "NET_BANKING"
-          ? "ONLINE"
-          : "POD";
-      
-      String? transactionId;
-      
-      // Handle online payment if selected
-      if (paymentMode == "ONLINE") {
-        ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.processingPayment;
-        
-        // Initialize payment service
-        final paymentService = ref.read(paymentServiceProvider);
-        
-        // Start Razorpay payment
-        final paymentResult = await paymentService.startPayment(
-          amount: finalAmount,
-          description: 'Order Payment',
-          customerName: deliveryAddress.fullName,
-          customerEmail: deliveryAddress.emailId,
-          customerPhone: deliveryAddress.mobileNumber,
-        );
-        
-        // Store payment result
-        ref.read(paymentResultProvider.notifier).state = paymentResult;
-        
-        if (!paymentResult.success) {
-          // Payment failed or was cancelled
-          ref.read(orderErrorMessageProvider.notifier).state = 
-              paymentResult.message ?? 'Payment failed. Please try again.';
-          ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
-          
-          if (mounted) {
-            setState(() {
-              _isPlacingOrder = false;
-            });
-            _showErrorSnackBar(paymentResult.message ?? 'Payment failed. Please try again.');
-          }
-          return;
-        }
-        
-        // Set transaction ID from payment
-        transactionId = paymentResult.paymentId;
+      if (mounted) {
+        setState(() {
+          _isPlacingOrder = false;
+          _showSuccessDialog = true;
+        });
+        _showOrderSuccessDialog();
       }
-      
-      // Continue with order confirmation
-      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.confirmingOrder;
-      
-      // Get delivery date and time slot
-      final String deliveryDate = widget.checkoutData.deliveryDate != null
-          ? '${widget.checkoutData.deliveryDate!.year}-${widget.checkoutData.deliveryDate!.month.toString().padLeft(2, '0')}-${widget.checkoutData.deliveryDate!.day.toString().padLeft(2, '0')}'
-          : DateTime.now().add(Duration(days: 1)).toString().split(' ')[0];
-      
-      final String deliverySlot = widget.checkoutData.deliveryTimeSlot ?? "Standard Delivery";
-      
-      // Call order service to confirm order
-      final orderService = ref.read(orderServiceProvider);
-      final orderResult = await orderService.confirmOrder(
-        deviceId: deviceId,
-        cartKey: cartKey,
-        storeCode: selectedOutlet.storeCode,
-        cartItems: cartItems,
-        deliveryAddress: formattedAddress,
-        deliverySlot: deliverySlot,
-        deliveryDate: deliveryDate,
-        deliveryMode: deliveryMode,
-        paymentMode: paymentMode,
-        totalMrp: cartTotal + cartSavings,
-        totalOurPrice: cartTotal,
-        discount: cartSavings,
-        deliveryCharges: deliveryCharge,
-        discountedAmount: cartTotal,
-        finalPayableAmount: finalAmount,
-        paidAmount: paymentMode == "ONLINE" ? finalAmount.toString() : "0",
-        transactionId: transactionId,
-        specialNotes: _instructionsController.text,
-      );
-      
-      // Store order result
-      ref.read(orderConfirmationResultProvider.notifier).state = orderResult;
-      
-      if (orderResult.success) {
-        // Order confirmed successfully
-        ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
-        
-        // Clear cart after successful order
-        ref.read(cartProvider.notifier).clearCart();
-        
-        // Clear checkout data
-        await CheckoutData.clearFromPrefs();
-        
-        if (mounted) {
-          setState(() {
-            _isPlacingOrder = false;
-            _showSuccessDialog = true;
-          });
-          _showOrderSuccessDialog();
-        }
-      } else {
-        // Order confirmation failed
-        ref.read(orderErrorMessageProvider.notifier).state = orderResult.message;
-        ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
-        
-        if (mounted) {
-          setState(() {
-            _isPlacingOrder = false;
-          });
-          _showErrorSnackBar(orderResult.message);
-        }
-      }
-    } catch (e) {
-      // Handle unexpected errors
-      ref.read(orderErrorMessageProvider.notifier).state = e.toString();
+    } else {
+      // Order confirmation failed
+      ref.read(orderErrorMessageProvider.notifier).state = orderResult.message;
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
       
       if (mounted) {
         setState(() {
           _isPlacingOrder = false;
         });
-        _showErrorSnackBar('An unexpected error occurred: ${e.toString()}');
+        _showErrorSnackBar(orderResult.message);
       }
     }
+  } catch (e) {
+    // Handle unexpected errors
+    final logger = ref.read(loggerProvider);
+    logger.error('Error placing order: $e');
+    ref.read(orderErrorMessageProvider.notifier).state = e.toString();
+    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
+    
+    if (mounted) {
+      setState(() {
+        _isPlacingOrder = false;
+      });
+      _showErrorSnackBar('An unexpected error occurred: ${e.toString()}');
+    }
   }
-
+}
   void _showOrderSuccessDialog() {
     showDialog(
       context: context,
