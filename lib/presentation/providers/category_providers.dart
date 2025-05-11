@@ -5,7 +5,6 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../../core/network/api_client.dart';
 import '../../data/models/department_model.dart';
 import '../../data/models/category_model.dart';
-import '../../data/models/outlet_model.dart';
 import '../../data/repositories/category_repository.dart';
 import 'launch_flow_provider.dart';
 import 'outlet_provider.dart';

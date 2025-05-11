@@ -8,6 +8,7 @@ import 'package:patelmart/presentation/providers/cart_validator_provider.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/order_providers.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
+import 'package:patelmart/presentation/providers/reorder_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -1999,6 +2000,27 @@ Future<void> _placeOrder() async {
       
       // Clear checkout data
       await CheckoutData.clearFromPrefs();
+      final createOrder = ref.read(createOrderFromCartProvider);
+   final orderRecord = await createOrder(
+  paymentMode, // Use actual payment method from your existing code
+  deliveryMode,
+  deliverySlot,
+  formattedAddress.toString(),
+);
+
+if (orderRecord == null) {
+  // Order was placed successfully with the server but failed to save locally
+  logger.error('Failed to save order to local history');
+  // This isn't critical, so we still allow the order completion to proceed
+}
+
+if (mounted) {
+  setState(() {
+    _isPlacingOrder = false;
+    _showSuccessDialog = true;
+  });
+  _showOrderSuccessDialog();
+}
       
       if (mounted) {
         setState(() {
@@ -2034,6 +2056,7 @@ Future<void> _placeOrder() async {
     }
   }
 }
+
   void _showOrderSuccessDialog() {
     showDialog(
       context: context,

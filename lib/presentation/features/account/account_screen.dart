@@ -98,25 +98,25 @@ class AccountScreen extends ConsumerWidget {
                     },
                   ),
                   _buildDivider(),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.shopping_bag_outlined,
-                    title: 'My Orders',
-                    onTap: () {
-                      // Check login status before navigating
-                      isLoggedInAsync.whenData((isLoggedIn) {
-                        if (isLoggedIn) {
-                          // Navigate to orders if logged in
-                          // context.push('/orders');
-                        } else {
-                          // Go to login first if not logged in
-                          context.push('/auth/login', extra: {
-                            'redirectRoute': '/orders'
-                          });
-                        }
-                      });
-                    },
-                  ),
+                _buildMenuItem(
+  context,
+  icon: Icons.shopping_bag_outlined,
+  title: 'My Orders',
+  onTap: () {
+    // Check login status before navigating
+    isLoggedInAsync.whenData((isLoggedIn) {
+      if (isLoggedIn) {
+        // Navigate to orders if logged in
+        context.push('/my-orders');
+      } else {
+        // Go to login first if not logged in
+        context.push('/auth/login', extra: {
+          'redirectRoute': '/my-orders'
+        });
+      }
+    });
+  },
+),
                   _buildDivider(),
                   _buildMenuItem(
                     context,
@@ -146,8 +146,8 @@ class AccountScreen extends ConsumerWidget {
                       // Check login status
                       isLoggedInAsync.whenData((isLoggedIn) {
                         if (isLoggedIn) {
-                          // Navigate to reorder screen
-                          // context.push('/reorder');
+                        
+                          context.push('/reorder');
                         } else {
                           // Go to login first
                           context.push('/auth/login', extra: {
