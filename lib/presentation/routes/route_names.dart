@@ -25,4 +25,6 @@ class RouteNames {
   static const String addressBook = 'addressBook';
   static const String addAddress = 'addAddress';
   static const String editAddress = 'editAddress';
+  static const String myOrders = 'myOrders';
+static const String reorder = 'reorder';
 }

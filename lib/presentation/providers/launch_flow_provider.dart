@@ -10,7 +10,6 @@ import '../../core/utils/logger.dart';
 import '../../data/services/api_service.dart';
 import '../../data/services/location_service.dart';
 import '../../data/services/storage_service.dart';
-import '../../data/services/google_maps_service.dart';
 import 'location_provider.dart';
 import 'outlet_provider.dart';
 import 'splash_provider.dart';

@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:patelmart/presentation/features/orders/my_orders_screen.dart';
+import 'package:patelmart/presentation/features/orders/reorder_screen.dart';
 import '../features/account/account_screen.dart';
 import '../features/account/address_book_screen.dart';
 import '../features/account/my_profile_screen.dart';
@@ -248,6 +250,40 @@ final routerProvider = Provider<GoRouter>((ref) {
           categoryName: state.pathParameters['categoryName'] ?? '',
         ),
       ),
+      // Add these routes to your existing app_router.dart file
+
+GoRoute(
+  path: '/my-orders',
+  name: RouteNames.myOrders,
+  builder: (context, state) => const MyOrdersScreen(),
+  redirect: (context, state) async {
+    // Check if user is logged in
+    final container = ProviderScope.containerOf(context);
+    final authRepository = container.read(authRepositoryProvider);
+    
+    final isLoggedIn = await authRepository.isLoggedIn();
+    if (!isLoggedIn) {
+      return '/auth/login?redirectRoute=/my-orders';
+    }
+    return null;
+  },
+),
+GoRoute(
+  path: '/reorder',
+  name: RouteNames.reorder,
+  builder: (context, state) => const ReorderScreen(),
+  redirect: (context, state) async {
+    // Check if user is logged in
+    final container = ProviderScope.containerOf(context);
+    final authRepository = container.read(authRepositoryProvider);
+    
+    final isLoggedIn = await authRepository.isLoggedIn();
+    if (!isLoggedIn) {
+      return '/auth/login?redirectRoute=/reorder';
+    }
+    return null;
+  },
+),
       // Single product route
       GoRoute(
         path: '/product/:pCode',
