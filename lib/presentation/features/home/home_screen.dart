@@ -32,6 +32,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
   int _currentNavIndex = 0;
   bool _isAppBarCollapsed = false;
   DateTime? _lastBackPressTime;
@@ -58,6 +59,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       setState(() {
         _isAppBarCollapsed = isCollapsed;
       });
+    }
+  }
+
+  // Method to refresh all data
+  Future<void> _refreshHomeData() async {
+    // Log the refresh request
+    ref.read(loggerProvider).log('Refreshing home data...');
+    
+    try {
+      // Refresh best seller data - this will clear cache and fetch fresh data
+      await ref.read(bestSellerRefreshProvider)();
+      
+      // Refresh other home page data
+      ref.refresh(promotionalBannersProvider);
+      ref.refresh(departmentsProvider);
+      
+      ref.read(loggerProvider).log('Home data refreshed successfully');
+    } catch (e) {
+      ref.read(loggerProvider).error('Error refreshing home data: $e');
     }
   }
 
@@ -156,12 +176,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // Main content with scrollview
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () async {
-                  // Refresh data providers
-                  await ref.read(bestSellerRefreshProvider)();
-                  ref.refresh(promotionalBannersProvider);
-                  ref.refresh(departmentsProvider);
-                },
+                key: _refreshIndicatorKey,
+                onRefresh: _refreshHomeData,
+                color: AppColors.primary,
                 child: CustomScrollView(
                   controller: _scrollController,
                   slivers: [
@@ -179,8 +196,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     // Popular Categories Widget
                     SliverToBoxAdapter(
                       child: PopularCategoriesWidget(
-                        height: 135,
-                        imageSize: 70,
+                        height: 145,
+                        imageSize: 50,
                         crossAxisCount: 4,
                         showTitle: false,
                         title: 'Popular Category',
@@ -191,8 +208,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     
                     // Main Promotional Banner
-                    SliverToBoxAdapter(
-                      child: const PromotionalBannerWidget(
+                    const SliverToBoxAdapter(
+                      child: PromotionalBannerWidget(
                         height: 280,
                         autoPlay: true,
                         autoPlayInterval: Duration(seconds: 5),
@@ -201,58 +218,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                     
-                    // Best Seller 1
+                    // Best Seller 1 - Watch background color provider separately
                     SliverToBoxAdapter(
-                      child: BestSellerWidget(
-                        bestSellerId: 1,
-                        title: 'Today\'s Special',
-                        height: 320,
-                        showViewAll: true,
-                        onViewAllTap: () {
-                          // Navigate to see all products from this best seller
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          // Watch the background color to trigger rebuild when it changes
+                          final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(1));
+                          
+                          // Use ValueKey with the color to force rebuild when color changes
+                          return BestSellerWidget(
+                            key: ValueKey('best_seller_1_${backgroundColor.value}'),
+                            bestSellerId: 1,
+                            height: 320,
+                          );
                         },
                       ),
                     ),
                     
-                    // Best Seller 2
+                    // Best Seller 2 - With color-based rebuild
                     SliverToBoxAdapter(
-                      child: BestSellerWidget(
-                        bestSellerId: 2,
-                        title: 'Best Deals',
-                        height: 320,
-                        showViewAll: true,
-                        onViewAllTap: () {
-                          // Navigate to see all products from this best seller
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(2));
+                          
+                          return BestSellerWidget(
+                            key: ValueKey('best_seller_2_${backgroundColor.value}'),
+                            bestSellerId: 2,
+                            height: 320,
+                          );
                         },
                       ),
                     ),
                     
-                    // Best Seller 3
+                    // Best Seller 3 - With color-based rebuild
                     SliverToBoxAdapter(
-                      child: BestSellerWidget(
-                        bestSellerId: 3,
-                        title: 'Chai Time',
-                        height: 320,
-                        showViewAll: true,
-                        onViewAllTap: () {
-                          // Navigate to see all products from this best seller
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(3));
+                          
+                          return BestSellerWidget(
+                            key: ValueKey('best_seller_3_${backgroundColor.value}'),
+                            bestSellerId: 3,
+                            height: 320,
+                          );
                         },
                       ),
                     ),
                     
-                    // Best Seller 4
+                    // Best Seller 4 - With color-based rebuild
                     SliverToBoxAdapter(
-                      child: BestSellerWidget(
-                        bestSellerId: 4,
-                        title: 'Top Picks For You',
-                        height: 320,
-                        showViewAll: true,
-                        onViewAllTap: () {
-                          // Navigate to see all products from this best seller
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(4));
+                          
+                          return BestSellerWidget(
+                            key: ValueKey('best_seller_4_${backgroundColor.value}'),
+                            bestSellerId: 4,
+                            height: 320,
+                          );
                         },
                       ),
                     ),
-                           SliverToBoxAdapter(
+                    
+                    SliverToBoxAdapter(
                       child: HomeCategoriesWidget(
                         sections: const [
                           SectionData(
@@ -263,6 +291,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             title: 'Munch On Snacks', 
                             keywords: ['snack', 'namkeen', 'chips', 'food']
                           ),
+                          SectionData(title: 'Premium Offers', keywords: ['Baby', 'care' , 'personal']),
+                          SectionData(title: 'Daily Essentials', keywords: ['dairy', 'milk', 'Noodles']),
                         ],
                         onDepartmentTap: (department) {
                           // Handle department tap (view all)
@@ -316,6 +346,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ]
         ),
+        
+        // Add a floating refresh button for easy testing
+        floatingActionButton: FloatingActionButton(
+          mini: true,
+          backgroundColor: AppColors.primary.withOpacity(0.8),
+          child: const Icon(Icons.refresh, color: Colors.white),
+          onPressed: () {
+            // Trigger refresh
+            _refreshIndicatorKey.currentState?.show();
+          },
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.miniEndFloat,
       )
     );
   }
@@ -481,6 +523,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     context.go('/location-change');
+                  },
+                ),
+                const Divider(height: 1),
+                
+                // Debug menu item to help with color testing
+                ListTile(
+                  leading: Icon(Icons.refresh, color: AppColors.primary),
+                  title: const Text('Refresh All Best Sellers'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    // Manually trigger refresh of best seller data
+                    await ref.read(bestSellerRefreshProvider)();
+                    // Show a confirmation
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Best seller data refreshed'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   },
                 ),
                 const Divider(height: 1),

@@ -1,5 +1,6 @@
-// lib/presentation/features/home/providers/best_seller_providers.dart
+// lib/presentation/providers/best_seller_providers.dart
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
@@ -54,6 +55,45 @@ final bestSellerProductsProvider = FutureProvider.family<List<ProductModel>, int
   // so we don't need to clear it again here
   
   return repository.getBestSellerProducts(bestSellerId);
+});
+
+// Provider for background color to ensure it refreshes properly
+final bestSellerBackgroundColorProvider = Provider.family<Color, int>((ref, bestSellerId) {
+  final bannersAsync = ref.watch(bestSellerBannerProvider(bestSellerId));
+  
+  return bannersAsync.when(
+    data: (banners) {
+      if (banners.isNotEmpty && banners[0].backgroundColor.isNotEmpty) {
+        try {
+          // Remove '#' if present
+          String hex = banners[0].backgroundColor.replaceAll('#', '');
+          
+          // Handle different formats: RGB, RRGGBB, AARRGGBB
+          if (hex.length == 3) {
+            // RGB format, convert to RRGGBB
+            hex = hex.split('').map((c) => '$c$c').join('');
+          }
+          
+          // Add FF for alpha if only RGB or RRGGBB is provided
+          if (hex.length == 6) {
+            hex = 'FF$hex';
+          } else if (hex.length != 8) {
+            // If not a valid length, return default color
+            return Colors.white;
+          }
+          
+          // Parse the hex string to integer
+          return Color(int.parse('0x$hex'));
+        } catch (e) {
+          // Return default color if any error occurs
+          return Colors.white;
+        }
+      }
+      return Colors.white;
+    },
+    loading: () => Colors.white,
+    error: (_, __) => Colors.white,
+  );
 });
 
 // Provider for refreshing all best seller data

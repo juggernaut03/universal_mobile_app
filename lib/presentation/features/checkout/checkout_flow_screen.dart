@@ -4,7 +4,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:patelmart/data/models/address_model.dart';
+import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart';
+import 'package:patelmart/presentation/providers/delivery_charges_provider.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/order_providers.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
@@ -602,7 +605,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
               child: Row(
                 children: [
                   Text(
-                    'View details',
+                    'View Order details',
                     style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.primary,
                     ),
@@ -883,7 +886,7 @@ class _DeliveryMethodStepState extends State<DeliveryMethodStep> {
                     style: AppTextStyles.bodySmall,
                   ),
                   Text(
-                    deliveryFee > 0 ? '₹${deliveryFee.toStringAsFixed(2)}' : 'FREE',
+                    deliveryFee > 0 ? '₹${deliveryFee.toStringAsFixed(2)}' : 'calculate checkout',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: deliveryFee > 0 ? null : Colors.purple,
                       fontWeight: deliveryFee > 0 ? null : FontWeight.bold,
@@ -912,6 +915,9 @@ class _DeliveryMethodStepState extends State<DeliveryMethodStep> {
 }
 
 // STEP 2: Delivery Address Step
+// Enhanced DeliveryAddressStep with improved empty state handling
+// and better integration with the address book
+
 class DeliveryAddressStep extends ConsumerStatefulWidget {
   final CheckoutData checkoutData;
   final VoidCallback onContinue;
@@ -944,8 +950,8 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
     });
 
     try {
-      // Fetch addresses from the provider
-      final addressesAsync = ref.read(addressesProvider.future);
+      // Use the direct implementation for fetching addresses
+      final addressesAsync = ref.read(directAddressListProvider.future);
       _addresses = await addressesAsync;
       
       // If we have a previously selected address, find it in the list
@@ -963,7 +969,7 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
       // Update the checkout data
       widget.checkoutData.selectedAddress = _selectedAddress;
     } catch (e) {
-      print('Error loading addresses: $e');
+      ref.read(loggerProvider).error('Error loading addresses: $e');
       // Handle error loading addresses
     }
 
@@ -972,12 +978,18 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
     });
   }
 
-  void _selectAddress(Address address) {
-    setState(() {
-      _selectedAddress = address;
-    });
-    widget.checkoutData.selectedAddress = address;
-  }
+ void _selectAddress(Address address) {
+  setState(() {
+    _selectedAddress = address;
+  });
+  widget.checkoutData.selectedAddress = address;
+  
+  // Calculate delivery charges when an address is selected
+  ref.read(deliveryChargesProvider.notifier).calculateDeliveryCharges(
+    userAddress: address,
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -1037,7 +1049,7 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey,
+                disabledBackgroundColor: Colors.grey[400],
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1054,6 +1066,7 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // Empty state icon - using location_off icon
         Icon(
           Icons.location_off,
           size: 72,
@@ -1065,18 +1078,21 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
           style: AppTextStyles.h6,
         ),
         const SizedBox(height: 8),
-        Text(
-          'Please add a delivery address to continue',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSecondary,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          child: Text(
+            'Please add a delivery address to continue',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: () {
-            // Navigate to add address screen
-            context.push('/add-address');
+            // Navigate to add address screen with return route information
+            context.push('/add-address', extra: {'returnToCheckout': true});
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
@@ -1129,186 +1145,338 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
   }
 
   Widget _buildAddressCard(Address address, bool isSelected) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: InkWell(
-        onTap: () => _selectAddress(address),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: isSelected ? AppColors.primary : Colors.grey[300]!,
-              width: isSelected ? 2 : 1,
-            ),
-            borderRadius: BorderRadius.circular(8),
-            color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Location Icon
-              CircleAvatar(
-                backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
-                child: Icon(
-                  Icons.location_on,
-                  color: isSelected ? Colors.white : Colors.grey[600],
-                  size: 18,
-                ),
+  return Consumer(
+    builder: (context, ref, child) {
+      // Get delivery distance information if available
+      final deliveryChargesState = ref.watch(deliveryChargesProvider);
+      final hasDistanceInfo = isSelected && deliveryChargesState.distance > 0;
+      final distanceValue = deliveryChargesState.distance;
+      
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: InkWell(
+          onTap: () => _selectAddress(address),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isSelected ? AppColors.primary : Colors.grey[300]!,
+                width: isSelected ? 2 : 1,
               ),
-              
-              const SizedBox(width: 16),
-              
-              // Address Details
-              Expanded(
-                child: Column(
+              borderRadius: BorderRadius.circular(8),
+              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      address.fullName,
-                      style: AppTextStyles.bodyLarge.copyWith(
-                        fontWeight: FontWeight.w600,
+                    // Location Icon
+                    CircleAvatar(
+                      backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
+                      child: Icon(
+                        Icons.location_on,
+                        color: isSelected ? Colors.white : Colors.grey[600],
+                        size: 18,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${address.deliveryAddrLine1}, ${address.deliveryAddrLine2}, ${address.deliveryAddrCity} - ${address.deliveryAddrPincode}',
-                      style: AppTextStyles.bodyMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (address.landmark.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Landmark: ${address.landmark}',
-                        style: AppTextStyles.bodyMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      'PIN: ${address.deliveryAddrPincode}',
-                      style: AppTextStyles.bodyMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Mobile: ${address.mobileNumber}',
-                      style: AppTextStyles.bodyMedium,
                     ),
                     
-                    if (address.isDefault == 'Yes') ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
+                    const SizedBox(width: 16),
+                    
+                    // Address Details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            address.fullName,
+                            style: AppTextStyles.bodyLarge.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${address.deliveryAddrLine1}, ${address.deliveryAddrLine2}, ${address.deliveryAddrCity} - ${address.deliveryAddrPincode}',
+                            style: AppTextStyles.bodyMedium,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (address.landmark.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Landmark: ${address.landmark}',
+                              style: AppTextStyles.bodyMedium,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'PIN: ${address.deliveryAddrPincode}',
+                            style: AppTextStyles.bodyMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Mobile: ${address.mobileNumber}',
+                            style: AppTextStyles.bodyMedium,
+                          ),
+                          
+                          if (address.isDefault == 'Yes') ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green[50],
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                'DEFAULT ADDRESS',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: Colors.green[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    
+                    // Radio button
+                    Radio<String>(
+                      value: address.id,
+                      groupValue: _selectedAddress?.id,
+                      activeColor: AppColors.primary,
+                      onChanged: (value) {
+                        if (value != null) {
+                          _selectAddress(address);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                
+                // Show distance information if available and selected
+                if (hasDistanceInfo) ...[
+                  const Divider(height: 24),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.directions_car,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Distance from store: ${distanceValue.toStringAsFixed(1)} km',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.green[50],
-                          borderRadius: BorderRadius.circular(16),
+                      ),
+                    ],
+                  ),
+                  
+                  // Show delivery fee info based on the distance
+                  if (deliveryChargesState.deliveryCharge > 0) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_shipping,
+                          size: 16,
+                          color: AppColors.primary,
                         ),
-                        child: Text(
-                          'DEFAULT ADDRESS',
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.w500,
+                        const SizedBox(width: 8),
+                        Text(
+                          'Delivery Fee: ₹${deliveryChargesState.deliveryCharge.toStringAsFixed(2)}',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_shipping,
+                          size: 16,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Free Delivery!',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  
+                  // Show loading indicator when calculating
+                  if (deliveryChargesState.isLoading) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Calculating delivery charges...',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+  Widget _buildOrderTotal() {
+  return Consumer(
+    builder: (context, ref, _) {
+      final cartTotal = ref.watch(cartTotalProvider);
+      final cartSavings = ref.watch(cartSavingsProvider);
+      
+      // Get delivery charges from provider
+      final deliveryChargesState = ref.watch(deliveryChargesProvider);
+      final deliveryCharge = deliveryChargesState.deliveryCharge;
+      final isLoading = deliveryChargesState.isLoading;
+      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+      
+      // Calculate final total with delivery charges
+      final finalTotal = cartTotal + deliveryCharge;
+      
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Cart subtotal
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Order Subtotal',
+                  style: AppTextStyles.bodyMedium,
+                ),
+                Text(
+                  '₹${cartTotal.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyMedium,
+                ),
+              ],
+            ),
+            
+            // Delivery fee
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Delivery Fee:',
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                    if (isLoading)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
                           ),
                         ),
                       ),
-                    ],
                   ],
                 ),
-              ),
+                Text(
+                  isLoading 
+                    ? 'Calculating...'
+                    : isFreeDelivery
+                      ? 'FREE'
+                      : '₹${deliveryCharge.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: isFreeDelivery ? Colors.green : null,
+                    fontWeight: isFreeDelivery ? FontWeight.bold : null,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Savings
+            if (cartSavings > 0)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'You Save:',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                  Text(
+                    '₹${cartSavings.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
               
-              // Radio button
-              Radio<String>(
-                value: address.id,
-                groupValue: _selectedAddress?.id,
-                activeColor: AppColors.primary,
-                onChanged: (value) {
-                  if (value != null) {
-                    _selectAddress(address);
-                  }
-                },
-              ),
-            ],
-          ),
+        
         ),
-      ),
-    );
-  }
-
-  Widget _buildOrderTotal() {
-    return Consumer(
-      builder: (context, ref, _) {
-        final cartTotal = ref.watch(cartTotalProvider);
-        final cartSavings = ref.watch(cartSavingsProvider);
-        
-        // Free delivery in this case
-        const deliveryFee = 0.0;
-        
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Order Total',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+            
+            const Divider(height: 24),
+            
+            // Total
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  Text(
-                    '₹${cartTotal.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                Text(
+                  '₹${finalTotal.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
                   ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Delivery Fee:',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  Text(
-                    'FREE',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.purple,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    'You save: ₹${cartSavings.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.purple,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }
-
+}
 // STEP 3: Delivery Time Step
-class DeliveryTimeStep extends StatefulWidget {
+class DeliveryTimeStep extends ConsumerStatefulWidget {
   final CheckoutData checkoutData;
   final VoidCallback onContinue;
 
@@ -1319,10 +1487,10 @@ class DeliveryTimeStep extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<DeliveryTimeStep> createState() => _DeliveryTimeStepState();
+  ConsumerState<DeliveryTimeStep> createState() => _DeliveryTimeStepState();
 }
 
-class _DeliveryTimeStepState extends State<DeliveryTimeStep> {
+class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
   DateTime? _selectedDate;
   String? _selectedTimeSlot;
   late List<DateTime> _availableDates;
@@ -1350,6 +1518,16 @@ class _DeliveryTimeStepState extends State<DeliveryTimeStep> {
         widget.checkoutData.deliveryTimeSlot = _selectedTimeSlot;
       }
     }
+    
+    // Ensure delivery charges are calculated on initial load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Only calculate if we have a selected address in checkout data
+      if (widget.checkoutData.selectedAddress != null) {
+        ref.read(deliveryChargesProvider.notifier).calculateDeliveryCharges(
+          userAddress: widget.checkoutData.selectedAddress!,
+        );
+      }
+    });
   }
 
   void _initializeAvailableDates() {
@@ -1522,17 +1700,35 @@ class _DeliveryTimeStepState extends State<DeliveryTimeStep> {
           child: SizedBox(
             width: double.infinity,
             height: 50,
-            child: ElevatedButton(
-              onPressed: _selectedTimeSlot == null ? null : widget.onContinue,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('CONTINUE'),
+            child: Consumer(
+              builder: (context, ref, child) {
+                final deliveryChargesState = ref.watch(deliveryChargesProvider);
+                final isCalculating = deliveryChargesState.isLoading;
+                
+                return ElevatedButton(
+                  onPressed: (_selectedTimeSlot == null || isCalculating) 
+                    ? null 
+                    : widget.onContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey[400],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: isCalculating
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('CONTINUE'),
+                );
+              }
             ),
           ),
         ),
@@ -1649,52 +1845,107 @@ class _DeliveryTimeStepState extends State<DeliveryTimeStep> {
         final cartTotal = ref.watch(cartTotalProvider);
         final cartSavings = ref.watch(cartSavingsProvider);
         
+        // Get delivery charges from provider
+        final deliveryChargesState = ref.watch(deliveryChargesProvider);
+        final deliveryCharge = deliveryChargesState.deliveryCharge;
+        final isLoading = deliveryChargesState.isLoading;
+        final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+        
+        // Calculate final total with delivery charges
+        final finalTotal = cartTotal + deliveryCharge;
+        
         return Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              // Cart subtotal
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Order Total',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    'Order Subtotal',
+                    style: AppTextStyles.bodyMedium,
                   ),
                   Text(
                     '₹${cartTotal.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.bold,
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ],
+              ),
+              
+              // Delivery fee
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Delivery Fee:',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                      if (isLoading)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Text(
+                    isLoading 
+                      ? 'Calculating...'
+                      : isFreeDelivery
+                        ? 'FREE'
+                        : '₹${deliveryCharge.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: isFreeDelivery ? Colors.green : null,
+                      fontWeight: isFreeDelivery ? FontWeight.bold : null,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              
+              // Savings
+              if (cartSavings > 0)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'You Save:',
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                    Text(
+                      '₹${cartSavings.toStringAsFixed(2)}',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              
+              const Divider(height: 24),
+              
+              // Total
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Delivery Fee:',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  Text(
-                    'FREE',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.purple,
+                    'Total Amount',
+                    style: AppTextStyles.bodyLarge.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
                   Text(
-                    'You save: ₹${cartSavings.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.purple,
+                    '₹${finalTotal.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
@@ -1707,7 +1958,6 @@ class _DeliveryTimeStepState extends State<DeliveryTimeStep> {
   }
 }
 
-// STEP 4: Payment Step
 // STEP 4: Payment Step
 // Updated PaymentStep implementation for the CheckoutFlowScreen
 
@@ -1813,6 +2063,8 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
 // This snippet shows the changes needed in the checkout_flow_screen.dart file
 // for the _placeOrder method to use the new parameters
 
+// This is the updated _placeOrder method for the _PaymentStepState class in checkout_flow_screen.dart
+
 Future<void> _placeOrder() async {
   // Save instructions
   widget.checkoutData.specialInstructions = _instructionsController.text;
@@ -1845,6 +2097,18 @@ Future<void> _placeOrder() async {
     final currentCartKey = await cartValidator.getCurrentCartKey();
     final currentDeviceId = await cartValidator.getCurrentDeviceId();
     final currentTempOrderId = await cartValidator.getCurrentTempOrderId();
+    
+    // Get the user profile to access the access key
+    final authRepository = ref.read(authRepositoryProvider);
+    final userProfile = await authRepository.getUserProfile();
+    String? accessKey;
+    
+    if (userProfile != null) {
+      accessKey = userProfile.accessKey;
+      logger.log('Using access key from user profile: ${accessKey != null ? "Found" : "Not found"}');
+    } else {
+      logger.warning('User profile not available, proceeding without access key');
+    }
     
     // If any required values are missing, show error
     if (currentCartKey == null || currentDeviceId == null || currentTempOrderId == null) {
@@ -1891,10 +2155,10 @@ Future<void> _placeOrder() async {
     };
     
     // Calculate order amounts
-    final cartTotal = ref.read(cartTotalProvider);
-    final cartSavings = ref.read(cartSavingsProvider);
-    final deliveryCharge = 0.0; // Assuming free delivery, modify as needed
-    final finalAmount = cartTotal + deliveryCharge;
+final cartTotal = ref.read(cartTotalProvider);
+final cartSavings = ref.read(cartSavingsProvider);
+final deliveryCharge = ref.read(deliveryChargesProvider).deliveryCharge;
+final finalAmount = cartTotal + deliveryCharge;
     
     // Determine delivery mode
     final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery
@@ -1960,30 +2224,34 @@ Future<void> _placeOrder() async {
     // Log order details before sending
     logger.log('Sending order confirmation with identifiers: deviceId=$deviceId, tempOrderId=$tempOrderId');
     logger.log('Order details: ${cartItems.length} items, $deliveryMode, $paymentMode');
+    if (accessKey != null) {
+      logger.log('Including access key for authentication with API');
+    }
     
-    // Call order service to confirm order, passing all three identifiers
+    // Call order service to confirm order, passing all identifiers including access key
     final orderService = ref.read(orderServiceProvider);
     final orderResult = await orderService.confirmOrder(
-      deviceId: deviceId,
-      cartKey: cartKey,  // This will be used as reference only
-      tempOrderId: tempOrderId,
-      storeCode: selectedOutlet.storeCode,
-      cartItems: cartItems,
-      deliveryAddress: formattedAddress,
-      deliverySlot: deliverySlot,
-      deliveryDate: deliveryDate,
-      deliveryMode: deliveryMode,
-      paymentMode: paymentMode,
-      totalMrp: cartTotal + cartSavings,
-      totalOurPrice: cartTotal,
-      discount: cartSavings,
-      deliveryCharges: deliveryCharge,
-      discountedAmount: cartTotal,
-      finalPayableAmount: finalAmount,
-      paidAmount: paymentMode == "ONLINE" ? finalAmount.toString() : "0",
-      transactionId: transactionId,
-      specialNotes: _instructionsController.text,
-    );
+  deviceId: deviceId,
+  cartKey: cartKey,
+  tempOrderId: tempOrderId,
+  storeCode: selectedOutlet.storeCode,
+  cartItems: cartItems,
+  deliveryAddress: formattedAddress,
+  deliverySlot: deliverySlot,
+  deliveryDate: deliveryDate,
+  deliveryMode: deliveryMode,
+  paymentMode: paymentMode,
+  totalMrp: cartTotal + cartSavings,
+  totalOurPrice: cartTotal,
+  discount: cartSavings,
+  deliveryCharges: deliveryCharge, // Include actual delivery charges here
+  discountedAmount: cartTotal,
+  finalPayableAmount: finalAmount, // Use final amount including delivery
+  paidAmount: paymentMode == "ONLINE" ? finalAmount.toString() : "0",
+  accessKey: accessKey,
+  transactionId: transactionId,
+  specialNotes: _instructionsController.text,
+);
     
     // Store order result
     ref.read(orderConfirmationResultProvider.notifier).state = orderResult;
@@ -1993,35 +2261,26 @@ Future<void> _placeOrder() async {
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
       
       // Clear cart after successful order
-      ref.read(cartProvider.notifier).clearCart();
-      
-      // Clear the cart data (ONLY cart key, but keep device ID and temp order ID for consistency)
-      await cartValidator.clearCartData();
+      ref.read(cartProvider.notifier).clearCart(clearCartKeyInStorage: true);
       
       // Clear checkout data
       await CheckoutData.clearFromPrefs();
-      final createOrder = ref.read(createOrderFromCartProvider);
-   final orderRecord = await createOrder(
-  paymentMode, // Use actual payment method from your existing code
-  deliveryMode,
-  deliverySlot,
-  formattedAddress.toString(),
-);
-
-if (orderRecord == null) {
-  // Order was placed successfully with the server but failed to save locally
-  logger.error('Failed to save order to local history');
-  // This isn't critical, so we still allow the order completion to proceed
-}
-
-if (mounted) {
-  setState(() {
-    _isPlacingOrder = false;
-    _showSuccessDialog = true;
-  });
-  _showOrderSuccessDialog();
-}
       
+      // Create local order record
+      final createOrder = ref.read(createOrderFromCartProvider);
+      final orderRecord = await createOrder(
+        paymentMode, 
+        deliveryMode,
+        deliverySlot,
+        formattedAddress.toString(),
+      );
+
+      if (orderRecord == null) {
+        // Order was placed successfully with the server but failed to save locally
+        logger.error('Failed to save order to local history');
+        // This isn't critical, so we still allow the order completion to proceed
+      }
+
       if (mounted) {
         setState(() {
           _isPlacingOrder = false;
@@ -2056,6 +2315,10 @@ if (mounted) {
     }
   }
 }
+
+
+
+// place order method ends here
 
   void _showOrderSuccessDialog() {
     showDialog(
@@ -2607,43 +2870,137 @@ if (mounted) {
   }
 
   Widget _buildOrderSummary() {
-    return Consumer(
-      builder: (context, ref, _) {
-        final cartTotal = ref.watch(cartTotalProvider);
-        final cartSavings = ref.watch(cartSavingsProvider);
-        
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+  return Consumer(
+    builder: (context, ref, _) {
+      final cartTotal = ref.watch(cartTotalProvider);
+      final cartSavings = ref.watch(cartSavingsProvider);
+      
+      // Get delivery charges
+      final deliveryChargesState = ref.watch(deliveryChargesProvider);
+      final deliveryCharge = deliveryChargesState.deliveryCharge;
+      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+      
+      // Calculate final amount
+      final finalAmount = cartTotal + deliveryCharge;
+      
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Item subtotal
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Item Subtotal',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                '₹${cartTotal.toStringAsFixed(2)}',
+                style: AppTextStyles.bodyMedium,
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Delivery charges
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Delivery Fee',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                isFreeDelivery 
+                  ? 'FREE' 
+                  : '₹${deliveryCharge.toStringAsFixed(2)}',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: isFreeDelivery ? Colors.green : null,
+                  fontWeight: isFreeDelivery ? FontWeight.bold : null,
+                ),
+              ),
+            ],
+          ),
+          
+          // Display savings if any
+          if (cartSavings > 0) ...[
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'TOTAL AMOUNT',
+                  'Your Savings',
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
                 Text(
-                  '₹${cartTotal.toStringAsFixed(2)}',
-                  style: AppTextStyles.h5.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
+                  '₹${cartSavings.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.green,
                   ),
                 ),
               ],
             ),
-            if (cartSavings > 0)
-              Text(
-                'You saved ₹${cartSavings.toStringAsFixed(2)} on this order',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: Colors.orange,
-                ),
-                textAlign: TextAlign.right,
-              ),
           ],
-        );
-      },
-    );
+          
+          const Divider(height: 24),
+          
+          // Total
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TOTAL AMOUNT',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '₹${finalAmount.toStringAsFixed(2)}',
+                style: AppTextStyles.h5.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          
+          // Savings summary
+          if (cartSavings > 0 || isFreeDelivery)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'You saved ₹${cartSavings.toStringAsFixed(2)} on this order',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.green[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    },
+  );
   }
 }

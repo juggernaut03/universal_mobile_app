@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:patelmart/presentation/features/cart/widgets/cart_session_listener.dart';
 import 'core/config/app_theme.dart';
 import 'presentation/routes/app_router.dart';
 import 'presentation/providers/launch_flow_provider.dart';
@@ -51,12 +52,15 @@ class _MyAppState extends ConsumerState<MyApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     
-    return MaterialApp.router(
-      title: 'PatelMart',
-      theme: AppTheme.theme, // Use single light theme
-      themeMode: ThemeMode.light, // Force light mode always
-      debugShowCheckedModeBanner: false, // Remove debug banner
-      routerConfig: router,
+    // Wrap the app with CartSessionListener to maintain cart session
+    return CartSessionListener(
+      child: MaterialApp.router(
+        title: 'PatelMart',
+        theme: AppTheme.theme, // Use single light theme
+        themeMode: ThemeMode.light, // Force light mode always
+        debugShowCheckedModeBanner: false, // Remove debug banner
+        routerConfig: router,
+      ),
     );
   }
 }

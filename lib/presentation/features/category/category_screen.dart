@@ -662,7 +662,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 break;
               case 3: // Reorder
                 // Placeholder for reorder navigation
-                // context.go('/reorder');
+                context.go('/reorder');
                 break;
               case 4: // Account
                 // Placeholder for account navigation

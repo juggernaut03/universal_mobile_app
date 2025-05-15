@@ -1,6 +1,8 @@
-// lib/presentation/providers/order_providers.dart
+// lib/presentation/providers/reorder_provider.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:patelmart/data/repositories/order_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../core/utils/logger.dart';
@@ -10,18 +12,62 @@ import '../../data/services/cart_validator.dart';
 import '../../data/models/order_model.dart';
 import 'launch_flow_provider.dart';
 import 'cart_provider.dart';
+import 'auth_providers.dart';
+
+// Provider for OrderRepository
+final orderRepositoryProvider = Provider((ref) {
+  final logger = ref.read(loggerProvider);
+  final authRepository = ref.read(authRepositoryProvider);
+  
+  return OrderRepository(
+    client: http.Client(),
+    authRepository: authRepository,
+    logger: logger,
+  );
+});
 
 // Provider to store and retrieve user orders
 final userOrdersProvider = FutureProvider<List<Order>>((ref) async {
+  final logger = ref.read(loggerProvider);
+  logger.log('Fetching order history from provider');
+  
   try {
-    final logger = ref.read(loggerProvider);
-    final prefs = await SharedPreferences.getInstance();
+    // Check if user is logged in
+    final authRepository = ref.read(authRepositoryProvider);
+    final isLoggedIn = await authRepository.isLoggedIn();
     
-    // Get stored orders
+    if (isLoggedIn) {
+      try {
+        // Create and use OrderRepository
+        final orderRepository = OrderRepository(
+          client: http.Client(),
+          authRepository: authRepository,
+          logger: logger,
+        );
+        
+        logger.log('Calling getOrderHistory from API');
+        final apiOrders = await orderRepository.getOrderHistory();
+        
+        if (apiOrders.isNotEmpty) {
+          logger.log('Successfully fetched ${apiOrders.length} orders from API');
+          return apiOrders;
+        } else {
+          logger.log('API returned empty order list');
+        }
+      } catch (e) {
+        logger.error('Error fetching orders from API: $e - falling back to local storage');
+        // Fall through to local storage on API failure
+      }
+    } else {
+      logger.log('User not logged in, skipping API request');
+    }
+    
+    // Get stored orders from SharedPreferences as fallback
+    final prefs = await SharedPreferences.getInstance();
     final ordersJson = prefs.getStringList('user_orders') ?? [];
     
     if (ordersJson.isEmpty) {
-      logger.log('No orders found in storage');
+      logger.log('No orders found in local storage');
       return [];
     }
     
@@ -33,18 +79,18 @@ final userOrdersProvider = FutureProvider<List<Order>>((ref) async {
         final orderJson = json.decode(orderJsonString);
         orders.add(Order.fromJson(orderJson));
       } catch (e) {
-        logger.error('Error parsing order: $e');
+        logger.error('Error parsing order from local storage: $e');
       }
     }
     
     // Sort by most recent first
     orders.sort((a, b) => b.orderDate.compareTo(a.orderDate));
     
-    logger.log('Loaded ${orders.length} orders from storage');
+    logger.log('Loaded ${orders.length} orders from local storage');
     return orders;
   } catch (e) {
-    ref.read(loggerProvider).error('Error loading orders: $e');
-    return [];
+    ref.read(loggerProvider).error('Error in userOrdersProvider: $e');
+    throw Exception('Failed to load orders: $e');
   }
 });
 

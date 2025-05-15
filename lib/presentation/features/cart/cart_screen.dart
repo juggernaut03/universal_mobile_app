@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:patelmart/presentation/features/cart/widgets/cart_session_info_widget.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -17,7 +18,6 @@ import 'widgets/cart_item_widget.dart';
 import 'widgets/section_header_widget.dart';
 import 'widgets/cart_validation_dialog.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
-
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -95,6 +95,9 @@ class CartScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
+          // Add the Cart Session Info Widget for visual feedback on session state
+          if (cartItems.isNotEmpty) const CartSessionInfoWidget(),
+          
           // Cart Summary section
           _buildCartSummary(context, cartSavings, cartTotal),
           
@@ -167,7 +170,7 @@ class CartScreen extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'All offer(s) will be applied on checkout',
+                    'All offers will be applied on checkout',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -239,33 +242,33 @@ class CartScreen extends ConsumerWidget {
       child: Column(
         children: [
           // Back in Stock section
-          if (backInStockItems > 0)
-            _buildBackInStockSection(context, backInStockItems),
+          // if (backInStockItems > 0)
+          //   _buildBackInStockSection(context, backInStockItems),
           
           // My Cart section
-          SectionHeaderWidget(
-            title: 'My Cart (${cartItems.length} item(s))',
-            trailing: OutlinedButton.icon(
-              onPressed: () {
-                // Implement share cart functionality
-              },
-              icon: const Icon(Icons.share, size: 16),
-              label: const Text('SHARE CART'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                textStyle: AppTextStyles.buttonSmall,
-              ),
-            ),
-            isExpanded: true,
-            onToggle: (isExpanded) {
-              // Handle expansion toggle if needed
-            },
-          ),
+          // SectionHeaderWidget(
+          //   title: 'My Cart ${cartItems.length} items',
+          //   trailing: OutlinedButton.icon(
+          //     onPressed: () {
+          //       // Implement share cart functionality
+          //     },
+          //     icon: const Icon(Icons.share, size: 16),
+          //     label: const Text('SHARE CART'),
+          //     style: OutlinedButton.styleFrom(
+          //       foregroundColor: AppColors.primary,
+          //       side: BorderSide(color: AppColors.primary),
+          //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          //       shape: RoundedRectangleBorder(
+          //         borderRadius: BorderRadius.circular(4),
+          //       ),
+          //       textStyle: AppTextStyles.buttonSmall,
+          //     ),
+          //   ),
+          //   isExpanded: true,
+          //   onToggle: (isExpanded) {
+          //     // Handle expansion toggle if needed
+          //   },
+          // ),
           
           // Cart items
           ...cartItems.map((item) => CartItemWidget(
@@ -278,6 +281,24 @@ class CartScreen extends ConsumerWidget {
             },
             onRemove: () {
               ref.read(cartProvider.notifier).removeItem(item.product);
+              
+              // Show confirmation of item removal
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${item.product.productName} removed from cart'),
+                  duration: const Duration(seconds: 2),
+                  action: SnackBarAction(
+                    label: 'UNDO',
+                    onPressed: () {
+                      // Add the item back to cart
+                      ref.read(cartProvider.notifier).addItemWithQuantity(
+                        item.product, 
+                        item.quantity
+                      );
+                    },
+                  ),
+                ),
+              );
             },
           )),
           
@@ -289,7 +310,7 @@ class CartScreen extends ConsumerWidget {
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
                   onPressed: () {
-                    ref.read(cartProvider.notifier).clearCart();
+                    _showClearCartDialog(context, ref);
                   },
                   icon: Icon(
                     Icons.delete_outline,
@@ -315,65 +336,116 @@ class CartScreen extends ConsumerWidget {
           const Divider(),
           
           // Saved for later section
-          if (savedItems > 0)
-            _buildSavedForLaterSection(context, savedItems),
+          // if (savedItems > 0)
+          //   _buildSavedForLaterSection(context, savedItems),
         ],
       ),
     );
   }
 
-  Widget _buildBackInStockSection(BuildContext context, int itemCount) {
-    return Column(
-      children: [
-        SectionHeaderWidget(
-          title: 'Back in Stock ($itemCount item(s))',
-          isExpanded: false,
-          backgroundColor: AppColors.success.withOpacity(0.1),
-          onToggle: (isExpanded) {
-            // Handle expansion toggle if needed
-          },
-        ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          color: AppColors.success.withOpacity(0.1),
-          child: Text(
-            'Yay! These product(s) are available now.',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.success,
+  void _showClearCartDialog(BuildContext context, WidgetRef ref) {
+    // Store the current cart items in case the user decides to undo
+    final currentCartItems = List<CartItem>.from(ref.read(cartProvider));
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Cart'),
+          content: const Text('Are you sure you want to remove all items from your cart?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('CANCEL'),
             ),
-          ),
-        ),
-        const Divider(height: 1),
-      ],
+            TextButton(
+              onPressed: () {
+                // Clear the cart
+                ref.read(cartProvider.notifier).clearCart();
+                Navigator.of(context).pop();
+                
+                // Show confirmation with UNDO option
+                if (currentCartItems.isNotEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Cart cleared'),
+                      duration: const Duration(seconds: 3),
+                      action: SnackBarAction(
+                        label: 'UNDO',
+                        onPressed: () {
+                          // Restore all items
+                          for (final item in currentCartItems) {
+                            ref.read(cartProvider.notifier).addItemWithQuantity(
+                              item.product,
+                              item.quantity,
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Text('CLEAR'),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildSavedForLaterSection(BuildContext context, int itemCount) {
-    return Column(
-      children: [
-        SectionHeaderWidget(
-          title: 'My Saved List ($itemCount item(s))',
-          isExpanded: false,
-          backgroundColor: AppColors.neutral100,
-          onToggle: (isExpanded) {
-            // Handle expansion toggle if needed
-          },
-        ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          color: AppColors.neutral100,
-          child: Text(
-            'Below product(s) are saved for later.',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // Widget _buildBackInStockSection(BuildContext context, int itemCount) {
+  //   return Column(
+  //     children: [
+  //       SectionHeaderWidget(
+  //         title: 'Back in Stock ($itemCount item(s))',
+  //         isExpanded: false,
+  //         backgroundColor: AppColors.success.withOpacity(0.1),
+  //         onToggle: (isExpanded) {
+  //           // Handle expansion toggle if needed
+  //         },
+  //       ),
+  //       Container(
+  //         width: double.infinity,
+  //         padding: const EdgeInsets.all(12),
+  //         color: AppColors.success.withOpacity(0.1),
+  //         child: Text(
+  //           'Yay! These product(s) are available now.',
+  //           style: AppTextStyles.bodySmall.copyWith(
+  //             color: AppColors.success,
+  //           ),
+  //         ),
+  //       ),
+  //       const Divider(height: 1),
+  //     ],
+  //   );
+  // }
+
+  // Widget _buildSavedForLaterSection(BuildContext context, int itemCount) {
+  //   return Column(
+  //     children: [
+  //       SectionHeaderWidget(
+  //         title: 'My Saved List ($itemCount item(s))',
+  //         isExpanded: false,
+  //         backgroundColor: AppColors.neutral100,
+  //         onToggle: (isExpanded) {
+  //           // Handle expansion toggle if needed
+  //         },
+  //       ),
+  //       Container(
+  //         width: double.infinity,
+  //         padding: const EdgeInsets.all(12),
+  //         color: AppColors.neutral100,
+  //         child: Text(
+  //           'Below product(s) are saved for later.',
+  //           style: AppTextStyles.bodySmall.copyWith(
+  //             color: AppColors.textSecondary,
+  //           ),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _buildCheckoutButton(
     BuildContext context,
@@ -425,6 +497,9 @@ class CartScreen extends ConsumerWidget {
             height: 48,
             child: ElevatedButton(
               onPressed: isLoading || !canCheckout ? null : () {
+                // Refresh cart session before checkout to extend it
+                ref.read(cartProvider.notifier).refreshSession();
+                
                 // Reset retry count before starting checkout
                 ref.read(validationRetryCountProvider.notifier).state = 0;
                 _proceedToCheckout(context, ref);

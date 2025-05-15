@@ -5,6 +5,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:patelmart/data/models/address_model.dart';
+import 'package:patelmart/presentation/features/best_seller/best_seller_screen.dart';
+import 'package:patelmart/presentation/features/account/add_address_screen.dart';
+import 'package:patelmart/presentation/features/account/edit_address_screen.dart';
+import 'package:patelmart/presentation/features/debug/access_key_debugger.dart';
 import 'package:patelmart/presentation/features/orders/my_orders_screen.dart';
 import 'package:patelmart/presentation/features/orders/reorder_screen.dart';
 import '../features/account/account_screen.dart';
@@ -413,33 +418,48 @@ GoRoute(
         },
       ),
       // Add Address route with return to checkout support
-      GoRoute(
-        path: '/add-address',
-        name: RouteNames.addAddress,
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          final returnToCheckout = extra?['returnToCheckout'] as bool? ?? false;
-          
-          return AddAddressScreen(returnToCheckout: returnToCheckout);
-        },
-      ),
+       GoRoute(
+      path: '/address-book',
+      builder: (context, state) => const AddressBookScreen(),
+    ),
+    GoRoute(
+      path: '/add-address',
+      builder: (context, state) {
+        final returnToCheckout = state.extra is Map && (state.extra as Map).containsKey('returnToCheckout')
+            ? (state.extra as Map)['returnToCheckout'] as bool
+            : false;
+        return AddAddressScreen(returnToCheckout: returnToCheckout);
+      },
+    ),
       // Edit Address route
-      GoRoute(
-        path: '/edit-address',
-        name: RouteNames.editAddress,
+      // lib/presentation/routes/app_router.dart (partial)
+
+GoRoute(
+  path: '/edit-address',
+  builder: (context, state) {
+    // We'll need to retrieve the address from SharedPreferences directly in the route
+    // since we're not passing it as a parameter
+    return EditAddressScreen(
+      returnToCheckout: state.extra is Map && (state.extra as Map).containsKey('returnToCheckout')
+          ? (state.extra as Map)['returnToCheckout'] as bool
+          : false,
+    );
+  },
+),
+ GoRoute(
+        path: '/best-seller/:bestSellerId',
+        name: RouteNames.bestSeller,
         builder: (context, state) {
-          // Get the saved address from SharedPreferences
-          final address = _getAddressToEdit(context);
-          
-          final extra = state.extra as Map<String, dynamic>?;
-          final returnToCheckout = extra?['returnToCheckout'] as bool? ?? false;
-          
-          return EditAddressScreen(
-            address: address,
-            returnToCheckout: returnToCheckout,
-          );
+          final bestSellerIdParam = state.pathParameters['bestSellerId'] ?? '1';
+          final bestSellerId = int.tryParse(bestSellerIdParam) ?? 1;
+          return BestSellerScreen(bestSellerId: bestSellerId);
         },
       ),
+GoRoute(
+  path: '/debug/access-key',
+  name: 'debugAccessKey',
+  builder: (context, state) => const AccessKeyDebuggerScreen(),
+),
     ],
     
     errorBuilder: (context, state) => Scaffold(

@@ -16,49 +16,15 @@ import '../../../providers/cart_provider.dart';
 
 class BestSellerWidget extends ConsumerWidget {
   final int bestSellerId;
-  final String title;
   final double height;
   final EdgeInsetsGeometry padding;
-  final bool showViewAll;
-  final VoidCallback? onViewAllTap;
 
   const BestSellerWidget({
     Key? key,
     required this.bestSellerId,
-    required this.title,
     this.height = 320,
     this.padding = const EdgeInsets.symmetric(vertical: 16),
-    this.showViewAll = true,
-    this.onViewAllTap,
   }) : super(key: key);
-
-  // Helper method to convert hex color string to Color
-  Color _hexToColor(String hexString, {Color defaultColor = Colors.white}) {
-    try {
-      // Remove '#' if present
-      String hex = hexString.replaceAll('#', '');
-      
-      // Handle different formats: RGB, RRGGBB, AARRGGBB
-      if (hex.length == 3) {
-        // RGB format, convert to RRGGBB
-        hex = hex.split('').map((c) => '$c$c').join('');
-      }
-      
-      // Add FF for alpha if only RGB or RRGGBB is provided
-      if (hex.length == 6) {
-        hex = 'FF$hex';
-      } else if (hex.length != 8) {
-        // If not a valid length, return default color
-        return defaultColor;
-      }
-      
-      // Parse the hex string to integer
-      return Color(int.parse('0x$hex'));
-    } catch (e) {
-      // Return default color if any error occurs
-      return defaultColor;
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,55 +33,22 @@ class BestSellerWidget extends ConsumerWidget {
     
     // Get the product data for this best seller section
     final productsAsync = ref.watch(bestSellerProductsProvider(bestSellerId));
+    
+    // Get the background color separately to ensure it triggers a rebuild
+    final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(bestSellerId));
+    
+    // Log the color for debugging
+    ref.read(loggerProvider).log('Best Seller $bestSellerId background color: $backgroundColor');
 
     return bannerAsync.when(
       data: (banners) {
-        // Use the background color from the first banner (if available)
-        Color backgroundColor = Colors.white;
-        if (banners.isNotEmpty && banners[0].backgroundColor.isNotEmpty) {
-          backgroundColor = _hexToColor(banners[0].backgroundColor, defaultColor: Colors.white);
-          ref.read(loggerProvider).log('Using background color: ${backgroundColor.toString()} from ${banners[0].backgroundColor}');
-        }
-
+        // Container with a unique key based on the background color to force rebuild
         return Container(
+          key: ValueKey('best_seller_${bestSellerId}_${backgroundColor.value}'),
           color: backgroundColor, // Apply background color to entire widget
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Section header with title and view all button
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    if (showViewAll)
-                      GestureDetector(
-                        onTap: onViewAllTap ?? () {
-                          // Default action if none provided
-                          // For example, navigate to a category with these products
-                          context.push('/category');
-                        },
-                        child: Text(
-                          'View All',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              
               // Banner/Slider Section
               if (banners.isEmpty)
                 const SizedBox.shrink() // No banner to show
@@ -134,16 +67,16 @@ class BestSellerWidget extends ConsumerWidget {
                       builder: (BuildContext context) {
                         return GestureDetector(
                           onTap: () {
-                            // Handle banner tap - e.g., navigate to a specific page
-                            if (banner.actionUrl.isNotEmpty) {
-                              // Handle navigation based on action URL
-                            }
+                            // Navigate to best seller products screen for this bestSellerId
+                            context.push('/best-seller/$bestSellerId');
                           },
                           child: Container(
                             width: MediaQuery.of(context).size.width,
                             padding: EdgeInsets.zero, // No padding
                             margin: EdgeInsets.zero, // No margin
                             child: CachedNetworkImageWidget(
+                              // Use a unique cacheKey that includes the color to force refresh
+                              cacheKey: 'best_seller_${bestSellerId}_${banner.id}_${banner.backgroundColor}',
                               imageUrl: banner.imageUrl,
                               fit: BoxFit.cover,
                               width: MediaQuery.of(context).size.width,
@@ -186,7 +119,7 @@ class BestSellerWidget extends ConsumerWidget {
               productsAsync.when(
                 data: (products) {
                   if (products.isEmpty) {
-                    return EmptyStateWidget(
+                    return const EmptyStateWidget(
                       title: 'No products available',
                       subtitle: 'Check back soon for new products',
                       icon: Icons.shopping_bag_outlined,
@@ -236,23 +169,6 @@ class BestSellerWidget extends ConsumerWidget {
         color: Colors.white,
         child: Column(
           children: [
-            // Title placeholder while loading
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             // Loading indicator for banner
             Container(
               color: Colors.white,
@@ -268,23 +184,6 @@ class BestSellerWidget extends ConsumerWidget {
         color: Colors.white,
         child: Column(
           children: [
-            // Title even when there's an error
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             // Error state for banner
             Container(
               color: Colors.white,
@@ -341,7 +240,7 @@ class BestSellerWidget extends ConsumerWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.only(
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(8),
                     topRight: Radius.circular(8),
                   ),
@@ -381,7 +280,7 @@ class BestSellerWidget extends ConsumerWidget {
                     left: 0,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(8),
@@ -390,7 +289,7 @@ class BestSellerWidget extends ConsumerWidget {
                       ),
                       child: Text(
                         "${discountPercent}% OFF",
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
