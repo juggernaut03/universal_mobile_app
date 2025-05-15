@@ -55,52 +55,56 @@ class Order {
 
   // Create order from JSON with stored product data
   factory Order.fromJson(Map<String, dynamic> json) {
-    // Convert stored item data back to CartItems
-    final List<CartItem> items = [];
-    if (json['items'] != null) {
-      for (final item in json['items']) {
-        // Recreate the product model from stored data
-        final product = ProductModel(
-          id: '', // Non-critical fields can be left empty
-          pCode: item['productId'],
-          pcodeImg: item['productImage'] ?? '',
-          barcode: '',
-          productName: item['productName'] ?? 'Product',
-          productDescription: '',
-          packageSize: item['packageSize'] ?? 0.0,
-          packageUnit: item['packageUnit'] ?? '',
-          productMrp: item['mrp'] ?? 0.0,
-          ourPrice: item['ourPrice'] ?? 0.0,
-          brandName: '',
-          storeCode: '',
-          pcodestatus: '',
-          deptId: '',
-          categoryId: '',
-          subCategoryId: '',
-          storeQuantity: 10,
-          maxQuantityAllowed: 10,
-        );
-        
-        items.add(CartItem(
-          product: product,
-          quantity: item['quantity'] ?? 1,
-        ));
-      }
+  // Convert cart_items to CartItems
+  final List<CartItem> items = [];
+  if (json['cart_items'] != null) {  // Change 'items' to 'cart_items'
+    for (final item in json['cart_items']) {
+      // Create product from API response format
+      final product = ProductModel(
+        id: '',
+        pCode: item['pcode'] ?? '',
+        pcodeImg: item['product_image_link'] ?? '',
+        barcode: '',
+        productName: item['product_name'] ?? 'Product',
+        productDescription: '',
+        packageSize: double.tryParse(item['package_size']?.toString() ?? '0') ?? 0.0,
+        packageUnit: item['package_unit'] ?? '',
+        productMrp: double.tryParse(item['product_mrp']?.toString() ?? '0') ?? 0.0,
+        ourPrice: double.tryParse(item['selling_price']?.toString() ?? '0') ?? 0.0,
+        brandName: '',
+        storeCode: '',
+        pcodestatus: '',
+        deptId: '',
+        categoryId: '',
+        subCategoryId: '',
+        storeQuantity: 10,
+        maxQuantityAllowed: 10,
+      );
+      
+      items.add(CartItem(
+        product: product,
+        quantity: item['quantity'] ?? 1,
+      ));
     }
+  }
+  
     
     return Order(
-      orderId: json['orderId'] ?? 'UNKNOWN',
-      orderDate: json['orderDate'] != null 
-          ? DateTime.parse(json['orderDate']) 
-          : DateTime.now(),
-      deliveryMethod: json['deliveryMethod'] ?? 'Home Delivery',
-      deliverySlot: json['deliverySlot'] ?? '09:00 AM - 12:00 PM',
-      totalAmount: json['totalAmount'] ?? 0.0,
-      savings: json['savings'] ?? 0.0,
-      paymentMethod: json['paymentMethod'] ?? 'COD',
-      status: json['status'] ?? 'Order Confirmed',
-      deliveryAddress: json['deliveryAddress'],
-      items: items,
-    );
-  }
+    orderId: json['_id'] ?? json['temp_order_id'] ?? 'UNKNOWN',
+    orderDate: json['created_at'] != null 
+        ? DateTime.parse(json['created_at']) 
+        : DateTime.now(),
+    deliveryMethod: json['delivery_mode'] ?? 'Home Delivery',
+    deliverySlot: json['delivery_slot'] ?? '09:00 AM - 12:00 PM',
+    totalAmount: double.tryParse(json['final_payable_amt']?.toString() ?? '0') ?? 0.0,
+    savings: double.tryParse(json['discounted_amt']?.toString() ?? '0') ?? 0.0,
+    paymentMethod: json['payment_mode'] ?? 'COD',
+    status: json['order_status'] ?? 'Order Confirmed',
+    deliveryAddress: json['delivery_address'] != null && json['delivery_address'] is List && 
+                   (json['delivery_address'] as List).isNotEmpty
+        ? (json['delivery_address'][0] ?? {}).toString()
+        : null,
+    items: items,
+  );
+}
 }

@@ -27,7 +27,10 @@ class HomeCategoriesWidget extends ConsumerWidget {
     Key? key,
     this.sections = const [
       SectionData(title: 'Bite Into Biscuits', keywords: ['biscuit', 'cookie', 'bakery']),
-      SectionData(title: 'Munch On Snacks', keywords: ['snack', 'namkeen', 'food'])
+      SectionData(title: 'Munch On Snacks', keywords: ['snack', 'namkeen', 'food']),
+      SectionData(title: 'Fresh Fruits & Veggies', keywords: ['fruit', 'vegetable', 'fresh']),
+      SectionData(title: 'Daily Essentials', keywords: ['dairy', 'milk', 'essentials']),
+
     ],
     this.onDepartmentTap,
     this.showShimmerLoading = true,

@@ -86,7 +86,7 @@ class BestSellerRepository {
         
         // Log the banner URLs for debugging
         for (var banner in banners) {
-          _logger.log('Banner URL: ${banner.imageUrl}');
+          _logger.log('Banner URL: ${banner.imageUrl}, Background Color: ${banner.backgroundColor}');
         }
         
         // Pre-cache banner images for better user experience
@@ -202,11 +202,14 @@ class BestSellerRepository {
     for (final banner in banners) {
       if (_isValidImageUrl(banner.imageUrl)) {
         try {
+          // Use a cache key that includes the background color
+          final cacheKey = 'banner_${banner.id}_${banner.backgroundColor}';
+          
           await _cacheManager.downloadFile(
             banner.imageUrl,
-            key: 'banner_${banner.id}',
+            key: cacheKey,
           );
-          _logger.log('Cached banner image: ${banner.imageUrl}');
+          _logger.log('Cached banner image: ${banner.imageUrl} with key $cacheKey');
         } catch (e) {
           _logger.error('Error caching banner image: $e');
           // Continue with next image on error
@@ -289,7 +292,7 @@ class BestSellerRepository {
   Future<void> clearCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final keys = prefs.getKeys();
+      final keys = prefs.getKeys().toList(); // Create a copy to avoid concurrent modification
       
       for (final key in keys) {
         if (key.startsWith(_bannerCacheKeyPrefix) || 
@@ -297,15 +300,17 @@ class BestSellerRepository {
             (key.startsWith(_timestampKeyPrefix) && 
             (key.contains(_bannerCacheKeyPrefix) || key.contains(_productsCacheKeyPrefix)))) {
           await prefs.remove(key);
+          _logger.log('Removed cache key: $key');
         }
       }
       
       // Also clear image cache for best seller images
       await _cacheManager.emptyCache();
       
-      _logger.log('Best seller cache cleared');
+      _logger.log('Best seller cache cleared completely');
     } catch (e) {
       _logger.error('Error clearing best seller cache: $e');
     }
   }
 }
+

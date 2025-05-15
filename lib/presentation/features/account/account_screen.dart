@@ -257,7 +257,7 @@ _buildDivider(),
               // Placeholder for orders navigation
               break;
             case 3: // Reorder
-              // Placeholder for reorder navigation
+              if (context.mounted) context.go('/reorder');
               break;
             case 4: // Account
               // Already on account, do nothing

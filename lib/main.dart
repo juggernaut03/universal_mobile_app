@@ -18,6 +18,9 @@ void main() async {
   // Create a logger instance
   final logger = Logger();
   
+  // Log app startup
+  logger.log('Application starting...');
+  
   runApp(
     ProviderScope(
       overrides: [

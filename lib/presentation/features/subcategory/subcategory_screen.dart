@@ -407,7 +407,12 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen> with Tick
                 context.go('/category');
               } else if (index == 2) { // Cart
                 context.push('/cart');
-              } else if (index == 4) { // Account
+
+              } 
+                else if (index == 3) { // Cart
+                context.push('/reorder');
+              }
+                else if (index == 4) { // Account
                 context.go('/account');
               }
             },
