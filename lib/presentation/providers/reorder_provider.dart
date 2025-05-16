@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:patelmart/data/repositories/order_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:math';
 import '../../core/utils/logger.dart';
 import '../../data/services/payment_service.dart';
 import '../../data/services/order_service.dart';
@@ -77,6 +78,25 @@ final userOrdersProvider = FutureProvider<List<Order>>((ref) async {
     for (final orderJsonString in ordersJson) {
       try {
         final orderJson = json.decode(orderJsonString);
+        
+        // For stored orders, we need to ensure they have totalMrp field
+        // If totalMrp is missing, calculate it from items or use totalAmount
+        if (!orderJson.containsKey('totalMrp')) {
+          // Try to calculate from items
+          double totalMrp = 0.0;
+          if (orderJson.containsKey('items') && orderJson['items'] is List) {
+            for (final item in orderJson['items']) {
+              final quantity = item['quantity'] ?? 1;
+              final mrp = item['mrp'] ?? item['ourPrice'] ?? 0.0;
+              totalMrp += (quantity * mrp);
+            }
+          } else {
+            // If no items, use totalAmount as fallback
+            totalMrp = orderJson['totalAmount'] ?? 0.0;
+          }
+          orderJson['totalMrp'] = totalMrp;
+        }
+        
         orders.add(Order.fromJson(orderJson));
       } catch (e) {
         logger.error('Error parsing order from local storage: $e');
@@ -146,21 +166,30 @@ final createOrderFromCartProvider = Provider<Future<Order?> Function(
         return null;
       }
       
-      // Calculate totals
-      final totalAmount = ref.read(cartTotalProvider);
-      final savings = ref.read(cartSavingsProvider);
+      // Calculate totals correctly
+      final totalOurPrice = ref.read(cartTotalProvider);
+      
+      // Calculate total MRP from cart items
+      double totalMrp = 0.0;
+      for (final item in cartItems) {
+        totalMrp += (item.product.productMrp * item.quantity);
+      }
+      
+      // Calculate correct savings (MRP - Our Price)
+      final correctSavings = max(0.0, totalMrp - totalOurPrice);
       
       // Generate a unique order ID
       final orderId = 'AND_${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
       
-      // Create the order
+      // Create the order with the updated fields
       final order = Order(
         orderId: orderId,
         orderDate: DateTime.now(),
         deliveryMethod: deliveryMethod,
         deliverySlot: deliverySlot,
-        totalAmount: totalAmount,
-        savings: savings,
+        totalAmount: totalOurPrice,
+        totalMrp: totalMrp, // Add the totalMrp field
+        savings: correctSavings, // Use correct savings calculation
         paymentMethod: paymentMethod,
         items: List.from(cartItems), // Create a copy of cart items
         status: 'Order Confirmed',

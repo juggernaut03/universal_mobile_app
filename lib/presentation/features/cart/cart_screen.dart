@@ -21,9 +21,6 @@ import 'package:patelmart/presentation/providers/cart_validator_provider.dart' a
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({Key? key}) : super(key: key);
-  
-  // Minimum order value required for checkout
-  static const double minimumOrderValue = 499.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,6 +29,12 @@ class CartScreen extends ConsumerWidget {
     final cartSavings = ref.watch(cartSavingsProvider);
     final cartValidationState = ref.watch(cartValidationStateProvider);
     final selectedOutletAsync = ref.watch(selectedOutletProvider);
+    
+    // Get minimum order value dynamically from the selected outlet
+    final minimumOrderValue = selectedOutletAsync.maybeWhen(
+      data: (outlet) => outlet?.minOrderAmount.toDouble() ?? 499.0, // Default to 499 if outlet is null
+      orElse: () => 499.0, // Default to 499 if loading or error
+    );
     
     // Check if cart meets minimum value requirement
     final canCheckout = cartTotal >= minimumOrderValue;
@@ -119,6 +122,7 @@ class CartScreen extends ConsumerWidget {
               canCheckout: canCheckout, 
               cartTotal: cartTotal,
               cartValidationState: cartValidationState,
+              minimumOrderValue: minimumOrderValue,
             ),
         ],
       ),
@@ -241,35 +245,6 @@ class CartScreen extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 80), // Space for checkout button
       child: Column(
         children: [
-          // Back in Stock section
-          // if (backInStockItems > 0)
-          //   _buildBackInStockSection(context, backInStockItems),
-          
-          // My Cart section
-          // SectionHeaderWidget(
-          //   title: 'My Cart ${cartItems.length} items',
-          //   trailing: OutlinedButton.icon(
-          //     onPressed: () {
-          //       // Implement share cart functionality
-          //     },
-          //     icon: const Icon(Icons.share, size: 16),
-          //     label: const Text('SHARE CART'),
-          //     style: OutlinedButton.styleFrom(
-          //       foregroundColor: AppColors.primary,
-          //       side: BorderSide(color: AppColors.primary),
-          //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          //       shape: RoundedRectangleBorder(
-          //         borderRadius: BorderRadius.circular(4),
-          //       ),
-          //       textStyle: AppTextStyles.buttonSmall,
-          //     ),
-          //   ),
-          //   isExpanded: true,
-          //   onToggle: (isExpanded) {
-          //     // Handle expansion toggle if needed
-          //   },
-          // ),
-          
           // Cart items
           ...cartItems.map((item) => CartItemWidget(
             cartItem: item,
@@ -334,10 +309,6 @@ class CartScreen extends ConsumerWidget {
             ),
           
           const Divider(),
-          
-          // Saved for later section
-          // if (savedItems > 0)
-          //   _buildSavedForLaterSection(context, savedItems),
         ],
       ),
     );
@@ -394,65 +365,13 @@ class CartScreen extends ConsumerWidget {
     );
   }
 
-  // Widget _buildBackInStockSection(BuildContext context, int itemCount) {
-  //   return Column(
-  //     children: [
-  //       SectionHeaderWidget(
-  //         title: 'Back in Stock ($itemCount item(s))',
-  //         isExpanded: false,
-  //         backgroundColor: AppColors.success.withOpacity(0.1),
-  //         onToggle: (isExpanded) {
-  //           // Handle expansion toggle if needed
-  //         },
-  //       ),
-  //       Container(
-  //         width: double.infinity,
-  //         padding: const EdgeInsets.all(12),
-  //         color: AppColors.success.withOpacity(0.1),
-  //         child: Text(
-  //           'Yay! These product(s) are available now.',
-  //           style: AppTextStyles.bodySmall.copyWith(
-  //             color: AppColors.success,
-  //           ),
-  //         ),
-  //       ),
-  //       const Divider(height: 1),
-  //     ],
-  //   );
-  // }
-
-  // Widget _buildSavedForLaterSection(BuildContext context, int itemCount) {
-  //   return Column(
-  //     children: [
-  //       SectionHeaderWidget(
-  //         title: 'My Saved List ($itemCount item(s))',
-  //         isExpanded: false,
-  //         backgroundColor: AppColors.neutral100,
-  //         onToggle: (isExpanded) {
-  //           // Handle expansion toggle if needed
-  //         },
-  //       ),
-  //       Container(
-  //         width: double.infinity,
-  //         padding: const EdgeInsets.all(12),
-  //         color: AppColors.neutral100,
-  //         child: Text(
-  //           'Below product(s) are saved for later.',
-  //           style: AppTextStyles.bodySmall.copyWith(
-  //             color: AppColors.textSecondary,
-  //           ),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
-
   Widget _buildCheckoutButton(
     BuildContext context,
     WidgetRef ref, {
     required bool canCheckout,
     required double cartTotal,
     required CartValidationState cartValidationState,
+    required double minimumOrderValue,
   }) {
     final isLoading = cartValidationState == CartValidationState.loading;
     
@@ -903,235 +822,7 @@ class CartScreen extends ConsumerWidget {
     }
   }
   
-  void _showOrderDetailsBottomSheet(BuildContext context, WidgetRef ref) {
-    final cartItems = ref.read(cartProvider);
-    final cartTotal = ref.read(cartTotalProvider);
-    final cartSavings = ref.read(cartSavingsProvider);
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                // Bottom sheet header with drag handle
-                Container(
-                  height: 24,
-                  alignment: Alignment.center,
-                  child: Container(
-                    width: 32,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.receipt_long,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Order Summary',
-                        style: AppTextStyles.h6,
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const Divider(height: 1),
-                
-                // Order items list
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    itemCount: cartItems.length,
-                    itemBuilder: (context, index) {
-                      final item = cartItems[index];
-                      return ListTile(
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
-                            item.product.pcodeImg,
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 48,
-                                height: 48,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.image, color: Colors.grey),
-                              );
-                            },
-                          ),
-                        ),
-                        title: Text(
-                          item.product.productName,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          '${item.product.packageSize} ${item.product.packageUnit}',
-                          style: AppTextStyles.bodySmall,
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '₹${(item.product.ourPrice * item.quantity).toStringAsFixed(2)}',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Qty: ${item.quantity}',
-                              style: AppTextStyles.bodySmall,
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                
-                const Divider(height: 1),
-                
-                // Order summary
-                Container(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Subtotal',
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                          Text(
-                            '₹${cartTotal.toStringAsFixed(2)}',
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Delivery Fee',
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                          Text(
-                            'FREE',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.accent,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Savings',
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                          Text(
-                            '- ₹${cartSavings.toStringAsFixed(2)}',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.accent,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Divider(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Total',
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '₹${cartTotal.toStringAsFixed(2)}',
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (cartSavings > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Container(
-                            padding: const EdgeInsets.all(8.0),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.savings,
-                                  color: Colors.amber[800],
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'You saved ₹${cartSavings.toStringAsFixed(2)} on this order!',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: Colors.amber[800],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-  
-  void _showMinOrderModal(BuildContext context) {
+  void _showMinOrderModal(BuildContext context, double minimumOrderValue) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(

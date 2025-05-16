@@ -12,6 +12,7 @@ import 'package:patelmart/presentation/features/home/widgets/home_categories_wid
 import 'package:patelmart/presentation/features/home/widgets/popular_categories_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/promotional_banner_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -249,6 +250,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         },
                       ),
                     ),
+                     SliverToBoxAdapter(
+                      child: SeasonalPicksWidget(),
+                      ),
+                    
+
                     
                     // Best Seller 3 - With color-based rebuild
                     SliverToBoxAdapter(

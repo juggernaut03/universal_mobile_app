@@ -28,5 +28,6 @@ class RouteNames {
   static const String myOrders = 'myOrders';
 static const String reorder = 'reorder';
   static const String bestSeller = 'bestSeller';
+  static const String savings = 'savings';
 
 }

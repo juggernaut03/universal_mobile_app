@@ -568,33 +568,11 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Order Summary',
-            style: AppTextStyles.h6,
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${cartItems.length} item(s)',
-                style: AppTextStyles.bodyMedium,
-              ),
-              Text(
-                '₹${cartTotal.toStringAsFixed(2)}',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          if (cartSavings > 0)
-            Text(
-              'You saved: ₹${cartSavings.toStringAsFixed(2)}',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: Colors.purple,
-              ),
-            ),
+          
+        
+          
+        
+          
           InkWell(
             onTap: () {
               // Show detailed order summary in a modal bottom sheet

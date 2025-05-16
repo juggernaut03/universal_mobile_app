@@ -6,11 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/address_model.dart';
+import 'package:patelmart/data/models/order_model.dart';
+import 'package:patelmart/presentation/features/account/savings_screen.dart';
 import 'package:patelmart/presentation/features/best_seller/best_seller_screen.dart';
 import 'package:patelmart/presentation/features/account/add_address_screen.dart';
 import 'package:patelmart/presentation/features/account/edit_address_screen.dart';
 import 'package:patelmart/presentation/features/debug/access_key_debugger.dart';
 import 'package:patelmart/presentation/features/orders/my_orders_screen.dart';
+import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import 'package:patelmart/presentation/features/orders/reorder_screen.dart';
 import '../features/account/account_screen.dart';
 import '../features/account/address_book_screen.dart';
@@ -273,6 +276,24 @@ GoRoute(
     return null;
   },
 ),
+
+GoRoute(
+  path: '/savings',
+  name: RouteNames.savings,
+  builder: (context, state) => const SavingsScreen(),
+  redirect: (context, state) async {
+    // Check if user is logged in
+    final container = ProviderScope.containerOf(context);
+    final authRepository = container.read(authRepositoryProvider);
+    
+    final isLoggedIn = await authRepository.isLoggedIn();
+    if (!isLoggedIn) {
+      return '/auth/login?redirectRoute=/savings';
+    }
+    return null;
+  },
+),
+
 GoRoute(
   path: '/reorder',
   name: RouteNames.reorder,
@@ -480,4 +501,19 @@ GoRoute(
       ),
     ),
   );
+
+  
 });
+
+extension GoRouterExtensions on GoRouter {
+  void pushOrderDetail(BuildContext context, Order order) {
+    // Navigate to order detail screen using the Material page route
+    // This is used instead of GoRouter navigation to easily pass the full Order object
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => OrderDetailScreen(order: order),
+      ),
+    );
+  }
+}
