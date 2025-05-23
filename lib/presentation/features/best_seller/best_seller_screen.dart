@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
@@ -10,6 +11,7 @@ import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
+import '../cart/widgets/persistent_cart_widget.dart';
 
 class BestSellerScreen extends ConsumerWidget {
   final int bestSellerId;
@@ -53,39 +55,62 @@ class BestSellerScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: productsAsync.when(
-        data: (products) {
-          if (products.isEmpty) {
-            return const EmptyStateWidget(
-              title: 'No products found',
-              subtitle: 'We couldn\'t find any products in this collection',
-              icon: Icons.shopping_bag_outlined,
-            );
-          }
-          
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              return _buildProductCard(context, ref, products[index]);
-            },
-          );
-        },
-        loading: () => Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primary,
-          ),
-        ),
-        error: (error, stackTrace) {
-          ref.read(loggerProvider).error('Error loading best seller products: $error');
-          return Center(
-            child: AppErrorWidget(
-              errorType: ErrorType.generic,
-              message: 'Error loading products: $error',
-              onRetry: () => ref.refresh(bestSellerProductsProvider(bestSellerId)),
+      body: Stack(
+        children: [
+          // Main content with bottom padding for persistent cart
+          Positioned.fill(
+            child: productsAsync.when(
+              data: (products) {
+                if (products.isEmpty) {
+                  return const EmptyStateWidget(
+                    title: 'No products found',
+                    subtitle: 'We couldn\'t find any products in this collection',
+                    icon: Icons.shopping_bag_outlined,
+                  );
+                }
+                
+                return ListView.builder(
+                  padding: const EdgeInsets.only(
+                    left: 12,
+                    right: 12,
+                    top: 12,
+                    bottom: 100, // Extra padding for persistent cart widget
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    return _BestSellerProductCard(
+                      product: products[index],
+                      onNavigateToDetail: () => _navigateToProductDetail(context, ref, products[index]),
+                    );
+                  },
+                );
+              },
+              loading: () => Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
+              ),
+              error: (error, stackTrace) {
+                ref.read(loggerProvider).error('Error loading best seller products: $error');
+                return Center(
+                  child: AppErrorWidget(
+                    errorType: ErrorType.generic,
+                    message: 'Error loading products: $error',
+                    onRetry: () => ref.refresh(bestSellerProductsProvider(bestSellerId)),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          
+          // Persistent cart widget at the bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 30,
+            child: const PersistentCartWidget(),
+          ),
+        ],
       ),
     );
   }
@@ -106,8 +131,32 @@ class BestSellerScreen extends ConsumerWidget {
     }
   }
   
-  // Build a product card matching the ProductItemWidget horizontal layout
-  Widget _buildProductCard(BuildContext context, WidgetRef ref, ProductModel product) {
+  // Helper method to navigate to product detail
+  void _navigateToProductDetail(BuildContext context, WidgetRef ref, ProductModel product) {
+    // Ensure p_code is properly formatted
+    final pCode = product.pCode;
+    
+    // Get storeCode from the selected outlet instead of using static value
+    final selectedOutlet = ref.read(selectedOutletProvider).value;
+    final storeCode = selectedOutlet?.storeCode ?? product.storeCode;
+    
+    // Use the go_router path parameters format correctly
+    context.push('/product/$pCode?storeCode=$storeCode');
+  }
+}
+
+// Separate widget for product card to manage state properly
+class _BestSellerProductCard extends ConsumerWidget {
+  final ProductModel product;
+  final VoidCallback onNavigateToDetail;
+
+  const _BestSellerProductCard({
+    required this.product,
+    required this.onNavigateToDetail,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     // Calculate discount percentage
     final discount = product.productMrp - product.ourPrice;
     final discountPercent = product.productMrp > 0 
@@ -128,7 +177,7 @@ class BestSellerScreen extends ConsumerWidget {
         : 0.0;
     
     return GestureDetector(
-      onTap: () => _navigateToProductDetail(context, ref, product),
+      onTap: onNavigateToDetail,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -146,7 +195,7 @@ class BestSellerScreen extends ConsumerWidget {
                 children: [
                   // Product image with caching - also tappable
                   InkWell(
-                    onTap: () => _navigateToProductDetail(context, ref, product),
+                    onTap: onNavigateToDetail,
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Image.network(
@@ -207,7 +256,7 @@ class BestSellerScreen extends ConsumerWidget {
                   children: [
                     // Product name - also tappable to see product details
                     InkWell(
-                      onTap: () => _navigateToProductDetail(context, ref, product),
+                      onTap: onNavigateToDetail,
                       child: Text(
                         product.productName,
                         style: const TextStyle(
@@ -276,102 +325,11 @@ class BestSellerScreen extends ConsumerWidget {
                         
                         const SizedBox(width: 8),
                         
-                        // Add to cart button or quantity selector
+                        // Add to cart button or manual quantity selector
                         Expanded(
                           child: isInCart
-                              ? Container(
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: Colors.grey.shade300),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      // Decrement button
-                                      GestureDetector(
-                                        onTap: () => ref.read(cartProvider.notifier).decrementQuantity(product),
-                                        child: Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary,
-                                            borderRadius: const BorderRadius.only(
-                                              topLeft: Radius.circular(3),
-                                              bottomLeft: Radius.circular(3),
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.remove,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                        ),
-                                      ),
-                                      
-                                      // Quantity
-                                      Expanded(
-                                        child: Container(
-                                          height: 40,
-                                          alignment: Alignment.center,
-                                          color: Colors.white,
-                                          child: Text(
-                                            quantity.toString(),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      
-                                      // Increment button
-                                      GestureDetector(
-                                        onTap: () => ref.read(cartProvider.notifier).incrementQuantity(product),
-                                        child: Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary,
-                                            borderRadius: const BorderRadius.only(
-                                              topRight: Radius.circular(3),
-                                              bottomRight: Radius.circular(3),
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.add,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : SizedBox(
-                                  height: 40,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => ref.read(cartProvider.notifier).addItem(product),
-                                    icon: const Icon(
-                                      Icons.shopping_cart_outlined,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                    label: const Text(
-                                      "ADD",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      minimumSize: const Size(double.infinity, 40),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                              ? _buildManualQuantitySelector(context, ref, product, quantity)
+                              : _buildAddToCartButton(ref, product),
                         ),
                       ],
                     ),
@@ -384,17 +342,290 @@ class BestSellerScreen extends ConsumerWidget {
       ),
     );
   }
-  
-  // Helper method to navigate to product detail
-  void _navigateToProductDetail(BuildContext context, WidgetRef ref, ProductModel product) {
-    // Ensure p_code is properly formatted
-    final pCode = product.pCode;
+
+  // Manual quantity selector with text input capability
+  Widget _buildManualQuantitySelector(BuildContext context, WidgetRef ref, ProductModel product, int quantity) {
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          // Decrement button
+          GestureDetector(
+            onTap: () {
+              if (quantity > 1) {
+                ref.read(cartProvider.notifier).decrementQuantity(product);
+              } else {
+                // Remove item if quantity becomes 0
+                ref.read(cartProvider.notifier).removeItem(product);
+              }
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(3),
+                  bottomLeft: Radius.circular(3),
+                ),
+              ),
+              child: const Icon(
+                Icons.remove,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+          
+          // Manual quantity input field
+          Expanded(
+            child: Container(
+              height: 40,
+              alignment: Alignment.center,
+              color: Colors.white,
+              child: _ManualQuantityInput(
+                initialQuantity: quantity,
+                maxQuantity: product.maxQuantityAllowed,
+                onQuantityChanged: (newQuantity) {
+                  _handleManualQuantityInput(context, ref, product, newQuantity);
+                },
+              ),
+            ),
+          ),
+          
+          // Increment button
+          GestureDetector(
+            onTap: () {
+              if (quantity < product.maxQuantityAllowed) {
+                ref.read(cartProvider.notifier).incrementQuantity(product);
+              } else {
+                _showMaxQuantityMessage(context, product);
+              }
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(3),
+                  bottomRight: Radius.circular(3),
+                ),
+              ),
+              child: const Icon(
+                Icons.add,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Simple add to cart button
+  Widget _buildAddToCartButton(WidgetRef ref, ProductModel product) {
+    return SizedBox(
+      height: 40,
+      child: ElevatedButton.icon(
+        onPressed: () => ref.read(cartProvider.notifier).addItem(product),
+        icon: const Icon(
+          Icons.shopping_cart_outlined,
+          color: Colors.white,
+          size: 18,
+        ),
+        label: const Text(
+          "ADD",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          minimumSize: const Size(double.infinity, 40),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Handle manual quantity input
+  void _handleManualQuantityInput(BuildContext context, WidgetRef ref, ProductModel product, int newQuantity) {
+    final logger = ref.read(loggerProvider);
     
-    // Get storeCode from the selected outlet instead of using static value
-    final selectedOutlet = ref.read(selectedOutletProvider).value;
-    final storeCode = selectedOutlet?.storeCode ?? product.storeCode;
+    if (newQuantity <= 0) {
+      logger.log('Quantity is 0 or less, removing item from cart');
+      ref.read(cartProvider.notifier).removeItem(product);
+      return;
+    }
     
-    // Use the go_router path parameters format correctly
-    context.push('/product/$pCode?storeCode=$storeCode');
+    // Check against maximum allowed quantity
+    if (newQuantity > product.maxQuantityAllowed) {
+      logger.log('Quantity $newQuantity exceeds max allowed ${product.maxQuantityAllowed}');
+      // Set to maximum allowed quantity
+      ref.read(cartProvider.notifier).addItemWithQuantity(product, product.maxQuantityAllowed);
+      _showMaxQuantityMessage(context, product);
+      return;
+    }
+    
+    // Update cart with new quantity
+    logger.log('Updating quantity for ${product.productName} to $newQuantity');
+    ref.read(cartProvider.notifier).addItemWithQuantity(product, newQuantity);
+  }
+
+  // Show max quantity reached message
+  void _showMaxQuantityMessage(BuildContext context, ProductModel product) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Maximum ${product.maxQuantityAllowed} items allowed'),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+// Custom manual quantity input widget
+class _ManualQuantityInput extends StatefulWidget {
+  final int initialQuantity;
+  final int maxQuantity;
+  final ValueChanged<int> onQuantityChanged;
+
+  const _ManualQuantityInput({
+    required this.initialQuantity,
+    required this.maxQuantity,
+    required this.onQuantityChanged,
+  });
+
+  @override
+  State<_ManualQuantityInput> createState() => _ManualQuantityInputState();
+}
+
+class _ManualQuantityInputState extends State<_ManualQuantityInput> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialQuantity.toString());
+    _focusNode = FocusNode();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(_ManualQuantityInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update controller only if not currently editing and quantity changed
+    if (oldWidget.initialQuantity != widget.initialQuantity && !_isEditing) {
+      _controller.text = widget.initialQuantity.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() {
+      _isEditing = _focusNode.hasFocus;
+    });
+    
+    if (!_focusNode.hasFocus) {
+      _validateAndSubmit();
+    }
+  }
+
+  void _validateAndSubmit() {
+    final text = _controller.text.trim();
+    final quantity = int.tryParse(text);
+    
+    if (quantity == null || quantity < 1) {
+      // Invalid input, reset to current quantity or remove
+      if (widget.initialQuantity > 0) {
+        _controller.text = widget.initialQuantity.toString();
+      } else {
+        widget.onQuantityChanged(0); // This will remove the item
+      }
+      return;
+    }
+    
+    // Valid quantity, notify parent
+    widget.onQuantityChanged(quantity);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      focusNode: _focusNode,
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.center,
+      maxLength: widget.maxQuantity.toString().length,
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+        color: Colors.black87,
+      ),
+      decoration: const InputDecoration(
+        border: InputBorder.none,
+        counterText: '', // Hide character counter
+        contentPadding: EdgeInsets.zero,
+        isDense: true,
+      ),
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
+        _MaxQuantityInputFormatter(widget.maxQuantity),
+      ],
+      onSubmitted: (_) => _validateAndSubmit(),
+      onTap: () {
+        // Select all text when tapped for easy editing
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
+      },
+    );
+  }
+}
+
+// Custom input formatter to prevent entering values greater than max quantity
+class _MaxQuantityInputFormatter extends TextInputFormatter {
+  final int maxQuantity;
+
+  _MaxQuantityInputFormatter(this.maxQuantity);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    final quantity = int.tryParse(newValue.text);
+    if (quantity == null || quantity > maxQuantity) {
+      // Don't allow the input if it exceeds max quantity
+      return oldValue;
+    }
+
+    return newValue;
   }
 }

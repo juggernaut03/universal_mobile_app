@@ -13,6 +13,7 @@ class CachedNetworkImageWidget extends StatelessWidget {
   final String? cacheKey;
   final Widget? placeholder;
   final Widget? errorWidget;
+  final Widget? loadingWidget;
   
   const CachedNetworkImageWidget({
     Key? key,
@@ -23,6 +24,7 @@ class CachedNetworkImageWidget extends StatelessWidget {
     this.cacheKey,
     this.placeholder,
     this.errorWidget,
+    this.loadingWidget,
   }) : super(key: key);
 
   @override
@@ -52,8 +54,13 @@ class CachedNetworkImageWidget extends StatelessWidget {
   }
   
   Widget _buildPlaceholder() {
+    // Use custom loadingWidget if provided
+    if (loadingWidget != null) return loadingWidget!;
+    
+    // Use custom placeholder if provided
     if (placeholder != null) return placeholder!;
     
+    // Default loading widget
     return Container(
       width: width,
       height: height,

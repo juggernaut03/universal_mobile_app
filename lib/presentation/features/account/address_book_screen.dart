@@ -13,6 +13,7 @@ import '../../../core/widgets/error_widgets.dart';
 import '../../../data/models/address_model.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/launch_flow_provider.dart';
+import '../../providers/location_provider.dart';
 
 // Address list provider using direct API call approach
 final directAddressListProvider = FutureProvider<List<Address>>((ref) async {
@@ -318,7 +319,7 @@ class AddressBookScreen extends ConsumerWidget {
               children: [
                 TextButton.icon(
                   onPressed: () {
-                    _navigateToEditAddress(context, address, logger);
+                    _navigateToEditAddress(context, ref, address, logger);
                   },
                   icon: const Icon(Icons.edit, size: 16),
                   label: const Text('EDIT'),
@@ -332,7 +333,7 @@ class AddressBookScreen extends ConsumerWidget {
                       _setAsDefault(context, ref, address, logger);
                     },
                     icon: const Icon(Icons.check_circle_outline, size: 16),
-                    label: const Text('seet as default'),
+                    label: const Text('Set Default'), // Fixed typo
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.green,
                     ),
@@ -355,18 +356,67 @@ class AddressBookScreen extends ConsumerWidget {
     );
   }
 
-  void _navigateToEditAddress(BuildContext context, Address address, Logger logger) async {
+  void _navigateToEditAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Preparing to edit address: ${address.id}');
     
-    // Store the address in shared preferences for the edit screen to access
-    final prefs = await SharedPreferences.getInstance();
-    final addressJson = jsonEncode(address.toJson());
-    
-    logger.log('Saving address to edit: $addressJson');
-    await prefs.setString('address_to_edit', addressJson);
-    
-    if (context.mounted) {
-      context.push('/edit-address');
+    try {
+      // Get current app data to update the address with current pincode and mobile
+      String currentPincode = address.deliveryAddrPincode; // fallback
+      String currentMobile = address.mobileNumber; // fallback
+      
+      // Get current selected pincode from the app
+      try {
+        final selectedPincode = ref.read(selectedPincodeProvider);
+        if (selectedPincode != null && selectedPincode.isNotEmpty) {
+          currentPincode = selectedPincode;
+          logger.log('Using current app pincode: $currentPincode');
+        } else {
+          logger.warning('No current pincode selected, using stored address pincode: $currentPincode');
+        }
+      } catch (e) {
+        logger.error('Error getting current pincode: $e');
+      }
+      
+      // Get current user mobile from auth provider
+      try {
+        final userProfile = await ref.read(userProfileProvider.future);
+        if (userProfile != null && userProfile.mobile.isNotEmpty) {
+          currentMobile = userProfile.mobile;
+          logger.log('Using current user mobile: $currentMobile');
+        } else {
+          logger.warning('No current user mobile, using stored address mobile: $currentMobile');
+        }
+      } catch (e) {
+        logger.error('Error getting current user mobile: $e');
+      }
+      
+      // Create an updated address with current app data for pincode and mobile
+      final updatedAddress = address.copyWith(
+        deliveryAddrPincode: currentPincode,
+        mobileNumber: currentMobile,
+      );
+      
+      // Store the updated address in shared preferences for the edit screen to access
+      final prefs = await SharedPreferences.getInstance();
+      final addressJson = jsonEncode(updatedAddress.toJson());
+      
+      logger.log('Saving updated address to edit with current app data: $addressJson');
+      await prefs.setString('address_to_edit', addressJson);
+      
+      if (context.mounted) {
+        context.push('/edit-address');
+      }
+    } catch (e) {
+      logger.error('Error preparing address for editing: $e');
+      
+      // Fallback: use original address if updating fails
+      final prefs = await SharedPreferences.getInstance();
+      final addressJson = jsonEncode(address.toJson());
+      await prefs.setString('address_to_edit', addressJson);
+      
+      if (context.mounted) {
+        context.push('/edit-address');
+      }
     }
   }
 
@@ -435,8 +485,36 @@ class AddressBookScreen extends ConsumerWidget {
         throw Exception('Access key not found. Please log in again.');
       }
       
-      // Create a new address with isDefault set to "Yes"
-      final updatedAddress = address.copyWith(isDefault: 'Yes');
+      // Get current app data for consistency
+      String currentPincode = address.deliveryAddrPincode; // fallback
+      String currentMobile = address.mobileNumber; // fallback
+      
+      // Get current selected pincode from the app
+      try {
+        final selectedPincode = ref.read(selectedPincodeProvider);
+        if (selectedPincode != null && selectedPincode.isNotEmpty) {
+          currentPincode = selectedPincode;
+        }
+      } catch (e) {
+        logger.error('Error getting current pincode for default update: $e');
+      }
+      
+      // Get current user mobile from auth provider
+      try {
+        final userProfile = await ref.read(userProfileProvider.future);
+        if (userProfile != null && userProfile.mobile.isNotEmpty) {
+          currentMobile = userProfile.mobile;
+        }
+      } catch (e) {
+        logger.error('Error getting current user mobile for default update: $e');
+      }
+      
+      // Create a new address with isDefault set to "Yes" and current app data
+      final updatedAddress = address.copyWith(
+        isDefault: 'Yes',
+        deliveryAddrPincode: currentPincode,
+        mobileNumber: currentMobile,
+      );
       
       // Create request body exactly as in Postman
       final requestBody = {
@@ -444,15 +522,15 @@ class AddressBookScreen extends ConsumerWidget {
         "project_code": "RET5890",
         "full_name": updatedAddress.fullName.trim(),
         "access_key": accessKey,
-        "mobile_number": updatedAddress.mobileNumber.trim(),
+        "mobile_number": currentMobile.trim(),
         "email_id": updatedAddress.emailId.trim(),
         "delivery_addr_line_1": updatedAddress.deliveryAddrLine1.trim(),
         "delivery_addr_line_2": updatedAddress.deliveryAddrLine2.trim(),
         "delivery_addr_city": updatedAddress.deliveryAddrCity.trim(),
-        "delivery_addr_pincode": updatedAddress.deliveryAddrPincode.trim(),
+        "delivery_addr_pincode": currentPincode.trim(),
         "is_default": "Yes", // Set as default
-        "latitude": "",
-        "longitude": "",
+        "latitude": updatedAddress.latitude ?? "",
+        "longitude": updatedAddress.longitude ?? "",
         "area_id": updatedAddress.areaId.isEmpty ? "1" : updatedAddress.areaId,
       };
       

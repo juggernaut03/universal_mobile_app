@@ -13,6 +13,7 @@ import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+import 'package:patelmart/presentation/providers/location_provider.dart';
 
 class EditAddressScreen extends ConsumerStatefulWidget {
   final bool returnToCheckout;
@@ -74,14 +75,15 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
       _address = Address.fromJson(addressMap);
       
       _fullNameController = TextEditingController(text: _address.fullName);
-      _pincodeController = TextEditingController(text: _address.deliveryAddrPincode);
       _areaController = TextEditingController(text: _address.areaId.isEmpty ? "1" : _address.areaId); 
       _localityController = TextEditingController(text: _address.deliveryAddrLine2);
       _wingFloorController = TextEditingController(text: _address.deliveryAddrLine1);
       _landmarkController = TextEditingController(text: _address.landmark);
       _cityController = TextEditingController(text: _address.deliveryAddrCity);
       _stateController = TextEditingController(text: _address.state);
-      _contactNumberController = TextEditingController(text: _address.mobileNumber);
+      
+      // For pincode and contact number, use current app data instead of stored address data
+      await _loadCurrentAppData();
       
       // Extract coordinates if available (will be empty strings if not set)
       _latitude = _address.latitude ?? '';
@@ -98,6 +100,42 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         _errorMessage = 'Error loading address: $e';
         _isLoading = false;
       });
+    }
+  }
+  
+  Future<void> _loadCurrentAppData() async {
+    final logger = ref.read(loggerProvider);
+    
+    try {
+      // Load current user mobile number from auth provider
+      final userProfile = await ref.read(userProfileProvider.future);
+      if (userProfile != null) {
+        _contactNumberController = TextEditingController(text: userProfile.mobile);
+        logger.log('Loaded current user mobile number: ${userProfile.mobile}');
+      } else {
+        // Fallback to address mobile number if auth provider fails
+        _contactNumberController = TextEditingController(text: _address.mobileNumber);
+        logger.warning('Using address mobile number as fallback: ${_address.mobileNumber}');
+      }
+    } catch (e) {
+      logger.error('Error loading user mobile number, using address mobile: $e');
+      _contactNumberController = TextEditingController(text: _address.mobileNumber);
+    }
+    
+    try {
+      // Load current selected pincode from location provider
+      final selectedPincode = ref.read(selectedPincodeProvider);
+      if (selectedPincode != null && selectedPincode.isNotEmpty) {
+        _pincodeController = TextEditingController(text: selectedPincode);
+        logger.log('Loaded current selected pincode: $selectedPincode');
+      } else {
+        // Fallback to address pincode if no pincode selected
+        _pincodeController = TextEditingController(text: _address.deliveryAddrPincode);
+        logger.warning('Using address pincode as fallback: ${_address.deliveryAddrPincode}');
+      }
+    } catch (e) {
+      logger.error('Error loading selected pincode, using address pincode: $e');
+      _pincodeController = TextEditingController(text: _address.deliveryAddrPincode);
     }
   }
   
@@ -449,20 +487,23 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     },
                   ),
                   
+                  // DISABLED PINCODE FIELD
                   _buildFormField(
                     controller: _pincodeController,
                     label: 'Pincode',
                     isRequired: true,
+                    readOnly: true, // Disabled - can't be changed by user
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter pincode';
+                        return 'Pincode is required';
                       }
                       if (value.length != 6) {
                         return 'Pincode must be 6 digits';
                       }
                       return null;
                     },
+                    helperText: 'Pincode is based on your current location selection',
                   ),
                   
                   _buildFormField(
@@ -531,14 +572,16 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     },
                   ),
                   
+                  // DISABLED CONTACT NUMBER FIELD
                   _buildFormField(
                     controller: _contactNumberController,
                     label: 'Contact Number for Order Delivery',
                     isRequired: true,
+                    readOnly: true, // Disabled - can't be changed by user
                     keyboardType: TextInputType.phone,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter contact number';
+                        return 'Contact number is required';
                       }
                       // Remove prefix if present
                       String mobileNumber = value;
@@ -551,6 +594,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                       return null;
                     },
                     prefixText: '+91 | ',
+                    helperText: 'Contact number is taken from your current login profile',
                   ),
                   
                   // Display coordinates if available (can be removed in production)
@@ -641,6 +685,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     TextInputType keyboardType = TextInputType.text,
     bool readOnly = false,
     String? prefixText,
+    String? helperText,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -652,13 +697,22 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
               Text(
                 label,
                 style: AppTextStyles.labelMedium.copyWith(
-                  color: Colors.grey[700],
+                  color: readOnly ? Colors.grey[500] : Colors.grey[700],
                 ),
               ),
               if (isRequired)
                 Text(
                   ' *',
                   style: TextStyle(color: AppColors.error),
+                ),
+              if (readOnly)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Icon(
+                    Icons.lock,
+                    size: 16,
+                    color: Colors.grey[500],
+                  ),
                 ),
             ],
           ),
@@ -668,16 +722,40 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
             validator: validator,
             keyboardType: keyboardType,
             readOnly: readOnly,
+            style: TextStyle(
+              color: readOnly ? Colors.grey[600] : Colors.black,
+            ),
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(
+                  color: readOnly ? Colors.grey[300]! : Colors.grey[400]!,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: readOnly ? Colors.grey[300]! : Colors.grey[400]!,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: readOnly ? Colors.grey[300]! : AppColors.primary,
+                ),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
               ),
               prefixText: prefixText,
+              filled: readOnly,
+              fillColor: readOnly ? Colors.grey[100] : null,
+              helperText: helperText,
+              helperStyle: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
             ),
           ),
         ],

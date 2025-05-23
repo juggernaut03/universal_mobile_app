@@ -127,7 +127,9 @@ Future<void> _requestOtp() async {
           leading: widget.redirectRoute != null 
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
-                  onPressed: () => context.pop(),
+                 onPressed: () {
+              context.push('/home');
+            },
                 )
               : null,
         ),

@@ -29,5 +29,8 @@ class RouteNames {
 static const String reorder = 'reorder';
   static const String bestSeller = 'bestSeller';
   static const String savings = 'savings';
+  static const String favorites = 'favorites';
+static const String search = 'search';
+
 
 }
