@@ -99,7 +99,7 @@ class CartScreen extends ConsumerWidget {
       body: Column(
         children: [
           // Add the Cart Session Info Widget for visual feedback on session state
-          if (cartItems.isNotEmpty) const CartSessionInfoWidget(),
+        
           
           // Cart Summary section
           _buildCartSummary(context, cartSavings, cartTotal),

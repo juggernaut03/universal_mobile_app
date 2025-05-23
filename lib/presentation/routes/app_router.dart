@@ -12,9 +12,11 @@ import 'package:patelmart/presentation/features/best_seller/best_seller_screen.d
 import 'package:patelmart/presentation/features/account/add_address_screen.dart';
 import 'package:patelmart/presentation/features/account/edit_address_screen.dart';
 import 'package:patelmart/presentation/features/debug/access_key_debugger.dart';
+import 'package:patelmart/presentation/features/favorites/favorites_screen.dart';
 import 'package:patelmart/presentation/features/orders/my_orders_screen.dart';
 import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import 'package:patelmart/presentation/features/orders/reorder_screen.dart';
+import 'package:patelmart/presentation/features/search/search_screen.dart';
 import '../features/account/account_screen.dart';
 import '../features/account/address_book_screen.dart';
 import '../features/account/my_profile_screen.dart';
@@ -59,7 +61,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return Address.fromJson(addressMap);
       }
     } catch (e) {
-      print('Error getting address to edit: $e');
+      logger.error('Error getting address to edit: $e');
     }
     
     // Return a default empty address if something fails
@@ -80,6 +82,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: true, // Enable logging for debugging
+    // Add error handling and navigation management
+    navigatorKey: GlobalKey<NavigatorState>(),
     redirect: (context, state) {
       // Get current path
       final path = state.uri.path;
@@ -258,58 +262,57 @@ final routerProvider = Provider<GoRouter>((ref) {
           categoryName: state.pathParameters['categoryName'] ?? '',
         ),
       ),
-      // Add these routes to your existing app_router.dart file
+      // Orders routes
+      GoRoute(
+        path: '/my-orders',
+        name: RouteNames.myOrders,
+        builder: (context, state) => const MyOrdersScreen(),
+        redirect: (context, state) async {
+          // Check if user is logged in
+          final container = ProviderScope.containerOf(context);
+          final authRepository = container.read(authRepositoryProvider);
+          
+          final isLoggedIn = await authRepository.isLoggedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/my-orders';
+          }
+          return null;
+        },
+      ),
 
-GoRoute(
-  path: '/my-orders',
-  name: RouteNames.myOrders,
-  builder: (context, state) => const MyOrdersScreen(),
-  redirect: (context, state) async {
-    // Check if user is logged in
-    final container = ProviderScope.containerOf(context);
-    final authRepository = container.read(authRepositoryProvider);
-    
-    final isLoggedIn = await authRepository.isLoggedIn();
-    if (!isLoggedIn) {
-      return '/auth/login?redirectRoute=/my-orders';
-    }
-    return null;
-  },
-),
+      GoRoute(
+        path: '/savings',
+        name: RouteNames.savings,
+        builder: (context, state) => const SavingsScreen(),
+        redirect: (context, state) async {
+          // Check if user is logged in
+          final container = ProviderScope.containerOf(context);
+          final authRepository = container.read(authRepositoryProvider);
+          
+          final isLoggedIn = await authRepository.isLoggedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/savings';
+          }
+          return null;
+        },
+      ),
 
-GoRoute(
-  path: '/savings',
-  name: RouteNames.savings,
-  builder: (context, state) => const SavingsScreen(),
-  redirect: (context, state) async {
-    // Check if user is logged in
-    final container = ProviderScope.containerOf(context);
-    final authRepository = container.read(authRepositoryProvider);
-    
-    final isLoggedIn = await authRepository.isLoggedIn();
-    if (!isLoggedIn) {
-      return '/auth/login?redirectRoute=/savings';
-    }
-    return null;
-  },
-),
-
-GoRoute(
-  path: '/reorder',
-  name: RouteNames.reorder,
-  builder: (context, state) => const ReorderScreen(),
-  redirect: (context, state) async {
-    // Check if user is logged in
-    final container = ProviderScope.containerOf(context);
-    final authRepository = container.read(authRepositoryProvider);
-    
-    final isLoggedIn = await authRepository.isLoggedIn();
-    if (!isLoggedIn) {
-      return '/auth/login?redirectRoute=/reorder';
-    }
-    return null;
-  },
-),
+      GoRoute(
+        path: '/reorder',
+        name: RouteNames.reorder,
+        builder: (context, state) => const ReorderScreen(),
+        redirect: (context, state) async {
+          // Check if user is logged in
+          final container = ProviderScope.containerOf(context);
+          final authRepository = container.read(authRepositoryProvider);
+          
+          final isLoggedIn = await authRepository.isLoggedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/reorder';
+          }
+          return null;
+        },
+      ),
       // Single product route
       GoRoute(
         path: '/product/:pCode',
@@ -419,6 +422,20 @@ GoRoute(
         name: RouteNames.refundPolicies,
         builder: (context, state) => const RefundTncScreen(),
       ),
+      GoRoute(
+  path: '/favorites',
+  name: RouteNames.favorites,
+  builder: (context, state) => const FavoritesScreen(),
+),
+
+GoRoute(
+  path: '/search',
+  name: RouteNames.search,
+  builder: (context, state) {
+    final query = state.uri.queryParameters['query'] ?? '';
+    return SearchScreen(initialQuery: query);
+  },
+),
       // Address Book routes
       GoRoute(
         path: '/address-book',
@@ -439,35 +456,31 @@ GoRoute(
         },
       ),
       // Add Address route with return to checkout support
-       GoRoute(
-      path: '/address-book',
-      builder: (context, state) => const AddressBookScreen(),
-    ),
-    GoRoute(
-      path: '/add-address',
-      builder: (context, state) {
-        final returnToCheckout = state.extra is Map && (state.extra as Map).containsKey('returnToCheckout')
-            ? (state.extra as Map)['returnToCheckout'] as bool
-            : false;
-        return AddAddressScreen(returnToCheckout: returnToCheckout);
-      },
-    ),
+      GoRoute(
+        path: '/add-address',
+        name: RouteNames.addAddress,
+        builder: (context, state) {
+          final returnToCheckout = state.extra is Map && (state.extra as Map).containsKey('returnToCheckout')
+              ? (state.extra as Map)['returnToCheckout'] as bool
+              : false;
+          return AddAddressScreen(returnToCheckout: returnToCheckout);
+        },
+      ),
       // Edit Address route
-      // lib/presentation/routes/app_router.dart (partial)
-
-GoRoute(
-  path: '/edit-address',
-  builder: (context, state) {
-    // We'll need to retrieve the address from SharedPreferences directly in the route
-    // since we're not passing it as a parameter
-    return EditAddressScreen(
-      returnToCheckout: state.extra is Map && (state.extra as Map).containsKey('returnToCheckout')
-          ? (state.extra as Map)['returnToCheckout'] as bool
-          : false,
-    );
-  },
-),
- GoRoute(
+      GoRoute(
+        path: '/edit-address',
+        name: RouteNames.editAddress,
+        builder: (context, state) {
+          // We'll need to retrieve the address from SharedPreferences directly in the route
+          // since we're not passing it as a parameter
+          return EditAddressScreen(
+            returnToCheckout: state.extra is Map && (state.extra as Map).containsKey('returnToCheckout')
+                ? (state.extra as Map)['returnToCheckout'] as bool
+                : false,
+          );
+        },
+      ),
+      GoRoute(
         path: '/best-seller/:bestSellerId',
         name: RouteNames.bestSeller,
         builder: (context, state) {
@@ -476,22 +489,41 @@ GoRoute(
           return BestSellerScreen(bestSellerId: bestSellerId);
         },
       ),
-GoRoute(
-  path: '/debug/access-key',
-  name: 'debugAccessKey',
-  builder: (context, state) => const AccessKeyDebuggerScreen(),
-),
+      GoRoute(
+        path: '/debug/access-key',
+        name: 'debugAccessKey',
+        builder: (context, state) => const AccessKeyDebuggerScreen(),
+      ),
     ],
     
     errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(
+        title: const Text('Page Not Found'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Safe navigation back to home
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
+            const Text(
+              'Page Not Found',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
             Text('Route not found: ${state.uri}'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => context.go('/home'),
               child: const Text('Go Home'),
@@ -500,10 +532,30 @@ GoRoute(
         ),
       ),
     ),
+    // Add observers for better debugging
+    observers: [
+      GoRouterObserver(),
+    ],
   );
-
-  
 });
+
+// Custom GoRouter observer for better debugging
+class GoRouterObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    print('GoRouter: Pushed ${route.settings.name}');
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    print('GoRouter: Popped ${route.settings.name}');
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    print('GoRouter: Replaced ${oldRoute?.settings.name} with ${newRoute?.settings.name}');
+  }
+}
 
 extension GoRouterExtensions on GoRouter {
   void pushOrderDetail(BuildContext context, Order order) {

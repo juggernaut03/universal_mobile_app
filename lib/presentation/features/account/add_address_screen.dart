@@ -16,6 +16,7 @@ import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+import 'package:patelmart/presentation/providers/location_provider.dart';
 
 class AddAddressScreen extends ConsumerStatefulWidget {
   final bool returnToCheckout;
@@ -52,20 +53,38 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserMobileNumber();
+    _loadUserDataAndPincode();
   }
   
-  Future<void> _loadUserMobileNumber() async {
+  Future<void> _loadUserDataAndPincode() async {
+    final logger = ref.read(loggerProvider);
+    
     try {
+      // Load user mobile number from auth provider
       final userProfile = await ref.read(userProfileProvider.future);
       if (userProfile != null) {
         setState(() {
           _contactNumberController.text = userProfile.mobile;
         });
+        logger.log('Loaded user mobile number: ${userProfile.mobile}');
       }
     } catch (e) {
-      final logger = ref.read(loggerProvider);
       logger.error('Error loading user mobile number: $e');
+    }
+    
+    try {
+      // Load selected pincode from location provider
+      final selectedPincode = ref.read(selectedPincodeProvider);
+      if (selectedPincode != null && selectedPincode.isNotEmpty) {
+        setState(() {
+          _pincodeController.text = selectedPincode;
+        });
+        logger.log('Loaded selected pincode: $selectedPincode');
+      } else {
+        logger.warning('No pincode selected');
+      }
+    } catch (e) {
+      logger.error('Error loading selected pincode: $e');
     }
   }
   
@@ -174,7 +193,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
         setState(() {
           _areaController.text = place.subLocality ?? '';
           _localityController.text = place.street ?? '';
-          _pincodeController.text = place.postalCode ?? '';
+          // Don't update pincode from location as it's disabled
           _cityController.text = place.locality ?? '';
           _stateController.text = place.administrativeArea ?? '';
         });
@@ -191,14 +210,14 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
     }
   }
   
-  // DIRECT IMPLEMENTATION - This is what works in your test
+  // Updated save method using your existing direct implementation but with provider integration
   Future<void> _saveAddress() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
     
     final logger = ref.read(loggerProvider);
-    logger.log('Saving address with direct implementation...');
+    logger.log('Saving address - Return to checkout: ${widget.returnToCheckout}');
     
     setState(() {
       _isLoading = true;
@@ -316,6 +335,26 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
               responseData['message'].toString().contains("Address Inserted Successfully")) {
             
             // Address saved successfully
+            logger.log('Address added successfully');
+            
+            // **** CRITICAL FIX: Trigger address refresh ****
+            // This is what was missing - we need to refresh the address providers
+            try {
+              // 1. Trigger refresh counter increment
+              ref.read(addressRefreshProvider.notifier).state++;
+              
+              // 2. Refresh the direct address provider
+              ref.refresh(directAddressListProvider);
+              
+              // 3. Refresh the main address provider
+              ref.refresh(addressesProvider);
+              
+              logger.log('Address providers refreshed successfully');
+            } catch (e) {
+              logger.error('Error refreshing address providers: $e');
+              // Continue even if refresh fails
+            }
+            
             if (mounted) {
               setState(() {
                 _isLoading = false;
@@ -329,10 +368,15 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                 ),
               );
               
+              // Small delay to ensure providers are refreshed before navigation
+              await Future.delayed(const Duration(milliseconds: 300));
+              
               // Navigate based on where we came from
               if (widget.returnToCheckout) {
+                logger.log('Navigating back to checkout flow');
                 context.go('/checkout-flow');
               } else {
+                logger.log('Navigating back to address book');
                 context.go('/address-book');
               }
             }
@@ -368,120 +412,6 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
     }
   }
 
-  // Direct API test function (can be removed once everything works)
-  Future<void> _testDirectApiCall() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-    
-    final logger = ref.read(loggerProvider);
-    logger.log('Starting direct API test');
-    
-    try {
-      // Get access key - first try from user profile
-      final userProfile = await ref.read(userProfileProvider.future);
-      String? accessKey = userProfile?.accessKey;
-      logger.log('Access key from userProfile: $accessKey');
-      
-      // If not found, try to get it directly from shared preferences
-      if (accessKey == null || accessKey.isEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        // Try user_profile
-        final authProfileStr = prefs.getString('user_profile');
-        if (authProfileStr != null) {
-          try {
-            final authProfile = jsonDecode(authProfileStr);
-            accessKey = authProfile['accessKey'];
-            logger.log('Access key from SharedPreferences user_profile: $accessKey');
-          } catch (e) {
-            logger.error('Error parsing user_profile: $e');
-          }
-        }
-        
-        // If still null, try otp_validation_response
-        if (accessKey == null || accessKey.isEmpty) {
-          final otpResponseStr = prefs.getString('otp_validation_response');
-          if (otpResponseStr != null) {
-            try {
-              final otpResponse = jsonDecode(otpResponseStr);
-              accessKey = otpResponse['access_key'];
-              logger.log('Access key from otp_validation_response: $accessKey');
-            } catch (e) {
-              logger.error('Error parsing otp_validation_response: $e');
-            }
-          }
-        }
-        
-        // If still null, try directly stored key
-        if (accessKey == null || accessKey.isEmpty) {
-          accessKey = prefs.getString('user_access_key');
-          logger.log('Access key from user_access_key: $accessKey');
-        }
-      }
-      
-      if (accessKey == null || accessKey.isEmpty) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'ACCESS KEY NOT FOUND! Please log in again.';
-        });
-        return;
-      }
-      
-      // Format mobile number
-      String mobileNumber = _contactNumberController.text;
-      if (mobileNumber.startsWith('+91 | ')) {
-        mobileNumber = mobileNumber.replaceAll('+91 | ', '');
-      }
-      
-      // Create request body exactly like Postman
-      final requestBody = {
-        "idaddress_book": "12",
-        "project_code": "RET5890", // Use exact project code from Postman
-        "full_name": _fullNameController.text.trim(),
-        "access_key": accessKey,
-        "mobile_number": mobileNumber.trim(),
-        "email_id": "test@example.com", // Use a placeholder email for testing
-        "delivery_addr_line_1": _wingFloorController.text.trim(),
-        "delivery_addr_line_2": _localityController.text.trim(),
-        "delivery_addr_city": _cityController.text.trim(),
-        "delivery_addr_pincode": _pincodeController.text.trim(),
-        "is_default": _isDefault ? "Yes" : "No",
-        "latitude": _latitude,
-        "longitude": _longitude,
-        "area_id": _areaController.text.isEmpty ? "1" : _areaController.text.trim(),
-      };
-      
-      logger.log('Direct API test request body: ${jsonEncode(requestBody)}');
-      
-      // Make direct HTTP request
-      final client = http.Client();
-      try {
-        final response = await client.post(
-          Uri.parse('https://newtech.shalviadvision.com/api/add_address'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(requestBody),
-        );
-        
-        logger.log('Direct API test response status: ${response.statusCode}');
-        logger.log('Direct API test response body: ${response.body}');
-        
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Direct API test response: ${response.statusCode}\n${response.body}';
-        });
-      } finally {
-        client.close();
-      }
-    } catch (e) {
-      logger.error('Error in direct API test: $e');
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Error in direct API test: $e';
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -509,6 +439,33 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Show context message if coming from checkout
+                  if (widget.returnToCheckout)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue[700]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Add your delivery address to continue with checkout',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Colors.blue[700],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
                   // Use current location button
                   OutlinedButton.icon(
                     onPressed: _isLoading ? null : _useCurrentLocation,
@@ -559,20 +516,23 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                     },
                   ),
                   
+                  // DISABLED PINCODE FIELD
                   _buildFormField(
                     controller: _pincodeController,
                     label: 'Pincode',
                     isRequired: true,
+                    readOnly: true, // Disabled - can't be changed by user
                     keyboardType: TextInputType.number,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter pincode';
+                        return 'Pincode is required';
                       }
                       if (value.length != 6) {
                         return 'Pincode must be 6 digits';
                       }
                       return null;
                     },
+                    helperText: 'Pincode is pre-selected based on your location selection',
                   ),
                   
                   _buildFormField(
@@ -641,14 +601,16 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                     },
                   ),
                   
+                  // DISABLED CONTACT NUMBER FIELD
                   _buildFormField(
                     controller: _contactNumberController,
                     label: 'Contact Number for Order Delivery',
                     isRequired: true,
+                    readOnly: true, // Disabled - can't be changed by user
                     keyboardType: TextInputType.phone,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter contact number';
+                        return 'Contact number is required';
                       }
                       // Remove prefix if present
                       String mobileNumber = value;
@@ -661,6 +623,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                       return null;
                     },
                     prefixText: '+91 | ',
+                    helperText: 'Contact number is taken from your login profile',
                   ),
                   
                   // Display coordinates if available (can be removed in production)
@@ -695,7 +658,6 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                       children: [
                         Checkbox(
                           value: _isDefault,
-                          
                           activeColor: AppColors.primary,
                           onChanged: (value) {
                             setState(() {
@@ -723,17 +685,6 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                           : const Text('SAVE ADDRESS'),
                     ),
                   ),
-                  
-                  // TEST button (can be removed in production)
-                  const SizedBox(height: 16),
-                  OutlinedButton(
-                    onPressed: _testDirectApiCall,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.orange,
-                      side: const BorderSide(color: Colors.orange),
-                    ),
-                    child: const Text('TEST DIRECT API CALL'),
-                  ),
                 ],
               ),
             ),
@@ -751,6 +702,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
     TextInputType keyboardType = TextInputType.text,
     bool readOnly = false,
     String? prefixText,
+    String? helperText,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -762,13 +714,22 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
               Text(
                 label,
                 style: AppTextStyles.labelMedium.copyWith(
-                  color: Colors.grey[700],
+                  color: readOnly ? Colors.grey[500] : Colors.grey[700],
                 ),
               ),
               if (isRequired)
                 Text(
                   ' *',
                   style: TextStyle(color: AppColors.error),
+                ),
+              if (readOnly)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Icon(
+                    Icons.lock,
+                    size: 16,
+                    color: Colors.grey[500],
+                  ),
                 ),
             ],
           ),
@@ -778,16 +739,40 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
             validator: validator,
             keyboardType: keyboardType,
             readOnly: readOnly,
+            style: TextStyle(
+              color: readOnly ? Colors.grey[600] : Colors.black,
+            ),
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(
+                  color: readOnly ? Colors.grey[300]! : Colors.grey[400]!,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: readOnly ? Colors.grey[300]! : Colors.grey[400]!,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: readOnly ? Colors.grey[300]! : AppColors.primary,
+                ),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
               ),
               prefixText: prefixText,
+              filled: readOnly,
+              fillColor: readOnly ? Colors.grey[100] : null,
+              helperText: helperText,
+              helperStyle: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+              ),
             ),
           ),
         ],

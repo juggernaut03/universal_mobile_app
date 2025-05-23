@@ -21,7 +21,7 @@ import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
 import '../account/address_book_screen.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
-
+import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address;
 
 // Checkout step enum to track progress
 enum CheckoutStep {
@@ -896,6 +896,8 @@ class _DeliveryMethodStepState extends State<DeliveryMethodStep> {
 // Enhanced DeliveryAddressStep with improved empty state handling
 // and better integration with the address book
 
+// Replace the entire DeliveryAddressStep class in your checkout_flow_screen.dart
+
 class DeliveryAddressStep extends ConsumerStatefulWidget {
   final CheckoutData checkoutData;
   final VoidCallback onContinue;
@@ -922,15 +924,27 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
     _loadAddresses();
   }
 
+  // Add this method to handle page lifecycle
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload addresses when returning to this page
+    if (mounted) {
+      _loadAddresses();
+    }
+  }
+
   Future<void> _loadAddresses() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Use the direct implementation for fetching addresses
-      final addressesAsync = ref.read(directAddressListProvider.future);
+      // Use the direct implementation for fetching addresses with refresh capability
+      final addressesAsync = ref.refresh(address.directAddressListProvider.future);
       _addresses = await addressesAsync;
+      
+      ref.read(loggerProvider).log('Loaded ${_addresses.length} addresses in checkout');
       
       // If we have a previously selected address, find it in the list
       if (widget.checkoutData.selectedAddress != null) {
@@ -956,21 +970,28 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
     });
   }
 
- void _selectAddress(Address address) {
-  setState(() {
-    _selectedAddress = address;
-  });
-  widget.checkoutData.selectedAddress = address;
-  
-  // Calculate delivery charges when an address is selected
-  ref.read(deliveryChargesProvider.notifier).calculateDeliveryCharges(
-    userAddress: address,
-  );
-}
-
+  void _selectAddress(Address address) {
+    setState(() {
+      _selectedAddress = address;
+    });
+    widget.checkoutData.selectedAddress = address;
+    
+    // Calculate delivery charges when an address is selected
+    ref.read(deliveryChargesProvider.notifier).calculateDeliveryCharges(
+      userAddress: address,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Watch for address refresh trigger - THIS IS THE KEY FIX
+    ref.listen(addressRefreshProvider, (previous, next) {
+      if (mounted && previous != next) {
+        ref.read(loggerProvider).log('Address refresh triggered, reloading addresses');
+        _loadAddresses();
+      }
+    });
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1044,7 +1065,7 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Empty state icon - using location_off icon
+        // Empty state icon
         Icon(
           Icons.location_off,
           size: 72,
@@ -1123,335 +1144,333 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
   }
 
   Widget _buildAddressCard(Address address, bool isSelected) {
-  return Consumer(
-    builder: (context, ref, child) {
-      // Get delivery distance information if available
-      final deliveryChargesState = ref.watch(deliveryChargesProvider);
-      final hasDistanceInfo = isSelected && deliveryChargesState.distance > 0;
-      final distanceValue = deliveryChargesState.distance;
-      
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12.0),
-        child: InkWell(
-          onTap: () => _selectAddress(address),
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected ? AppColors.primary : Colors.grey[300]!,
-                width: isSelected ? 2 : 1,
+    return Consumer(
+      builder: (context, ref, child) {
+        // Get delivery distance information if available
+        final deliveryChargesState = ref.watch(deliveryChargesProvider);
+        final hasDistanceInfo = isSelected && deliveryChargesState.distance > 0;
+        final distanceValue = deliveryChargesState.distance;
+        
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12.0),
+          child: InkWell(
+            onTap: () => _selectAddress(address),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : Colors.grey[300]!,
+                  width: isSelected ? 2 : 1,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
               ),
-              borderRadius: BorderRadius.circular(8),
-              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Location Icon
-                    CircleAvatar(
-                      backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
-                      child: Icon(
-                        Icons.location_on,
-                        color: isSelected ? Colors.white : Colors.grey[600],
-                        size: 18,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Location Icon
+                      CircleAvatar(
+                        backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
+                        child: Icon(
+                          Icons.location_on,
+                          color: isSelected ? Colors.white : Colors.grey[600],
+                          size: 18,
+                        ),
                       ),
-                    ),
-                    
-                    const SizedBox(width: 16),
-                    
-                    // Address Details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            address.fullName,
-                            style: AppTextStyles.bodyLarge.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${address.deliveryAddrLine1}, ${address.deliveryAddrLine2}, ${address.deliveryAddrCity} - ${address.deliveryAddrPincode}',
-                            style: AppTextStyles.bodyMedium,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (address.landmark.isNotEmpty) ...[
-                            const SizedBox(height: 4),
+                      
+                      const SizedBox(width: 16),
+                      
+                      // Address Details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              'Landmark: ${address.landmark}',
-                              style: AppTextStyles.bodyMedium,
+                              address.fullName,
+                              style: AppTextStyles.bodyLarge.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                          const SizedBox(height: 4),
-                          Text(
-                            'PIN: ${address.deliveryAddrPincode}',
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Mobile: ${address.mobileNumber}',
-                            style: AppTextStyles.bodyMedium,
-                          ),
-                          
-                          if (address.isDefault == 'Yes') ...[
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
+                            const SizedBox(height: 4),
+                            Text(
+                              '${address.deliveryAddrLine1}, ${address.deliveryAddrLine2}, ${address.deliveryAddrCity} - ${address.deliveryAddrPincode}',
+                              style: AppTextStyles.bodyMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (address.landmark.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Landmark: ${address.landmark}',
+                                style: AppTextStyles.bodyMedium,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.green[50],
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                'DEFAULT ADDRESS',
-                                style: AppTextStyles.labelSmall.copyWith(
-                                  color: Colors.green[700],
-                                  fontWeight: FontWeight.w500,
+                            ],
+                            const SizedBox(height: 4),
+                            Text(
+                              'PIN: ${address.deliveryAddrPincode}',
+                              style: AppTextStyles.bodyMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Mobile: ${address.mobileNumber}',
+                              style: AppTextStyles.bodyMedium,
+                            ),
+                            
+                            if (address.isDefault == 'Yes') ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green[50],
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  'DEFAULT ADDRESS',
+                                  style: AppTextStyles.labelSmall.copyWith(
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
-                      ),
-                    ),
-                    
-                    // Radio button
-                    Radio<String>(
-                      value: address.id,
-                      groupValue: _selectedAddress?.id,
-                      activeColor: AppColors.primary,
-                      onChanged: (value) {
-                        if (value != null) {
-                          _selectAddress(address);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                
-                // Show distance information if available and selected
-                if (hasDistanceInfo) ...[
-                  const Divider(height: 24),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.directions_car,
-                        size: 16,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Distance from store: ${distanceValue.toStringAsFixed(1)} km',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
                         ),
+                      ),
+                      
+                      // Radio button
+                      Radio<String>(
+                        value: address.id,
+                        groupValue: _selectedAddress?.id,
+                        activeColor: AppColors.primary,
+                        onChanged: (value) {
+                          if (value != null) {
+                            _selectAddress(address);
+                          }
+                        },
                       ),
                     ],
                   ),
                   
-                  // Show delivery fee info based on the distance
-                  if (deliveryChargesState.deliveryCharge > 0) ...[
-                    const SizedBox(height: 4),
+                  // Show distance information if available and selected
+                  if (hasDistanceInfo) ...[
+                    const Divider(height: 24),
                     Row(
                       children: [
                         Icon(
-                          Icons.local_shipping,
+                          Icons.directions_car,
                           size: 16,
                           color: AppColors.primary,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Delivery Fee: ₹${deliveryChargesState.deliveryCharge.toStringAsFixed(2)}',
+                          'Distance from store: ${distanceValue.toStringAsFixed(1)} km',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textSecondary,
                           ),
                         ),
                       ],
                     ),
-                  ] else ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.local_shipping,
-                          size: 16,
-                          color: Colors.green,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Free Delivery!',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  
-                  // Show loading indicator when calculating
-                  if (deliveryChargesState.isLoading) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                    
+                    // Show delivery fee info based on the distance
+                    if (deliveryChargesState.deliveryCharge > 0) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.local_shipping,
+                            size: 16,
                             color: AppColors.primary,
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Calculating delivery charges...',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
+                          const SizedBox(width: 8),
+                          Text(
+                            'Delivery Fee: ₹${deliveryChargesState.deliveryCharge.toStringAsFixed(2)}',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.local_shipping,
+                            size: 16,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Free Delivery!',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    
+                    // Show loading indicator when calculating
+                    if (deliveryChargesState.isLoading) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Calculating delivery charges...',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ],
-              ],
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   Widget _buildOrderTotal() {
-  return Consumer(
-    builder: (context, ref, _) {
-      final cartTotal = ref.watch(cartTotalProvider);
-      final cartSavings = ref.watch(cartSavingsProvider);
-      
-      // Get delivery charges from provider
-      final deliveryChargesState = ref.watch(deliveryChargesProvider);
-      final deliveryCharge = deliveryChargesState.deliveryCharge;
-      final isLoading = deliveryChargesState.isLoading;
-      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
-      
-      // Calculate final total with delivery charges
-      final finalTotal = cartTotal + deliveryCharge;
-      
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Cart subtotal
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Order Subtotal',
-                  style: AppTextStyles.bodyMedium,
-                ),
-                Text(
-                  '₹${cartTotal.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyMedium,
-                ),
-              ],
-            ),
-            
-            // Delivery fee
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Delivery Fee:',
-                      style: AppTextStyles.bodyMedium,
-                    ),
-                    if (isLoading)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                Text(
-                  isLoading 
-                    ? 'Calculating...'
-                    : isFreeDelivery
-                      ? 'FREE'
-                      : '₹${deliveryCharge.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: isFreeDelivery ? Colors.green : null,
-                    fontWeight: isFreeDelivery ? FontWeight.bold : null,
-                  ),
-                ),
-              ],
-            ),
-            
-            // Savings
-            if (cartSavings > 0)
+    return Consumer(
+      builder: (context, ref, _) {
+        final cartTotal = ref.watch(cartTotalProvider);
+        final cartSavings = ref.watch(cartSavingsProvider);
+        
+        // Get delivery charges from provider
+        final deliveryChargesState = ref.watch(deliveryChargesProvider);
+        final deliveryCharge = deliveryChargesState.deliveryCharge;
+        final isLoading = deliveryChargesState.isLoading;
+        final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+        
+        // Calculate final total with delivery charges
+        final finalTotal = cartTotal + deliveryCharge;
+        
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Cart subtotal
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'You Save:',
+                    'Order Subtotal',
                     style: AppTextStyles.bodyMedium,
                   ),
                   Text(
-                    '₹${cartSavings.toStringAsFixed(2)}',
+                    '₹${cartTotal.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ],
+              ),
+              
+              // Delivery fee
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Delivery Fee:',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                      if (isLoading)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Text(
+                    isLoading 
+                      ? 'Calculating...'
+                      : isFreeDelivery
+                        ? 'FREE'
+                        : '₹${deliveryCharge.toStringAsFixed(2)}',
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.green,
+                      color: isFreeDelivery ? Colors.green : null,
+                      fontWeight: isFreeDelivery ? FontWeight.bold : null,
                     ),
                   ),
                 ],
+              ),
               
-        
-        ),
-            
-            const Divider(height: 24),
-            
-            // Total
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              // Savings
+              if (cartSavings > 0)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'You Save:',
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                    Text(
+                      '₹${cartSavings.toStringAsFixed(2)}',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  '₹${finalTotal.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+              
+              const Divider(height: 24),
+              
+              // Total
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+                  Text(
+                    '₹${finalTotal.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 // STEP 3: Delivery Time Step
 class DeliveryTimeStep extends ConsumerStatefulWidget {

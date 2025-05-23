@@ -4,42 +4,31 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
-import '../models/auth_models.dart';
-import '../repositories/auth_repository.dart';
 
 class ProfileRepository {
   final http.Client _client;
-  final AuthRepository _authRepository;
   final Logger _logger;
 
   ProfileRepository({
     required http.Client client,
-    required AuthRepository authRepository,
     required Logger logger,
   }) : 
     _client = client,
-    _authRepository = authRepository,
     _logger = logger;
   
   // Get user profile details
-  Future getUserProfileDetails() async {
+  Future<Map<String, dynamic>> getUserProfile(String mobileNumber, String accessKey) async {
     try {
-      // Get user profile to get mobile number and access key
-      final userProfile = await _authRepository.getUserProfile();
-      if (userProfile == null) {
-        throw Exception('User not logged in');
-      }
+      final uri = Uri.parse('${ApiConstants.baseUrl}/get_customer_profile');
       
-      final uri = Uri.parse('${ApiConstants.baseUrl}/get_user_profile');
-      
-      // Create request body with mobile number and access key
+      // Create request body
       final requestBody = {
         'project_code': ApiConstants.projectCode,
-        'mobile_number': userProfile.mobile,
-        'access_key': userProfile.accessKey, // Add access key
+        'mobile_number': mobileNumber,
+        'access_key': accessKey,
       };
       
-      _logger.log('Fetching user profile details for mobile: ${userProfile.mobile}');
+      _logger.log('Fetching user profile for mobile: $mobileNumber');
       
       final response = await _client.post(
         uri,
@@ -49,55 +38,67 @@ class ProfileRepository {
       
       if (response.statusCode == 200) {
         final jsonData = jsonDecode(response.body);
-        if (jsonData is Map) {
-          return jsonData;
-        } else if (jsonData is List && jsonData.isNotEmpty) {
+        if (jsonData is List && jsonData.isNotEmpty) {
           return jsonData[0];
         } else {
           _logger.error('Unexpected response format: ${response.body}');
           return {};
         }
       } else {
-        _logger.error('Failed to fetch profile details: ${response.statusCode} - ${response.body}');
-        throw Exception('Failed to fetch profile details');
+        _logger.error('Failed to fetch profile: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to fetch profile');
       }
     } catch (e) {
-      _logger.error('Error fetching profile details: $e');
+      _logger.error('Error fetching profile: $e');
       rethrow;
     }
   }
   
   // Update user profile details
-  Future<bool> updateUserProfile(Map<String, dynamic> profileData) async {
+  Future<bool> updateUserProfile({
+    required String accessKey,
+    required String mobileNumber,
+    required String firstName,
+    required String lastName,
+    String? emailId,
+  }) async {
     try {
-      // Get user profile to get mobile number and access key
-      final userProfile = await _authRepository.getUserProfile();
-      if (userProfile == null) {
-        throw Exception('User not logged in');
+      final uri = Uri.parse('${ApiConstants.baseUrl}/add_update_customer_profile');
+      
+      // Create request body matching the format in the screenshot
+      final requestBody = {
+        'access_key': accessKey,
+        'mobile_number': mobileNumber,
+        'first_name': firstName,
+        'last_name': lastName,
+      };
+
+      // Add email if provided
+      if (emailId != null && emailId.isNotEmpty) {
+        requestBody['email_id'] = emailId;
       }
       
-      final uri = Uri.parse('${ApiConstants.baseUrl}/update_user_profile');
-      
-      // Add mobile number and access key to the request
-      profileData['project_code'] = ApiConstants.projectCode;
-      profileData['mobile_number'] = userProfile.mobile;
-      profileData['access_key'] = userProfile.accessKey; // Add access key
-      
-      _logger.log('Updating profile for mobile: ${userProfile.mobile}');
+      _logger.log('Updating profile for mobile: $mobileNumber');
+      _logger.log('Request body: $requestBody');
       
       final response = await _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(profileData),
+        body: jsonEncode(requestBody),
       ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
       
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        if (jsonData.containsKey('message') && 
-            jsonData['message'].toString().toLowerCase().contains('success')) {
+      _logger.log('Update profile response status: ${response.statusCode}');
+      _logger.log('Update profile response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Directly check if response body contains success message
+        final responseBody = response.body.toString().toLowerCase();
+        if (responseBody.contains("successfully") || 
+            responseBody.contains("success")) {
+          _logger.log('Profile updated successfully');
           return true;
         } else {
-          _logger.error('Profile update response: ${response.body}');
+          _logger.error('Unexpected response content: ${response.body}');
           return false;
         }
       } else {
@@ -106,52 +107,6 @@ class ProfileRepository {
       }
     } catch (e) {
       _logger.error('Error updating profile: $e');
-      return false;
-    }
-  }
-  
-  // Update user profile photo
-  Future<bool> updateProfilePhoto(String photoUrl) async {
-    try {
-      // Get user profile to get mobile number and access key
-      final userProfile = await _authRepository.getUserProfile();
-      if (userProfile == null) {
-        throw Exception('User not logged in');
-      }
-      
-      final uri = Uri.parse('${ApiConstants.baseUrl}/update_profile_photo');
-      
-      // Create request body
-      final requestBody = {
-        'project_code': ApiConstants.projectCode,
-        'mobile_number': userProfile.mobile,
-        'access_key': userProfile.accessKey, // Add access key
-        'profile_photo': photoUrl,
-      };
-      
-      _logger.log('Updating profile photo for mobile: ${userProfile.mobile}');
-      
-      final response = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
-      
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        if (jsonData.containsKey('message') && 
-            jsonData['message'].toString().toLowerCase().contains('success')) {
-          return true;
-        } else {
-          _logger.error('Profile photo update response: ${response.body}');
-          return false;
-        }
-      } else {
-        _logger.error('Failed to update profile photo: ${response.statusCode} - ${response.body}');
-        return false;
-      }
-    } catch (e) {
-      _logger.error('Error updating profile photo: $e');
       return false;
     }
   }

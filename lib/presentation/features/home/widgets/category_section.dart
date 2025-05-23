@@ -144,6 +144,7 @@ class CategorySection extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                       child: CachedNetworkImageWidget(
                         imageUrl: item.imageUrl,
+                        
                         fit: BoxFit.contain,
                         // Custom error widget when image fails to load
                         errorWidget: Container(

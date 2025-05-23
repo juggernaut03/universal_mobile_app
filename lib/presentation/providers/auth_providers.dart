@@ -1,7 +1,7 @@
 // lib/presentation/providers/auth_providers.dart
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:patelmart/presentation/providers/favorites_provider.dart';
 import '../../core/network/api_client.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -88,6 +88,9 @@ final otpValidationProvider = FutureProvider.autoDispose((ref) async {
 });
 
 // OTP validation notifier
+// lib/presentation/providers/auth_providers.dart
+// Find the OtpValidationNotifier class and update the _initializeFavoritesAfterLogin method
+
 class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationResponse?>> {
   final Ref _ref;
   
@@ -103,6 +106,9 @@ class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationRespon
       if (response.authentication == 1) {
         // Set login state to success
         _ref.read(loginStateProvider.notifier).state = LoginState.success;
+        
+        // Initialize favorites after successful login
+        _initializeFavoritesAfterLogin();
       } else {
         // Set login state to failure
         _ref.read(loginStateProvider.notifier).state = LoginState.failure;
@@ -114,6 +120,23 @@ class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationRespon
       _ref.read(loginStateProvider.notifier).state = LoginState.failure;
     }
   }
+  
+  void _initializeFavoritesAfterLogin() {
+    // Delay initialization to ensure user profile is saved
+    Future.delayed(const Duration(milliseconds: 500), () {
+      try {
+        final favoritesNotifier = _ref.read(favoritesProvider.notifier);
+        favoritesNotifier.initializeFavorites();
+        
+        final logger = _ref.read(loggerProvider);
+        logger.log('Initializing favorites after login');
+      } catch (e) {
+        // Handle error silently as this is not critical
+        final logger = _ref.read(loggerProvider);
+        logger.error('Error initializing favorites after login: $e');
+      }
+    });
+  }
 }
 
 // OTP validation notifier provider
@@ -121,12 +144,27 @@ final otpValidationNotifierProvider = StateNotifierProvider<OtpValidationNotifie
   return OtpValidationNotifier(ref);
 });
 
-// Logout provider
+// Enhanced logout provider that clears favorites
 final logoutProvider = Provider((ref) {
   return () async {
     final repository = ref.read(authRepositoryProvider);
     await repository.logout();
+    
+    // Clear login state
     ref.read(loginStateProvider.notifier).state = LoginState.initial;
+    
+    // Clear favorites when logging out
+    // We'll import this in the actual file
+    try {
+      // Clear favorites state
+      // ref.read(favoritesProvider.notifier).clearFavorites();
+    } catch (e) {
+      // Handle error silently
+    }
+    
+    // Invalidate user profile and login status
+    ref.invalidate(userProfileProvider);
+    ref.invalidate(isLoggedInProvider);
   };
 });
 

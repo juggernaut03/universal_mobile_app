@@ -154,7 +154,32 @@ class ProductRepository {
       _logger.error('Error clearing product cache: $e');
     }
   }
-  
+  Future<ProductModel?> getProductByCode(String pCode, String storeCode) async {
+  try {
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/get_product_by_code'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'p_code': pCode,
+        'store_code': storeCode,
+        'project_code': ApiConstants.projectCode,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) {
+        return ProductModel.fromJson(data);
+      } else if (data is List && data.isNotEmpty) {
+        return ProductModel.fromJson(data[0]);
+      }
+    }
+    return null;
+  } catch (e) {
+    _logger.error('Error fetching product by code: $e');
+    return null;
+  }
+}
   // Get a cached image URL for a product if available
   Future<String> getCachedProductImageUrl(String productCode, String originalUrl) async {
     try {

@@ -127,11 +127,11 @@ class AccountScreen extends ConsumerWidget {
                       isLoggedInAsync.whenData((isLoggedIn) {
                         if (isLoggedIn) {
                           // Navigate to saved list if logged in
-                          // context.push('/saved-list');
+                          context.push('/favorites');
                         } else {
                           // Go to login first if not logged in
                           context.push('/auth/login', extra: {
-                            'redirectRoute': '/saved-list'
+                            'redirectRoute': '/favorites'
                           });
                         }
                       });

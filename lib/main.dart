@@ -1,6 +1,7 @@
 // lib/main.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
@@ -12,6 +13,12 @@ import 'core/utils/logger.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Lock orientation to portrait only
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+  
   // Initialize SharedPreferences
   final sharedPreferences = await SharedPreferences.getInstance();
   
@@ -19,7 +26,7 @@ void main() async {
   final logger = Logger();
   
   // Log app startup
-  logger.log('Application starting...');
+  logger.log('Application starting in portrait mode...');
   
   runApp(
     ProviderScope(

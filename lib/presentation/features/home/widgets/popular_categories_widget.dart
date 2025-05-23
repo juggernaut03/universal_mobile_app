@@ -129,12 +129,13 @@ class CategoryService {
       _logger.log('Fetching popular categories from API for store: $storeCode');
       
       final body = {
+        "department_id": 2,
         "store_code": storeCode,
         "project_code": ApiConstants.projectCode,
       };
       
       final response = await _apiClient.post(
-        'https://newtech.shalviadvision.com/api/get_popular_category_list',
+        'https://newtech.shalviadvision.com/api/get_popular_category_list_1',
         body: body,
       );
       

@@ -14,8 +14,6 @@ import 'package:patelmart/core/utils/logger.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:carousel_slider/carousel_slider.dart';
-
 
 // Model to represent a promotional banner
 class PromotionalBanner {
@@ -227,31 +225,145 @@ class BannerService {
   }
 }
 
-// Promotional Banner Widget
-class PromotionalBannerWidget extends ConsumerWidget {
+// Custom Page Controller for fade transitions
+class FadeBannerController {
+  late PageController _pageController;
+  Timer? _autoPlayTimer;
+  bool _isAutoPlay;
+  Duration _autoPlayInterval;
+  Duration _animationDuration;
+  int _currentIndex = 0;
+  List<PromotionalBanner> _banners = [];
+  
+  FadeBannerController({
+    bool autoPlay = true,
+    Duration autoPlayInterval = const Duration(seconds: 4),
+    Duration animationDuration = const Duration(milliseconds: 800),
+  }) : 
+    _isAutoPlay = autoPlay,
+    _autoPlayInterval = autoPlayInterval,
+    _animationDuration = animationDuration {
+    _pageController = PageController();
+  }
+  
+  void initialize(List<PromotionalBanner> banners) {
+    _banners = banners;
+    if (_isAutoPlay && _banners.length > 1) {
+      _startAutoPlay();
+    }
+  }
+  
+  void _startAutoPlay() {
+    _autoPlayTimer?.cancel();
+    _autoPlayTimer = Timer.periodic(_autoPlayInterval, (timer) {
+      if (_banners.isNotEmpty) {
+        _currentIndex = (_currentIndex + 1) % _banners.length;
+        _pageController.animateToPage(
+          _currentIndex,
+          duration: _animationDuration,
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+  
+  void stopAutoPlay() {
+    _autoPlayTimer?.cancel();
+  }
+  
+  void resumeAutoPlay() {
+    if (_isAutoPlay && _banners.length > 1) {
+      _startAutoPlay();
+    }
+  }
+  
+  void dispose() {
+    _autoPlayTimer?.cancel();
+    _pageController.dispose();
+  }
+  
+  PageController get pageController => _pageController;
+  int get currentIndex => _currentIndex;
+  
+  void updateIndex(int index) {
+    _currentIndex = index;
+  }
+}
+
+// Promotional Banner Widget with Fade Transitions
+class PromotionalBannerWidget extends ConsumerStatefulWidget {
   final double? height;
   final double? width;
   final bool autoPlay;
   final Duration autoPlayInterval;
-  final Duration autoPlayAnimationDuration;
-  final bool enlargeCenterPage;
+  final Duration fadeTransitionDuration;
   final EdgeInsets? padding;
   final BorderRadius? borderRadius;
+  final bool showPageIndicator;
+  final Color? indicatorActiveColor;
+  final Color? indicatorInactiveColor;
 
   const PromotionalBannerWidget({
     Key? key,
-    this.height = 180,
+    this.height = 280,
     this.width,
     this.autoPlay = true,
-    this.autoPlayInterval = const Duration(seconds: 3),
-    this.autoPlayAnimationDuration = const Duration(milliseconds: 800),
-    this.enlargeCenterPage = true,
+    this.autoPlayInterval = const Duration(seconds: 4),
+    this.fadeTransitionDuration = const Duration(milliseconds: 800),
     this.padding,
     this.borderRadius,
+    this.showPageIndicator = true,
+    this.indicatorActiveColor,
+    this.indicatorInactiveColor,
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PromotionalBannerWidget> createState() => _PromotionalBannerWidgetState();
+}
+
+class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidget>
+    with TickerProviderStateMixin {
+  late FadeBannerController _bannerController;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    _bannerController = FadeBannerController(
+      autoPlay: widget.autoPlay,
+      autoPlayInterval: widget.autoPlayInterval,
+      animationDuration: widget.fadeTransitionDuration,
+    );
+    
+    _fadeController = AnimationController(
+      duration: widget.fadeTransitionDuration,
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+    
+    // Start with fade in
+    _fadeController.forward();
+  }
+
+  @override
+  void dispose() {
+    _bannerController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final bannersAsync = ref.watch(promotionalBannersProvider);
     
     return bannersAsync.when(
@@ -259,6 +371,11 @@ class PromotionalBannerWidget extends ConsumerWidget {
         if (banners.isEmpty) {
           return _buildEmptyPlaceholder(context);
         }
+        
+        // Initialize controller with banners
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _bannerController.initialize(banners);
+        });
         
         return _buildBannerCarousel(context, banners);
       },
@@ -268,29 +385,45 @@ class PromotionalBannerWidget extends ConsumerWidget {
   }
   
   Widget _buildBannerCarousel(BuildContext context, List<PromotionalBanner> banners) {
-    final finalWidth = width ?? MediaQuery.of(context).size.width;
+    final finalWidth = widget.width ?? MediaQuery.of(context).size.width;
     
     return Container(
-      height: height,
+      height: widget.height,
       width: finalWidth,
-      padding: padding ?? const EdgeInsets.symmetric(vertical: 8),
-      child: CarouselSlider.builder(
-        itemCount: banners.length,
-        itemBuilder: (context, index, _) {
-          return _buildBannerItem(context, banners[index]);
-        },
-        options: CarouselOptions(
-          height: height,
-          aspectRatio: 16/9,
-          viewportFraction: 0.95,
-          enableInfiniteScroll: banners.length > 1,
-          autoPlay: autoPlay && banners.length > 1,
-          autoPlayInterval: autoPlayInterval,
-          autoPlayAnimationDuration: autoPlayAnimationDuration,
-          enlargeCenterPage: enlargeCenterPage,
-          enlargeFactor: 0.15,
-          scrollDirection: Axis.horizontal,
-        ),
+      padding: widget.padding ?? const EdgeInsets.symmetric(vertical: 8),
+      child: Stack(
+        children: [
+          // Banner PageView with Fade Transition
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: PageView.builder(
+              controller: _bannerController.pageController,
+              itemCount: banners.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                  _bannerController.updateIndex(index);
+                });
+                
+                // Add fade effect on page change
+                _fadeController.reset();
+                _fadeController.forward();
+              },
+              itemBuilder: (context, index) {
+                return _buildBannerItem(context, banners[index]);
+              },
+            ),
+          ),
+          
+          // Page Indicators
+          if (widget.showPageIndicator && banners.length > 1)
+            Positioned(
+              bottom: 16,
+              left: 0,
+              right: 0,
+              child: _buildPageIndicator(banners.length),
+            ),
+        ],
       ),
     );
   }
@@ -306,6 +439,12 @@ class PromotionalBannerWidget extends ConsumerWidget {
     
     return GestureDetector(
       onTap: () {
+        // Pause auto-play briefly on tap
+        _bannerController.stopAutoPlay();
+        Timer(const Duration(seconds: 2), () {
+          _bannerController.resumeAutoPlay();
+        });
+        
         if (banner.redirectLink.isNotEmpty) {
           final redirectPath = banner.redirectLink;
           // Check if it's a product detail link
@@ -317,41 +456,107 @@ class PromotionalBannerWidget extends ConsumerWidget {
         }
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 5),
+        margin: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: borderRadius ?? BorderRadius.circular(8),
+          borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
               spreadRadius: 0,
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: borderRadius ?? BorderRadius.circular(8),
-          child: CachedNetworkImage(
-            imageUrl: banner.imageUrl,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            placeholder: (context, url) => Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                strokeWidth: 2,
+          borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
+          child: Stack(
+            children: [
+              // Background color layer
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: backgroundColor,
               ),
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: backgroundColor,
-              child: Center(
-                child: Icon(
-                  Icons.image_not_supported_outlined,
-                  color: Colors.grey[400],
-                  size: 50,
+              
+              // Banner image with fade-in loading
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: CachedNetworkImage(
+                  key: ValueKey(banner.imageUrl),
+                  imageUrl: banner.imageUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  placeholder: (context, url) => Container(
+                    color: backgroundColor,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          widget.indicatorActiveColor ?? AppColors.primary,
+                        ),
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: backgroundColor,
+                    child: Center(
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        color: Colors.grey[400],
+                        size: 50,
+                      ),
+                    ),
+                  ),
+                  fadeInDuration: const Duration(milliseconds: 300),
+                  fadeOutDuration: const Duration(milliseconds: 200),
                 ),
               ),
-            ),
+              
+              // Subtle gradient overlay for better text readability (if needed)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.1),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildPageIndicator(int pageCount) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        pageCount,
+        (index) => AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: _currentIndex == index ? 24 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: _currentIndex == index
+                ? widget.indicatorActiveColor ?? AppColors.primary
+                : widget.indicatorInactiveColor ?? Colors.white.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 2,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
         ),
       ),
@@ -359,11 +564,22 @@ class PromotionalBannerWidget extends ConsumerWidget {
   }
   
   Widget _buildLoadingIndicator() {
-    return SizedBox(
-      height: height,
-      child: Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+    return Container(
+      height: widget.height,
+      width: widget.width ?? MediaQuery.of(context).size.width,
+      padding: widget.padding ?? const EdgeInsets.symmetric(vertical: 8),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              widget.indicatorActiveColor ?? AppColors.primary,
+            ),
+          ),
         ),
       ),
     );
@@ -371,20 +587,23 @@ class PromotionalBannerWidget extends ConsumerWidget {
   
   Widget _buildEmptyPlaceholder(BuildContext context) {
     return Container(
-      height: height,
-      width: width ?? MediaQuery.of(context).size.width,
-      padding: padding ?? const EdgeInsets.symmetric(vertical: 8),
+      height: widget.height,
+      width: widget.width ?? MediaQuery.of(context).size.width,
+      padding: widget.padding ?? const EdgeInsets.symmetric(vertical: 8),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.grey[200],
-          borderRadius: borderRadius ?? BorderRadius.circular(8),
+          borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
         ),
         child: Center(
-          child: Icon(
-            Icons.image_outlined,
-            size: 50,
-            color: Colors.grey[400],
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Icon(
+              Icons.image_outlined,
+              size: 50,
+              color: Colors.grey[400],
+            ),
           ),
         ),
       ),
@@ -393,33 +612,36 @@ class PromotionalBannerWidget extends ConsumerWidget {
   
   Widget _buildErrorPlaceholder(BuildContext context) {
     return Container(
-      height: height,
-      width: width ?? MediaQuery.of(context).size.width,
-      padding: padding ?? const EdgeInsets.symmetric(vertical: 8),
+      height: widget.height,
+      width: widget.width ?? MediaQuery.of(context).size.width,
+      padding: widget.padding ?? const EdgeInsets.symmetric(vertical: 8),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: Colors.grey[200],
-          borderRadius: borderRadius ?? BorderRadius.circular(8),
+          borderRadius: widget.borderRadius ?? BorderRadius.circular(12),
         ),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 40,
-                color: Colors.red[400],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Failed to load promotions',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 14,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 40,
+                  color: Colors.red[400],
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                const Text(
+                  'Failed to load promotions',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
