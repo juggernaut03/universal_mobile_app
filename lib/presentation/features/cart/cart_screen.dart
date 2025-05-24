@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/features/cart/widgets/cart_session_info_widget.dart';
+import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -47,55 +48,7 @@ class CartScreen extends ConsumerWidget {
     
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        title: const Text('Cart', style: TextStyle(color: Colors.white)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () {
-              // Handle search
-            },
-          ),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                onPressed: () {
-                  // Already in cart screen, so no action needed
-                },
-              ),
-              if (cartTotal > 0)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '₹${cartTotal.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: _buildEnhancedAppBar(context, ref),
       body: Column(
         children: [
           // Add the Cart Session Info Widget for visual feedback on session state
@@ -127,6 +80,135 @@ class CartScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  PreferredSizeWidget _buildEnhancedAppBar(BuildContext context, WidgetRef ref) {
+  final cartCount = ref.watch(cartCountProvider);
+  final cartTotal = ref.watch(cartTotalProvider);
+  final logger = ref.read(loggerProvider);
+  
+  return AppBar(
+    backgroundColor: AppColors.primary,
+    elevation: 0,
+    leading: IconButton(
+      icon: const Icon(Icons.arrow_back, color: Colors.white),
+      onPressed: () {
+        logger.log('Cart back button pressed');
+        // Use context.canPop() to check if we can go back, otherwise go to home
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          // If we can't pop (e.g., deep link directly to cart), go to home
+          context.go('/home');
+        }
+      },
+    ),
+    title: const Text(
+      'Cart',
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+    centerTitle: true,
+    actions: [
+      // Favorites/Wishlist icon
+      IconButton(
+        icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
+        onPressed: () {
+          logger.log('Favorites button pressed from cart');
+          context.push('/favorites');
+        },
+        tooltip: 'View Favorites',
+      ),
+      
+      // Simplified Cart icon with only quantity badge
+      Stack(
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart, color: Colors.white),
+            onPressed: () {
+              // Already in cart screen, show current cart status
+              if (cartCount > 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'You have ${cartCount} item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(0)})',
+                    ),
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: AppColors.primary,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Your cart is empty'),
+                    duration: Duration(seconds: 2),
+                    backgroundColor: Colors.grey,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            tooltip: 'Cart Summary',
+          ),
+          
+          // Simple quantity badge - only shows count
+          if (cartCount > 0)
+            Positioned(
+              top: 4,
+              right: 6,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 20,
+                  minHeight: 20,
+                ),
+                child: Text(
+                  cartCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      
+      const SizedBox(width: 8),
+    ],
+  );
+}
+
+
+  /// Format cart total for display in badge
+  String _formatCartTotal(double total) {
+    if (total >= 1000) {
+      // Show in K format for values >= 1000
+      return '${(total / 1000).toStringAsFixed(total % 1000 == 0 ? 0 : 1)}K';
+    } else {
+      // Show full amount for values < 1000
+      return total.toStringAsFixed(0);
+    }
   }
 
   Widget _buildCartSummary(BuildContext context, double savings, double total) {

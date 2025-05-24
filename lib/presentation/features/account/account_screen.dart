@@ -1,4 +1,4 @@
-// lib/presentation/features/account/account_screen.dart (updated version)
+// lib/presentation/features/account/account_screen.dart (updated with improved AppBar and Drawer)
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +8,11 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/bottom_navigation_widget.dart';
 import '../../providers/splash_provider.dart';
 import '../../providers/launch_flow_provider.dart';
-import '../../providers/auth_providers.dart'; // Added for auth status
+import '../../providers/auth_providers.dart';
+import '../../providers/cart_provider.dart';
+import '../../providers/outlet_provider.dart';
+import '../../providers/location_provider.dart';
+import '../../providers/best_seller_providers.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({Key? key}) : super(key: key);
@@ -20,56 +24,9 @@ class AccountScreen extends ConsumerWidget {
     final int _navIndex = 4; // Account tab selected by default
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        title: const Text(
-          'Patel\'s Rmart',
-          style: TextStyle(color: Colors.white),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: Stack(
-              children: [
-                const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.amber,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 14,
-                      minHeight: 14,
-                    ),
-                    child: const Text(
-                      '2',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              ],
-            ),
-            onPressed: () {
-              context.push('/cart');
-            },
-          ),
-        ],
-      ),
+      backgroundColor: Colors.white,
+      appBar: _buildAppBar(context, ref),
+      drawer: _buildDrawer(context, ref),
       
       body: SafeArea(
         child: Column(
@@ -77,7 +34,7 @@ class AccountScreen extends ConsumerWidget {
             Expanded(
               child: ListView(
                 children: [
-                  // User Profile menu item - NEW
+                  // User Profile menu item
                   _buildMenuItem(
                     context,
                     icon: Icons.person_outline,
@@ -98,26 +55,28 @@ class AccountScreen extends ConsumerWidget {
                     },
                   ),
                   _buildDivider(),
-                _buildMenuItem(
-  context,
-  icon: Icons.shopping_bag_outlined,
-  title: 'My Orders',
-  onTap: () {
-    // Check login status before navigating
-    isLoggedInAsync.whenData((isLoggedIn) {
-      if (isLoggedIn) {
-        // Navigate to orders if logged in
-        context.push('/my-orders');
-      } else {
-        // Go to login first if not logged in
-        context.push('/auth/login', extra: {
-          'redirectRoute': '/my-orders'
-        });
-      }
-    });
-  },
-),
+                  
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.shopping_bag_outlined,
+                    title: 'My Orders',
+                    onTap: () {
+                      // Check login status before navigating
+                      isLoggedInAsync.whenData((isLoggedIn) {
+                        if (isLoggedIn) {
+                          // Navigate to orders if logged in
+                          context.push('/my-orders');
+                        } else {
+                          // Go to login first if not logged in
+                          context.push('/auth/login', extra: {
+                            'redirectRoute': '/my-orders'
+                          });
+                        }
+                      });
+                    },
+                  ),
                   _buildDivider(),
+                  
                   _buildMenuItem(
                     context,
                     icon: Icons.bookmark_border_outlined,
@@ -138,6 +97,7 @@ class AccountScreen extends ConsumerWidget {
                     },
                   ),
                   _buildDivider(),
+                  
                   _buildMenuItem(
                     context,
                     icon: Icons.replay_outlined,
@@ -146,7 +106,6 @@ class AccountScreen extends ConsumerWidget {
                       // Check login status
                       isLoggedInAsync.whenData((isLoggedIn) {
                         if (isLoggedIn) {
-                        
                           context.push('/reorder');
                         } else {
                           // Go to login first
@@ -158,26 +117,48 @@ class AccountScreen extends ConsumerWidget {
                     },
                   ),
                   _buildDivider(),
-                 _buildMenuItem(
-  context,
-  icon: Icons.location_on_outlined,
-  title: 'My Addresses',
-  onTap: () {
-    // Check login status
-    isLoggedInAsync.whenData((isLoggedIn) {
-      if (isLoggedIn) {
-        // Navigate to address book
-        context.go('/address-book');
-      } else {
-        // Go to login first if not logged in
-        context.push('/auth/login', extra: {
-          'redirectRoute': '/address-book'
-        });
-      }
-    });
-  },
-),
-_buildDivider(),
+                  
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.location_on_outlined,
+                    title: 'My Addresses',
+                    onTap: () {
+                      // Check login status
+                      isLoggedInAsync.whenData((isLoggedIn) {
+                        if (isLoggedIn) {
+                          // Navigate to address book
+                          context.go('/address-book');
+                        } else {
+                          // Go to login first if not logged in
+                          context.push('/auth/login', extra: {
+                            'redirectRoute': '/address-book'
+                          });
+                        }
+                      });
+                    },
+                  ),
+                  _buildDivider(),
+                  
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.savings_outlined,
+                    title: 'My Savings',
+                    onTap: () {
+                      // Check login status
+                      isLoggedInAsync.whenData((isLoggedIn) {
+                        if (isLoggedIn) {
+                          context.push('/savings');
+                        } else {
+                          // Go to login first if not logged in
+                          context.push('/auth/login', extra: {
+                            'redirectRoute': '/savings'
+                          });
+                        }
+                      });
+                    },
+                  ),
+                  _buildDivider(),
+                  
                   _buildMenuItem(
                     context,
                     icon: Icons.chat_bubble_outline,
@@ -233,7 +214,7 @@ _buildDivider(),
                   // Savings banner
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: _buildSavingsBanner(context),
+                    child: _buildSavingsBanner(context, ref),
                   ),
                 ],
               ),
@@ -241,6 +222,7 @@ _buildDivider(),
           ],
         ),
       ),
+      
       bottomNavigationBar: BottomNavigationWidget(
         currentIndex: _navIndex,
         onTap: (index) {
@@ -254,7 +236,7 @@ _buildDivider(),
               context.go('/category');
               break;
             case 2: // Orders
-              // Placeholder for orders navigation
+              context.push('/cart');
               break;
             case 3: // Reorder
               if (context.mounted) context.go('/reorder');
@@ -264,6 +246,367 @@ _buildDivider(),
               break;
           }
         },
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
+    final cartCount = ref.watch(cartCountProvider);
+    final logger = ref.read(loggerProvider);
+    
+    return AppBar(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: true,
+      title: Image.asset(
+        'assets/images/patelLogo.png',
+        height: 32,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          logger.error('Error loading logo: $error');
+          return const Icon(Icons.store, color: Colors.white, size: 32);
+        },
+      ),
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () {
+            Scaffold.of(context).openDrawer();
+          },
+        ),
+      ),
+      actions: [
+        // Wishlist/Favorites icon
+        IconButton(
+          icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
+          onPressed: () {
+            logger.log('Favorites button pressed from account screen');
+            if (context.mounted) {
+              context.push('/favorites');
+            }
+          },
+        ),
+        // Cart icon with badge
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+              onPressed: () {
+                logger.log('Cart button pressed from account screen');
+                if (context.mounted) {
+                  context.push('/cart');
+                }
+              },
+            ),
+            if (cartCount > 0)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    cartCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, WidgetRef ref) {
+    final selectedOutletAsync = ref.watch(selectedOutletProvider);
+    final logger = ref.read(loggerProvider);
+    final cartCount = ref.watch(cartCountProvider);
+    final cartTotal = ref.watch(cartTotalProvider);
+    final isLoggedInAsync = ref.watch(isLoggedInProvider);
+    
+    return Drawer(
+      child: Column(
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () {
+                        logger.log('Drawer back button pressed');
+                        Navigator.pop(context);
+                      },
+                    ),
+                    // Show user status based on login
+                    isLoggedInAsync.when(
+                      data: (isLoggedIn) => Text(
+                        isLoggedIn ? 'Hi, User' : 'Hi, Guest',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      loading: () => const Text(
+                        'Hi, Guest',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      error: (_, __) => const Text(
+                        'Hi, Guest',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    selectedOutletAsync.when(
+                      data: (outlet) => Expanded(
+                        child: Text(
+                          ref.watch(selectedPincodeProvider) ?? 'No pincode selected',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      loading: () => const Text(
+                        'Loading...',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      error: (_, __) => const Text(
+                        'Error loading location',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.white, size: 18),
+                      onPressed: () {
+                        logger.log('Edit location pressed from account drawer');
+                        Navigator.pop(context);
+                        if (context.mounted) {
+                          context.go('/location-change');
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                
+                Image.asset(
+                  'assets/images/patelLogo.png',
+                  height: 40,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    logger.error('Error loading drawer logo: $error');
+                    return const Icon(Icons.store, color: Colors.white, size: 40);
+                  },
+                ),
+              ],
+            ),
+          ),
+          
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.grid_view, color: AppColors.primary),
+                  title: const Text('SHOP BY CATEGORY'),
+                  trailing: const Icon(Icons.navigate_next),
+                  onTap: () {
+                    logger.log('Shop by category pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.go('/category');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                ListTile(
+                  leading: Icon(Icons.shopping_cart, color: AppColors.primary),
+                  title: const Text('View Cart'),
+                  trailing: cartCount > 0
+                      ? Text(
+                          '₹${cartTotal.toStringAsFixed(2)} (${cartCount.toString()})',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
+                  onTap: () {
+                    logger.log('View Cart pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.push('/cart');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+
+                ListTile(
+                  leading: Icon(Icons.favorite_border, color: AppColors.primary),
+                  title: const Text('My Favorites'),
+                  onTap: () {
+                    logger.log('My Favorites pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.push('/favorites');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                ListTile(
+                  leading: Icon(Icons.help_outline, color: AppColors.primary),
+                  title: const Text('Help & Support'),
+                  onTap: () {
+                    logger.log('Help & Support pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.go('/help-support');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                ListTile(
+                  leading: Icon(Icons.description_outlined, color: AppColors.primary),
+                  title: const Text('Refund, Terms and Policies'),
+                  onTap: () {
+                    logger.log('Refund policies pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.go('/refund-policies');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                ListTile(
+                  leading: Icon(Icons.chat_bubble_outline, color: AppColors.primary),
+                  title: const Text('Frequently Asked Questions'),
+                  onTap: () {
+                    logger.log('FAQ pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.go('/faq');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                ListTile(
+                  leading: Icon(Icons.info_outline, color: AppColors.primary),
+                  title: const Text('About Us'),
+                  onTap: () {
+                    logger.log('About Us pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.go('/about-us');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                ListTile(
+                  leading: Icon(Icons.store, color: AppColors.primary),
+                  title: const Text('Store Information'),
+                  onTap: () {
+                    logger.log('Store Information pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.go('/store-info');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                ListTile(
+                  leading: Icon(Icons.location_on, color: AppColors.primary),
+                  title: const Text('Change Location'),
+                  onTap: () {
+                    logger.log('Change Location pressed from account drawer');
+                    Navigator.pop(context);
+                    if (context.mounted) {
+                      context.go('/location-change');
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                ListTile(
+                  leading: Icon(Icons.refresh, color: AppColors.primary),
+                  title: const Text('Refresh All Best Sellers'),
+                  onTap: () async {
+                    logger.log('Refresh Best Sellers pressed from account drawer');
+                    Navigator.pop(context);
+                    await ref.read(bestSellerRefreshProvider)();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Best seller data refreshed'),
+                          duration: const Duration(seconds: 2),
+                          backgroundColor: AppColors.primary,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const Divider(height: 1),
+                
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Version 5.2.1',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -303,7 +646,9 @@ _buildDivider(),
     );
   }
 
-  Widget _buildSavingsBanner(BuildContext context) {
+  Widget _buildSavingsBanner(BuildContext context, WidgetRef ref) {
+    final isLoggedInAsync = ref.watch(isLoggedInProvider);
+    
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFD1EAD5), // Light mint green color
@@ -335,7 +680,16 @@ _buildDivider(),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: () {
-                    // Navigate to savings page
+                    // Check login status before navigating to savings
+                    isLoggedInAsync.whenData((isLoggedIn) {
+                      if (isLoggedIn) {
+                        context.push('/savings');
+                      } else {
+                        context.push('/auth/login', extra: {
+                          'redirectRoute': '/savings'
+                        });
+                      }
+                    });
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -345,9 +699,9 @@ _buildDivider(),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Text('Check My Savings'),
                       SizedBox(width: 4),
                       Icon(Icons.arrow_forward, size: 16),
@@ -357,14 +711,20 @@ _buildDivider(),
               ],
             ),
           ),
-          // Use Lottie animation here
+          // Use Lottie animation here or fallback to icon
           SizedBox(
             width: 100,
             height: 100,
-            child: Lottie.asset(
-              'assets/images/saving.json', // Make sure to add this to your pubspec.yaml
-              fit: BoxFit.contain,
+            child: Icon(
+              Icons.savings_outlined,
+              size: 80,
+              color: AppColors.primary.withOpacity(0.7),
             ),
+            // TODO: Uncomment when Lottie asset is available
+            // child: Lottie.asset(
+            //   'assets/images/saving.json',
+            //   fit: BoxFit.contain,
+            // ),
           ),
         ],
       ),
@@ -387,11 +747,14 @@ _buildDivider(),
               Navigator.pop(context);
               // Perform sign out logic here
               await ref.read(logoutProvider)();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('You have been signed out'),
-                ),
-              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('You have been signed out'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,

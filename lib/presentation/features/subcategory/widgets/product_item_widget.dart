@@ -125,7 +125,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
     return GestureDetector(
       onTap: _navigateToProductDetail, // Navigate to product detail on tap
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 10), // Reduced margin
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(4),
@@ -136,33 +136,33 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
           children: [
             // Left side: Image with discount badge (40% width)
             SizedBox(
-              width: MediaQuery.of(context).size.width * 0.4 - 16, // Adjusting for margins
+              width: MediaQuery.of(context).size.width * 0.4 - 16,
               child: Stack(
                 children: [
                   // Product image with caching - also tappable
                   InkWell(
-                    onTap: _navigateToProductDetail, // Navigate to product detail when image is tapped
+                    onTap: _navigateToProductDetail,
                     child: Padding(
-                      padding: const EdgeInsets.all(12.0),
+                      padding: const EdgeInsets.all(10.0), // Reduced padding
                       child: Image.network(
                         widget.product.pcodeImg.isNotEmpty 
                             ? widget.product.pcodeImg 
                             : ApiConstants.fallbackImageUrl,
                         width: double.infinity,
-                        height: 120,
+                        height: 110, // Reduced height
                         fit: BoxFit.contain,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Container(
                             width: double.infinity,
-                            height: 120,
+                            height: 110,
                             color: Colors.grey[100],
                           );
                         },
                         errorBuilder: (context, error, stackTrace) => Image.network(
                           ApiConstants.fallbackImageUrl,
                           width: double.infinity,
-                          height: 120,
+                          height: 110,
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -172,7 +172,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                   // Discount badge
                   if (discountPercent > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
                       decoration: const BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.only(
@@ -184,7 +184,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                         "${discountPercent.toStringAsFixed(0)}% OFF",
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 10, // Reduced font size
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -196,36 +196,38 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
             // Right side: Product details (60% width)
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 8.0), // Reduced vertical padding
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Product name - also tappable to see product details
+                    // Product name - reduced font size and spacing
                     InkWell(
                       onTap: _navigateToProductDetail,
                       child: Text(
                         widget.product.productName,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 14, // Reduced from 16
                           fontWeight: FontWeight.w600,
+                          height: 1.2, // Reduced line height
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4), // Reduced from 6
                     
                     // Package size and price per unit
                     Text(
                       "${widget.product.packageSize} ${widget.product.packageUnit.toLowerCase()} (₹${pricePerUnit.toStringAsFixed(2)}/GM)",
                       style: TextStyle(
                         color: Colors.grey.shade600,
-                        fontSize: 14,
+                        fontSize: 12, // Reduced from 14
+                        height: 1.1, // Reduced line height
                       ),
                     ),
                     
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6), // Reduced from 8
                     
                     // Price section
                     Row(
@@ -233,35 +235,45 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                         Text(
                           "₹${widget.product.ourPrice.toStringAsFixed(0)}",
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 16, // Reduced from 18
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6), // Reduced from 8
                         
                         Text(
                           "MRP₹${widget.product.productMrp.toStringAsFixed(0)}",
                           style: TextStyle(
                             decoration: TextDecoration.lineThrough,
                             color: Colors.grey.shade600,
-                            fontSize: 14,
+                            fontSize: 12, // Reduced from 14
                           ),
                         ),
                       ],
                     ),
                     
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8), // Reduced from 10
                     
-                    // Bottom row
+                    // Bottom row - now with consistent heights
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Favorite button
-                      FavoriteButton(
-                      product: widget.product,
-                      size: 24,
-                      ),
+                        // Favorite button with increased size to match add button
+                        SizedBox(
+                          width: 32, // Fixed width to match button height
+                          height: 32, // Fixed height to match add button
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: FavoriteButton(
+                              product: widget.product,
+                              size: 20, // Increased size
+                              showSnackbarMessages: false, // Disable to prevent overlap
+                            ),
+                          ),
+                        ),
                         
                         const SizedBox(width: 8),
                         
@@ -283,10 +295,10 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
     );
   }
 
-  // Manual quantity selector with text input capability
+  // Manual quantity selector with FIXED input - no more double padding issues
   Widget _buildManualQuantitySelector(int quantity) {
     return Container(
-      height: 40,
+      height: 32, // Reduced height to match favorite button
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
@@ -294,38 +306,42 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
       child: Row(
         children: [
           // Decrement button
-          GestureDetector(
-            onTap: () {
-              if (quantity > 1) {
-                _decrementQuantity();
-              } else {
-                // Remove item if quantity becomes 0
-                ref.read(cartProvider.notifier).removeItem(widget.product);
-              }
-            },
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(3),
-                  bottomLeft: Radius.circular(3),
-                ),
+          Material(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(3),
+              bottomLeft: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: () {
+                if (quantity > 1) {
+                  _decrementQuantity();
+                } else {
+                  // Remove item if quantity becomes 0
+                  ref.read(cartProvider.notifier).removeItem(widget.product);
+                }
+              },
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(3),
+                bottomLeft: Radius.circular(3),
               ),
-              child: const Icon(
-                Icons.remove,
-                color: Colors.white,
-                size: 20,
+              child: Container(
+                width: 32, // Reduced width
+                height: 32, // Matches container height
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.remove,
+                  color: Colors.white,
+                  size: 16, // Reduced icon size
+                ),
               ),
             ),
           ),
           
-          // Manual quantity input field
+          // Manual quantity input field - FIXED VERSION
           Expanded(
             child: Container(
-              height: 40,
-              alignment: Alignment.center,
+              height: 32,
               color: Colors.white,
               child: _ManualQuantityInput(
                 initialQuantity: quantity,
@@ -336,22 +352,27 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
           ),
           
           // Increment button
-          GestureDetector(
-            onTap: _incrementQuantity,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(3),
-                  bottomRight: Radius.circular(3),
-                ),
+          Material(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(3),
+              bottomRight: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: _incrementQuantity,
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(3),
+                bottomRight: Radius.circular(3),
               ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 20,
+              child: Container(
+                width: 32, // Reduced width
+                height: 32, // Matches container height
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 16, // Reduced icon size
+                ),
               ),
             ),
           ),
@@ -360,37 +381,39 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
     );
   }
 
-  // Simple add to cart button
+  // Simple add to cart button with reduced height
   Widget _buildAddToCartButton() {
     return SizedBox(
-      height: 40,
+      height: 32, // Reduced height to match favorite button
       child: ElevatedButton.icon(
         onPressed: _addToCart,
         icon: const Icon(
           Icons.shopping_cart_outlined,
           color: Colors.white,
-          size: 18,
+          size: 12, // Reduced icon size
         ),
         label: const Text(
           "ADD",
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 11, // Reduced font size
           ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          minimumSize: const Size(double.infinity, 40),
+          minimumSize: const Size(double.infinity, 32), // Reduced height
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
         ),
       ),
     );
   }
 }
 
-// Custom manual quantity input widget
+// FIXED Custom manual quantity input widget - NO MORE DOUBLE PADDING
 class _ManualQuantityInput extends StatefulWidget {
   final int initialQuantity;
   final int maxQuantity;
@@ -466,36 +489,65 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      keyboardType: TextInputType.number,
-      textAlign: TextAlign.center,
-      maxLength: widget.maxQuantity.toString().length,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-        color: Colors.black87,
+    return Material(
+      color: Colors.transparent,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        maxLength: widget.maxQuantity.toString().length,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14, // Reduced font size
+          color: Colors.black87,
+        ),
+        decoration: InputDecoration(
+          // REMOVE ALL BORDERS AND EFFECTS - THIS FIXES THE DOUBLE PADDING
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          
+          // REMOVE PADDING AND CONTENT PADDING
+          contentPadding: EdgeInsets.zero,
+          isDense: true,
+          
+          // HIDE COUNTER
+          counterText: '',
+          
+          // REMOVE FILL COLOR
+          filled: false,
+          fillColor: Colors.transparent,
+          
+          // REMOVE HELPER TEXT SPACE
+          helperText: null,
+          
+          // DISABLE RIPPLE/SPLASH EFFECTS
+          // splashColor: Colors.transparent,
+          hoverColor: Colors.transparent,
+        ),
+        
+        // DISABLE CURSOR AND SELECTION HANDLES ON MOBILE - PREVENTS VISUAL ARTIFACTS
+        showCursor: false,
+        enableInteractiveSelection: false,
+        
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
+          _MaxQuantityInputFormatter(widget.maxQuantity),
+        ],
+        onSubmitted: (_) => _validateAndSubmit(),
+        onTap: () {
+          // Select all text when tapped for easy editing
+          _controller.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _controller.text.length,
+          );
+        },
       ),
-      decoration: const InputDecoration(
-        border: InputBorder.none,
-        counterText: '', // Hide character counter
-        contentPadding: EdgeInsets.zero,
-        isDense: true,
-      ),
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
-        _MaxQuantityInputFormatter(widget.maxQuantity),
-      ],
-      onSubmitted: (_) => _validateAndSubmit(),
-      onTap: () {
-        // Select all text when tapped for easy editing
-        _controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _controller.text.length,
-        );
-      },
     );
   }
 }

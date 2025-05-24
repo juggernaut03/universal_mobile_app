@@ -24,7 +24,7 @@ class PersistentCartWidget extends ConsumerWidget {
     final totalItems = cartItems.fold(0, (sum, item) => sum + item.quantity);
     
     return Container(
-      height: 72,
+      height: 62,
       margin: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
