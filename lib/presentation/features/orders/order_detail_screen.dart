@@ -17,6 +17,8 @@ import '../../../data/models/order_model.dart';
 import '../../../core/utils/logger.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../cart/widgets/persistent_cart_widget.dart'; // Import the persistent cart widget
+
 
 class OrderDetailScreen extends ConsumerWidget {
   final Order order;
@@ -64,172 +66,187 @@ class OrderDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Share Order Button
-            Container(
-              width: double.infinity,
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.share,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                    onPressed: () => _shareOrder(context, order),
-                  ),
-                  const Text(
-                    'Share Order',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const Divider(height: 1),
-            
-            // Order Details Section
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildInfoRow('Order Number:', '# ${order.orderId}'),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(
-                    'Ordered Date:', 
-                    DateFormat('dd-MMM-yyyy').format(order.orderDate)
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(0)}'),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('Payment Mode:', order.paymentMethod),
-                ],
-              ),
-            ),
-            
-            const Divider(height: 1),
-            
-            // Delivery Address
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle('Delivery Address:'),
-                  const SizedBox(height: 8),
-                  if (order.deliveryAddress != null && order.deliveryAddress!.isNotEmpty)
-                    Text(
-                      order.deliveryAddress!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                      ),
-                    )
-                  else
-                    const Text(
-                      'No delivery address provided',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            
-            const Divider(height: 1),
-            
-            // Action Buttons (Download Invoice & Reorder)
-            Container(
-              color: Colors.white,
-              child: Row(
-                children: [
-                  // Download Invoice button
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _downloadInvoice(context, ref, order),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            right: BorderSide(color: Colors.grey, width: 0.5),
-                          ),
-                        ),
-                        child: const Text(
-                          'DOWNLOAD INVOICE',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // Reorder button
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _reorderItems(context, ref, order),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'REORDER',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Payment Details Expandable Section
-            _buildExpandableSection(
-              title: 'Payment Details',
-              initiallyExpanded: false,
+      body: Stack(
+        children: [
+          // Main content in a scrollable view
+          SingleChildScrollView(
+            // Add bottom padding to ensure content isn't hidden behind the cart widget
+            padding: const EdgeInsets.only(bottom: 80),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildPaymentDetails(order),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Shipment Details Expandable Section
-            _buildExpandableSection(
-              title: 'Shipment 1 (${order.items.length} Items)',
-              trailing: _buildStatusChip('Delivered'),
-              initiallyExpanded: true,
-              children: [
-                _buildShipmentDetails(order),
+                // Share Order Button
+                Container(
+                  width: double.infinity,
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.share,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                        onPressed: () => _shareOrder(context, order),
+                      ),
+                      const Text(
+                        'Share Order',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
                 const Divider(height: 1),
-                _buildItemsList(order),
+                
+                // Order Details Section
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _buildInfoRow('Order Number:', '# ${order.orderId}'),
+                      const SizedBox(height: 16),
+                      _buildInfoRow(
+                        'Ordered Date:', 
+                        DateFormat('dd-MMM-yyyy').format(order.orderDate)
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(0)}'),
+                      const SizedBox(height: 16),
+                      _buildInfoRow('Payment Mode:', order.paymentMethod),
+                    ],
+                  ),
+                ),
+                
+                const Divider(height: 1),
+                
+                // Delivery Address
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('Delivery Address:'),
+                      const SizedBox(height: 8),
+                      if (order.deliveryAddress != null && order.deliveryAddress!.isNotEmpty)
+                        Text(
+                          order.deliveryAddress!,
+                          style: const TextStyle(
+                            fontSize: 14,
+                          ),
+                        )
+                      else
+                        const Text(
+                          'No delivery address provided',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                
+                const Divider(height: 1),
+                
+                // Action Buttons (Download Invoice & Reorder)
+                Container(
+                  color: Colors.white,
+                  child: Row(
+                    children: [
+                      // Download Invoice button
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _downloadInvoice(context, ref, order),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                right: BorderSide(color: Colors.grey, width: 0.5),
+                              ),
+                            ),
+                            child: const Text(
+                              'DOWNLOAD INVOICE',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      // Reorder button
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _reorderItems(context, ref, order),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'REORDER',
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Payment Details Expandable Section
+                _buildExpandableSection(
+                  title: 'Payment Details',
+                  initiallyExpanded: false,
+                  children: [
+                    _buildPaymentDetails(order),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Shipment Details Expandable Section
+                _buildExpandableSection(
+                  title: 'Shipment 1 (${order.items.length} Items)',
+                  trailing: _buildStatusChip('Delivered'),
+                  initiallyExpanded: true,
+                  children: [
+                    _buildShipmentDetails(order),
+                    const Divider(height: 1),
+                    _buildItemsList(order),
+                  ],
+                ),
+                
+                const SizedBox(height: 24),
               ],
             ),
-            
-            const SizedBox(height: 24),
-          ],
-        ),
+          ),
+          
+          // Position the persistent cart widget at the bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: const PersistentCartWidget(),
+          ),
+        ],
       ),
     );
   }

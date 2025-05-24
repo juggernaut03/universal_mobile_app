@@ -14,8 +14,6 @@ import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
-
 // Model to represent a category
 class PopularCategory {
   final String id;
@@ -197,11 +195,11 @@ class CategoryService {
 }
 
 // Popular Categories Widget
-class PopularCategoriesWidget extends ConsumerWidget {
+class PopularCategoriesWidget extends ConsumerStatefulWidget {
   final double? height;
-  final double? imageSize;
+  final double imageSize;
   final EdgeInsets? padding;
-  final int crossAxisCount;
+  final int initialCrossAxisCount;
   final bool showTitle;
   final String? title;
   final bool showViewAll;
@@ -213,7 +211,7 @@ class PopularCategoriesWidget extends ConsumerWidget {
     this.height,
     this.imageSize = 80,
     this.padding,
-    this.crossAxisCount = 4,
+    this.initialCrossAxisCount = 4,
     this.showTitle = true,
     this.title = 'Popular Categories',
     this.showViewAll = true,
@@ -222,31 +220,55 @@ class PopularCategoriesWidget extends ConsumerWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PopularCategoriesWidget> createState() => _PopularCategoriesWidgetState();
+}
+
+class _PopularCategoriesWidgetState extends ConsumerState<PopularCategoriesWidget> {
+  bool _expanded = false;
+  late int _crossAxisCount;
+  
+  @override
+  void initState() {
+    super.initState();
+    _crossAxisCount = widget.initialCrossAxisCount;
+  }
+  
+  void _toggleExpanded() {
+    setState(() {
+      _expanded = !_expanded;
+    });
+    // Log expansion state for debugging
+    ref.read(loggerProvider).log('PopularCategoriesWidget: _expanded = $_expanded');
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(popularCategoriesProvider);
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showTitle)
+        if (widget.showTitle)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  title!,
+                  widget.title!,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
                 ),
-                if (showViewAll)
+                if (widget.showViewAll)
                   TextButton(
-                    onPressed: onViewAllTap ?? () => context.go('/category'),
+                    // IMPORTANT: We prioritize our _toggleExpanded function
+                    // and ignore any external onViewAllTap callback
+                    onPressed: _toggleExpanded,
                     child: Text(
-                      'View All',
+                      _expanded ? 'Show Less' : 'View All',
                       style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w500,
@@ -272,23 +294,32 @@ class PopularCategoriesWidget extends ConsumerWidget {
     );
   }
   
-Widget _buildCategoriesGrid(BuildContext context, List<PopularCategory> categories) {
-    // Determine how many categories to display
-    final displayCategories = categories.take(8).toList();
+  Widget _buildCategoriesGrid(BuildContext context, List<PopularCategory> categories) {
+    // Determine how many categories to display based on expanded state
+    final displayCategories = _expanded ? categories : categories.take(8).toList();
     
-    // Calculate the item height based on available space
-    // This ensures we don't overflow
-    return SizedBox(
-      height: height,
+    // Calculate the number of rows needed
+    final int itemCount = displayCategories.length;
+    final int rowCount = (itemCount / _crossAxisCount).ceil();
+    
+    // Calculate the grid height based on item height
+    final double itemHeight = widget.imageSize + 40; // image + text space
+    final double gridHeight = rowCount * itemHeight;
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: _expanded 
+          ? (displayCategories.length > 8 ? 350 : gridHeight) // Allow scrolling if expanded with many items
+          : widget.height ?? gridHeight,
       child: GridView.builder(
-        padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         physics: const NeverScrollableScrollPhysics(),
         shrinkWrap: true,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          mainAxisSpacing: 8,  // Reduced from 16 to save space
-          crossAxisSpacing: 16,
-          childAspectRatio: 0.75,  // Adjusted to make cells taller relative to width
+          crossAxisCount: _crossAxisCount,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: 0.85, // Adjusted for better proportions
         ),
         itemCount: displayCategories.length,
         itemBuilder: (context, index) {
@@ -299,44 +330,34 @@ Widget _buildCategoriesGrid(BuildContext context, List<PopularCategory> categori
     );
   }
   
- Widget _buildCategoryItem(BuildContext context, PopularCategory category) {
-    // Calculate sizes based on constraints to avoid overflow
-    final availableImageSize = imageSize != null ? imageSize! : 70.0;
-    
+  Widget _buildCategoryItem(BuildContext context, PopularCategory category) {
     return GestureDetector(
       onTap: () {
         context.push('/subcategory/${category.categoryId}/${category.departmentId}/${category.categoryName}');
       },
       child: Column(
-        mainAxisSize: MainAxisSize.min,  // Use minimum space needed
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Category image in rounded container
-          Container(
-            width: availableImageSize,
-            height: availableImageSize,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(borderRadius),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  spreadRadius: 1,
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+          // Category image without border
+          SizedBox(
+            width: widget.imageSize,
+            height: widget.imageSize,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: BorderRadius.circular(widget.borderRadius),
               child: CachedNetworkImage(
                 imageUrl: category.imageUrl,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   color: Colors.grey[200],
-                  child: Icon(
-                    Icons.image,
-                    color: Colors.grey[400],
-                    size: 32,
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    ),
                   ),
                 ),
                 errorWidget: (context, url, error) => Container(
@@ -344,34 +365,34 @@ Widget _buildCategoriesGrid(BuildContext context, List<PopularCategory> categori
                   child: Icon(
                     Icons.broken_image,
                     color: Colors.grey[400],
-                    size: 32,
+                    size: 24,
                   ),
                 ),
               ),
             ),
           ),
           
-          // Category name - constrained height to prevent overflow
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.only(top: 4.0),  // Reduced from 8
-              constraints: const BoxConstraints(minHeight: 0, maxHeight: 40),
-              child: Text(
-                _formatCategoryName(category.categoryName),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.bodySmall.copyWith(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11, // Smaller font size to fit better
-                ),
+          // Category name with fixed height
+          Container(
+            height: 36, // Fixed height for all text containers
+            padding: const EdgeInsets.only(top: 4),
+            alignment: Alignment.center, // Center the text
+            child: Text(
+              _formatCategoryName(category.categoryName),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall.copyWith(
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
               ),
             ),
           ),
         ],
       ),
     );
- }
+  }
+  
   // Format category name to title case and handle special characters
   String _formatCategoryName(String name) {
     if (name.isEmpty) return "";

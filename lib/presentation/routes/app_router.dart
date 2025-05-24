@@ -432,7 +432,7 @@ GoRoute(
   path: '/search',
   name: RouteNames.search,
   builder: (context, state) {
-    final query = state.uri.queryParameters['query'] ?? '';
+    final query = state.uri.queryParameters['query'];
     return SearchScreen(initialQuery: query);
   },
 ),

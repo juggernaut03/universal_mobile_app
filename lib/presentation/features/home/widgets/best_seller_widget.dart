@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/core/widgets/quantity_input_widget.dart';
+import 'package:patelmart/core/widgets/favorite_button.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -297,7 +297,7 @@ class BestSellerWidget extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product image with discount badge
+            // Product image with discount badge and favorite button
             Stack(
               children: [
                 ClipRRect(
@@ -338,14 +338,14 @@ class BestSellerWidget extends ConsumerWidget {
                 if (discountPercent > 0)
                   Positioned(
                     top: 0,
-                    left: 0,
+                    right: 0, // Positioned on right instead of left to avoid overlap with favorite button
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: const BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                          bottomRight: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                          bottomLeft: Radius.circular(8),
                         ),
                       ),
                       child: Text(
@@ -358,6 +358,24 @@ class BestSellerWidget extends ConsumerWidget {
                       ),
                     ),
                   ),
+                // Add favorite button at top left
+                Positioned(
+                  top: 4,
+                  left: 4,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: FavoriteButton(
+                      product: product,
+                      size: 20,
+                      activeColor: Colors.red,
+                      inactiveColor: Colors.grey,
+                      showSnackbarMessages: false,
+                    ),
+                  ),
+                ),
               ],
             ),
             
@@ -415,7 +433,7 @@ class BestSellerWidget extends ConsumerWidget {
             
             const Spacer(),
             
-            // Enhanced Add to cart button or quantity selector with manual input
+            // Add to cart button or quantity selector with manual input
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: isInCart
@@ -428,10 +446,10 @@ class BestSellerWidget extends ConsumerWidget {
     );
   }
 
-  // Manual quantity selector with text input capability
+  // Manual quantity selector with improved styling to match product_item_widget
   Widget _buildManualQuantitySelector(BuildContext context, WidgetRef ref, ProductModel product, int quantity) {
     return Container(
-      height: 36,
+      height: 32, // Reduced height to match product_item_widget
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
@@ -439,38 +457,42 @@ class BestSellerWidget extends ConsumerWidget {
       child: Row(
         children: [
           // Decrement button
-          GestureDetector(
-            onTap: () {
-              if (quantity > 1) {
-                ref.read(cartProvider.notifier).decrementQuantity(product);
-              } else {
-                // Remove item if quantity becomes 0
-                ref.read(cartProvider.notifier).removeItem(product);
-              }
-            },
-            child: Container(
-              width: 30,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(3),
-                  bottomLeft: Radius.circular(3),
-                ),
+          Material(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(3),
+              bottomLeft: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: () {
+                if (quantity > 1) {
+                  ref.read(cartProvider.notifier).decrementQuantity(product);
+                } else {
+                  // Remove item if quantity becomes 0
+                  ref.read(cartProvider.notifier).removeItem(product);
+                }
+              },
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(3),
+                bottomLeft: Radius.circular(3),
               ),
-              child: const Icon(
-                Icons.remove,
-                color: Colors.white,
-                size: 16,
+              child: Container(
+                width: 32, // Fixed width to match height
+                height: 32, // Fixed height
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.remove,
+                  color: Colors.white,
+                  size: 16, // Smaller icon size for better appearance
+                ),
               ),
             ),
           ),
           
-          // Manual quantity input field
+          // Manual quantity input field - using the optimized approach from product_item_widget
           Expanded(
             child: Container(
-              height: 36,
-              alignment: Alignment.center,
+              height: 32,
               color: Colors.white,
               child: _ManualQuantityInput(
                 initialQuantity: quantity,
@@ -483,28 +505,33 @@ class BestSellerWidget extends ConsumerWidget {
           ),
           
           // Increment button
-          GestureDetector(
-            onTap: () {
-              if (quantity < product.maxQuantityAllowed) {
-                ref.read(cartProvider.notifier).incrementQuantity(product);
-              } else {
-                _showMaxQuantityMessage(context, product);
-              }
-            },
-            child: Container(
-              width: 30,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(3),
-                  bottomRight: Radius.circular(3),
-                ),
+          Material(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(3),
+              bottomRight: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: () {
+                if (quantity < product.maxQuantityAllowed) {
+                  ref.read(cartProvider.notifier).incrementQuantity(product);
+                } else {
+                  _showMaxQuantityMessage(context, product);
+                }
+              },
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(3),
+                bottomRight: Radius.circular(3),
               ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 16,
+              child: Container(
+                width: 32, // Fixed width to match height
+                height: 32, // Fixed height
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 16, // Smaller icon size for better appearance
+                ),
               ),
             ),
           ),
@@ -513,22 +540,34 @@ class BestSellerWidget extends ConsumerWidget {
     );
   }
 
-  // Simple add to cart button
+  // Simple add to cart button with reduced height to match product_item_widget
   Widget _buildAddToCartButton(WidgetRef ref, ProductModel product) {
     return SizedBox(
-      height: 36,
+      height: 32, // Reduced height to match product_item_widget
       width: double.infinity,
-      child: ElevatedButton(
+      child: ElevatedButton.icon(
         onPressed: () => ref.read(cartProvider.notifier).addItem(product),
+        icon: const Icon(
+          Icons.shopping_cart_outlined,
+          color: Colors.white,
+          size: 12, // Reduced icon size
+        ),
+        label: const Text(
+          "ADD",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 11, // Reduced font size
+          ),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          padding: EdgeInsets.zero,
+          minimumSize: const Size(double.infinity, 32), // Reduced height
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
         ),
-        child: const Text("ADD"),
       ),
     );
   }
@@ -571,7 +610,7 @@ class BestSellerWidget extends ConsumerWidget {
   }
 }
 
-// Custom manual quantity input widget
+// Optimized manual quantity input widget to match product_item_widget implementation
 class _ManualQuantityInput extends StatefulWidget {
   final int initialQuantity;
   final int maxQuantity;
@@ -647,36 +686,69 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      keyboardType: TextInputType.number,
-      textAlign: TextAlign.center,
-      maxLength: widget.maxQuantity.toString().length,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 14,
-        color: Colors.black87,
+    return Container(
+      // Add alignment to center the TextField both horizontally and vertically
+      alignment: Alignment.center,
+      child: Material(
+        color: Colors.transparent,
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: widget.maxQuantity.toString().length,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Colors.black87,
+          ),
+          decoration: const InputDecoration(
+            // Remove all borders and effects
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            
+            // Remove padding and set isCollapsed to true to ensure proper vertical centering
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            isCollapsed: true,
+            
+            // Hide counter
+            counterText: '',
+            
+            // Remove fill color
+            filled: false,
+            fillColor: Colors.transparent,
+            
+            // Remove helper text space
+            helperText: null,
+            
+            // Disable hover effects
+            hoverColor: Colors.transparent,
+          ),
+          
+          // Disable cursor and selection handles on mobile
+          showCursor: false,
+          enableInteractiveSelection: false,
+          
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
+            _MaxQuantityInputFormatter(widget.maxQuantity),
+          ],
+          onSubmitted: (_) => _validateAndSubmit(),
+          onTap: () {
+            // Select all text when tapped for easy editing
+            _controller.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: _controller.text.length,
+            );
+          },
+        ),
       ),
-      decoration: const InputDecoration(
-        border: InputBorder.none,
-        counterText: '', // Hide character counter
-        contentPadding: EdgeInsets.zero,
-        isDense: true,
-      ),
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
-        _MaxQuantityInputFormatter(widget.maxQuantity),
-      ],
-      onSubmitted: (_) => _validateAndSubmit(),
-      onTap: () {
-        // Select all text when tapped for easy editing
-        _controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _controller.text.length,
-        );
-      },
     );
   }
 }
