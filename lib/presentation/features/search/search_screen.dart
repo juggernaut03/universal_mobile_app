@@ -1,11 +1,13 @@
 // lib/presentation/features/search/search_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/product_model.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/cached_network_image_widget.dart';
 import '../../../core/widgets/empty_state_widget.dart';
 import '../../../core/widgets/error_widgets.dart';
@@ -205,7 +207,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final searchState = ref.watch(searchProvider);
     
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: _buildSearchAppBar(searchState),
       body: _buildBody(searchState),
     );
@@ -215,108 +217,145 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return AppBar(
       backgroundColor: AppColors.primary,
       elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => context.pop(),
-      ),
-      title: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: TextField(
-          controller: _searchController,
-          focusNode: _searchFocusNode,
-          decoration: InputDecoration(
-            hintText: 'Search for products...',
-            hintStyle: const TextStyle(
-              color: Colors.grey,
-              fontSize: 14,
+      automaticallyImplyLeading: false,
+      title: Row(
+        children: [
+          // Back button
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
             ),
-            prefixIcon: const Icon(
-              Icons.search,
-              color: Colors.grey,
-              size: 20,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+              onPressed: () => context.pop(),
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              padding: const EdgeInsets.all(8),
             ),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.grey, size: 20),
-                    onPressed: () {
-                      _searchController.clear();
-                      ref.read(searchProvider.notifier).setQuery('');
-                    },
-                  )
-                : searchState.isLoading
-                    ? const Padding(
-                        padding: EdgeInsets.all(12.0),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                          ),
-                        ),
-                      )
-                    : null,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           ),
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 14,
-          ),
-          cursorColor: AppColors.primary,
-          onChanged: (value) {
-            ref.read(searchProvider.notifier).setQuery(value);
-          },
-          textInputAction: TextInputAction.search,
-        ),
-      ),
-      actions: [
-        // Cart icon with badge
-        Consumer(
-          builder: (context, ref, _) {
-            final cartCount = ref.watch(cartCountProvider);
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                  onPressed: () => context.push('/cart'),
-                ),
-                if (cartCount > 0)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        cartCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+          
+          const SizedBox(width: 12),
+          
+          // Search field
+          Expanded(
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                decoration: InputDecoration(
+                  hintText: 'Search for products...',
+                  hintStyle: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.grey.shade500,
+                  ),
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Icon(
+                      Icons.search,
+                      color: Colors.grey.shade600,
+                      size: 22,
                     ),
                   ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(width: 8),
-      ],
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear, color: Colors.grey.shade600, size: 20),
+                          onPressed: () {
+                            _searchController.clear();
+                            ref.read(searchProvider.notifier).setQuery('');
+                          },
+                        )
+                      : searchState.isLoading
+                          ? Padding(
+                              padding: const EdgeInsets.all(14.0),
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                ),
+                              ),
+                            )
+                          : null,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                style: AppTextStyles.bodyMedium,
+                cursorColor: AppColors.primary,
+                onChanged: (value) {
+                  setState(() {}); // Update UI for clear button
+                  ref.read(searchProvider.notifier).setQuery(value);
+                },
+                textInputAction: TextInputAction.search,
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 12),
+          
+          // Cart icon with badge
+          Consumer(
+            builder: (context, ref, _) {
+              final cartCount = ref.watch(cartCountProvider);
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20),
+                      onPressed: () => context.push('/cart'),
+                      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                      padding: const EdgeInsets.all(8),
+                    ),
+                    if (cartCount > 0)
+                      Positioned(
+                        right: 4,
+                        top: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            cartCount > 99 ? '99+' : cartCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
   
@@ -347,11 +386,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   
   Widget _buildInitialState() {
     return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
-          
           // Recent Searches Section
           Consumer(
             builder: (context, ref, _) {
@@ -361,21 +399,42 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 return const SizedBox.shrink();
               }
               
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
+              return Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        const Icon(Icons.history, color: Colors.grey, size: 20),
-                        const SizedBox(width: 8),
-                        const Text(
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.history,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
                           'Recent Searches',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: AppTextStyles.h6.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
                           ),
                         ),
                         const Spacer(),
@@ -383,49 +442,73 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           onPressed: () {
                             ref.read(searchHistoryProvider.notifier).clearHistory();
                           },
-                          child: const Text(
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          ),
+                          child: Text(
                             'Clear All',
-                            style: TextStyle(
+                            style: AppTextStyles.bodySmall.copyWith(
                               color: AppColors.primary,
-                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: recentSearches.length,
-                    itemBuilder: (context, index) {
-                      final search = recentSearches[index];
-                      return ListTile(
-                        leading: const Icon(Icons.history, color: Colors.grey),
-                        title: Text(search.query),
-                        subtitle: search.productName != null
-                            ? Text(
-                                search.productName!,
-                                style: const TextStyle(fontSize: 12),
-                              )
-                            : null,
-                        trailing: IconButton(
-                          icon: const Icon(Icons.close, color: Colors.grey, size: 18),
-                          onPressed: () {
-                            ref.read(searchHistoryProvider.notifier).removeHistoryItem(search);
-                          },
+                    
+                    const SizedBox(height: 12),
+                    
+                    ...recentSearches.take(5).map((search) => InkWell(
+                      onTap: () {
+                        _searchController.text = search.query;
+                        ref.read(searchProvider.notifier).setQuery(search.query);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.history,
+                              color: Colors.grey.shade500,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    search.query,
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  if (search.productName != null)
+                                    Text(
+                                      search.productName!,
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.close, color: Colors.grey.shade500, size: 18),
+                              onPressed: () {
+                                ref.read(searchHistoryProvider.notifier).removeHistoryItem(search);
+                              },
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              padding: const EdgeInsets.all(6),
+                            ),
+                          ],
                         ),
-                        onTap: () {
-                          _searchController.text = search.query;
-                          ref.read(searchProvider.notifier).setQuery(search.query);
-                        },
-                      );
-                    },
-                  ),
-                  
-                  const Divider(),
-                ],
+                      ),
+                    )).toList(),
+                  ],
+                ),
               );
             },
           ),
@@ -439,84 +522,119 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 return const SizedBox.shrink();
               }
               
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
+              return Container(
+                margin: const EdgeInsets.only(bottom: 32),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Icon(Icons.trending_up, color: Colors.grey, size: 20),
-                        SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.trending_up,
+                            color: Colors.orange,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Text(
                           'Popular Searches',
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: AppTextStyles.h6.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Wrap(
+                    
+                    const SizedBox(height: 16),
+                    
+                    Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: popularSearches.map((query) {
-                        return ActionChip(
-                          label: Text(
-                            query,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          onPressed: () {
+                        return InkWell(
+                          onTap: () {
                             _searchController.text = query;
                             ref.read(searchProvider.notifier).setQuery(query);
                           },
-                          backgroundColor: Colors.grey[100],
-                          side: BorderSide.none,
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.neutral100,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.neutral300),
+                            ),
+                            child: Text(
+                              query,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
                         );
                       }).toList(),
                     ),
-                  ),
-                  
-                  const SizedBox(height: 20),
-                ],
+                  ],
+                ),
               );
             },
           ),
           
           // Search Tips
-          const Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.search,
-                  size: 64,
-                  color: Colors.grey,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Search for Products',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Icon(
+                      Icons.search,
+                      size: 48,
+                      color: AppColors.primary,
+                    ),
                   ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Start typing to see suggestions...',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
+                  const SizedBox(height: 24),
+                  Text(
+                    'Search for Products',
+                    style: AppTextStyles.h5.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start typing to see suggestions and find your favorite products',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -525,19 +643,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
   
   Widget _buildLoadingState() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            strokeWidth: 3,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 24),
           Text(
-            'Searching...',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
+            'Searching products...',
+            style: AppTextStyles.bodyLarge.copyWith(
+              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -558,7 +676,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildEmptyState(String query) {
     return EmptyStateWidget(
       title: 'No Results Found',
-      subtitle: 'No products found for "$query".\nTry different keywords or browse categories.',
+      subtitle: 'We couldn\'t find any products matching "$query".\nTry different keywords or browse our categories.',
       icon: Icons.search_off,
     );
   }
@@ -569,20 +687,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         // Search results header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: Colors.grey[50],
+          color: Colors.white,
           child: Row(
             children: [
               Text(
-                '${searchState.results.length} results found',
-                style: const TextStyle(
-                  fontSize: 14,
+                '${searchState.results.length} result${searchState.results.length == 1 ? '' : 's'} found',
+                style: AppTextStyles.bodyMedium.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: Colors.grey,
+                  color: AppColors.textSecondary,
                 ),
               ),
               const Spacer(),
               if (searchState.isLoading)
-                const SizedBox(
+                SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
@@ -596,17 +713,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         
         // Search results list
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
             itemCount: searchState.results.length,
-            separatorBuilder: (context, index) => const Divider(
-              height: 1,
-              indent: 80,
-              endIndent: 16,
-            ),
             itemBuilder: (context, index) {
               final result = searchState.results[index];
-              return _buildProductTile(result);
+              return _buildProductCard(result, index);
             },
           ),
         ),
@@ -614,7 +726,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
   
-  Widget _buildProductTile(dynamic result) {
+  Widget _buildProductCard(dynamic result, int index) {
     // Extract product data from API response
     final productName = result['product_name'] ?? 'Unknown Product';
     final productImage = result['pcode_img'] ?? '';
@@ -629,130 +741,204 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final savings = productMrp > ourPrice ? productMrp - ourPrice : 0.0;
     final savingsPercent = productMrp > 0 ? ((savings / productMrp) * 100).round() : 0;
     
+    // Get cart information
+    final cartItems = ref.watch(cartProvider);
+    final cartItem = cartItems.where((item) => 
+      item.product.pCode == pCode).toList();
+    
+    final bool isInCart = cartItem.isNotEmpty;
+    final int quantity = isInCart ? cartItem.first.quantity : 0;
+    
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            if (pCode.isNotEmpty) {
-              context.push('/product/$pCode');
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Product Image
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.grey[100],
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          if (pCode.isNotEmpty) {
+            context.push('/product/$pCode');
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Product Image with favorite button
+              Stack(
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.neutral100,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: productImage.isNotEmpty
+                          ? CachedNetworkImageWidget(
+                              imageUrl: productImage,
+                              fit: BoxFit.contain,
+                              width: 100,
+                              height: 100,
+                            )
+                          : Container(
+                              color: AppColors.neutral100,
+                              child: Icon(
+                                Icons.shopping_bag_outlined,
+                                size: 40,
+                                color: Colors.grey.shade400,
+                              ),
+                            ),
+                    ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: productImage.isNotEmpty
-                        ? CachedNetworkImageWidget(
-                            imageUrl: productImage,
-                            fit: BoxFit.contain,
-                          )
-                        : const Icon(
-                            Icons.image_not_supported_outlined,
-                            size: 40,
-                            color: Colors.grey,
-                          ),
-                  ),
-                ),
-                
-                const SizedBox(width: 12),
-                
-                // Product Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Product Name
-                      Text(
-                        productName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                  
+                  // Discount badge
+                  if (savingsPercent > 0)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        child: Text(
+                          '$savingsPercent% OFF',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
-                      
-                      // Brand and Package Info
-                      if (brandName.isNotEmpty || packageUnit.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            if (brandName.isNotEmpty) ...[
-                              Text(
-                                brandName,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              if (packageUnit.isNotEmpty) ...[
-                                const Text(' • ', style: TextStyle(color: Colors.grey)),
-                              ],
-                            ],
-                            if (packageUnit.isNotEmpty)
-                              Text(
-                                packageSize > 0 
-                                    ? '${packageSize.toStringAsFixed(packageSize.truncateToDouble() == packageSize ? 0 : 1)} $packageUnit'
-                                    : packageUnit,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
+                    ),
+                  
+                  // Favorite button
+                  if (pCode.isNotEmpty)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
                           ],
                         ),
-                      ],
-                      
-                      const SizedBox(height: 8),
-                      
-                      // Price Row
+                        padding: const EdgeInsets.all(2),
+                        child: FavoriteButton(
+                          product: _createProductModel(result),
+                          size: 16,
+                          activeColor: Colors.red,
+                          inactiveColor: Colors.grey.shade600,
+                          showSnackbarMessages: false,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              
+              const SizedBox(width: 16),
+              
+              // Product Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Product Name
+                    Text(
+                      productName,
+                      style: AppTextStyles.bodyLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    
+                    const SizedBox(height: 4),
+                    
+                    // Brand and Package Info
+                    if (brandName.isNotEmpty || packageUnit.isNotEmpty) ...[
                       Row(
                         children: [
-                          // Current Price
+                          if (brandName.isNotEmpty) ...[
+                            Text(
+                              brandName,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (packageUnit.isNotEmpty) ...[
+                              Text(
+                                ' • ',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ],
+                          if (packageUnit.isNotEmpty)
+                            Text(
+                              packageSize > 0 
+                                  ? '${packageSize.toStringAsFixed(packageSize.truncateToDouble() == packageSize ? 0 : 1)} $packageUnit'
+                                  : packageUnit,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    
+                    // Price Row
+                    Row(
+                      children: [
+                        // Current Price
+                        Text(
+                          '₹${ourPrice.toStringAsFixed(0)}',
+                          style: AppTextStyles.h6.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        
+                        const SizedBox(width: 8),
+                        
+                        // MRP (if different from our price)
+                        if (productMrp > ourPrice) ...[
                           Text(
-                            '₹${ourPrice.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                            '₹${productMrp.toStringAsFixed(0)}',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              decoration: TextDecoration.lineThrough,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                           
                           const SizedBox(width: 8),
                           
-                          // MRP (if different from our price)
-                          if (productMrp > ourPrice) ...[
-                            Text(
-                              '₹${productMrp.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                decoration: TextDecoration.lineThrough,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            
-                            const SizedBox(width: 8),
-                            
-                            // Savings Badge
+                          // Savings Badge
+                          if (savingsPercent > 0)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
@@ -768,56 +954,147 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                 ),
                               ),
                             ),
-                          ],
                         ],
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Action Buttons
-                Column(
-                  children: [
-                    // Favorite Button
-                    if (pCode.isNotEmpty)
-                      SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: FavoriteButton(
-                          product: _createProductModel(result),
-                          size: 20,
-                          showSnackbarMessages: false,
-                        ),
-                      ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    // Add to Cart Button
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: ElevatedButton(
-                        onPressed: () => _addToCart(result),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 2,
-                        ),
-                        child: const Icon(
-                          Icons.add_shopping_cart,
-                          size: 20,
-                        ),
-                      ),
+                      ],
                     ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Add to cart button or quantity selector
+                    isInCart
+                        ? _buildQuantitySelector(context, ref, _createProductModel(result), quantity)
+                        : _buildAddToCartButton(ref, _createProductModel(result)),
                   ],
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  // Quantity selector matching best seller widget style
+  Widget _buildQuantitySelector(BuildContext context, WidgetRef ref, ProductModel product, int quantity) {
+    return Container(
+      height: 32,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Decrement button
+          Material(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(3),
+              bottomLeft: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: () {
+                if (quantity > 1) {
+                  ref.read(cartProvider.notifier).decrementQuantity(product);
+                } else {
+                  ref.read(cartProvider.notifier).removeItem(product);
+                }
+              },
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(3),
+                bottomLeft: Radius.circular(3),
+              ),
+              child: Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.remove,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
             ),
           ),
+          
+          // Manual quantity input
+          Container(
+            width: 60,
+            height: 32,
+            color: Colors.white,
+            child: _ManualQuantityInput(
+              initialQuantity: quantity,
+              maxQuantity: product.maxQuantityAllowed,
+              onQuantityChanged: (newQuantity) {
+                _handleManualQuantityInput(context, ref, product, newQuantity);
+              },
+            ),
+          ),
+          
+          // Increment button
+          Material(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(3),
+              bottomRight: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: () {
+                if (quantity < product.maxQuantityAllowed) {
+                  ref.read(cartProvider.notifier).incrementQuantity(product);
+                } else {
+                  _showMaxQuantityMessage(context, product);
+                }
+              },
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(3),
+                bottomRight: Radius.circular(3),
+              ),
+              child: Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Add to cart button matching best seller widget style
+  Widget _buildAddToCartButton(WidgetRef ref, ProductModel product) {
+    return SizedBox(
+      height: 32,
+      width: 120,
+      child: ElevatedButton.icon(
+        onPressed: () => ref.read(cartProvider.notifier).addItem(product),
+        icon: const Icon(
+          Icons.shopping_cart_outlined,
+          color: Colors.white,
+          size: 12,
+        ),
+        label: const Text(
+          "ADD",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          minimumSize: const Size(120, 32),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          elevation: 2,
         ),
       ),
     );
@@ -846,65 +1123,192 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
   
-  void _addToCart(dynamic productData) {
-    try {
-      final product = _createProductModel(productData);
-      
-      // Add to cart
-      ref.read(cartProvider.notifier).addItem(product);
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${product.productName} added to cart',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: AppColors.primary,
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          action: SnackBarAction(
-            label: 'View Cart',
-            textColor: Colors.white,
-            onPressed: () => context.push('/cart'),
-          ),
-        ),
-      );
-    } catch (e) {
-      ref.read(loggerProvider).error('Error adding product to cart: $e');
-      
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error, color: Colors.white),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text('Failed to add product to cart'),
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      );
+  // Handle manual quantity input
+  void _handleManualQuantityInput(BuildContext context, WidgetRef ref, ProductModel product, int newQuantity) {
+    final logger = ref.read(loggerProvider);
+    
+    if (newQuantity <= 0) {
+      logger.log('Quantity is 0 or less, removing item from cart');
+      ref.read(cartProvider.notifier).removeItem(product);
+      return;
     }
+    
+    // Check against maximum allowed quantity
+    if (newQuantity > product.maxQuantityAllowed) {
+      logger.log('Quantity $newQuantity exceeds max allowed ${product.maxQuantityAllowed}');
+      // Set to maximum allowed quantity
+      ref.read(cartProvider.notifier).addItemWithQuantity(product, product.maxQuantityAllowed);
+      _showMaxQuantityMessage(context, product);
+      return;
+    }
+    
+    // Update cart with new quantity
+    logger.log('Updating quantity for ${product.productName} to $newQuantity');
+    ref.read(cartProvider.notifier).addItemWithQuantity(product, newQuantity);
+  }
+
+  // Show max quantity reached message
+  void _showMaxQuantityMessage(BuildContext context, ProductModel product) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Maximum ${product.maxQuantityAllowed} items allowed'),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+// Manual quantity input widget matching best seller widget implementation
+class _ManualQuantityInput extends StatefulWidget {
+  final int initialQuantity;
+  final int maxQuantity;
+  final ValueChanged<int> onQuantityChanged;
+
+  const _ManualQuantityInput({
+    required this.initialQuantity,
+    required this.maxQuantity,
+    required this.onQuantityChanged,
+  });
+
+  @override
+  State<_ManualQuantityInput> createState() => _ManualQuantityInputState();
+}
+
+class _ManualQuantityInputState extends State<_ManualQuantityInput> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialQuantity.toString());
+    _focusNode = FocusNode();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(_ManualQuantityInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update controller only if not currently editing and quantity changed
+    if (oldWidget.initialQuantity != widget.initialQuantity && !_isEditing) {
+      _controller.text = widget.initialQuantity.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() {
+      _isEditing = _focusNode.hasFocus;
+    });
+    
+    if (!_focusNode.hasFocus) {
+      _validateAndSubmit();
+    }
+  }
+
+  void _validateAndSubmit() {
+    final text = _controller.text.trim();
+    final quantity = int.tryParse(text);
+    
+    if (quantity == null || quantity < 1) {
+      // Invalid input, reset to current quantity or remove
+      if (widget.initialQuantity > 0) {
+        _controller.text = widget.initialQuantity.toString();
+      } else {
+        widget.onQuantityChanged(0); // This will remove the item
+      }
+      return;
+    }
+    
+    // Valid quantity, notify parent
+    widget.onQuantityChanged(quantity);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: Alignment.center,
+      child: Material(
+        color: Colors.transparent,
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: widget.maxQuantity.toString().length,
+          style: AppTextStyles.bodyMedium.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            isCollapsed: true,
+            counterText: '',
+            filled: false,
+            fillColor: Colors.transparent,
+            helperText: null,
+            hoverColor: Colors.transparent,
+          ),
+          showCursor: false,
+          enableInteractiveSelection: false,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
+            _MaxQuantityInputFormatter(widget.maxQuantity),
+          ],
+          onSubmitted: (_) => _validateAndSubmit(),
+          onTap: () {
+            // Select all text when tapped for easy editing
+            _controller.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: _controller.text.length,
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+// Custom input formatter to prevent entering values greater than max quantity
+class _MaxQuantityInputFormatter extends TextInputFormatter {
+  final int maxQuantity;
+
+  _MaxQuantityInputFormatter(this.maxQuantity);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    final quantity = int.tryParse(newValue.text);
+    if (quantity == null || quantity > maxQuantity) {
+      // Don't allow the input if it exceeds max quantity
+      return oldValue;
+    }
+
+    return newValue;
   }
 }

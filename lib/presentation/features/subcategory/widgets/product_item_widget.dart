@@ -295,7 +295,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
     );
   }
 
-  // Manual quantity selector with FIXED input - no more double padding issues
+  // Manual quantity selector with improved styling - UPDATED to match best seller widget
   Widget _buildManualQuantitySelector(int quantity) {
     return Container(
       height: 32, // Reduced height to match favorite button
@@ -326,19 +326,19 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                 bottomLeft: Radius.circular(3),
               ),
               child: Container(
-                width: 32, // Reduced width
-                height: 32, // Matches container height
+                width: 32, // Fixed width to match height
+                height: 32, // Fixed height
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.remove,
                   color: Colors.white,
-                  size: 16, // Reduced icon size
+                  size: 16, // Smaller icon size for better appearance
                 ),
               ),
             ),
           ),
           
-          // Manual quantity input field - FIXED VERSION
+          // Manual quantity input field - UPDATED to match best seller widget implementation
           Expanded(
             child: Container(
               height: 32,
@@ -365,13 +365,13 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                 bottomRight: Radius.circular(3),
               ),
               child: Container(
-                width: 32, // Reduced width
-                height: 32, // Matches container height
+                width: 32, // Fixed width to match height
+                height: 32, // Fixed height
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.add,
                   color: Colors.white,
-                  size: 16, // Reduced icon size
+                  size: 16, // Smaller icon size for better appearance
                 ),
               ),
             ),
@@ -413,7 +413,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
   }
 }
 
-// FIXED Custom manual quantity input widget - NO MORE DOUBLE PADDING
+// UPDATED Manual quantity input widget to match best seller widget implementation
 class _ManualQuantityInput extends StatefulWidget {
   final int initialQuantity;
   final int maxQuantity;
@@ -489,64 +489,68 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: TextField(
-        controller: _controller,
-        focusNode: _focusNode,
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        maxLength: widget.maxQuantity.toString().length,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 14, // Reduced font size
-          color: Colors.black87,
+    return Container(
+      // Add alignment to center the TextField both horizontally and vertically
+      alignment: Alignment.center,
+      child: Material(
+        color: Colors.transparent,
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: widget.maxQuantity.toString().length,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Colors.black87,
+          ),
+          decoration: const InputDecoration(
+            // Remove all borders and effects
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            
+            // Remove padding and set isCollapsed to true to ensure proper vertical centering
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            isCollapsed: true,
+            
+            // Hide counter
+            counterText: '',
+            
+            // Remove fill color
+            filled: false,
+            fillColor: Colors.transparent,
+            
+            // Remove helper text space
+            helperText: null,
+            
+            // Disable hover effects
+            hoverColor: Colors.transparent,
+          ),
+          
+          // Disable cursor and selection handles on mobile
+          showCursor: false,
+          enableInteractiveSelection: false,
+          
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
+            _MaxQuantityInputFormatter(widget.maxQuantity),
+          ],
+          onSubmitted: (_) => _validateAndSubmit(),
+          onTap: () {
+            // Select all text when tapped for easy editing
+            _controller.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: _controller.text.length,
+            );
+          },
         ),
-        decoration: InputDecoration(
-          // REMOVE ALL BORDERS AND EFFECTS - THIS FIXES THE DOUBLE PADDING
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          errorBorder: InputBorder.none,
-          focusedErrorBorder: InputBorder.none,
-          
-          // REMOVE PADDING AND CONTENT PADDING
-          contentPadding: EdgeInsets.zero,
-          isDense: true,
-          
-          // HIDE COUNTER
-          counterText: '',
-          
-          // REMOVE FILL COLOR
-          filled: false,
-          fillColor: Colors.transparent,
-          
-          // REMOVE HELPER TEXT SPACE
-          helperText: null,
-          
-          // DISABLE RIPPLE/SPLASH EFFECTS
-          // splashColor: Colors.transparent,
-          hoverColor: Colors.transparent,
-        ),
-        
-        // DISABLE CURSOR AND SELECTION HANDLES ON MOBILE - PREVENTS VISUAL ARTIFACTS
-        showCursor: false,
-        enableInteractiveSelection: false,
-        
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
-          _MaxQuantityInputFormatter(widget.maxQuantity),
-        ],
-        onSubmitted: (_) => _validateAndSubmit(),
-        onTap: () {
-          // Select all text when tapped for easy editing
-          _controller.selection = TextSelection(
-            baseOffset: 0,
-            extentOffset: _controller.text.length,
-          );
-        },
       ),
     );
   }

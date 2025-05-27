@@ -421,7 +421,7 @@ class SavingsScreen extends ConsumerWidget {
                   Text(
                     value,
                     style: TextStyle(
-                      fontSize: isNumber ? 32 : 24,
+                      fontSize: isNumber ? 28 : 22,
                       fontWeight: FontWeight.bold,
                       color: Colors.purple,
                     ),

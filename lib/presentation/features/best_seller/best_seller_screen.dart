@@ -6,6 +6,7 @@ import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_constants.dart';
 import 'package:patelmart/core/widgets/empty_state_widget.dart';
 import 'package:patelmart/core/widgets/error_widgets.dart';
+import 'package:patelmart/core/widgets/favorite_button.dart';
 import 'package:patelmart/data/models/product_model.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
@@ -311,16 +312,13 @@ class _BestSellerProductCard extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Favorite button
-                        IconButton(
-                          icon: const Icon(
-                            Icons.favorite_border,
-                            color: Colors.grey,
-                            size: 24,
-                          ),
-                          onPressed: () {}, // Add wishlist functionality later
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+                        // Favorite button using FavoriteButton widget
+                        FavoriteButton(
+                          product: product,
+                          size: 24,
+                          activeColor: Colors.red,
+                          inactiveColor: Colors.grey,
+                          showSnackbarMessages: true,
                         ),
                         
                         const SizedBox(width: 8),
@@ -343,7 +341,7 @@ class _BestSellerProductCard extends ConsumerWidget {
     );
   }
 
-  // Manual quantity selector with text input capability
+  // Manual quantity selector with improved styling to match best_seller_widget
   Widget _buildManualQuantitySelector(BuildContext context, WidgetRef ref, ProductModel product, int quantity) {
     return Container(
       height: 40,
@@ -354,38 +352,42 @@ class _BestSellerProductCard extends ConsumerWidget {
       child: Row(
         children: [
           // Decrement button
-          GestureDetector(
-            onTap: () {
-              if (quantity > 1) {
-                ref.read(cartProvider.notifier).decrementQuantity(product);
-              } else {
-                // Remove item if quantity becomes 0
-                ref.read(cartProvider.notifier).removeItem(product);
-              }
-            },
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(3),
-                  bottomLeft: Radius.circular(3),
-                ),
+          Material(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(3),
+              bottomLeft: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: () {
+                if (quantity > 1) {
+                  ref.read(cartProvider.notifier).decrementQuantity(product);
+                } else {
+                  // Remove item if quantity becomes 0
+                  ref.read(cartProvider.notifier).removeItem(product);
+                }
+              },
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(3),
+                bottomLeft: Radius.circular(3),
               ),
-              child: const Icon(
-                Icons.remove,
-                color: Colors.white,
-                size: 20,
+              child: Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.remove,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ),
           
-          // Manual quantity input field
+          // Manual quantity input field with improved centering
           Expanded(
             child: Container(
               height: 40,
-              alignment: Alignment.center,
               color: Colors.white,
               child: _ManualQuantityInput(
                 initialQuantity: quantity,
@@ -398,28 +400,33 @@ class _BestSellerProductCard extends ConsumerWidget {
           ),
           
           // Increment button
-          GestureDetector(
-            onTap: () {
-              if (quantity < product.maxQuantityAllowed) {
-                ref.read(cartProvider.notifier).incrementQuantity(product);
-              } else {
-                _showMaxQuantityMessage(context, product);
-              }
-            },
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(3),
-                  bottomRight: Radius.circular(3),
-                ),
+          Material(
+            color: AppColors.primary,
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(3),
+              bottomRight: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: () {
+                if (quantity < product.maxQuantityAllowed) {
+                  ref.read(cartProvider.notifier).incrementQuantity(product);
+                } else {
+                  _showMaxQuantityMessage(context, product);
+                }
+              },
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(3),
+                bottomRight: Radius.circular(3),
               ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 20,
+              child: Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
           ),
@@ -495,7 +502,7 @@ class _BestSellerProductCard extends ConsumerWidget {
   }
 }
 
-// Custom manual quantity input widget
+// Optimized manual quantity input widget to match best_seller_widget implementation
 class _ManualQuantityInput extends StatefulWidget {
   final int initialQuantity;
   final int maxQuantity;
@@ -571,36 +578,69 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      keyboardType: TextInputType.number,
-      textAlign: TextAlign.center,
-      maxLength: widget.maxQuantity.toString().length,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-        color: Colors.black87,
+    return Container(
+      // Add alignment to center the TextField both horizontally and vertically
+      alignment: Alignment.center,
+      child: Material(
+        color: Colors.transparent,
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: widget.maxQuantity.toString().length,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Colors.black87,
+          ),
+          decoration: const InputDecoration(
+            // Remove all borders and effects
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            
+            // Remove padding and set isCollapsed to true to ensure proper vertical centering
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            isCollapsed: true,
+            
+            // Hide counter
+            counterText: '',
+            
+            // Remove fill color
+            filled: false,
+            fillColor: Colors.transparent,
+            
+            // Remove helper text space
+            helperText: null,
+            
+            // Disable hover effects
+            hoverColor: Colors.transparent,
+          ),
+          
+          // Disable cursor and selection handles on mobile for better UX
+          showCursor: false,
+          enableInteractiveSelection: false,
+          
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
+            _MaxQuantityInputFormatter(widget.maxQuantity),
+          ],
+          onSubmitted: (_) => _validateAndSubmit(),
+          onTap: () {
+            // Select all text when tapped for easy editing
+            _controller.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: _controller.text.length,
+            );
+          },
+        ),
       ),
-      decoration: const InputDecoration(
-        border: InputBorder.none,
-        counterText: '', // Hide character counter
-        contentPadding: EdgeInsets.zero,
-        isDense: true,
-      ),
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
-        _MaxQuantityInputFormatter(widget.maxQuantity),
-      ],
-      onSubmitted: (_) => _validateAndSubmit(),
-      onTap: () {
-        // Select all text when tapped for easy editing
-        _controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _controller.text.length,
-        );
-      },
     );
   }
 }

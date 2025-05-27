@@ -306,12 +306,12 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
           onChanged: _onTextChanged,
           onSubmitted: _onSubmitted,
           textInputAction: TextInputAction.search,
+          textAlign: TextAlign.start, // Ensure text starts from left when typing
           decoration: InputDecoration(
             hintText: widget.hintText,
             hintStyle: const TextStyle(
               color: Colors.grey,
-              fontSize: 13,
-              
+              fontSize: 12,
             ),
             prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
             suffixIcon: _controller.text.isNotEmpty
@@ -328,9 +328,19 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
                   )
                 : null,
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 10.0),
+            // Updated content padding for better vertical centering
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 13.0, // Increased for better centering
+              horizontal: 0.0,
+            ),
+            // Add these properties for better alignment
+            isDense: false,
+            alignLabelWithHint: true,
           ),
-          style: const TextStyle(fontSize: 15),
+          style: const TextStyle(
+            fontSize: 12,
+            height: 1.3, // Line height for better vertical alignment
+          ),
         ),
       ),
     );

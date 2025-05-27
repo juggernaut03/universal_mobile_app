@@ -559,20 +559,17 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
 
   // Build order summary section
   Widget _buildOrderSummary() {
-    final cartItems = ref.watch(cartProvider);
-    final cartTotal = ref.watch(cartTotalProvider);
-    final cartSavings = ref.watch(cartSavingsProvider);
-    
+  final cartItems = ref.watch(cartProvider);
+  final cartTotal = ref.watch(cartTotalProvider);
+  final cartSavings = ref.watch(cartSavingsProvider);
+  
+  // Only show "View Order details" in payment step (step 4)
+  if (_currentStep == CheckoutStep.payment) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          
-        
-          
-        
-          
           InkWell(
             onTap: () {
               // Show detailed order summary in a modal bottom sheet
@@ -601,6 +598,10 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
       ),
     );
   }
+  
+  // For other steps, return empty container
+  return const SizedBox.shrink();
+}
 
   // Build current step content based on _currentStep
   Widget _buildCurrentStep() {
@@ -1355,122 +1356,200 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
   }
 
   Widget _buildOrderTotal() {
-    return Consumer(
-      builder: (context, ref, _) {
-        final cartTotal = ref.watch(cartTotalProvider);
-        final cartSavings = ref.watch(cartSavingsProvider);
-        
-        // Get delivery charges from provider
-        final deliveryChargesState = ref.watch(deliveryChargesProvider);
-        final deliveryCharge = deliveryChargesState.deliveryCharge;
-        final isLoading = deliveryChargesState.isLoading;
-        final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
-        
-        // Calculate final total with delivery charges
-        final finalTotal = cartTotal + deliveryCharge;
-        
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // Cart subtotal
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Order Subtotal',
-                    style: AppTextStyles.bodyMedium,
-                  ),
-                  Text(
-                    '₹${cartTotal.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyMedium,
-                  ),
-                ],
-              ),
-              
-              // Delivery fee
+  return Consumer(
+    builder: (context, ref, _) {
+      final cartTotal = ref.watch(cartTotalProvider);
+      final cartSavings = ref.watch(cartSavingsProvider);
+      
+      // Get delivery charges from provider
+      final deliveryChargesState = ref.watch(deliveryChargesProvider);
+      final deliveryCharge = deliveryChargesState.deliveryCharge;
+      final isLoading = deliveryChargesState.isLoading;
+      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+      final distance = deliveryChargesState.distance;
+      
+      // Calculate final total with delivery charges
+      final finalTotal = cartTotal + deliveryCharge;
+      
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Cart subtotal
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Order Subtotal',
+                  style: AppTextStyles.bodyMedium,
+                ),
+                Text(
+                  '₹${cartTotal.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyMedium,
+                ),
+              ],
+            ),
+            
+            // Distance information - NEW ADDITION
+            if (distance > 0) ...[
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
+                      Icon(
+                        Icons.directions_car,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
                       Text(
-                        'Delivery Fee:',
+                        'Distance:',
                         style: AppTextStyles.bodyMedium,
                       ),
-                      if (isLoading)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                   Text(
-                    isLoading 
-                      ? 'Calculating...'
-                      : isFreeDelivery
-                        ? 'FREE'
-                        : '₹${deliveryCharge.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: isFreeDelivery ? Colors.green : null,
-                      fontWeight: isFreeDelivery ? FontWeight.bold : null,
-                    ),
+                    '${distance.toStringAsFixed(1)} km',
+                    style: AppTextStyles.bodyMedium,
                   ),
                 ],
               ),
-              
-              // Savings
-              if (cartSavings > 0)
+            ],
+            
+            // Delivery fee
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Icon(
+                      Icons.local_shipping,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      'You Save:',
+                      'Delivery Fee:',
                       style: AppTextStyles.bodyMedium,
                     ),
-                    Text(
-                      '₹${cartSavings.toStringAsFixed(2)}',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: Colors.green,
+                    if (isLoading)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              
-              const Divider(height: 24),
-              
-              // Total
+                Text(
+                  isLoading 
+                    ? 'Calculating...'
+                    : isFreeDelivery
+                      ? 'FREE'
+                      : '₹${deliveryCharge.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: isFreeDelivery ? Colors.green : null,
+                    fontWeight: isFreeDelivery ? FontWeight.bold : null,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Savings
+            if (cartSavings > 0) ...[
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Total',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.savings,
+                        size: 14,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'You Save:',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                    ],
                   ),
                   Text(
-                    '₹${finalTotal.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                    '₹${cartSavings.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Colors.green,
                     ),
                   ),
                 ],
               ),
             ],
-          ),
-        );
-      },
-    );
-  }
+            
+            const Divider(height: 24),
+            
+            // Total
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '₹${finalTotal.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Free delivery message for eligible orders
+            if (isFreeDelivery && distance > 0) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 14,
+                      color: Colors.green,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Free delivery for this order',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    },
+  );
+}
 }
 // STEP 3: Delivery Time Step
 class DeliveryTimeStep extends ConsumerStatefulWidget {
@@ -1836,125 +1915,202 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     );
   }
 
-  Widget _buildOrderTotal() {
-    return Consumer(
-      builder: (context, ref, _) {
-        final cartTotal = ref.watch(cartTotalProvider);
-        final cartSavings = ref.watch(cartSavingsProvider);
-        
-        // Get delivery charges from provider
-        final deliveryChargesState = ref.watch(deliveryChargesProvider);
-        final deliveryCharge = deliveryChargesState.deliveryCharge;
-        final isLoading = deliveryChargesState.isLoading;
-        final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
-        
-        // Calculate final total with delivery charges
-        final finalTotal = cartTotal + deliveryCharge;
-        
-        return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // Cart subtotal
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Order Subtotal',
-                    style: AppTextStyles.bodyMedium,
-                  ),
-                  Text(
-                    '₹${cartTotal.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyMedium,
-                  ),
-                ],
-              ),
-              
-              // Delivery fee
+    Widget _buildOrderTotal() {
+  return Consumer(
+    builder: (context, ref, _) {
+      final cartTotal = ref.watch(cartTotalProvider);
+      final cartSavings = ref.watch(cartSavingsProvider);
+      
+      // Get delivery charges from provider
+      final deliveryChargesState = ref.watch(deliveryChargesProvider);
+      final deliveryCharge = deliveryChargesState.deliveryCharge;
+      final isLoading = deliveryChargesState.isLoading;
+      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+      final distance = deliveryChargesState.distance;
+      
+      // Calculate final total with delivery charges
+      final finalTotal = cartTotal + deliveryCharge;
+      
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Cart subtotal
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Order Subtotal',
+                  style: AppTextStyles.bodyMedium,
+                ),
+                Text(
+                  '₹${cartTotal.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyMedium,
+                ),
+              ],
+            ),
+            
+            // Distance information - NEW ADDITION
+            if (distance > 0) ...[
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
+                      Icon(
+                        Icons.directions_car,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
                       Text(
-                        'Delivery Fee:',
+                        'Distance:',
                         style: AppTextStyles.bodyMedium,
                       ),
-                      if (isLoading)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                   Text(
-                    isLoading 
-                      ? 'Calculating...'
-                      : isFreeDelivery
-                        ? 'FREE'
-                        : '₹${deliveryCharge.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: isFreeDelivery ? Colors.green : null,
-                      fontWeight: isFreeDelivery ? FontWeight.bold : null,
-                    ),
+                    '${distance.toStringAsFixed(1)} km',
+                    style: AppTextStyles.bodyMedium,
                   ),
                 ],
               ),
-              
-              // Savings
-              if (cartSavings > 0)
+            ],
+            
+            // Delivery fee
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Icon(
+                      Icons.local_shipping,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      'You Save:',
+                      'Delivery Fee:',
                       style: AppTextStyles.bodyMedium,
                     ),
-                    Text(
-                      '₹${cartSavings.toStringAsFixed(2)}',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: Colors.green,
+                    if (isLoading)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              
-              const Divider(height: 24),
-              
-              // Total
+                Text(
+                  isLoading 
+                    ? 'Calculating...'
+                    : isFreeDelivery
+                      ? 'FREE'
+                      : '₹${deliveryCharge.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: isFreeDelivery ? Colors.green : null,
+                    fontWeight: isFreeDelivery ? FontWeight.bold : null,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Savings
+            if (cartSavings > 0) ...[
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Total Amount',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.savings,
+                        size: 14,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'You Save:',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                    ],
                   ),
                   Text(
-                    '₹${finalTotal.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                    '₹${cartSavings.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Colors.green,
                     ),
                   ),
                 ],
               ),
             ],
-          ),
-        );
-      },
-    );
-  }
+            
+            const Divider(height: 24),
+            
+            // Total
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '₹${finalTotal.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Free delivery message for eligible orders
+            if (isFreeDelivery && distance > 0) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 14,
+                      color: Colors.green,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Free delivery for this order',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    },
+  );
 }
-
+}
 // STEP 4: Payment Step
 // Updated PaymentStep implementation for the CheckoutFlowScreen
 
@@ -2404,284 +2560,508 @@ final finalAmount = cartTotal + deliveryCharge;
 
   @override
   Widget build(BuildContext context) {
-    final orderProcessStatus = ref.watch(orderProcessStatusProvider);
-    final orderError = ref.watch(orderErrorMessageProvider);
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    
-    // Show loading spinner with status message based on the current order process status
-    if (orderProcessStatus == OrderProcessStatus.validatingCart ||
-        orderProcessStatus == OrderProcessStatus.processingPayment ||
-        orderProcessStatus == OrderProcessStatus.confirmingOrder) {
-      String statusMessage;
-      switch (orderProcessStatus) {
-        case OrderProcessStatus.validatingCart:
-          statusMessage = 'Validating your cart...';
-          break;
-        case OrderProcessStatus.processingPayment:
-          statusMessage = 'Processing payment...';
-          break;
-        case OrderProcessStatus.confirmingOrder:
-          statusMessage = 'Placing your order...';
-          break;
-        default:
-          statusMessage = 'Processing...';
-      }
-      
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              statusMessage,
-              style: AppTextStyles.bodyLarge,
-            ),
-          ],
-        ),
-      );
+  final orderProcessStatus = ref.watch(orderProcessStatusProvider);
+  final orderError = ref.watch(orderErrorMessageProvider);
+  final bottomPadding = MediaQuery.of(context).padding.bottom;
+  
+  // Show loading spinner with status message based on the current order process status
+  if (orderProcessStatus == OrderProcessStatus.validatingCart ||
+      orderProcessStatus == OrderProcessStatus.processingPayment ||
+      orderProcessStatus == OrderProcessStatus.confirmingOrder) {
+    String statusMessage;
+    switch (orderProcessStatus) {
+      case OrderProcessStatus.validatingCart:
+        statusMessage = 'Validating your cart...';
+        break;
+      case OrderProcessStatus.processingPayment:
+        statusMessage = 'Processing payment...';
+        break;
+      case OrderProcessStatus.confirmingOrder:
+        statusMessage = 'Placing your order...';
+        break;
+      default:
+        statusMessage = 'Processing...';
     }
     
-    // If there's an error, display it
-    if (orderProcessStatus == OrderProcessStatus.failed && orderError != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 64,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Order Failed',
-              style: AppTextStyles.h5,
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text(
+            statusMessage,
+            style: AppTextStyles.bodyLarge,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // If there's an error, display it
+  if (orderProcessStatus == OrderProcessStatus.failed && orderError != null) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 64,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Order Failed',
+            style: AppTextStyles.h5,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Text(
+              orderError,
+              style: AppTextStyles.bodyMedium,
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Text(
-                orderError,
-                style: AppTextStyles.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-            ),
-            SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                // Reset the order state and try again
-                ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.initial;
-                ref.read(orderErrorMessageProvider.notifier).state = null;
-              },
-              child: Text('Try Again'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Normal payment flow UI
-    final bool isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
-    
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Main scrollable content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.only(bottom: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Show store pickup info if self-pickup is selected
-                  if (isSelfPickup)
-                    _buildStorePickupInfo(),
-                  
-                  // Special instructions
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: TextField(
-                      controller: _instructionsController,
-                      decoration: InputDecoration(
-                        hintText: isSelfPickup 
-                            ? 'Any special instructions for pickup?'
-                            : 'Any special instructions for delivery?',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                      ),
-                      maxLines: 2,
-                    ),
-                  ),
-                  
-                  // Payment methods
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.payment,
-                          color: AppColors.primary.withOpacity(0.7),
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'PAYMENT METHOD',
-                          style: AppTextStyles.bodyLarge.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                    child: Text(
-                      'Select your preferred payment option',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Payment method options
-                  _buildPaymentMethodOption(
-                    title: 'Cash on Delivery',
-                    subtitle: isSelfPickup ? 'Pay when you collect your order' : 'Pay when your order is delivered',
-                    icon: Icons.money,
-                    value: 'COD',
-                  ),
-                  const Divider(height: 1),
-                  _buildPaymentMethodOption(
-                    title: 'Credit/Debit Card',
-                    subtitle: 'Pay securely with your card',
-                    icon: Icons.credit_card,
-                    value: 'CARD',
-                  ),
-                  const Divider(height: 1),
-                  _buildPaymentMethodOption(
-                    title: 'UPI',
-                    subtitle: 'Pay using UPI apps',
-                    icon: Icons.account_balance,
-                    value: 'UPI',
-                  ),
-                  const Divider(height: 1),
-                  _buildPaymentMethodOption(
-                    title: 'Net Banking',
-                    subtitle: 'Pay using net banking',
-                    icon: Icons.account_balance_wallet,
-                    value: 'NET_BANKING',
-                  ),
-                  
-                  // Security info
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.security,
-                            color: Colors.blue,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'All transactions are secure and encrypted',
-                              style: AppTextStyles.bodySmall.copyWith(
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  // Order summary
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _buildOrderSummary(),
-                  ),
-                  
-                  // Extra space to ensure scrollability
-                  SizedBox(height: 70),
-                ],
-              ),
-            ),
           ),
-          
-          // Fixed bottom button
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: const Offset(0, -1),
-                  blurRadius: 4,
-                ),
-              ],
-            ),
-            padding: EdgeInsets.only(
-              left: 16.0,
-              right: 16.0,
-              top: 12.0,
-              bottom: bottomPadding > 0 ? bottomPadding : 16.0,
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isPlacingOrder || _selectedPaymentMethod == null
-                    ? null
-                    : _placeOrder,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: _isPlacingOrder
-                    ? const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 2,
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Text('PLACE ORDER'),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward, size: 16),
-                        ],
-                      ),
-              ),
-            ),
+          SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              // Reset the order state and try again
+              ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.initial;
+              ref.read(orderErrorMessageProvider.notifier).state = null;
+            },
+            child: Text('Try Again'),
           ),
         ],
       ),
     );
   }
 
+  // Normal payment flow UI
+  final bool isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+  
+  return SafeArea(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Main scrollable content
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(bottom: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Show store pickup info if self-pickup is selected
+                if (isSelfPickup)
+                  _buildStorePickupInfo(),
+                
+                // Order Summary Section - NEW ADDITION
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.receipt_long,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'ORDER SUMMARY',
+                              style: AppTextStyles.bodyLarge.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildCompactOrderSummary(),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Special instructions
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: TextField(
+                    controller: _instructionsController,
+                    decoration: InputDecoration(
+                      hintText: isSelfPickup 
+                          ? 'Any special instructions for pickup?'
+                          : 'Any special instructions for delivery?',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                    maxLines: 2,
+                  ),
+                ),
+                
+                // Payment methods
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.payment,
+                        color: AppColors.primary.withOpacity(0.7),
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'PAYMENT METHOD',
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                  child: Text(
+                    'Select your preferred payment option',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Payment method options
+                _buildPaymentMethodOption(
+                  title: 'Cash on Delivery',
+                  subtitle: isSelfPickup ? 'Pay when you collect your order' : 'Pay when your order is delivered',
+                  icon: Icons.money,
+                  value: 'COD',
+                ),
+                const Divider(height: 1),
+                _buildPaymentMethodOption(
+                  title: 'Credit/Debit Card',
+                  subtitle: 'Pay securely with your card',
+                  icon: Icons.credit_card,
+                  value: 'CARD',
+                ),
+                const Divider(height: 1),
+                _buildPaymentMethodOption(
+                  title: 'UPI',
+                  subtitle: 'Pay using UPI apps',
+                  icon: Icons.account_balance,
+                  value: 'UPI',
+                ),
+                const Divider(height: 1),
+                _buildPaymentMethodOption(
+                  title: 'Net Banking',
+                  subtitle: 'Pay using net banking',
+                  icon: Icons.account_balance_wallet,
+                  value: 'NET_BANKING',
+                ),
+                
+                // Security info
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.security,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'All transactions are secure and encrypted',
+                            style: AppTextStyles.bodySmall.copyWith(
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                
+                // Extra space to ensure scrollability
+                SizedBox(height: 70),
+              ],
+            ),
+          ),
+        ),
+        
+        // Fixed bottom button
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                offset: const Offset(0, -1),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+          padding: EdgeInsets.only(
+            left: 16.0,
+            right: 16.0,
+            top: 12.0,
+            bottom: bottomPadding > 0 ? bottomPadding : 16.0,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _isPlacingOrder || _selectedPaymentMethod == null
+                  ? null
+                  : _placeOrder,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: _isPlacingOrder
+                  ? const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      strokeWidth: 2,
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Text('PLACE ORDER'),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward, size: 16),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+Widget _buildCompactOrderSummary() {
+  return Consumer(
+    builder: (context, ref, _) {
+      final cartItems = ref.watch(cartProvider);
+      final cartTotal = ref.watch(cartTotalProvider);
+      final cartSavings = ref.watch(cartSavingsProvider);
+      
+      // Get delivery charges
+      final deliveryChargesState = ref.watch(deliveryChargesProvider);
+      final deliveryCharge = deliveryChargesState.deliveryCharge;
+      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+      final distance = deliveryChargesState.distance;
+      
+      // Calculate final amount
+      final finalAmount = cartTotal + deliveryCharge;
+      
+      return Column(
+        children: [
+          // Quick summary with item count
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${cartItems.length} items',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                '₹${cartTotal.toStringAsFixed(2)}',
+                style: AppTextStyles.bodyMedium,
+              ),
+            ],
+          ),
+          
+          // Distance information - NEW ADDITION
+          if (distance > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.directions_car,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Distance',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '${distance.toStringAsFixed(1)} km',
+                  style: AppTextStyles.bodyMedium,
+                ),
+              ],
+            ),
+          ],
+          
+          const SizedBox(height: 8),
+          
+          // Delivery charges
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.local_shipping,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Delivery Fee',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  if (deliveryChargesState.isLoading)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4.0),
+                      child: SizedBox(
+                        width: 10,
+                        height: 10,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              Text(
+                deliveryChargesState.isLoading
+                    ? 'Calculating...'
+                    : isFreeDelivery 
+                      ? 'FREE' 
+                      : '₹${deliveryCharge.toStringAsFixed(2)}',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: isFreeDelivery ? Colors.green : null,
+                  fontWeight: isFreeDelivery ? FontWeight.bold : null,
+                ),
+              ),
+            ],
+          ),
+          
+          // Savings if any
+          if (cartSavings > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.savings,
+                      size: 14,
+                      color: Colors.green,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Savings',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '₹${cartSavings.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
+          const Divider(height: 16),
+          
+          // Total
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TOTAL',
+                style: AppTextStyles.bodyLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '₹${finalAmount.toStringAsFixed(2)}',
+                style: AppTextStyles.bodyLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          
+          // Free delivery notification - NEW ADDITION
+          if (isFreeDelivery && distance > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  size: 14,
+                  color: Colors.green,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Free delivery eligible',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+    },
+  );
+}
   // Build store pickup info from selected outlet data
   Widget _buildStorePickupInfo() {
     return Consumer(

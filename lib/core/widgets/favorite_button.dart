@@ -27,7 +27,6 @@ class FavoriteButton extends ConsumerWidget {
     // Watch the favorites state
     final favoritesState = ref.watch(favoritesProvider);
     final isFavorite = favoritesState.isProductFavorite(product.pCode);
-    final isLoading = favoritesState.isLoading;
     
     // If there's an error, show a snackbar
     if (favoritesState.error != null && showSnackbarMessages) {
@@ -62,7 +61,7 @@ class FavoriteButton extends ConsumerWidget {
     }
 
     return InkWell(
-      onTap: isLoading ? null : () async {
+      onTap: () async {
         // Check if user is logged in first
         final isLoggedIn = await ref.read(isLoggedInProvider.future);
         
@@ -92,21 +91,22 @@ class FavoriteButton extends ConsumerWidget {
           return;
         }
         
-        // Toggle favorite status
-        await ref.read(favoritesProvider.notifier).toggleFavorite(product);
+        // Toggle favorite status without waiting for loading state
+        ref.read(favoritesProvider.notifier).toggleFavorite(product);
         
         // Show success message if enabled
         if (showSnackbarMessages) {
-          final newIsFavorite = ref.read(favoritesProvider).isProductFavorite(product.pCode);
+          // Use the current state to determine the message
+          // Since we're toggling, the message should be opposite of current state
+          final willBeFavorite = !isFavorite;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                newIsFavorite 
+                willBeFavorite 
                     ? 'Added to favorites'
                     : 'Removed from favorites'
               ),
               backgroundColor: AppColors.primary,
-             // lib/core/widgets/favorite_button.dart (continued)
               duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
@@ -119,28 +119,17 @@ class FavoriteButton extends ConsumerWidget {
       borderRadius: BorderRadius.circular(size / 2),
       child: Container(
         padding: const EdgeInsets.all(4.0),
-        child: isLoading
-            ? SizedBox(
-                width: size,
-                height: size,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    activeColor ?? AppColors.primary,
-                  ),
-                ),
-              )
-            : AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  key: ValueKey(isFavorite),
-                  isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: isFavorite
-                      ? activeColor ?? Colors.red
-                      : inactiveColor ?? Colors.grey,
-                  size: size,
-                ),
-              ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Icon(
+            key: ValueKey(isFavorite),
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: isFavorite
+                ? activeColor ?? Colors.red
+                : inactiveColor ?? Colors.grey,
+            size: size,
+          ),
+        ),
       ),
     );
   }

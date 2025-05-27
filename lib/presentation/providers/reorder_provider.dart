@@ -27,7 +27,7 @@ final orderRepositoryProvider = Provider((ref) {
   );
 });
 
-// Provider to store and retrieve user orders
+// Provider to store and retrieve user orders - WITH LATEST DATE FIRST SORTING
 final userOrdersProvider = FutureProvider<List<Order>>((ref) async {
   final logger = ref.read(loggerProvider);
   logger.log('Fetching order history from provider');
@@ -51,6 +51,18 @@ final userOrdersProvider = FutureProvider<List<Order>>((ref) async {
         
         if (apiOrders.isNotEmpty) {
           logger.log('Successfully fetched ${apiOrders.length} orders from API');
+          
+          // Sort by latest date first at frontend level
+          apiOrders.sort((a, b) {
+            final comparison = b.orderDate.compareTo(a.orderDate);
+            return comparison;
+          });
+          
+          logger.log('Orders sorted by latest date first');
+          if (apiOrders.isNotEmpty) {
+            logger.log('Latest order: ${apiOrders.first.orderId} - ${apiOrders.first.orderDate}');
+          }
+          
           return apiOrders;
         } else {
           logger.log('API returned empty order list');
@@ -103,10 +115,17 @@ final userOrdersProvider = FutureProvider<List<Order>>((ref) async {
       }
     }
     
-    // Sort by most recent first
-    orders.sort((a, b) => b.orderDate.compareTo(a.orderDate));
+    // Sort by most recent first (latest date first)
+    orders.sort((a, b) {
+      final comparison = b.orderDate.compareTo(a.orderDate);
+      return comparison;
+    });
     
-    logger.log('Loaded ${orders.length} orders from local storage');
+    logger.log('Loaded ${orders.length} orders from local storage and sorted by latest date first');
+    if (orders.isNotEmpty) {
+      logger.log('Latest cached order: ${orders.first.orderId} - ${orders.first.orderDate}');
+    }
+    
     return orders;
   } catch (e) {
     ref.read(loggerProvider).error('Error in userOrdersProvider: $e');
@@ -124,13 +143,13 @@ final storeOrderProvider = Provider<Future<bool> Function(Order)>((ref) {
       // Get existing orders
       final List<String> ordersJson = prefs.getStringList('user_orders') ?? [];
       
-      // Add new order
-      ordersJson.add(json.encode(order.toJson()));
+      // Add new order at the beginning (latest first)
+      ordersJson.insert(0, json.encode(order.toJson()));
       
       // Save updated list
       await prefs.setStringList('user_orders', ordersJson);
       
-      logger.log('Order saved successfully: ${order.orderId}');
+      logger.log('Order saved successfully at the top of the list: ${order.orderId}');
       
       // Refresh the orders provider
       ref.refresh(userOrdersProvider);
@@ -181,10 +200,10 @@ final createOrderFromCartProvider = Provider<Future<Order?> Function(
       // Generate a unique order ID
       final orderId = 'AND_${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
       
-      // Create the order with the updated fields
+      // Create the order with the updated fields and current timestamp
       final order = Order(
         orderId: orderId,
-        orderDate: DateTime.now(),
+        orderDate: DateTime.now(), // Use current date/time for latest ordering
         deliveryMethod: deliveryMethod,
         deliverySlot: deliverySlot,
         totalAmount: totalOurPrice,
@@ -196,11 +215,11 @@ final createOrderFromCartProvider = Provider<Future<Order?> Function(
         deliveryAddress: deliveryAddress,
       );
       
-      // Store the order
+      // Store the order (will be added at the top due to latest date)
       final success = await ref.read(storeOrderProvider)(order);
       
       if (success) {
-        logger.log('Order created successfully: $orderId');
+        logger.log('Order created successfully with current timestamp: $orderId - ${order.orderDate}');
         return order;
       } else {
         logger.error('Failed to store order: $orderId');

@@ -13,7 +13,10 @@ import '../../providers/launch_flow_provider.dart';
 import 'order_card_widget.dart';
 import 'order_detail_screen.dart';
 
-// Provider for fetching orders
+// Provider for order filtering
+final orderFilterProvider = StateProvider<String>((ref) => 'All');
+
+// Provider for fetching and filtering orders
 final ordersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
   final logger = ref.read(loggerProvider);
   logger.log('Fetching orders list');
@@ -36,11 +39,25 @@ final ordersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
     final allOrders = await repository.getOrderHistory();
     
     // Filter out orders with "In Cart" status
-    final filteredOrders = allOrders.where((order) => 
-        order.status.toLowerCase() != 'in cart' && 
-        order.status.toLowerCase() != 'pending').toList();
+    final filteredOrders = allOrders
+        .where((order) => 
+            order.status.toLowerCase() != 'in cart' && 
+            order.status.toLowerCase() != 'pending')
+        .toList();
     
-    logger.log('Orders fetched successfully. Total: ${filteredOrders.length}');
+    // Sort by latest first (most recent order date first) - FRONTEND SORTING
+    filteredOrders.sort((a, b) {
+      // Compare dates - latest date comes first
+      final comparison = b.orderDate.compareTo(a.orderDate);
+      logger.log('Comparing order dates: ${a.orderId} (${a.orderDate}) vs ${b.orderId} (${b.orderDate}) = $comparison');
+      return comparison;
+    });
+    
+    logger.log('Orders fetched and sorted by latest date first. Total: ${filteredOrders.length}');
+    if (filteredOrders.isNotEmpty) {
+      logger.log('Latest order: ${filteredOrders.first.orderId} - ${filteredOrders.first.orderDate}');
+      logger.log('Oldest order: ${filteredOrders.last.orderId} - ${filteredOrders.last.orderDate}');
+    }
     
     return filteredOrders;
   } catch (e, stacktrace) {
@@ -50,12 +67,53 @@ final ordersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
   }
 });
 
+// Provider for filtered orders based on selected filter
+final filteredOrdersProvider = Provider<List<Order>>((ref) {
+  final ordersAsync = ref.watch(ordersProvider);
+  final selectedFilter = ref.watch(orderFilterProvider);
+  
+  return ordersAsync.when(
+    data: (orders) {
+      List<Order> filteredList;
+      
+      if (selectedFilter == 'All') {
+        filteredList = orders;
+      } else {
+        // Filter orders based on status
+        filteredList = orders.where((order) {
+          switch (selectedFilter) {
+            case 'Delivered':
+              return order.status.toLowerCase().contains('delivered');
+            case 'Processing':
+              return order.status.toLowerCase().contains('processing') ||
+                     order.status.toLowerCase().contains('confirmed') ||
+                     order.status.toLowerCase().contains('preparing');
+            case 'Cancelled':
+              return order.status.toLowerCase().contains('cancelled');
+            default:
+              return true;
+          }
+        }).toList();
+      }
+      
+      // Ensure filtered list is also sorted by latest date first
+      filteredList.sort((a, b) => b.orderDate.compareTo(a.orderDate));
+      
+      return filteredList;
+    },
+    loading: () => <Order>[],
+    error: (_, __) => <Order>[],
+  );
+});
+
 class MyOrdersScreen extends ConsumerWidget {
   const MyOrdersScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ordersAsync = ref.watch(ordersProvider);
+    final filteredOrders = ref.watch(filteredOrdersProvider);
+    final selectedFilter = ref.watch(orderFilterProvider);
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -70,7 +128,7 @@ class MyOrdersScreen extends ConsumerWidget {
           'My Orders',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -85,6 +143,7 @@ class MyOrdersScreen extends ConsumerWidget {
               style: TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w500,
+                fontSize: 13,
               ),
             ),
           ),
@@ -92,44 +151,71 @@ class MyOrdersScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          // Quick reorder and savings cards
-          Padding(
-            padding: const EdgeInsets.all(12.0),
+          // Quick reorder and savings cards - Reduced height and cleaner design
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             child: Row(
               children: [
-                // Quick Reorder Card
+                // Quick Reorder Card - Sleeker design
                 Expanded(
                   child: _buildActionCard(
                     context,
                     icon: Icons.refresh,
                     iconColor: Colors.blue,
                     title: 'Quick Reorder',
-                    subtitle: 'Reorder From\nPast & Saved Items',
+                    subtitle: 'From Past Orders',
                     onTap: () => context.push('/reorder'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                // My Savings Card
+                const SizedBox(width: 8),
+                // My Savings Card - Sleeker design
                 Expanded(
                   child: _buildActionCard(
                     context,
                     icon: Icons.savings_outlined,
                     iconColor: AppColors.primary,
                     title: 'My Savings',
-                    subtitle: 'Explore Your\nSavings With Us',
-                    onTap: () => context.push('/savings'),// Add savings screen functionality if needed
+                    subtitle: 'Track  Savings',
+                    onTap: () => context.push('/savings'),
                   ),
                 ),
               ],
             ),
           ),
 
+          // Filter chips
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip(ref, 'All', selectedFilter),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(ref, 'Delivered', selectedFilter),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(ref, 'Processing', selectedFilter),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(ref, 'Cancelled', selectedFilter),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
           // Orders list
           Expanded(
             child: ordersAsync.when(
-              data: (orders) {
-                if (orders.isEmpty) {
+              data: (allOrders) {
+                if (allOrders.isEmpty) {
                   return _buildEmptyState(context);
+                }
+                
+                if (filteredOrders.isEmpty && selectedFilter != 'All') {
+                  return _buildNoResultsState(context, selectedFilter);
                 }
                 
                 return RefreshIndicator(
@@ -139,10 +225,10 @@ class MyOrdersScreen extends ConsumerWidget {
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.only(bottom: 24),
-                    itemCount: orders.length,
+                    itemCount: filteredOrders.length,
                     itemBuilder: (context, index) {
                       return OrderCardWidget(
-                        order: orders[index],
+                        order: filteredOrders[index],
                         onOrderTap: (order) {
                           _navigateToOrderDetail(context, order);
                         },
@@ -178,6 +264,31 @@ class MyOrdersScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildFilterChip(WidgetRef ref, String filter, String selectedFilter) {
+    final isSelected = selectedFilter == filter;
+    
+    return FilterChip(
+      label: Text(
+        filter,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: isSelected ? Colors.white : Colors.grey[600],
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        ref.read(orderFilterProvider.notifier).state = filter;
+      },
+      backgroundColor: Colors.grey[100],
+      selectedColor: AppColors.primary,
+      checkmarkColor: Colors.white,
+      side: BorderSide.none,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+  }
+
   Widget _buildActionCard(
     BuildContext context, {
     required IconData icon,
@@ -188,49 +299,64 @@ class MyOrdersScreen extends ConsumerWidget {
   }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.amber[50],
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.amber.withOpacity(0.2)),
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: Colors.white,
-              radius: 20,
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(8),
               child: Icon(
                 icon,
                 color: iconColor,
+                size: 18,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: Colors.grey[600],
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios,
-              size: 14,
-              color: Colors.grey,
+              size: 12,
+              color: Colors.grey[400],
             ),
           ],
         ),
@@ -274,6 +400,38 @@ class MyOrdersScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
             child: const Text('Start Shopping'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoResultsState(BuildContext context, String filter) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 48,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No $filter orders found',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try selecting a different filter',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
           ),
         ],
       ),
