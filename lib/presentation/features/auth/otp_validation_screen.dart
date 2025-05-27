@@ -110,64 +110,79 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
     }
   }
 
-// lib/presentation/features/auth/otp_validation_screen.dart (update the _validateOtp method)
-
-Future<void> _validateOtp() async {
-  final otp = _otpController.text.trim();
-  
-  // Validate OTP format
-  if (otp.isEmpty || otp.length < 4) {
-    _errorController.add(ErrorAnimationType.shake);
-    setState(() {
-      _errorMessage = 'Please enter a valid OTP';
-    });
-    return;
-  }
-
-  setState(() {
-    _isLoading = true;
-    _errorMessage = null;
-  });
-
-  try {
-    // Validate OTP
-    final repository = ref.read(authRepositoryProvider);
-    final validationResponse = await repository.validateOtp(widget.mobileNumber, otp);
+  Future<void> _validateOtp() async {
+    final otp = _otpController.text.trim();
     
-    if (validationResponse.isSuccessful()) {
-      // Update login state to success
-      ref.read(loginStateProvider.notifier).state = LoginState.success;
-      
-      // Log success information
-      ref.read(loggerProvider).log('OTP validation successful: ${validationResponse.message}');
-      
-      // Navigate to redirect route or home screen
-      final route = widget.redirectRoute ?? '/home';
-      context.go(route);
-    } else {
+    // Validate OTP format
+    if (otp.isEmpty || otp.length < 4) {
+      _errorController.add(ErrorAnimationType.shake);
       setState(() {
-        _errorMessage = 'Invalid OTP or authentication failed. Please try again.';
+        _errorMessage = 'Please enter a valid OTP';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Validate OTP
+      final repository = ref.read(authRepositoryProvider);
+      final validationResponse = await repository.validateOtp(widget.mobileNumber, otp);
+      
+      if (validationResponse.isSuccessful()) {
+        // Update login state to success
+        ref.read(loginStateProvider.notifier).state = LoginState.success;
+        
+        // Log success information
+        ref.read(loggerProvider).log('OTP validation successful: ${validationResponse.message}');
+        
+        // Navigate to redirect route or home screen
+        final route = widget.redirectRoute ?? '/home';
+        
+        // Use pushReplacement to clear the auth flow stack and go to destination
+        if (mounted) {
+          // Clear the navigation stack and go to the intended route
+          context.go(route);
+          
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Welcome! You are now logged in.'),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          
+          // Log the successful redirect
+          ref.read(loggerProvider).log('Successfully redirected to: $route');
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Invalid OTP or authentication failed. Please try again.';
+        });
+        _errorController.add(ErrorAnimationType.shake);
+        
+        // Log failure information
+        ref.read(loggerProvider).log('OTP validation failed: ${validationResponse.message}');
+      }
+    } catch (e) {
+      ref.read(loggerProvider).error('Error during OTP validation: $e');
+      
+      setState(() {
+        _errorMessage = 'Failed to validate OTP: ${e.toString()}';
       });
       _errorController.add(ErrorAnimationType.shake);
-      
-      // Log failure information
-      ref.read(loggerProvider).log('OTP validation failed: ${validationResponse.message}');
-    }
-  } catch (e) {
-    ref.read(loggerProvider).error('Error during OTP validation: $e');
-    
-    setState(() {
-      _errorMessage = 'Failed to validate OTP: ${e.toString()}';
-    });
-    _errorController.add(ErrorAnimationType.shake);
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -176,14 +191,21 @@ Future<void> _validateOtp() async {
     final formattedMobile = '+91 ${widget.mobileNumber}';
     
     return BackButtonWrapper(
-      alternateRoute: '/auth/login',
+      alternateRoute: '/auth/login?redirectRoute=${widget.redirectRoute ?? ''}',
       child: Scaffold(
         appBar: AppBar(
           title: const Text('OTP Verification'),
           centerTitle: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
+            onPressed: () {
+              // Go back to login screen with the same redirect route
+              if (widget.redirectRoute != null) {
+                context.go('/auth/login?redirectRoute=${widget.redirectRoute}');
+              } else {
+                context.pop();
+              }
+            },
           ),
         ),
         body: SafeArea(
@@ -235,6 +257,19 @@ Future<void> _validateOtp() async {
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  
+                  // Show redirect context if coming from a specific screen
+                  if (widget.redirectRoute != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'After verification, you\'ll be taken to ${_getScreenNameFromRoute(widget.redirectRoute!)}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   
                   const SizedBox(height: 40),
                   
@@ -377,5 +412,27 @@ Future<void> _validateOtp() async {
         ),
       ),
     );
+  }
+
+  // Helper method to get user-friendly screen names
+  String _getScreenNameFromRoute(String route) {
+    switch (route) {
+      case '/cart':
+        return 'your cart';
+      case '/favorites':
+        return 'your favorites';
+      case '/account':
+        return 'your account';
+      case '/my-orders':
+        return 'your orders';
+      case '/profile':
+        return 'your profile';
+      case '/address-book':
+        return 'address book';
+      case '/checkout-flow':
+        return 'checkout';
+      default:
+        return 'the previous screen';
+    }
   }
 }

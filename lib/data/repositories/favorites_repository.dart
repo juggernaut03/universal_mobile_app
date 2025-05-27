@@ -1,19 +1,17 @@
 // lib/data/repositories/favorites_repository.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 import '../models/product_model.dart';
-import '../../presentation/providers/auth_providers.dart';
 
 class FavoritesRepository {
   final http.Client _client;
   final Logger _logger;
   
-  static const String _addRemoveFavoritesUrl = '${ApiConstants.baseUrl}/add_remove_to_favorites';
   static const String _getFavoriteItemsUrl = '${ApiConstants.baseUrl}/get_favorite_items';
+  static const String _addRemoveFavoritesUrl = '${ApiConstants.baseUrl}/add_remove_to_favorites';
   static const String _cachedFavoritesKey = 'cached_favorites';
 
   FavoritesRepository({
@@ -35,6 +33,7 @@ class FavoritesRepository {
       // Try up to 3 times with exponential backoff
       for (int attempt = 0; attempt < 3; attempt++) {
         try {
+          // Updated API request format
           final response = await _client.post(
             Uri.parse(_getFavoriteItemsUrl),
             headers: {'Content-Type': 'application/json'},
@@ -51,7 +50,7 @@ class FavoritesRepository {
           if (response.statusCode == 200 || response.statusCode == 201) {
             final responseData = jsonDecode(response.body);
             
-            // Handle different response formats
+            // Handle the response format which is a direct array of products
             List<dynamic> favoriteItemsData = [];
             
             if (responseData is List) {
@@ -66,26 +65,7 @@ class FavoritesRepository {
             final List<ProductModel> favoriteProducts = [];
             for (final item in favoriteItemsData) {
               try {
-                final productModel = ProductModel(
-                  id: item['_id']?.toString() ?? '',
-                  pCode: item['p_code']?.toString() ?? '',
-                  pcodeImg: item['pcode_img']?.toString() ?? '',
-                  barcode: item['barcode']?.toString() ?? '',
-                  productName: item['product_name']?.toString() ?? '',
-                  productDescription: item['product_description']?.toString() ?? '',
-                  packageSize: _parseDouble(item['package_size']),
-                  packageUnit: item['package_unit']?.toString() ?? '',
-                  productMrp: _parseDouble(item['product_mrp']),
-                  ourPrice: _parseDouble(item['our_price']),
-                  brandName: item['brand_name']?.toString() ?? '',
-                  storeCode: item['store_code']?.toString() ?? storeCode,
-                  pcodestatus: item['pcode_status']?.toString() ?? '',
-                  deptId: item['dept_id']?.toString() ?? '',
-                  categoryId: item['category_id']?.toString() ?? '',
-                  subCategoryId: item['sub_category_id']?.toString() ?? '',
-                  storeQuantity: _parseInt(item['store_quantity']),
-                  maxQuantityAllowed: _parseInt(item['max_quantity_allowed']),
-                );
+                final productModel = ProductModel.fromJson(item);
                 favoriteProducts.add(productModel);
               } catch (e) {
                 _logger.error('Error parsing favorite item: $e');
@@ -306,33 +286,5 @@ class FavoritesRepository {
     } catch (e) {
       _logger.error('Error updating cached favorites for toggle: $e');
     }
-  }
-
-  // Helper methods
-  double _parseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is num) return value.toDouble();
-    if (value is String) {
-      try {
-        return double.parse(value);
-      } catch (_) {
-        return 0.0;
-      }
-    }
-    return 0.0;
-  }
-
-  int _parseInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) {
-      try {
-        return int.parse(value);
-      } catch (_) {
-        return 0;
-      }
-    }
-    return 0;
   }
 }

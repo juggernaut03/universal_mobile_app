@@ -358,21 +358,29 @@ class BestSellerWidget extends ConsumerWidget {
                       ),
                     ),
                   ),
-                // Add favorite button at top left
+                // Properly positioned favorite button at top left with better styling
                 Positioned(
-                  top: 4,
-                  left: 4,
+                  top: 8,
+                  left: 8,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(4),
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
+                    padding: const EdgeInsets.all(2),
                     child: FavoriteButton(
                       product: product,
-                      size: 20,
+                      size: 18,
                       activeColor: Colors.red,
-                      inactiveColor: Colors.grey,
-                      showSnackbarMessages: false,
+                      inactiveColor: Colors.grey.shade600,
+                      showSnackbarMessages: false, // Disable snackbar in horizontal scroll
                     ),
                   ),
                 ),

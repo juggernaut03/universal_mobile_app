@@ -1,349 +1,507 @@
 // lib/presentation/features/support/help_support_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/core/widgets/back_button_wrapper.dart';
+import 'package:patelmart/presentation/providers/auth_providers.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/launch_flow_provider.dart';
+import '../../providers/outlet_provider.dart';
 
-class HelpSupportScreen extends ConsumerStatefulWidget {
+// Store details model
+class StoreDetails {
+  final String id;
+  final String pincode;
+  final String mobileOutletName;
+  final String storeCode;
+  final String isEnabled;
+  final String storeAddress;
+  final int minOrderAmount;
+  final String storeOpenTime;
+  final String storeDeliveryTime;
+  final String latitude;
+  final String longitude;
+  final String contactNumber;
+  final String email;
+
+  StoreDetails({
+    required this.id,
+    required this.pincode,
+    required this.mobileOutletName,
+    required this.storeCode,
+    required this.isEnabled,
+    required this.storeAddress,
+    required this.minOrderAmount,
+    required this.storeOpenTime,
+    required this.storeDeliveryTime,
+    required this.latitude,
+    required this.longitude,
+    required this.contactNumber,
+    required this.email,
+  });
+
+  factory StoreDetails.fromJson(Map<String, dynamic> json) {
+    return StoreDetails(
+      id: json['_id'] ?? '',
+      pincode: json['pincode'] ?? '',
+      mobileOutletName: json['mobile_outlet_name'] ?? '',
+      storeCode: json['store_code'] ?? '',
+      isEnabled: json['is_enabled'] ?? '',
+      storeAddress: json['store_address'] ?? '',
+      minOrderAmount: json['min_order_amount'] ?? 0,
+      storeOpenTime: json['store_open_time'] ?? '',
+      storeDeliveryTime: json['store_delivery_time'] ?? '',
+      latitude: json['latitude']?.toString() ?? '',
+      longitude: json['longitude']?.toString() ?? '',
+      contactNumber: json['contact_number']?.toString() ?? '',
+      email: json['email'] ?? '',
+    );
+  }
+}
+
+// Provider for store details
+final storeDetailsProvider = FutureProvider<StoreDetails?>((ref) async {
+  final selectedOutlet = ref.watch(selectedOutletProvider).valueOrNull;
+  final logger = ref.read(loggerProvider);
+  
+  if (selectedOutlet == null) {
+    logger.log('No outlet selected for store details');
+    return null;
+  }
+
+  try {
+    logger.log('Fetching store details for store code: ${selectedOutlet.storeCode}');
+    
+    final apiClient = ref.read(apiClientProvider);
+    final response = await apiClient.post(
+      'https://newtech.shalviadvision.com/api/get_store_details',
+      body: {
+        'store_code': selectedOutlet.storeCode,
+        'project_code': 'RET5890',
+      },
+    );
+
+    if (response is List && response.isNotEmpty) {
+      final storeDetails = StoreDetails.fromJson(response[0]);
+      logger.log('Store details fetched successfully: ${storeDetails.mobileOutletName}');
+      return storeDetails;
+    } else {
+      logger.error('Invalid response format for store details');
+      return null;
+    }
+  } catch (e) {
+    logger.error('Error fetching store details: $e');
+    return null;
+  }
+});
+
+class HelpSupportScreen extends ConsumerWidget {
   const HelpSupportScreen({Key? key}) : super(key: key);
 
   @override
-  ConsumerState<HelpSupportScreen> createState() => _HelpSupportScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final storeDetailsAsync = ref.watch(storeDetailsProvider);
 
-class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
-  final _issueController = TextEditingController();
-  String? _selectedIssueType;
-  final List<String> _issueTypes = [
-    'Order Issue',
-    'Payment Problem',
-    'Delivery Delay',
-    'Product Quality',
-    'Return/Refund',
-    'App Problem',
-    'Other',
-  ];
-
-  @override
-  void dispose() {
-    _issueController.dispose();
-    super.dispose();
-  }
-
-  @override
-@override
-Widget build(BuildContext context) {
-  final logger = ref.read(loggerProvider);
-
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Help & Support'),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () {
-          if (Navigator.canPop(context)) {
-            context.pop();
-          } else {
-            context.go('/home');
-          }
-        },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Help & Support'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
       ),
-    ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header section with headphones icon
-            Container(
-              color: AppColors.primary,
-              padding: const EdgeInsets.all(24.0),
+      body: storeDetailsAsync.when(
+        data: (storeDetails) {
+          if (storeDetails == null) {
+            return const Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircleAvatar(
-                    backgroundColor: Colors.white30,
-                    radius: 36,
-                    child: Icon(
-                      Icons.headset_mic,
-                      color: Colors.white,
-                      size: 40,
-                    ),
+                  Icon(
+                    Icons.store_outlined,
+                    size: 64,
+                    color: Colors.grey,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Text(
-                    'How can we help you?',
-                    style: AppTextStyles.h4.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'We\'re here to assist you with any issues',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.white,
+                    'Store information not available',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
                     ),
                   ),
                 ],
               ),
-            ),
-            
-            // Form section
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Issue Type Dropdown
-                  Text(
-                    'Select Issue Type',
-                    style: AppTextStyles.h6.copyWith(
-                      color: AppColors.primary,
+            );
+          }
+          
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                // Header section
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primary, AppColors.primaryDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.neutral300),
-                    ),
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedIssueType,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                        border: InputBorder.none,
-                        hintText: 'Select an issue',
-                      ),
-                      icon: const Icon(Icons.keyboard_arrow_down),
-                      items: _issueTypes.map((String type) {
-                        return DropdownMenuItem<String>(
-                          value: type,
-                          child: Text(type),
-                        );
-                      }).toList(),
-                      onChanged: (String? value) {
-                        setState(() {
-                          _selectedIssueType = value;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Description Text Area
-                  Text(
-                    'Describe Your Issue',
-                    style: AppTextStyles.h6.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    height: 160,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.neutral300),
-                    ),
-                    child: TextField(
-                      controller: _issueController,
-                      maxLines: null,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(16),
-                        hintText: 'Please provide details about your issue...',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Photo Upload Section
-                  Text(
-                    'Add Photos (Optional)',
-                    style: AppTextStyles.h6.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Add up to 3 photos to help us better understand your issue',
-                    style: AppTextStyles.bodySmall,
-                  ),
-                  const SizedBox(height: 16),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildPhotoUploadButton(),
-                        const SizedBox(width: 12),
-                        _buildPhotoUploadButton(),
-                        const SizedBox(width: 12),
-                        _buildPhotoUploadButton(),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Submit Button
-                  ElevatedButton(
-                    onPressed: () {
-                      _submitIssue();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.send, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'SUBMIT ISSUE',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Urgent Assistance Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: Colors.white30,
+                        radius: 36,
+                        child: Icon(
                           Icons.support_agent,
-                          color: Colors.blue.shade700,
-                          size: 32,
+                          color: Colors.white,
+                          size: 40,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Need Help?',
+                        style: AppTextStyles.h4.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Contact us directly for assistance',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Store Information Card
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Store Name and Address
+                          Row(
                             children: [
-                              Text(
-                                'Need urgent assistance?',
-                                style: AppTextStyles.labelLarge.copyWith(
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.store,
+                                  color: AppColors.primary,
+                                  size: 24,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Call us at +91 8188252372',
-                                style: AppTextStyles.bodySmall,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      storeDetails.mobileOutletName,
+                                      style: AppTextStyles.h6.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      storeDetails.storeAddress,
+                                      style: AppTextStyles.bodyMedium.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.phone,
-                            color: AppColors.primary,
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Store Hours
+                          _buildInfoRow(
+                            Icons.access_time,
+                            'Store Hours',
+                            storeDetails.storeOpenTime,
                           ),
-                          onPressed: () {
-                            // Implement phone call functionality
-                            logger.log('Initiating phone call to support');
-                          },
-                        ),
-                      ],
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Delivery Time
+                          _buildInfoRow(
+                            Icons.delivery_dining,
+                            'Delivery Time',
+                            storeDetails.storeDeliveryTime,
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // Minimum Order
+                          _buildInfoRow(
+                            Icons.shopping_cart,
+                            'Minimum Order',
+                            '₹${storeDetails.minOrderAmount}',
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Contact Options
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Contact Us',
+                        style: AppTextStyles.h5.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Phone Contact Card
+                      _buildContactCard(
+                        icon: Icons.phone,
+                        title: 'Call Us',
+                        subtitle: storeDetails.contactNumber,
+                        color: Colors.green,
+                        onTap: () => _makePhoneCall(storeDetails.contactNumber),
+                      ),
+                      
+                      const SizedBox(height: 12),
+                      
+                      // WhatsApp Contact Card
+                      _buildContactCard(
+                        icon: Icons.chat,
+                        title: 'WhatsApp',
+                        subtitle: 'Chat with us on WhatsApp',
+                        color: Colors.green.shade600,
+                        onTap: () => _openWhatsApp(storeDetails.contactNumber),
+                      ),
+                      
+                      const SizedBox(height: 12),
+                      
+                      // Email Contact Card
+                      _buildContactCard(
+                        icon: Icons.email,
+                        title: 'Email Us',
+                        subtitle: storeDetails.email,
+                        color: Colors.blue,
+                        onTap: () => _sendEmail(storeDetails.email),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+              ],
             ),
-          ],
-        ),
-      ),
-   
-  );
-}
-
-  Widget _buildPhotoUploadButton() {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.neutral300,
-          width: 1,
-        ),
-      ),
-      child: InkWell(
-        onTap: () {
-          // Implement photo selection
+          );
         },
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_photo_alternate,
-              color: AppColors.primary,
-              size: 32,
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        error: (error, stack) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Unable to load store information',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  error.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => ref.refresh(storeDetailsProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Add Photo',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  void _submitIssue() {
-    if (_selectedIssueType == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an issue type'),
-          backgroundColor: AppColors.error,
+  Widget _buildInfoRow(IconData icon, String title, String value) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: AppColors.primary,
+          size: 20,
         ),
-      );
-      return;
-    }
-
-    if (_issueController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please describe your issue'),
-          backgroundColor: AppColors.error,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.labelMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                value,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
-      );
-      return;
-    }
+      ],
+    );
+  }
 
-    // Show success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Your issue has been submitted successfully. We\'ll get back to you soon.'),
-        backgroundColor: Colors.green,
+  Widget _buildContactCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTextStyles.labelLarge.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: AppColors.textSecondary,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
 
-    // Reset form
-    setState(() {
-      _selectedIssueType = null;
-      _issueController.clear();
-    });
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(phoneUri)) {
+      await launchUrl(phoneUri);
+    }
+  }
+
+  Future<void> _openWhatsApp(String phoneNumber) async {
+    // Remove any non-digit characters and ensure it starts with country code
+    String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+    if (!cleanNumber.startsWith('91')) {
+      cleanNumber = '91$cleanNumber';
+    }
+    
+    final Uri whatsappUri = Uri.parse('https://wa.me/$cleanNumber');
+    if (await canLaunchUrl(whatsappUri)) {
+      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _sendEmail(String email) async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: email,
+      queryParameters: {
+        'subject': 'Support Request - PatelMart',
+      },
+    );
+    
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+    }
   }
 }

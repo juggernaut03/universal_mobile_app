@@ -250,87 +250,92 @@ class AccountScreen extends ConsumerWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
-    final cartCount = ref.watch(cartCountProvider);
-    final logger = ref.read(loggerProvider);
-    
-    return AppBar(
-      backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
-      elevation: 0,
-      centerTitle: true,
-      title: Image.asset(
-        'assets/images/patelLogo.png',
-        height: 32,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          logger.error('Error loading logo: $error');
-          return const Icon(Icons.store, color: Colors.white, size: 32);
-        },
-      ),
-      leading: Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
+ PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
+  final cartCount = ref.watch(cartCountProvider);
+  final logger = ref.read(loggerProvider);
+  
+  return AppBar(
+    backgroundColor: AppColors.primary,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    centerTitle: false, // Change to false to align title to the left
+    title: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/images/patelLogo.png',
+          height: 42, // Increased from 32 to 40
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            logger.error('Error loading logo: $error');
+            return const Icon(Icons.store, color: Colors.white, size: 40);
           },
-        ),
-      ),
-      actions: [
-        // Wishlist/Favorites icon
-        IconButton(
-          icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
-          onPressed: () {
-            logger.log('Favorites button pressed from account screen');
-            if (context.mounted) {
-              context.push('/favorites');
-            }
-          },
-        ),
-        // Cart icon with badge
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-              onPressed: () {
-                logger.log('Cart button pressed from account screen');
-                if (context.mounted) {
-                  context.push('/cart');
-                }
-              },
-            ),
-            if (cartCount > 0)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: Text(
-                    cartCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-          ],
         ),
       ],
-    );
-  }
-
+    ),
+    titleSpacing: 0, // Reduce spacing to move logo closer to drawer icon
+    leading: Builder(
+      builder: (context) => IconButton(
+        icon: const Icon(Icons.menu, color: Colors.white),
+        onPressed: () {
+          Scaffold.of(context).openDrawer();
+        },
+      ),
+    ),
+    actions: [
+      // Wishlist/Favorites icon
+      IconButton(
+        icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
+        onPressed: () {
+          logger.log('Favorites button pressed from account screen');
+          if (context.mounted) {
+            context.push('/favorites');
+          }
+        },
+      ),
+      // Cart icon with badge
+      Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+            onPressed: () {
+              logger.log('Cart button pressed from account screen');
+              if (context.mounted) {
+                context.push('/cart');
+              }
+            },
+          ),
+          if (cartCount > 0)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 16,
+                  minHeight: 16,
+                ),
+                child: Text(
+                  cartCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+    ],
+  );
+}
   Widget _buildDrawer(BuildContext context, WidgetRef ref) {
     final selectedOutletAsync = ref.watch(selectedOutletProvider);
     final logger = ref.read(loggerProvider);

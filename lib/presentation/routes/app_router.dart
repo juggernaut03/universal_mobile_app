@@ -243,10 +243,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const StoreInfoScreen(),
       ),
       GoRoute(
-        path: '/account',
-        name: RouteNames.account,
-        builder: (context, state) => const AccountScreen(),
-      ),
+  path: '/account',
+  name: RouteNames.account,
+  builder: (context, state) => const AccountScreen(),
+  redirect: (context, state) async {
+    // Check if user is logged in
+    final container = ProviderScope.containerOf(context);
+    final authRepository = container.read(authRepositoryProvider);
+    
+    final isLoggedIn = await authRepository.isLoggedIn();
+    if (!isLoggedIn) {
+      return '/auth/login?redirectRoute=/account';
+    }
+    return null;
+  },
+),
       GoRoute(
         path: '/category',
         name: RouteNames.category,
@@ -347,34 +358,34 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       // Cart route
-      GoRoute(
-        path: '/cart',
-        name: RouteNames.cart,
-        builder: (context, state) => const CartScreen(),
-      ),
+     GoRoute(
+  path: '/cart',
+  name: RouteNames.cart,
+  builder: (context, state) => const CartScreen(),
+),
       // Authentication routes
-      GoRoute(
-        path: '/auth/login',
-        name: RouteNames.login,
-        builder: (context, state) {
-          final redirectRoute = state.uri.queryParameters['redirectRoute'];
-          return LoginScreen(redirectRoute: redirectRoute);
-        },
-      ),
+     GoRoute(
+  path: '/auth/login',
+  name: RouteNames.login,
+  builder: (context, state) {
+    final redirectRoute = state.uri.queryParameters['redirectRoute'];
+    return LoginScreen(redirectRoute: redirectRoute);
+  },
+),
       
       GoRoute(
-        path: '/auth/otp',
-        name: RouteNames.otp,
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          final mobile = extra?['mobile'] as String? ?? '';
-          final redirectRoute = extra?['redirectRoute'] as String?;
-          return OtpValidationScreen(
-            mobileNumber: mobile,
-            redirectRoute: redirectRoute,
-          );
-        },
-      ),
+  path: '/auth/otp',
+  name: RouteNames.otp,
+  builder: (context, state) {
+    final extra = state.extra as Map<String, dynamic>?;
+    final mobile = extra?['mobile'] as String? ?? '';
+    final redirectRoute = extra?['redirectRoute'] as String?;
+    return OtpValidationScreen(
+      mobileNumber: mobile,
+      redirectRoute: redirectRoute,
+    );
+  },
+),
       // Legacy Checkout route (keeping for backward compatibility)
       GoRoute(
         path: '/checkout',
@@ -418,14 +429,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const HelpSupportScreen(),
       ),
       GoRoute(
-        path: '/refund-policies',
-        name: RouteNames.refundPolicies,
-        builder: (context, state) => const RefundTncScreen(),
-      ),
-      GoRoute(
   path: '/favorites',
   name: RouteNames.favorites,
   builder: (context, state) => const FavoritesScreen(),
+  redirect: (context, state) async {
+    // Check if user is logged in
+    final container = ProviderScope.containerOf(context);
+    final authRepository = container.read(authRepositoryProvider);
+    
+    final isLoggedIn = await authRepository.isLoggedIn();
+    if (!isLoggedIn) {
+      return '/auth/login?redirectRoute=/favorites';
+    }
+    return null;
+  },
 ),
 
 GoRoute(

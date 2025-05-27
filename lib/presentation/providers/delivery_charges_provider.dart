@@ -144,3 +144,4 @@ final deliveryChargesCalculatorProvider = Provider.family<Future<void>, Address>
   final notifier = ref.read(deliveryChargesProvider.notifier);
   return notifier.calculateDeliveryCharges(userAddress: address);
 });
+

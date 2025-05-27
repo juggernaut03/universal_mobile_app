@@ -10,7 +10,6 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../core/widgets/back_button_wrapper.dart';
 import '../../providers/auth_providers.dart';
-import 'otp_validation_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String? redirectRoute;
@@ -50,67 +49,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.read(mobileNumberProvider.notifier).state = _mobileController.text;
   }
 
-  // lib/presentation/features/auth/login_screen.dart (update the _requestOtp method)
-
-Future<void> _requestOtp() async {
-  // Clear any previous errors
-  setState(() {
-    _errorMessage = null;
-  });
-
-  // Validate mobile number format
-  final mobileNumber = _mobileController.text.trim();
-  if (mobileNumber.isEmpty || mobileNumber.length != 10) {
+  Future<void> _requestOtp() async {
+    // Clear any previous errors
     setState(() {
-      _errorMessage = 'Please enter a valid 10-digit mobile number';
+      _errorMessage = null;
     });
-    return;
-  }
 
-  // Show loading indicator
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    // Request OTP
-    final repository = ref.read(authRepositoryProvider);
-    final otpResponse = await repository.requestOtp(mobileNumber);
-    
-    // Log success details
-    ref.read(loggerProvider).log('OTP requested successfully. Status: ${otpResponse.status}, Mobile: ${otpResponse.mobile}');
-    
-    // Update the login state
-    ref.read(loginStateProvider.notifier).state = LoginState.otpRequested;
-    
-    // Navigate to OTP validation screen
-    if (mounted) {
-      // Navigate to OTP screen
-      context.push(
-        '/auth/otp',
-        extra: {
-          'mobile': mobileNumber,
-          'redirectRoute': widget.redirectRoute,
-        },
-      );
-    }
-  } catch (e) {
-    // Be more specific about the error
-    ref.read(loggerProvider).error('OTP request failed with error: $e');
-    
-    // Show error message
-    setState(() {
-      _errorMessage = 'Failed to request OTP: ${e.toString()}';
-    });
-  } finally {
-    // Hide loading indicator
-    if (mounted) {
+    // Validate mobile number format
+    final mobileNumber = _mobileController.text.trim();
+    if (mobileNumber.isEmpty || mobileNumber.length != 10) {
       setState(() {
-        _isLoading = false;
+        _errorMessage = 'Please enter a valid 10-digit mobile number';
       });
+      return;
+    }
+
+    // Show loading indicator
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Request OTP
+      final repository = ref.read(authRepositoryProvider);
+      final otpResponse = await repository.requestOtp(mobileNumber);
+      
+      // Log success details
+      ref.read(loggerProvider).log('OTP requested successfully. Status: ${otpResponse.status}, Mobile: ${otpResponse.mobile}');
+      
+      // Update the login state
+      ref.read(loginStateProvider.notifier).state = LoginState.otpRequested;
+      
+      // Navigate to OTP validation screen with proper redirect route
+      if (mounted) {
+        // Use pushReplacement to prevent going back to login after OTP
+        context.pushReplacement(
+          '/auth/otp',
+          extra: {
+            'mobile': mobileNumber,
+            'redirectRoute': widget.redirectRoute, // Pass the redirect route through
+          },
+        );
+      }
+    } catch (e) {
+      // Be more specific about the error
+      ref.read(loggerProvider).error('OTP request failed with error: $e');
+      
+      // Show error message
+      setState(() {
+        _errorMessage = 'Failed to request OTP: ${e.toString()}';
+      });
+    } finally {
+      // Hide loading indicator
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-}
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -127,9 +125,14 @@ Future<void> _requestOtp() async {
           leading: widget.redirectRoute != null 
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
-                 onPressed: () {
-              context.push('/home');
-            },
+                  onPressed: () {
+                    // Navigate back to the route that sent us here
+                    if (widget.redirectRoute != null) {
+                      context.go(widget.redirectRoute!);
+                    } else {
+                      context.go('/home');
+                    }
+                  },
                 )
               : null,
         ),
@@ -172,6 +175,19 @@ Future<void> _requestOtp() async {
                     ),
                     textAlign: TextAlign.center,
                   ),
+                  
+                  // Show redirect context if coming from a specific screen
+                  if (widget.redirectRoute != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Login to access ${_getScreenNameFromRoute(widget.redirectRoute!)}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   
                   const SizedBox(height: 40),
                   
@@ -278,5 +294,27 @@ Future<void> _requestOtp() async {
         ),
       ),
     );
+  }
+
+  // Helper method to get user-friendly screen names
+  String _getScreenNameFromRoute(String route) {
+    switch (route) {
+      case '/cart':
+        return 'your cart';
+      case '/favorites':
+        return 'your favorites';
+      case '/account':
+        return 'your account';
+      case '/my-orders':
+        return 'your orders';
+      case '/profile':
+        return 'your profile';
+      case '/address-book':
+        return 'address book';
+      case '/checkout-flow':
+        return 'checkout';
+      default:
+        return 'this feature';
+    }
   }
 }

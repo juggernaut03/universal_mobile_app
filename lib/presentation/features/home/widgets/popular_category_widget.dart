@@ -1,5 +1,3 @@
-// lib/presentation/features/home/widgets/popular_category_widget.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,29 +37,26 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Get the popular categories data for this section
     final categoriesAsync = ref.watch(popularCategoryProvider(widget.sectionId));
     final logger = ref.read(loggerProvider);
 
     return categoriesAsync.when(
       data: (categoryResponse) {
-        // If there are no categories, don't show the widget
         if (categoryResponse.categoriesDetails.isEmpty) {
           return const SizedBox.shrink();
         }
 
-        // Determine how many items to show
         final categories = categoryResponse.categoriesDetails;
-        final displayCategories = _expanded 
-            ? categories 
+        final displayCategories = _expanded
+            ? categories
             : categories.length > 6 ? categories.sublist(0, 6) : categories;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min, // Add this to prevent Column expansion
             children: [
-              // Section title and View All button
               if (widget.showTitle)
                 Padding(
                   padding: EdgeInsets.only(
@@ -78,8 +73,7 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      // Always show View All button if showViewAll is true
-                      if (widget.showViewAll)
+                      if (widget.showViewAll && categories.length > 3)
                         TextButton(
                           onPressed: () {
                             setState(() {
@@ -94,8 +88,6 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
                     ],
                   ),
                 ),
-
-              // Grid or horizontal view based on expanded state
               _expanded
                   ? _buildExpandedGrid(context, displayCategories)
                   : _buildHorizontalList(context, displayCategories),
@@ -120,12 +112,44 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
   }
 
   Widget _buildHorizontalList(BuildContext context, List<dynamic> categories) {
-    return SizedBox(
-      height: widget.itemHeight,
-      child: ListView.builder(
+    return Container(
+      height: widget.itemHeight + widget.spacing,
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.padding.horizontal / 2,
+      ),
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        itemCount: categories.length,
+        separatorBuilder: (context, index) => SizedBox(width: widget.spacing),
+        itemBuilder: (context, index) {
+          final category = categories[index];
+          return _buildCategoryCard(context, category);
+        },
+      ),
+    );
+  }
+
+  Widget _buildExpandedGrid(BuildContext context, List<dynamic> categories) {
+    // Calculate the number of rows needed
+    const int fixedColumns = 3;
+    final int rowCount = (categories.length / fixedColumns).ceil();
+    
+    // Calculate the total grid height
+    final double gridHeight = (widget.itemHeight + widget.spacing) * rowCount - widget.spacing;
+    
+    return Container(
+      height: gridHeight,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.symmetric(
           horizontal: widget.padding.horizontal / 2,
+        ),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: fixedColumns,
+          childAspectRatio: widget.itemWidth / widget.itemHeight,
+          crossAxisSpacing: widget.spacing,
+          mainAxisSpacing: widget.spacing,
         ),
         itemCount: categories.length,
         itemBuilder: (context, index) {
@@ -136,90 +160,57 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
     );
   }
 
-  Widget _buildExpandedGrid(BuildContext context, List<dynamic> categories) {
-    // Calculate number of columns based on screen width
-    final screenWidth = MediaQuery.of(context).size.width;
-    final columns = (screenWidth / (widget.itemWidth + widget.spacing)).floor();
-    
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.symmetric(
-        horizontal: widget.padding.horizontal / 2,
-      ),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        childAspectRatio: widget.itemWidth / widget.itemHeight,
-        crossAxisSpacing: widget.spacing,
-        mainAxisSpacing: widget.spacing,
-      ),
-      itemCount: categories.length,
-      itemBuilder: (context, index) {
-        final category = categories[index];
-        return _buildCategoryCard(context, category);
-      },
-    );
-  }
-
   Widget _buildCategoryCard(BuildContext context, dynamic category) {
-  // Fixed image height for consistency (75% of total height)
-  final imageHeight = widget.itemHeight * 0.75;
-  final textHeight = widget.itemHeight * 0.25;
-  
-  return Container(
-    width: widget.itemWidth,
-    height: widget.itemHeight,
-    margin: EdgeInsets.only(right: _expanded ? 0 : widget.spacing),
-    child: InkWell(
-      onTap: () {
-        // Navigate to subcategory screen with this category
-        context.push(
-          '/subcategory/${category.categoryId}/${category.deptId}/${Uri.encodeComponent(category.categoryName)}',
-        );
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Category image - fixed size without border
-          Container(
-            height: imageHeight,
-            width: widget.itemWidth,
-            alignment: Alignment.center,
-            child: CachedNetworkImageWidget(
-              imageUrl: category.imageLink,
-              cacheKey: 'popular_category_${category.categoryId}',
-              fit: BoxFit.contain,
-              errorWidget: Container(
-                color: Colors.grey.shade100,
-                child: Icon(
-                  Icons.image_not_supported_outlined,
-                  color: Colors.grey.shade400,
-                  size: 24,
+    final imageHeight = widget.itemHeight * 0.65;
+    final textHeight = widget.itemHeight * 0.25;
+
+    return SizedBox(
+      width: widget.itemWidth,
+      height: widget.itemHeight,
+      child: InkWell(
+        onTap: () {
+          context.push(
+            '/subcategory/${category.categoryId}/${category.deptId}/${Uri.encodeComponent(category.categoryName)}',
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: imageHeight,
+              width: widget.itemWidth,
+              child: CachedNetworkImageWidget(
+                imageUrl: category.imageLink,
+                cacheKey: 'popular_category_${category.categoryId}',
+                fit: BoxFit.contain,
+                errorWidget: Container(
+                  color: Colors.grey.shade100,
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    color: Colors.grey.shade400,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
-          ),
-          
-          // Category name - fixed height
-          Container(
-            height: textHeight,
-            width: widget.itemWidth,
-            alignment: Alignment.center,
-            child: Text(
-              category.categoryName,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+            SizedBox(
+              height: textHeight,
+              width: widget.itemWidth,
+              child: Text(
+                category.categoryName,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
