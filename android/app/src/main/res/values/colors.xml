@@ -1,0 +1,8 @@
+<resources>
+    <!-- Notification accent color -->
+    <color name="notification_color">#FF6200EE</color>
+    
+    <!-- You can change this to match your app's primary color -->
+    <!-- For example, if your app uses blue: #FF2196F3 -->
+    <!-- For red: #FFF44336, For green: #FF4CAF50, etc. -->
+</resources>
