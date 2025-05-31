@@ -135,76 +135,56 @@ Future<String> _getStoreCode() async {
   }
   // Get order history
   Future<List<Order>> getOrderHistory() async {
-    try {
-      // Get user profile to get mobile number and access key
-      final userProfile = await _authRepository.getUserProfile();
-      if (userProfile == null) {
-        throw Exception('User not logged in');
-      }
+  try {
+    // Get user profile to get mobile number and access key
+    final userProfile = await _authRepository.getUserProfile();
+    if (userProfile == null) {
+      throw Exception('User not logged in');
+    }
+    
+    final uri = Uri.parse('${ApiConstants.baseUrl}/get_orders_history');
+    final storeCode = await _getStoreCode();
+    
+    // FIXED: Correct request body matching Postman exactly
+    final requestBody = {
+      'project_code': ApiConstants.projectCode,  // ✅ Added missing field
+      'access_key': userProfile.accessKey,       // ✅ Correct field order
+      'store_code': storeCode,                   // ✅ Dynamic store code
+      // Note: mobile_number is not needed for this endpoint based on Postman
+    };
+    
+    _logger.log('Fetching order history with correct format');
+    _logger.log('Request details: ${jsonEncode(requestBody)}');
+    
+    final response = await _client.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(requestBody),
+    ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
+    
+    _logger.log('Response status: ${response.statusCode}');
+    
+    if (response.statusCode == 200) {
+      final dynamic jsonData = jsonDecode(response.body);
       
-      final uri = Uri.parse('${ApiConstants.baseUrl}/get_orders_history');
-       final storeCode = await _getStoreCode();
-      // Create request body with mobile number and access key
-      final requestBody = {
-        'project_code': ApiConstants.projectCode,
-        'mobile_number': userProfile.mobile,
-        'access_key': userProfile.accessKey,
-        'store_code': storeCode, 
-        
-      };
-      
-      _logger.log('Fetching order history for mobile: ${userProfile.mobile}');
-      _logger.log('Request details: ${jsonEncode(requestBody)}');
-      
-      final response = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
-      
-      _logger.log('Response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        // Just log the first part of the response for debugging
-        _logger.log('Response preview: ${response.body.substring(0, min(100, response.body.length))}...');
-        
-        try {
-          final dynamic jsonData = jsonDecode(response.body);
-          
-          // Handle different response formats
-          if (jsonData is List) {
-            _logger.log('Response is a list with ${jsonData.length} items');
-            return jsonData.map((item) => Order.fromJson(item)).toList();
-          } else if (jsonData is Map) {
-            _logger.log('Response is a map with keys: ${jsonData.keys.toList()}');
-            
-            if (jsonData.containsKey('orders') && jsonData['orders'] is List) {
-              final List orders = jsonData['orders'];
-              return orders.map((item) => Order.fromJson(item)).toList();
-            } else if (jsonData.containsKey('data') && jsonData['data'] is List) {
-              final List orders = jsonData['data'];
-              return orders.map((item) => Order.fromJson(item)).toList();
-            } else {
-              _logger.error('Expected orders array not found in response');
-              return [];
-            }
-          } else {
-            _logger.error('Unexpected response format');
-            return [];
-          }
-        } catch (e) {
-          _logger.error('Error parsing JSON response: $e');
-          return [];
-        }
+      if (jsonData is List) {
+        return jsonData.map((item) => Order.fromJson(item)).toList();
+      } else if (jsonData is Map && jsonData.containsKey('orders')) {
+        final List orders = jsonData['orders'];
+        return orders.map((item) => Order.fromJson(item)).toList();
       } else {
-        _logger.error('Failed to fetch order history: ${response.statusCode} - ${response.body}');
+        _logger.error('Unexpected response format');
         return [];
       }
-    } catch (e) {
-      _logger.error('Error fetching order history: $e');
+    } else {
+      _logger.error('Failed to fetch order history: ${response.statusCode} - ${response.body}');
       return [];
     }
+  } catch (e) {
+    _logger.error('Error fetching order history: $e');
+    return [];
   }
+}
   
   // Get order details
   Future<Order?> getOrderDetails(String orderId) async {

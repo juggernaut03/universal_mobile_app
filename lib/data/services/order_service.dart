@@ -41,198 +41,197 @@ class OrderService {
 
   // Updated confirmOrder method with proper address handling including pincode
   Future<OrderConfirmationResponse> confirmOrder({
-    required String deviceId,
-    required String cartKey,
-    required String tempOrderId,
-    required String storeCode,
-    required List<CartItem> cartItems,
-    required Address deliveryAddress, // Changed to Address model for better structure
-    required String deliverySlot,
-    required String deliveryDate,
-    required String deliveryMode,
-    required String paymentMode,
-    required double totalMrp,
-    required double totalOurPrice,
-    required double discount,
-    required double deliveryCharges,
-    required double discountedAmount,
-    required double finalPayableAmount,
-    required String paidAmount,
-    String? accessKey,
-    String? transactionId,
-    String? specialNotes,
-    String offerDetails = "No Offer",
-    String mobPlatform = "Android",
-  }) async {
-    try {
-      _logger.log('Preparing order confirmation request');
+  required String deviceId,
+  required String cartKey,
+  required String tempOrderId,
+  required String storeCode,
+  required List<CartItem> cartItems,
+  required Address deliveryAddress,
+  required String deliverySlot,
+  required String deliveryDate,
+  required String deliveryMode,
+  required String paymentMode,
+  required double totalMrp,
+  required double totalOurPrice,
+  required double discount,
+  required double deliveryCharges,
+  required double discountedAmount,
+  required double finalPayableAmount,
+  required String paidAmount,
+  String? accessKey,
+  String? transactionId,
+  String? specialNotes,
+  String offerDetails = "No Offer",
+  String mobPlatform = "Android",
+}) async {
+  try {
+    _logger.log('Preparing order confirmation request with correct format');
+    
+    // Generate UNIQUE identifiers
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final randomSuffix = Random().nextInt(9999).toString().padLeft(4, '0');
+    final uniqueTempOrderId = 'ORDER_TEMP_${timestamp}_$randomSuffix';
+    
+    // Format cart items exactly as in Postman
+    final List<Map<String, dynamic>> formattedCartItems = cartItems.map((item) {
+      return {
+        "pcode": item.product.pCode,
+        "product_name": item.product.productName,
+        "product_mrp": item.product.productMrp,
+        "selling_price": item.product.ourPrice,
+        "package_size": item.product.packageSize,
+        "package_unit": item.product.packageUnit,
+        "stock_message": "Yes",
+        "price_alert_message": "Yes",
+        "quantity": item.quantity,
+        "product_image_link": item.product.pcodeImg,
+      };
+    }).toList();
+    
+    // Calculate savings correctly
+    final youSave = totalMrp - totalOurPrice;
+    
+    // FIXED: Create request body matching Postman structure exactly
+    final Map<String, dynamic> requestBody = {
+      "temp_order_id": uniqueTempOrderId,
+      "store_code": storeCode,
+      "access_key": accessKey ?? "",
+      "device_id": deviceId,
       
-      // Generate UNIQUE identifiers for this specific order
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final randomSuffix = Random().nextInt(9999).toString().padLeft(4, '0');
+      // Cart items array
+      "cart_items": formattedCartItems,
       
-      // Create unique cart key for this order
-      final uniqueOrderCartKey = 'ORDER_${timestamp}_$randomSuffix';
-      final uniqueTempOrderId = 'ORDER_TEMP_${timestamp}_$randomSuffix';
+      // Delivery address as array (matching Postman)
+      "delivery_address": [
+        {
+          "full_name": deliveryAddress.fullName,
+          "mobile_number": deliveryAddress.mobileNumber,
+          "email_id": deliveryAddress.emailId,
+          "delivery_addr_line_1": deliveryAddress.deliveryAddrLine1,
+          "delivery_addr_line_2": deliveryAddress.deliveryAddrLine2,
+          "delivery_addr_city": deliveryAddress.deliveryAddrCity,
+          "delivery_addr_pincode": deliveryAddress.deliveryAddrPincode,
+          "state": deliveryAddress.state,
+          "landmark": deliveryAddress.landmark,
+          "area_id": deliveryAddress.areaId,
+          "is_default": deliveryAddress.isDefault,
+          "latitude": deliveryAddress.latitude ?? "",
+          "longitude": deliveryAddress.longitude ?? "",
+        }
+      ],
       
-      _logger.log('Generated unique identifiers:');
-      _logger.log('Cart Key: $uniqueOrderCartKey');
-      _logger.log('Temp Order ID: $uniqueTempOrderId');
+      // Delivery details
+      "delivery_slot": deliverySlot,
+      "delivery_slot_id": _getDeliverySlotId(deliverySlot), // ✅ Added missing field
+      "order_status": "Order Confirmed",
+      "special_note": specialNotes ?? "",
       
-      // Format cart items for API
-      final List<Map<String, dynamic>> formattedCartItems = cartItems.map((item) {
-        return {
-          "pcode": item.product.pCode,
-          "product_name": item.product.productName,
-          "product_mrp": item.product.productMrp,
-          "selling_price": item.product.ourPrice,
-          "package_size": item.product.packageSize,
-          "package_unit": item.product.packageUnit,
-          "stock_message": "Yes",
-          "price_alert_message": "Yes",
-          "quantity": item.quantity,
-          "product_image_link": item.product.pcodeImg,
-        };
-      }).toList();
+      // Financial details (matching Postman format)
+      "total_amount_mrp": totalMrp.toString(),           // ✅ Convert to string
+      "total_amount_our_price": totalOurPrice.toString(), // ✅ Convert to string
+      "discount": discount.toString(),                    // ✅ Convert to string
+      "you_save": youSave.toString(),                    // ✅ Added missing field
+      "delivery_charges": deliveryCharges.toString(),    // ✅ Convert to string
+      "discounted_amt": discountedAmount.toString(),     // ✅ Convert to string
+      "final_payable_amt": finalPayableAmount.toString(), // ✅ Convert to string
       
-      // Format delivery address with all required fields including pincode
-      final Map<String, dynamic> formattedDeliveryAddress = {
-  // Standard address fields
-  "full_name": deliveryAddress.fullName,
-  "mobile_number": deliveryAddress.mobileNumber,
-  "email_id": deliveryAddress.emailId,
-  "delivery_addr_line_1": deliveryAddress.deliveryAddrLine1,
-  "delivery_addr_line_2": deliveryAddress.deliveryAddrLine2,
-  "delivery_addr_city": deliveryAddress.deliveryAddrCity,  
-  "delivery_addr_pincode": deliveryAddress.deliveryAddrPincode,
- 
- 
-  
-  // Other required fields
-  "state": deliveryAddress.state,
-  "landmark": deliveryAddress.landmark,
-  "area_id": deliveryAddress.areaId,
-  "is_default": deliveryAddress.isDefault,
-};
-
-// Add coordinates if available
-if (deliveryAddress.latitude != null && deliveryAddress.latitude!.isNotEmpty) {
-  formattedDeliveryAddress["latitude"] = deliveryAddress.latitude;
-}
-if (deliveryAddress.longitude != null && deliveryAddress.longitude!.isNotEmpty) {
-  formattedDeliveryAddress["longitude"] = deliveryAddress.longitude;
-}
-
-_logger.log('Formatted delivery address with pincode: ${deliveryAddress.deliveryAddrPincode}');
-_logger.log('Address object: ${jsonEncode(formattedDeliveryAddress)}');
-
-// Create request body with UNIQUE identifiers and properly formatted address
-   final Map<String, dynamic> requestBody = {
-  "temp_order_id": uniqueTempOrderId,
-  "project_code": ApiConstants.projectCode,
-  "customer_cart_key": uniqueOrderCartKey,
-  "store_code": storeCode,
-  "device_id": deviceId,
-  "delivery_slot": deliverySlot,
-  "special_note": specialNotes ?? "",
-  "total_amount_mrp": totalMrp,
-  "total_amount_our_price": totalOurPrice,
-  "discount": discount,
-  "delivery_charges": deliveryCharges,
-  "discounted_amt": discountedAmount,
-  "final_payable_amt": finalPayableAmount,
-  "delivery_date": deliveryDate,
-  "delivery_mode": deliveryMode,
-  "offer_applicable_details": offerDetails,
-  "order_status": "Order Confirmed",
-  "paid_amount": paidAmount,
-  "payment_mode": paymentMode,
-  "payment_status": paymentMode == "ONLINE" 
-      ? "Payment Confirmed" 
-      : "Payment Confirmation Pending",
-  "mob_platform": mobPlatform,
-  "transaction_id": transactionId ?? "",
-  
-  // Delivery address array with properly formatted address
-  "delivery_address": [formattedDeliveryAddress],
-  
-  // Cart items
-  "cart_items": formattedCartItems,
-  
- 
-};
-      // Add access key if provided
-      if (accessKey != null && accessKey.isNotEmpty) {
-        requestBody["access_key"] = accessKey;
-        _logger.log('Including access key in order confirmation request');
+      "delivery_date": deliveryDate,
+      "offer_applicable_details": offerDetails,
+      "delivery_mode": deliveryMode,
+      
+      // Payment details
+      "payment_mode": paymentMode,
+      "payment_mode_id": _getPaymentModeId(paymentMode), // ✅ Added missing field
+      "payment_status": paymentMode == "online payment" 
+          ? "Payment Confirmed" 
+          : "Pending",
+      "payment_status_id": paymentMode == "online payment" ? 2 : 1, // ✅ Added missing field
+      "paid_amount": paidAmount,
+      "transaction_id": transactionId ?? "",
+      
+      "mob_platform": mobPlatform,
+      "mobile_no": deliveryAddress.mobileNumber, // ✅ Added missing field
+    };
+    
+    _logger.log('Sending order confirmation with correct structure');
+    _logger.log('Request body keys: ${requestBody.keys.toList()}');
+    
+    // Make the API call
+    final response = await _client.post(
+      Uri.parse('${ApiConstants.baseUrl}/confirm_order'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(requestBody),
+    ).timeout(const Duration(seconds: 15));
+    
+    _logger.log('Order confirmation response status: ${response.statusCode}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (e) {
+        responseData = {'message': 'Success but unable to parse response details'};
       }
       
-      _logger.log('Sending order confirmation with address pincode: ${deliveryAddress.deliveryAddrPincode}');
-      _logger.log('Request body delivery_address: ${jsonEncode(formattedDeliveryAddress)}');
-      
-      // Make the API call
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/confirm_order'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: 15));
-      
-      _logger.log('Order confirmation response status: ${response.statusCode}');
-      
-      // Process the response
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        Map<String, dynamic> responseData;
-        try {
-          responseData = jsonDecode(response.body);
-        } catch (e) {
-          _logger.error('Error decoding response JSON: $e');
-          responseData = {'message': 'Success but unable to parse response details'};
-        }
-        
-        _logger.log('Order confirmation successful with pincode: ${deliveryAddress.deliveryAddrPincode}');
-        
-        // Extract order ID from response
-        String? orderId;
-        if (responseData['insertedItems'] != null && 
-            responseData['insertedItems'] is List &&
-            (responseData['insertedItems'] as List).isNotEmpty) {
-          orderId = responseData['insertedItems'][0]['_id'];
-        } else {
-          orderId = uniqueTempOrderId;
-        }
-        
-        return OrderConfirmationResponse(
-          success: true,
-          message: responseData['message'] ?? 'Order placed successfully',
-          orderId: orderId,
-          data: responseData,
-        );
+      // Extract order ID from response
+      String? orderId;
+      if (responseData['insertedItems'] != null && 
+          responseData['insertedItems'] is List &&
+          (responseData['insertedItems'] as List).isNotEmpty) {
+        orderId = responseData['insertedItems'][0]['_id'];
       } else {
-        _logger.error('Order confirmation failed with status: ${response.statusCode}');
-        _logger.error('Response body: ${response.body}');
-        return OrderConfirmationResponse(
-          success: false,
-          message: 'Failed to place order. Please try again.',
-          error: Exception('API Error: ${response.statusCode}'),
-        );
+        orderId = uniqueTempOrderId;
       }
-    } on TimeoutException {
-      _logger.error('Order confirmation request timed out');
+      
       return OrderConfirmationResponse(
-        success: false,
-        message: 'Request timed out. Please check your internet connection and try again.',
-        error: Exception('Request timed out'),
+        success: true,
+        message: responseData['message'] ?? 'Order placed successfully',
+        orderId: orderId,
+        data: responseData,
       );
-    } catch (e) {
-      _logger.error('Error during order confirmation: $e');
+    } else {
+      _logger.error('Order confirmation failed: ${response.statusCode} - ${response.body}');
       return OrderConfirmationResponse(
         success: false,
-        message: 'An error occurred while placing your order: ${e.toString()}',
-        error: e,
+        message: 'Failed to place order. Please try again.',
+        error: Exception('API Error: ${response.statusCode}'),
       );
     }
+  } catch (e) {
+    _logger.error('Error during order confirmation: $e');
+    return OrderConfirmationResponse(
+      success: false,
+      message: 'An error occurred while placing your order: ${e.toString()}',
+      error: e,
+    );
   }
+}
+int _getDeliverySlotId(String deliverySlot) {
+  // Map delivery slot text to ID
+  switch (deliverySlot) {
+    case "11:00 AM - 12:00 PM":
+      return 1;
+    case "12:00 PM - 01:00 PM":
+      return 2;
+    case "01:00 PM - 02:00 PM":
+      return 3;
+    // Add more mappings based on your delivery slots
+    default:
+      return 1;
+  }
+}
 
+int _getPaymentModeId(String paymentMode) {
+  // Map payment mode to ID
+  switch (paymentMode.toLowerCase()) {
+    case "pod":
+      return 1;
+    case "online payment":
+      return 2;
+    default:
+      return 1;
+  }
+}
   // Helper method for backward compatibility - converts Map to Address
   Future<OrderConfirmationResponse> confirmOrderWithMapAddress({
     required String deviceId,
@@ -287,4 +286,5 @@ _logger.log('Address object: ${jsonEncode(formattedDeliveryAddress)}');
       mobPlatform: mobPlatform,
     );
   }
+
 }
