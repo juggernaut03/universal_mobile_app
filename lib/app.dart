@@ -1,6 +1,7 @@
 // File: lib/app.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:patelmart/data/services/firebase_notification_service.dart';
 import 'package:patelmart/presentation/features/cart/widgets/cart_session_listener.dart';
 import 'package:patelmart/presentation/providers/favorites_provider.dart';
 import 'core/config/app_theme.dart';
@@ -16,72 +17,156 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> {
+  bool _appFullyInitialized = false;
+
   @override
   void initState() {
     super.initState();
     
-    // Start the app initialization process after the first frame is rendered
+    // Initialize app components SAFELY with delays
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeAppLaunchFlow();
-      _initializeAuthFavoritesWatcher();
+      _initializeAppSafely();
     });
   }
-  
-  Future<void> _initializeAppLaunchFlow() async {
-    // Get the launch flow notifier
-    final launchFlowNotifier = ref.read(launchFlowProvider.notifier);
-    
-    // Get the current launch state
-    final launchState = ref.read(launchFlowProvider);
-    
-    // If this is a first-time launch, we'll handle it after onboarding completes
-    if (launchState == AppLaunchState.firstLaunch) {
-      return;
+
+  Future<void> _initializeAppSafely() async {
+    try {
+      // STEP 1: Initialize critical app components first
+      await _initializeAppLaunchFlow();
+      _initializeAuthFavoritesWatcher();
+      
+      // Mark app as ready
+      if (mounted) {
+        setState(() {
+          _appFullyInitialized = true;
+        });
+      }
+      
+      // STEP 2: Initialize notifications AFTER app is stable (non-blocking)
+      _initializeNotificationsWhenSafe();
+      
+    } catch (e) {
+      ref.read(loggerProvider).error('App initialization error: $e');
+      // Don't crash - just mark as initialized without notifications
+      if (mounted) {
+        setState(() {
+          _appFullyInitialized = true;
+        });
+      }
     }
-    
-    // If we need to get the user's location, do it now
-    if (launchState == AppLaunchState.subsequentLaunch) {
-      // For subsequent launches, we'll fetch offers based on cached outlet
-      // but this is handled by the router automatically
-    } else if (launchState == AppLaunchState.needPincodeSelection || 
-               launchState == AppLaunchState.needLocationPermission) {
-      // Try to fetch location and check pincode
-      await launchFlowNotifier.fetchLocationAndCheckPincode();
+  }
+
+  Future<void> _initializeNotificationsWhenSafe() async {
+    try {
+      // Wait for app to be completely stable
+      await Future.delayed(const Duration(seconds: 5));
+      
+      // Check if we're still mounted and app is ready
+      if (!mounted || !_appFullyInitialized) return;
+      
+      final notificationService = ref.read(firebaseNotificationServiceProvider);
+      await notificationService.initializeWhenReady();
+      
+      ref.read(loggerProvider).log('✅ Notifications initialized successfully');
+    } catch (e) {
+      ref.read(loggerProvider).error('⚠️ Notification initialization failed: $e');
+      // Don't crash the app - just continue without notifications
+    }
+  }
+
+  Future<void> _initializeAppLaunchFlow() async {
+    try {
+      final launchFlowNotifier = ref.read(launchFlowProvider.notifier);
+      final launchState = ref.read(launchFlowProvider);
+      
+      // Handle different launch states
+      if (launchState == AppLaunchState.firstLaunch) {
+        ref.read(loggerProvider).log('First launch detected');
+        return;
+      }
+      
+      if (launchState == AppLaunchState.subsequentLaunch) {
+        ref.read(loggerProvider).log('Subsequent launch - will fetch offers');
+      } else if (launchState == AppLaunchState.needPincodeSelection || 
+                 launchState == AppLaunchState.needLocationPermission) {
+        ref.read(loggerProvider).log('Need location/pincode - will fetch when ready');
+        await launchFlowNotifier.fetchLocationAndCheckPincode();
+      }
+    } catch (e) {
+      ref.read(loggerProvider).error('Launch flow initialization error: $e');
+      // Don't rethrow - let app continue
     }
   }
   
   void _initializeAuthFavoritesWatcher() {
-    // Watch login status and manage favorites accordingly
-    ref.listen<AsyncValue<bool>>(isLoggedInProvider, (previous, next) {
-      next.whenData((isLoggedIn) {
-        final favoritesState = ref.read(favoritesProvider);
-        
-        if (isLoggedIn && !favoritesState.isInitialized) {
-          // User just logged in - favorites will auto-initialize
-          ref.read(loggerProvider).log('User logged in - favorites will initialize');
-          ref.read(favoritesProvider.notifier).initializeFavorites();
-        } else if (!isLoggedIn && favoritesState.isInitialized) {
-          // User logged out - clear favorites
-          ref.read(favoritesProvider.notifier).clearFavorites();
-          ref.read(loggerProvider).log('User logged out - favorites cleared');
-        }
+    try {
+      // Watch login status and manage favorites accordingly
+      ref.listen<AsyncValue<bool>>(isLoggedInProvider, (previous, next) {
+        next.whenData((isLoggedIn) {
+          final favoritesState = ref.read(favoritesProvider);
+          
+          if (isLoggedIn && !favoritesState.isInitialized) {
+            ref.read(loggerProvider).log('User logged in - initializing favorites');
+            ref.read(favoritesProvider.notifier).initializeFavorites();
+          } else if (!isLoggedIn && favoritesState.isInitialized) {
+            ref.read(loggerProvider).log('User logged out - clearing favorites');
+            ref.read(favoritesProvider.notifier).clearFavorites();
+          }
+        });
       });
-    });
+    } catch (e) {
+      ref.read(loggerProvider).error('Auth favorites watcher error: $e');
+      // Don't rethrow - let app continue
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show loading screen until app is ready
+    if (!_appFullyInitialized) {
+      return MaterialApp(
+        title: 'PatelMart',
+        theme: AppTheme.theme,
+        home: const Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // App logo
+                FlutterLogo(size: 80),
+                SizedBox(height: 24),
+                
+                // Loading indicator
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                
+                // Loading text
+                Text(
+                  'Loading PatelMart...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        debugShowCheckedModeBanner: false,
+      );
+    }
+
+    // App is ready - show the main app
     final router = ref.watch(routerProvider);
     
-    // Wrap the app with CartSessionListener to maintain cart session
     return CartSessionListener(
       child: MaterialApp.router(
         title: 'PatelMart',
-        theme: AppTheme.theme, // Use single light theme
-        themeMode: ThemeMode.light, // Force light mode always
-        debugShowCheckedModeBanner: false, // Remove debug banner
+        theme: AppTheme.theme,
+        themeMode: ThemeMode.light,
+        debugShowCheckedModeBanner: false,
         routerConfig: router,
-        // Remove navigatorKey from here - it should be in GoRouter
       ),
     );
   }
