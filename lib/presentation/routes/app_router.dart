@@ -45,6 +45,12 @@ import '../features/support/help_support_screen.dart';
 import '../features/support/refund_tnc_screen.dart';
 import 'route_names.dart';
 
+// Import for navigatorKey
+import '../../main.dart';
+
+// Import for debug screens
+import '../features/debug/notification_debug_screen.dart';
+
 final routerProvider = Provider<GoRouter>((ref) {
   final launchState = ref.watch(launchFlowProvider);
   final splashCompleted = ref.watch(splashCompletedProvider);
@@ -80,10 +86,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   }
   
   return GoRouter(
+    navigatorKey: navigatorKey, // ADD GLOBAL NAVIGATOR KEY HERE
     initialLocation: '/',
     debugLogDiagnostics: true, // Enable logging for debugging
-    // Add error handling and navigation management
-    navigatorKey: GlobalKey<NavigatorState>(),
     redirect: (context, state) {
       // Get current path
       final path = state.uri.path;
@@ -120,7 +125,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Don't redirect for these screens when in ready state
       if ((path == '/location-change' || path == '/store-info' || 
           path.startsWith('/product/') || path.startsWith('/subcategory/') ||
-          path == '/profile' || path == '/checkout-flow') && 
+          path == '/profile' || path == '/checkout-flow' ||
+          path.startsWith('/debug/')) && // Allow debug routes
           (launchState == AppLaunchState.readyToLaunch || 
            launchState == AppLaunchState.subsequentLaunch)) {
         return null;
@@ -243,21 +249,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const StoreInfoScreen(),
       ),
       GoRoute(
-  path: '/account',
-  name: RouteNames.account,
-  builder: (context, state) => const AccountScreen(),
-  redirect: (context, state) async {
-    // Check if user is logged in
-    final container = ProviderScope.containerOf(context);
-    final authRepository = container.read(authRepositoryProvider);
-    
-    final isLoggedIn = await authRepository.isLoggedIn();
-    if (!isLoggedIn) {
-      return '/auth/login?redirectRoute=/account';
-    }
-    return null;
-  },
-),
+        path: '/account',
+        name: RouteNames.account,
+        builder: (context, state) => const AccountScreen(),
+        redirect: (context, state) async {
+          // Check if user is logged in
+          final container = ProviderScope.containerOf(context);
+          final authRepository = container.read(authRepositoryProvider);
+          
+          final isLoggedIn = await authRepository.isLoggedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/account';
+          }
+          return null;
+        },
+      ),
       GoRoute(
         path: '/category',
         name: RouteNames.category,
@@ -358,34 +364,34 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       // Cart route
-     GoRoute(
-  path: '/cart',
-  name: RouteNames.cart,
-  builder: (context, state) => const CartScreen(),
-),
+      GoRoute(
+        path: '/cart',
+        name: RouteNames.cart,
+        builder: (context, state) => const CartScreen(),
+      ),
       // Authentication routes
-     GoRoute(
-  path: '/auth/login',
-  name: RouteNames.login,
-  builder: (context, state) {
-    final redirectRoute = state.uri.queryParameters['redirectRoute'];
-    return LoginScreen(redirectRoute: redirectRoute);
-  },
-),
+      GoRoute(
+        path: '/auth/login',
+        name: RouteNames.login,
+        builder: (context, state) {
+          final redirectRoute = state.uri.queryParameters['redirectRoute'];
+          return LoginScreen(redirectRoute: redirectRoute);
+        },
+      ),
       
       GoRoute(
-  path: '/auth/otp',
-  name: RouteNames.otp,
-  builder: (context, state) {
-    final extra = state.extra as Map<String, dynamic>?;
-    final mobile = extra?['mobile'] as String? ?? '';
-    final redirectRoute = extra?['redirectRoute'] as String?;
-    return OtpValidationScreen(
-      mobileNumber: mobile,
-      redirectRoute: redirectRoute,
-    );
-  },
-),
+        path: '/auth/otp',
+        name: RouteNames.otp,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final mobile = extra?['mobile'] as String? ?? '';
+          final redirectRoute = extra?['redirectRoute'] as String?;
+          return OtpValidationScreen(
+            mobileNumber: mobile,
+            redirectRoute: redirectRoute,
+          );
+        },
+      ),
       // Legacy Checkout route (keeping for backward compatibility)
       GoRoute(
         path: '/checkout',
@@ -429,30 +435,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const HelpSupportScreen(),
       ),
       GoRoute(
-  path: '/favorites',
-  name: RouteNames.favorites,
-  builder: (context, state) => const FavoritesScreen(),
-  redirect: (context, state) async {
-    // Check if user is logged in
-    final container = ProviderScope.containerOf(context);
-    final authRepository = container.read(authRepositoryProvider);
-    
-    final isLoggedIn = await authRepository.isLoggedIn();
-    if (!isLoggedIn) {
-      return '/auth/login?redirectRoute=/favorites';
-    }
-    return null;
-  },
-),
+        path: '/favorites',
+        name: RouteNames.favorites,
+        builder: (context, state) => const FavoritesScreen(),
+        redirect: (context, state) async {
+          // Check if user is logged in
+          final container = ProviderScope.containerOf(context);
+          final authRepository = container.read(authRepositoryProvider);
+          
+          final isLoggedIn = await authRepository.isLoggedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/favorites';
+          }
+          return null;
+        },
+      ),
 
-GoRoute(
-  path: '/search',
-  name: RouteNames.search,
-  builder: (context, state) {
-    final query = state.uri.queryParameters['query'];
-    return SearchScreen(initialQuery: query);
-  },
-),
+      GoRoute(
+        path: '/search',
+        name: RouteNames.search,
+        builder: (context, state) {
+          final query = state.uri.queryParameters['query'];
+          return SearchScreen(initialQuery: query);
+        },
+      ),
       // Address Book routes
       GoRoute(
         path: '/address-book',
@@ -506,9 +512,16 @@ GoRoute(
           return BestSellerScreen(bestSellerId: bestSellerId);
         },
       ),
+      
+      // DEBUG ROUTES - Add these for debugging notifications and other features
+      GoRoute(
+        path: '/debug/notifications',
+        name: RouteNames.debugNotifications,
+        builder: (context, state) => const NotificationDebugScreen(),
+      ),
       GoRoute(
         path: '/debug/access-key',
-        name: 'debugAccessKey',
+        name: RouteNames.debugAccessKey,
         builder: (context, state) => const AccessKeyDebuggerScreen(),
       ),
     ],

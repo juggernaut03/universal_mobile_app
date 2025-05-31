@@ -679,7 +679,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       _DrawerItem(
         icon: Icons.info_outline,
         title: 'About Us',
-        onTap: () => _navigateFromDrawer('/about-us'),
+        onTap: () => _navigateFromDrawer('/debug/notifications'),
       ),
       _DrawerItem(
         icon: Icons.store,

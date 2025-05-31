@@ -1,5 +1,4 @@
-// File: lib/app.dart - Updated with favorites integration
-
+// File: lib/app.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/presentation/features/cart/widgets/cart_session_listener.dart';
@@ -51,7 +50,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     }
   }
   
-void _initializeAuthFavoritesWatcher() {
+  void _initializeAuthFavoritesWatcher() {
     // Watch login status and manage favorites accordingly
     ref.listen<AsyncValue<bool>>(isLoggedInProvider, (previous, next) {
       next.whenData((isLoggedIn) {
@@ -82,7 +81,7 @@ void _initializeAuthFavoritesWatcher() {
         themeMode: ThemeMode.light, // Force light mode always
         debugShowCheckedModeBanner: false, // Remove debug banner
         routerConfig: router,
-        
+        // Remove navigatorKey from here - it should be in GoRouter
       ),
     );
   }
