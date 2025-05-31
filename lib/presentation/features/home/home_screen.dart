@@ -257,38 +257,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildAppBarContent() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          // Menu button
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Row(
+      children: [
+        // Menu button
+        Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu, color: Colors.white),
+            onPressed: () => Scaffold.of(context).openDrawer(),
           ),
-          
-          // Logo
-          Expanded(
-            child: Center(
-              child: Image.asset(
-                'assets/images/patelLogo.png',
-                height: 42,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => 
-                    const Icon(Icons.store, color: Colors.white, size: 42),
-              ),
-            ),
-          ),
-          
-          // Action buttons
-          _buildActionButtons(),
-        ],
-      ),
-    );
-  }
-
+        ),
+        
+        // Logo - aligned after the drawer icon instead of centered
+        Image.asset(
+          'assets/images/patelLogo.png',
+          height: 42,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => 
+              const Icon(Icons.store, color: Colors.white, size: 42),
+        ),
+        
+        // Spacer to push action buttons to the right
+        const Spacer(),
+        
+        // Action buttons
+        _buildActionButtons(),
+      ],
+    ),
+  );
+}
   Widget _buildActionButtons() {
     return Row(
       mainAxisSize: MainAxisSize.min,

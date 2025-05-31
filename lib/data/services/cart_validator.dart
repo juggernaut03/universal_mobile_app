@@ -1,5 +1,6 @@
 // lib/data/services/cart_validator.dart
 import 'dart:convert';
+import 'dart:math';
 import 'package:crypto/crypto.dart'; // Add this import for SHA-256
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -66,7 +67,78 @@ class CartValidator {
     }
     return _currentTempOrderId;
   }
+  // lib/data/services/cart_validator.dart
+// Add this method to your existing CartValidator class
 
+/// Save cart specifically for order confirmation with unique identifiers
+Future<bool> saveCartForOrderConfirmation(
+  List<CartItem> cartItems, 
+  String storeCode,
+  String accessKey,
+) async {
+  try {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final randomSuffix = Random().nextInt(9999).toString().padLeft(4, '0');
+    
+    // Generate unique identifiers for order confirmation
+    final uniqueOrderCartKey = 'ORDER_CONFIRM_${timestamp}_$randomSuffix';
+    final uniqueTempOrderId = 'ORDER_TEMP_${timestamp}_$randomSuffix';
+    final uniqueDeviceId = 'DEVICE_ORDER_${timestamp}_$randomSuffix';
+    
+    // Convert cart items to API format
+    final List<Map<String, dynamic>> apiItems = cartItems
+        .map((item) => _convertCartItemToApi(item))
+        .toList();
+    
+    // Create request body for order confirmation
+    final requestBody = {
+      'project_code': ApiConstants.projectCode,
+      'temp_order_id': uniqueTempOrderId,
+      'customer_cart_key': uniqueOrderCartKey,
+      'store_code': storeCode,
+      'device_id': uniqueDeviceId,
+      'access_key': accessKey,
+      'cart_items': apiItems,
+      'order_status': "Order Confirmed",
+    };
+    
+    _logger.log('Saving cart for order confirmation with unique identifiers:');
+    _logger.log('Cart Key: $uniqueOrderCartKey');
+    _logger.log('Temp Order ID: $uniqueTempOrderId');
+    _logger.log('Items: ${apiItems.length}');
+    
+    final response = await _client.post(
+      Uri.parse(_saveCartUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(requestBody),
+    ).timeout(const Duration(seconds: 30));
+    
+    // Check if the response is successful
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      _logger.log('Cart saved for order confirmation: ${responseData['message']}');
+      return true;
+    } else {
+      _logger.error('Failed to save cart for order confirmation: ${response.statusCode} - ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    _logger.error('Error saving cart for order confirmation: $e');
+    return false;
+  }
+}
+
+/// Get unique identifiers for order confirmation
+Map<String, String> generateUniqueOrderIdentifiers() {
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final randomSuffix = Random().nextInt(9999).toString().padLeft(4, '0');
+  
+  return {
+    'cartKey': 'ORDER_CONFIRM_${timestamp}_$randomSuffix',
+    'tempOrderId': 'ORDER_TEMP_${timestamp}_$randomSuffix',
+    'deviceId': 'DEVICE_ORDER_${timestamp}_$randomSuffix',
+  };
+}
   /// Initialize cart info from SharedPreferences
   Future<void> _loadSavedCartInfo() async {
     try {
