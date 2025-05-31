@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/address_model.dart';
+import 'package:patelmart/data/models/delivery_slot_model.dart';
+import 'package:patelmart/data/models/payment_method_model.dart';
 import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart';
 import 'package:patelmart/presentation/providers/delivery_charges_provider.dart';
+import 'package:patelmart/presentation/providers/delivery_slot_provider.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:patelmart/presentation/providers/order_providers.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
+import 'package:patelmart/presentation/providers/payment_method_provider.dart';
 import 'package:patelmart/presentation/providers/reorder_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
@@ -1552,6 +1557,8 @@ class _DeliveryAddressStepState extends ConsumerState<DeliveryAddressStep> {
 }
 }
 // STEP 3: Delivery Time Step
+// Replace the DeliveryTimeStep class in your checkout_flow_screen.dart with this updated version
+
 class DeliveryTimeStep extends ConsumerStatefulWidget {
   final CheckoutData checkoutData;
   final VoidCallback onContinue;
@@ -1568,17 +1575,16 @@ class DeliveryTimeStep extends ConsumerStatefulWidget {
 
 class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
   DateTime? _selectedDate;
-  String? _selectedTimeSlot;
+  DeliverySlot? _selectedSlot;
   late List<DateTime> _availableDates;
-  late Map<String, List<String>> _timeSlots;
+  Map<String, List<DeliverySlot>> _timeSlots = {};
+  bool _isLoadingSlots = false;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.checkoutData.deliveryDate;
-    _selectedTimeSlot = widget.checkoutData.deliveryTimeSlot;
     _initializeAvailableDates();
-    _initializeTimeSlots();
     
     // If we have a date but no time slot, or neither, initialize them
     if (_selectedDate == null) {
@@ -1586,14 +1592,8 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
       widget.checkoutData.deliveryDate = _selectedDate;
     }
     
-    // If we don't have a time slot selected, but we have a date, select first slot
-    if (_selectedTimeSlot == null) {
-      final dateSlotsKey = _formatDateKey(_selectedDate!);
-      if (_timeSlots.containsKey(dateSlotsKey) && _timeSlots[dateSlotsKey]!.isNotEmpty) {
-        _selectedTimeSlot = _timeSlots[dateSlotsKey]!.first;
-        widget.checkoutData.deliveryTimeSlot = _selectedTimeSlot;
-      }
-    }
+    // Load delivery slots from API
+    _loadDeliverySlots();
     
     // Ensure delivery charges are calculated on initial load
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1614,25 +1614,62 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     });
   }
 
-  void _initializeTimeSlots() {
-    // Initialize time slots for each date
-    _timeSlots = {};
-    for (final date in _availableDates) {
-      final key = _formatDateKey(date);
+  Future<void> _loadDeliverySlots() async {
+    setState(() {
+      _isLoadingSlots = true;
+    });
+
+    try {
+      // Get delivery slots from API
+      final slots = await ref.read(deliverySlotsProvider.future);
       
-      // Different time slots based on the date (for demonstration)
-      if (date.day % 2 == 0) {
-        _timeSlots[key] = [
-          '09:00 AM - 12:00 PM',
-          '01:00 PM - 04:00 PM',
-          '05:00 PM - 08:00 PM',
-        ];
-      } else {
-        _timeSlots[key] = [
-          '10:00 AM - 01:00 PM',
-          '02:00 PM - 05:00 PM',
-          '06:00 PM - 09:00 PM',
-        ];
+      // Organize slots by date (for now, same slots available for all dates)
+      _timeSlots.clear();
+      for (final date in _availableDates) {
+        final key = _formatDateKey(date);
+        _timeSlots[key] = List.from(slots);
+      }
+      
+      // If we don't have a selected slot yet, select the first available one
+      if (_selectedSlot == null && slots.isNotEmpty) {
+        final dateSlotsKey = _formatDateKey(_selectedDate!);
+        if (_timeSlots.containsKey(dateSlotsKey) && _timeSlots[dateSlotsKey]!.isNotEmpty) {
+          _selectedSlot = _timeSlots[dateSlotsKey]!.first;
+          widget.checkoutData.deliveryTimeSlot = _selectedSlot!.displayText;
+        }
+      } else if (widget.checkoutData.deliveryTimeSlot != null) {
+        // Try to find the previously selected slot
+        final previousSlotText = widget.checkoutData.deliveryTimeSlot!;
+        for (final slot in slots) {
+          if (slot.displayText == previousSlotText) {
+            _selectedSlot = slot;
+            break;
+          }
+        }
+      }
+      
+      ref.read(loggerProvider).log('Loaded ${slots.length} delivery slots from API');
+    } catch (e) {
+      ref.read(loggerProvider).error('Error loading delivery slots: $e');
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load delivery slots. Please try again.'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _loadDeliverySlots,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingSlots = false;
+        });
       }
     }
   }
@@ -1671,22 +1708,22 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
       // Reset time slot if the date changes
       final key = _formatDateKey(date);
       if (_timeSlots.containsKey(key) && _timeSlots[key]!.isNotEmpty) {
-        _selectedTimeSlot = _timeSlots[key]!.first;
+        _selectedSlot = _timeSlots[key]!.first;
       } else {
-        _selectedTimeSlot = null;
+        _selectedSlot = null;
       }
     });
     
     // Update checkout data
     widget.checkoutData.deliveryDate = date;
-    widget.checkoutData.deliveryTimeSlot = _selectedTimeSlot;
+    widget.checkoutData.deliveryTimeSlot = _selectedSlot?.displayText;
   }
 
-  void _selectTimeSlot(String timeSlot) {
+  void _selectTimeSlot(DeliverySlot slot) {
     setState(() {
-      _selectedTimeSlot = timeSlot;
+      _selectedSlot = slot;
     });
-    widget.checkoutData.deliveryTimeSlot = timeSlot;
+    widget.checkoutData.deliveryTimeSlot = slot.displayText;
   }
 
   @override
@@ -1782,7 +1819,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                 final isCalculating = deliveryChargesState.isLoading;
                 
                 return ElevatedButton(
-                  onPressed: (_selectedTimeSlot == null || isCalculating) 
+                  onPressed: (_selectedSlot == null || isCalculating || _isLoadingSlots) 
                     ? null 
                     : widget.onContinue,
                   style: ElevatedButton.styleFrom(
@@ -1793,7 +1830,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: isCalculating
+                  child: (isCalculating || _isLoadingSlots)
                     ? const SizedBox(
                         width: 24,
                         height: 24,
@@ -1819,6 +1856,19 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
       );
     }
     
+    if (_isLoadingSlots) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading delivery slots...'),
+          ],
+        ),
+      );
+    }
+    
     final key = _formatDateKey(_selectedDate!);
     final slots = _timeSlots[key] ?? [];
     
@@ -1839,10 +1889,16 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Please select a different date',
+              'Please select a different date or try again later',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadDeliverySlots,
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -1855,9 +1911,20 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text(
-            _formatDateDisplay(_selectedDate!),
-            style: AppTextStyles.h6,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDateDisplay(_selectedDate!),
+                style: AppTextStyles.h6,
+              ),
+              if (_isLoadingSlots)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -1875,7 +1942,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
             itemCount: slots.length,
             itemBuilder: (context, index) {
               final slot = slots[index];
-              final isSelected = _selectedTimeSlot == slot;
+              final isSelected = _selectedSlot?.id == slot.id;
               
               return InkWell(
                 onTap: () => _selectTimeSlot(slot),
@@ -1892,16 +1959,26 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        slot,
+                        slot.displayText,
                         style: AppTextStyles.bodyMedium.copyWith(
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                           color: isSelected ? AppColors.primary : AppColors.textPrimary,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                      Text(
-                        'Available',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: Colors.green,
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Available',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: Colors.green[700],
+                            fontSize: 10,
+                          ),
                         ),
                       ),
                     ],
@@ -1915,43 +1992,70 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     );
   }
 
-    Widget _buildOrderTotal() {
-  return Consumer(
-    builder: (context, ref, _) {
-      final cartTotal = ref.watch(cartTotalProvider);
-      final cartSavings = ref.watch(cartSavingsProvider);
-      
-      // Get delivery charges from provider
-      final deliveryChargesState = ref.watch(deliveryChargesProvider);
-      final deliveryCharge = deliveryChargesState.deliveryCharge;
-      final isLoading = deliveryChargesState.isLoading;
-      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
-      final distance = deliveryChargesState.distance;
-      
-      // Calculate final total with delivery charges
-      final finalTotal = cartTotal + deliveryCharge;
-      
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Cart subtotal
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Order Subtotal',
-                  style: AppTextStyles.bodyMedium,
-                ),
-                Text(
-                  '₹${cartTotal.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyMedium,
+  Widget _buildOrderTotal() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final cartTotal = ref.watch(cartTotalProvider);
+        final cartSavings = ref.watch(cartSavingsProvider);
+        
+        // Get delivery charges from provider
+        final deliveryChargesState = ref.watch(deliveryChargesProvider);
+        final deliveryCharge = deliveryChargesState.deliveryCharge;
+        final isLoading = deliveryChargesState.isLoading;
+        final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+        final distance = deliveryChargesState.distance;
+        
+        // Calculate final total with delivery charges
+        final finalTotal = cartTotal + deliveryCharge;
+        
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Cart subtotal
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Order Subtotal',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                  Text(
+                    '₹${cartTotal.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ],
+              ),
+              
+              // Distance information
+              if (distance > 0) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.directions_car,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Distance:',
+                          style: AppTextStyles.bodyMedium,
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '${distance.toStringAsFixed(1)} km',
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                  ],
                 ),
               ],
-            ),
-            
-            // Distance information - NEW ADDITION
-            if (distance > 0) ...[
+              
+              // Delivery fee
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1959,160 +2063,136 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                   Row(
                     children: [
                       Icon(
-                        Icons.directions_car,
+                        Icons.local_shipping,
                         size: 14,
                         color: AppColors.textSecondary,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Distance:',
+                        'Delivery Fee:',
                         style: AppTextStyles.bodyMedium,
                       ),
+                      if (isLoading)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   Text(
-                    '${distance.toStringAsFixed(1)} km',
-                    style: AppTextStyles.bodyMedium,
+                    isLoading 
+                      ? 'Calculating...'
+                      : isFreeDelivery
+                        ? 'FREE'
+                        : '₹${deliveryCharge.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: isFreeDelivery ? Colors.green : null,
+                      fontWeight: isFreeDelivery ? FontWeight.bold : null,
+                    ),
                   ),
                 ],
               ),
-            ],
-            
-            // Delivery fee
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+              
+              // Savings
+              if (cartSavings > 0) ...[
+                const SizedBox(height: 8),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      Icons.local_shipping,
-                      size: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Delivery Fee:',
-                      style: AppTextStyles.bodyMedium,
-                    ),
-                    if (isLoading)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.savings,
+                          size: 14,
+                          color: Colors.green,
                         ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'You Save:',
+                          style: AppTextStyles.bodyMedium,
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '₹${cartSavings.toStringAsFixed(2)}',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: Colors.green,
                       ),
+                    ),
                   ],
                 ),
-                Text(
-                  isLoading 
-                    ? 'Calculating...'
-                    : isFreeDelivery
-                      ? 'FREE'
-                      : '₹${deliveryCharge.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: isFreeDelivery ? Colors.green : null,
-                    fontWeight: isFreeDelivery ? FontWeight.bold : null,
-                  ),
-                ),
               ],
-            ),
-            
-            // Savings
-            if (cartSavings > 0) ...[
-              const SizedBox(height: 8),
+              
+              const Divider(height: 24),
+              
+              // Total
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
+                  Text(
+                    'Total',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '₹${finalTotal.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              
+              // Free delivery message for eligible orders
+              if (isFreeDelivery && distance > 0) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        Icons.savings,
+                        Icons.check_circle,
                         size: 14,
                         color: Colors.green,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'You Save:',
-                        style: AppTextStyles.bodyMedium,
+                        'Free delivery for this order',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
-                  Text(
-                    '₹${cartSavings.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            
-            const Divider(height: 24),
-            
-            // Total
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  '₹${finalTotal.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
                 ),
               ],
-            ),
-            
-            // Free delivery message for eligible orders
-            if (isFreeDelivery && distance > 0) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: 14,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Free delivery for this order',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: Colors.green,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
-          ],
-        ),
-      );
-    },
-  );
-}
+          ),
+        );
+      },
+    );
+  }
 }
 // STEP 4: Payment Step
 // Updated PaymentStep implementation for the CheckoutFlowScreen
+
+// STEP 4: Updated Payment Step with API Integration
+// Replace the existing PaymentStep class in your checkout_flow_screen.dart with this updated version
 
 class PaymentStep extends ConsumerStatefulWidget {
   final CheckoutData checkoutData;
@@ -2127,7 +2207,7 @@ class PaymentStep extends ConsumerStatefulWidget {
 }
 
 class _PaymentStepState extends ConsumerState<PaymentStep> {
-  String? _selectedPaymentMethod;
+  PaymentMethod? _selectedPaymentMethod;
   final TextEditingController _instructionsController = TextEditingController();
   bool _isPlacingOrder = false;
   bool _showSuccessDialog = false;
@@ -2135,13 +2215,15 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
   @override
   void initState() {
     super.initState();
-    _selectedPaymentMethod = widget.checkoutData.paymentMethod ?? 'COD';
     _instructionsController.text = widget.checkoutData.specialInstructions ?? '';
     
     // Reset the order state when initializing the payment step
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.initial;
       ref.read(orderErrorMessageProvider.notifier).state = null;
+      
+      // Try to restore previously selected payment method
+      _restoreSelectedPaymentMethod();
     });
   }
 
@@ -2151,11 +2233,43 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
     super.dispose();
   }
 
-  void _selectPaymentMethod(String method) {
+  void _restoreSelectedPaymentMethod() {
+    // If we have a previously selected payment method in checkoutData, try to restore it
+    if (widget.checkoutData.paymentMethod != null) {
+      final paymentMethodsAsync = ref.read(paymentMethodsProvider);
+      paymentMethodsAsync.whenData((methods) {
+        // Try to find the method by name
+        final previousMethod = methods.firstWhere(
+          (method) => method.paymentModeName == widget.checkoutData.paymentMethod ||
+                      method.displayName == widget.checkoutData.paymentMethod,
+          orElse: () => methods.isNotEmpty ? methods.first : PaymentMethod(
+            id: '',
+            idPaymentMode: 0,
+            paymentModeName: 'Unknown',
+          ),
+        );
+        
+        if (previousMethod.idPaymentMode > 0) {
+          setState(() {
+            _selectedPaymentMethod = previousMethod;
+          });
+          ref.read(selectedPaymentMethodProvider.notifier).state = previousMethod;
+        }
+      });
+    }
+  }
+
+  void _selectPaymentMethod(PaymentMethod method) {
     setState(() {
       _selectedPaymentMethod = method;
     });
-    widget.checkoutData.paymentMethod = method;
+    
+    // Update providers
+    ref.read(selectedPaymentMethodProvider.notifier).state = method;
+    widget.checkoutData.paymentMethod = method.paymentModeName;
+    
+    final logger = ref.read(loggerProvider);
+    logger.log('Selected payment method: ${method.displayName} (${method.paymentModeName})');
   }
 
   // Validate cart and ensure we have required data
@@ -2211,12 +2325,8 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
       ),
     );
   }
-  
 
-// This snippet shows the changes needed in the checkout_flow_screen.dart file
-// for the _placeOrder method to use the new parameters
-
-// This is the updated _placeOrder method for the _PaymentStepState class in checkout_flow_screen.dart
+ // Update the _placeOrder method in your PaymentStep class
 
 Future<void> _placeOrder() async {
   // Save instructions
@@ -2278,55 +2388,83 @@ Future<void> _placeOrder() async {
     
     logger.log('Using existing cart identifiers for reference: cartKey=$cartKey, deviceId=$deviceId, tempOrderId=$tempOrderId');
     
-    // Convert delivery address to API format
-    final Address deliveryAddress = widget.checkoutData.selectedAddress ?? 
-        Address(
-          id: '1',
-          fullName: 'Guest User',
-          mobileNumber: '',
-          emailId: '',
-          deliveryAddrLine1: '',
-          deliveryAddrLine2: '',
-          deliveryAddrCity: '',
-          deliveryAddrPincode: '',
-          isDefault: 'No',
-          areaId: '1',
-          landmark: '',
-          state: '',
-        );
+    // Prepare delivery address with proper pincode handling
+    Address deliveryAddress;
     
-    final Map<String, dynamic> formattedAddress = {
-      "full_name": deliveryAddress.fullName,
-      "contact_no": deliveryAddress.mobileNumber,
-      "email": deliveryAddress.emailId,
-      "address_1": deliveryAddress.deliveryAddrLine1,
-      "address_2": deliveryAddress.deliveryAddrLine2,
-      "area": deliveryAddress.areaId,
-      "landmart": deliveryAddress.landmark, // Note the API expects "landmart" not "landmark"
-      "city": deliveryAddress.deliveryAddrCity,
-      "state": deliveryAddress.state,
-    };
+    if (widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery) {
+      // For home delivery, use the selected address
+      deliveryAddress = widget.checkoutData.selectedAddress!;
+      
+      // Ensure pincode is present - get from selected pincode provider if needed
+      if (deliveryAddress.deliveryAddrPincode.isEmpty) {
+        final selectedPincode = ref.read(selectedPincodeProvider);
+        if (selectedPincode != null && selectedPincode.isNotEmpty) {
+          deliveryAddress = deliveryAddress.copyWith(
+            deliveryAddrPincode: selectedPincode,
+          );
+          logger.log('Added missing pincode to delivery address: $selectedPincode');
+        } else {
+          throw Exception('Delivery pincode is required for home delivery');
+        }
+      }
+    } else {
+      // For self-pickup, create a basic address with store information
+      final selectedPincode = ref.read(selectedPincodeProvider);
+      deliveryAddress = Address(
+        id: 'self_pickup',
+        fullName: userProfile?.mobile ?? 'Self Pickup Customer',
+        mobileNumber: userProfile?.mobile ?? '',
+        emailId: '',
+        deliveryAddrLine1: selectedOutlet.address,
+        deliveryAddrLine2: 'Self Pickup',
+        deliveryAddrCity: 'Store Location',
+        deliveryAddrPincode: selectedPincode ?? '', // Ensure pincode is included
+        isDefault: 'No',
+        areaId: '1',
+        landmark: selectedOutlet.name,
+        state: '',
+      );
+      logger.log('Created self-pickup address with pincode: ${deliveryAddress.deliveryAddrPincode}');
+    }
+    
+    // Debug the final address that will be sent
+    logger.log('=== FINAL DELIVERY ADDRESS ===');
+    logger.log('Full Name: ${deliveryAddress.fullName}');
+    logger.log('Mobile: ${deliveryAddress.mobileNumber}');
+    logger.log('Email: ${deliveryAddress.emailId}');
+    logger.log('Address Line 1: ${deliveryAddress.deliveryAddrLine1}');
+    logger.log('Address Line 2: ${deliveryAddress.deliveryAddrLine2}');
+    logger.log('City: ${deliveryAddress.deliveryAddrCity}');
+    logger.log('Pincode: ${deliveryAddress.deliveryAddrPincode}'); // THIS IS KEY!
+    logger.log('State: ${deliveryAddress.state}');
+    logger.log('Landmark: ${deliveryAddress.landmark}');
+    logger.log('Area ID: ${deliveryAddress.areaId}');
+    logger.log('Is Default: ${deliveryAddress.isDefault}');
+    logger.log('==============================');
+    
+    // Verify pincode is not empty
+    if (deliveryAddress.deliveryAddrPincode.isEmpty) {
+      throw Exception('Delivery pincode cannot be empty');
+    }
     
     // Calculate order amounts
-final cartTotal = ref.read(cartTotalProvider);
-final cartSavings = ref.read(cartSavingsProvider);
-final deliveryCharge = ref.read(deliveryChargesProvider).deliveryCharge;
-final finalAmount = cartTotal + deliveryCharge;
+    final cartTotal = ref.read(cartTotalProvider);
+    final cartSavings = ref.read(cartSavingsProvider);
+    final deliveryCharge = ref.read(deliveryChargesProvider).deliveryCharge;
+    final finalAmount = cartTotal + deliveryCharge;
     
     // Determine delivery mode
     final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery
         ? "Home Delivery"
         : "Self Pickup";
     
-    // Determine payment mode for API
-    final paymentMode = _selectedPaymentMethod == "CARD" || _selectedPaymentMethod == "UPI" || _selectedPaymentMethod == "NET_BANKING"
-        ? "ONLINE"
-        : "POD";
+    // Use the API payment method name directly
+    final paymentMode = _selectedPaymentMethod!.paymentModeName;
     
     String? transactionId;
     
     // Handle online payment if selected
-    if (paymentMode == "ONLINE") {
+    if (paymentMode.toLowerCase() == "online payment") {
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.processingPayment;
       
       // Initialize payment service
@@ -2377,34 +2515,35 @@ final finalAmount = cartTotal + deliveryCharge;
     // Log order details before sending
     logger.log('Sending order confirmation with identifiers: deviceId=$deviceId, tempOrderId=$tempOrderId');
     logger.log('Order details: ${cartItems.length} items, $deliveryMode, $paymentMode');
+    logger.log('Delivery address pincode: ${deliveryAddress.deliveryAddrPincode}');
     if (accessKey != null) {
       logger.log('Including access key for authentication with API');
     }
     
-    // Call order service to confirm order, passing all identifiers including access key
+    // Call order service to confirm order with Address model (not Map)
     final orderService = ref.read(orderServiceProvider);
     final orderResult = await orderService.confirmOrder(
-  deviceId: deviceId,
-  cartKey: cartKey,
-  tempOrderId: tempOrderId,
-  storeCode: selectedOutlet.storeCode,
-  cartItems: cartItems,
-  deliveryAddress: formattedAddress,
-  deliverySlot: deliverySlot,
-  deliveryDate: deliveryDate,
-  deliveryMode: deliveryMode,
-  paymentMode: paymentMode,
-  totalMrp: cartTotal + cartSavings,
-  totalOurPrice: cartTotal,
-  discount: cartSavings,
-  deliveryCharges: deliveryCharge, // Include actual delivery charges here
-  discountedAmount: cartTotal,
-  finalPayableAmount: finalAmount, // Use final amount including delivery
-  paidAmount: paymentMode == "ONLINE" ? finalAmount.toString() : "0",
-  accessKey: accessKey,
-  transactionId: transactionId,
-  specialNotes: _instructionsController.text,
-);
+      deviceId: deviceId,
+      cartKey: cartKey,
+      tempOrderId: tempOrderId,
+      storeCode: selectedOutlet.storeCode,
+      cartItems: cartItems,
+      deliveryAddress: deliveryAddress, // Pass Address model directly
+      deliverySlot: deliverySlot,
+      deliveryDate: deliveryDate,
+      deliveryMode: deliveryMode,
+      paymentMode: paymentMode,
+      totalMrp: cartTotal + cartSavings,
+      totalOurPrice: cartTotal,
+      discount: cartSavings,
+      deliveryCharges: deliveryCharge,
+      discountedAmount: cartTotal,
+      finalPayableAmount: finalAmount,
+      paidAmount: paymentMode.toLowerCase() == "online payment" ? finalAmount.toString() : "0",
+      accessKey: accessKey,
+      transactionId: transactionId,
+      specialNotes: _instructionsController.text,
+    );
     
     // Store order result
     ref.read(orderConfirmationResultProvider.notifier).state = orderResult;
@@ -2412,6 +2551,8 @@ final finalAmount = cartTotal + deliveryCharge;
     if (orderResult.success) {
       // Order confirmed successfully
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
+      
+      logger.log('Order placed successfully with pincode: ${deliveryAddress.deliveryAddrPincode}');
       
       // Clear cart after successful order
       ref.read(cartProvider.notifier).clearCart(clearCartKeyInStorage: true);
@@ -2425,13 +2566,11 @@ final finalAmount = cartTotal + deliveryCharge;
         paymentMode, 
         deliveryMode,
         deliverySlot,
-        formattedAddress.toString(),
+        '${deliveryAddress.deliveryAddrLine1}, ${deliveryAddress.deliveryAddrLine2}, ${deliveryAddress.deliveryAddrCity} - ${deliveryAddress.deliveryAddrPincode}',
       );
 
       if (orderRecord == null) {
-        // Order was placed successfully with the server but failed to save locally
         logger.error('Failed to save order to local history');
-        // This isn't critical, so we still allow the order completion to proceed
       }
 
       if (mounted) {
@@ -2445,6 +2584,8 @@ final finalAmount = cartTotal + deliveryCharge;
       // Order confirmation failed
       ref.read(orderErrorMessageProvider.notifier).state = orderResult.message;
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
+      
+      logger.error('Order confirmation failed: ${orderResult.message}');
       
       if (mounted) {
         setState(() {
@@ -2469,16 +2610,12 @@ final finalAmount = cartTotal + deliveryCharge;
   }
 }
 
-
-
-// place order method ends here
-
   void _showOrderSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => WillPopScope(
-        onWillPop: () async => false, // Prevent dismissing by back button
+        onWillPop: () async => false,
         child: Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -2520,7 +2657,6 @@ final finalAmount = cartTotal + deliveryCharge;
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Navigate back to home
                       context.go('/home');
                     },
                     style: ElevatedButton.styleFrom(
@@ -2541,527 +2677,723 @@ final finalAmount = cartTotal + deliveryCharge;
       ),
     );
   }
-  
-  // Return the payment method display name
-  String _getPaymentMethodDisplayName(String method) {
-    switch (method) {
-      case 'COD':
-        return 'Cash on Delivery';
-      case 'CARD':
-        return 'Credit/Debit Card';
-      case 'UPI':
-        return 'UPI';
-      case 'NET_BANKING':
-        return 'Net Banking';
+
+  IconData _getPaymentMethodIcon(PaymentMethod method) {
+    switch (method.paymentModeName.toLowerCase()) {
+      case 'pod':
+        return Icons.money;
+      case 'online payment':
+        return Icons.credit_card;
       default:
-        return method;
+        return Icons.payment;
+    }
+  }
+
+  String _getPaymentMethodSubtitle(PaymentMethod method, bool isSelfPickup) {
+    switch (method.paymentModeName.toLowerCase()) {
+      case 'pod':
+        return isSelfPickup 
+            ? 'Pay when you collect your order' 
+            : 'Pay when your order is delivered';
+      case 'online payment':
+        return 'Pay securely with card, UPI or net banking';
+      default:
+        return 'Secure payment option';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-  final orderProcessStatus = ref.watch(orderProcessStatusProvider);
-  final orderError = ref.watch(orderErrorMessageProvider);
-  final bottomPadding = MediaQuery.of(context).padding.bottom;
-  
-  // Show loading spinner with status message based on the current order process status
-  if (orderProcessStatus == OrderProcessStatus.validatingCart ||
-      orderProcessStatus == OrderProcessStatus.processingPayment ||
-      orderProcessStatus == OrderProcessStatus.confirmingOrder) {
-    String statusMessage;
-    switch (orderProcessStatus) {
-      case OrderProcessStatus.validatingCart:
-        statusMessage = 'Validating your cart...';
-        break;
-      case OrderProcessStatus.processingPayment:
-        statusMessage = 'Processing payment...';
-        break;
-      case OrderProcessStatus.confirmingOrder:
-        statusMessage = 'Placing your order...';
-        break;
-      default:
-        statusMessage = 'Processing...';
+    final orderProcessStatus = ref.watch(orderProcessStatusProvider);
+    final orderError = ref.watch(orderErrorMessageProvider);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    
+    // Show loading spinner with status message
+    if (orderProcessStatus == OrderProcessStatus.validatingCart ||
+        orderProcessStatus == OrderProcessStatus.processingPayment ||
+        orderProcessStatus == OrderProcessStatus.confirmingOrder) {
+      String statusMessage;
+      switch (orderProcessStatus) {
+        case OrderProcessStatus.validatingCart:
+          statusMessage = 'Validating your cart...';
+          break;
+        case OrderProcessStatus.processingPayment:
+          statusMessage = 'Processing payment...';
+          break;
+        case OrderProcessStatus.confirmingOrder:
+          statusMessage = 'Placing your order...';
+          break;
+        default:
+          statusMessage = 'Processing...';
+      }
+      
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              statusMessage,
+              style: AppTextStyles.bodyLarge,
+            ),
+          ],
+        ),
+      );
     }
     
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text(
-            statusMessage,
-            style: AppTextStyles.bodyLarge,
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // If there's an error, display it
-  if (orderProcessStatus == OrderProcessStatus.failed && orderError != null) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            color: Colors.red,
-            size: 64,
-          ),
-          SizedBox(height: 16),
-          Text(
-            'Order Failed',
-            style: AppTextStyles.h5,
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Text(
-              orderError,
-              style: AppTextStyles.bodyMedium,
+    // If there's an error, display it
+    if (orderProcessStatus == OrderProcessStatus.failed && orderError != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 64,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Order Failed',
+              style: AppTextStyles.h5,
               textAlign: TextAlign.center,
             ),
+            SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Text(
+                orderError,
+                style: AppTextStyles.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            ),
+            SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.initial;
+                ref.read(orderErrorMessageProvider.notifier).state = null;
+              },
+              child: Text('Try Again'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Normal payment flow UI
+    final bool isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+    
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Main scrollable content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Show store pickup info if self-pickup is selected
+                  if (isSelfPickup)
+                    _buildStorePickupInfo(),
+                  
+                  // Order Summary Section
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[200]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.receipt_long,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'ORDER SUMMARY',
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _buildCompactOrderSummary(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // Special instructions
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: TextField(
+                      controller: _instructionsController,
+                      decoration: InputDecoration(
+                        hintText: isSelfPickup 
+                            ? 'Any special instructions for pickup?'
+                            : 'Any special instructions for delivery?',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                      ),
+                      maxLines: 2,
+                    ),
+                  ),
+                  
+                  // Payment methods section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.payment,
+                          color: AppColors.primary.withOpacity(0.7),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'PAYMENT METHOD',
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                    child: Text(
+                      'Select your preferred payment option',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Payment method options from API
+                  _buildPaymentMethodOptions(),
+                  
+                  // Security info
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.security,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'All transactions are secure and encrypted',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // Extra space for scrollability
+                  SizedBox(height: 70),
+                ],
+              ),
+            ),
           ),
-          SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              // Reset the order state and try again
-              ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.initial;
-              ref.read(orderErrorMessageProvider.notifier).state = null;
-            },
-            child: Text('Try Again'),
+          
+          // Fixed bottom button
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  offset: const Offset(0, -1),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+            padding: EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              top: 12.0,
+              bottom: bottomPadding > 0 ? bottomPadding : 16.0,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _isPlacingOrder || _selectedPaymentMethod == null
+                    ? null
+                    : _placeOrder,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: _isPlacingOrder
+                    ? const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        strokeWidth: 2,
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Text('PLACE ORDER'),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward, size: 16),
+                        ],
+                      ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Normal payment flow UI
-  final bool isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
-  
-  return SafeArea(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Main scrollable content
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Show store pickup info if self-pickup is selected
-                if (isSelfPickup)
-                  _buildStorePickupInfo(),
-                
-                // Order Summary Section - NEW ADDITION
-                Padding(
+  Widget _buildPaymentMethodOptions() {
+    return Consumer(
+      builder: (context, ref, child) {
+        final paymentMethodsAsync = ref.watch(paymentMethodsProvider);
+        
+        return paymentMethodsAsync.when(
+          loading: () => Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Center(
+              child: Column(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading payment methods...',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          error: (error, stackTrace) {
+            ref.read(loggerProvider).error('Error loading payment methods: $error');
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: AppColors.errorLight,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Failed to load payment methods',
+                      style: AppTextStyles.bodyLarge.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.error,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Please check your connection and try again',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        ref.refresh(paymentMethodsProvider);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+          data: (paymentMethods) {
+            if (paymentMethods.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Container(
                   padding: const EdgeInsets.all(16.0),
-                  child: Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.receipt_long,
-                              color: AppColors.primary,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'ORDER SUMMARY',
-                              style: AppTextStyles.bodyLarge.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _buildCompactOrderSummary(),
-                      ],
-                    ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
                   ),
-                ),
-                
-                // Special instructions
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: TextField(
-                    controller: _instructionsController,
-                    decoration: InputDecoration(
-                      hintText: isSelfPickup 
-                          ? 'Any special instructions for pickup?'
-                          : 'Any special instructions for delivery?',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                    ),
-                    maxLines: 2,
-                  ),
-                ),
-                
-                // Payment methods
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Row(
+                  child: Column(
                     children: [
                       Icon(
-                        Icons.payment,
-                        color: AppColors.primary.withOpacity(0.7),
-                        size: 24,
+                        Icons.payment_outlined,
+                        color: Colors.orange,
+                        size: 48,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 12),
                       Text(
-                        'PAYMENT METHOD',
+                        'No payment methods available',
                         style: AppTextStyles.bodyLarge.copyWith(
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                          color: Colors.orange[800],
                         ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Please contact support for assistance',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
                 ),
-                
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                  child: Text(
-                    'Select your preferred payment option',
-                    style: AppTextStyles.bodyMedium.copyWith(
+              );
+            }
+
+            // Auto-select first payment method if none selected
+            if (_selectedPaymentMethod == null && paymentMethods.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final firstMethod = paymentMethods.first;
+                setState(() {
+                  _selectedPaymentMethod = firstMethod;
+                });
+                ref.read(selectedPaymentMethodProvider.notifier).state = firstMethod;
+                widget.checkoutData.paymentMethod = firstMethod.paymentModeName;
+              });
+            }
+
+            return Column(
+              children: [
+                ...paymentMethods.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final method = entry.value;
+                  
+                  return Column(
+                    children: [
+                      _buildPaymentMethodOption(method),
+                      if (index < paymentMethods.length - 1)
+                        const Divider(height: 1),
+                    ],
+                  );
+                }).toList(),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPaymentMethodOption(PaymentMethod method) {
+    final isSelected = _selectedPaymentMethod?.idPaymentMode == method.idPaymentMode;
+    final bool isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+    
+    return InkWell(
+      onTap: () => _selectPaymentMethod(method),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16.0,
+          vertical: 12.0,
+        ),
+        child: Row(
+          children: [
+            // Icon
+            CircleAvatar(
+              backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
+              radius: 20,
+              child: Icon(
+                _getPaymentMethodIcon(method),
+                color: isSelected ? Colors.white : Colors.grey[700],
+                size: 18,
+              ),
+            ),
+            
+            const SizedBox(width: 16),
+            
+            // Text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    method.displayName,
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    _getPaymentMethodSubtitle(method, isSelfPickup),
+                    style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
-                ),
-                
-                const SizedBox(height: 8),
-                
-                // Payment method options
-                _buildPaymentMethodOption(
-                  title: 'Cash on Delivery',
-                  subtitle: isSelfPickup ? 'Pay when you collect your order' : 'Pay when your order is delivered',
-                  icon: Icons.money,
-                  value: 'COD',
-                ),
-                const Divider(height: 1),
-                _buildPaymentMethodOption(
-                  title: 'Credit/Debit Card',
-                  subtitle: 'Pay securely with your card',
-                  icon: Icons.credit_card,
-                  value: 'CARD',
-                ),
-                const Divider(height: 1),
-                _buildPaymentMethodOption(
-                  title: 'UPI',
-                  subtitle: 'Pay using UPI apps',
-                  icon: Icons.account_balance,
-                  value: 'UPI',
-                ),
-                const Divider(height: 1),
-                _buildPaymentMethodOption(
-                  title: 'Net Banking',
-                  subtitle: 'Pay using net banking',
-                  icon: Icons.account_balance_wallet,
-                  value: 'NET_BANKING',
-                ),
-                
-                // Security info
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.security,
-                          color: Colors.blue,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'All transactions are secure and encrypted',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                
-                // Extra space to ensure scrollability
-                SizedBox(height: 70),
-              ],
+                ],
+              ),
             ),
-          ),
+            
+            // Radio button
+            Radio<int>(
+              value: method.idPaymentMode,
+              groupValue: _selectedPaymentMethod?.idPaymentMode,
+              activeColor: AppColors.primary,
+              onChanged: (newValue) {
+                if (newValue != null) {
+                  _selectPaymentMethod(method);
+                }
+              },
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCompactOrderSummary() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final cartItems = ref.watch(cartProvider);
+        final cartTotal = ref.watch(cartTotalProvider);
+        final cartSavings = ref.watch(cartSavingsProvider);
         
-        // Fixed bottom button
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                offset: const Offset(0, -1),
-                blurRadius: 4,
-              ),
-            ],
-          ),
-          padding: EdgeInsets.only(
-            left: 16.0,
-            right: 16.0,
-            top: 12.0,
-            bottom: bottomPadding > 0 ? bottomPadding : 16.0,
-          ),
-          child: SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isPlacingOrder || _selectedPaymentMethod == null
-                  ? null
-                  : _placeOrder,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: _isPlacingOrder
-                  ? const CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      strokeWidth: 2,
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Text('PLACE ORDER'),
-                        SizedBox(width: 8),
-                        Icon(Icons.arrow_forward, size: 16),
-                      ],
-                    ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-Widget _buildCompactOrderSummary() {
-  return Consumer(
-    builder: (context, ref, _) {
-      final cartItems = ref.watch(cartProvider);
-      final cartTotal = ref.watch(cartTotalProvider);
-      final cartSavings = ref.watch(cartSavingsProvider);
-      
-      // Get delivery charges
-      final deliveryChargesState = ref.watch(deliveryChargesProvider);
-      final deliveryCharge = deliveryChargesState.deliveryCharge;
-      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
-      final distance = deliveryChargesState.distance;
-      
-      // Calculate final amount
-      final finalAmount = cartTotal + deliveryCharge;
-      
-      return Column(
-        children: [
-          // Quick summary with item count
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${cartItems.length} items',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                '₹${cartTotal.toStringAsFixed(2)}',
-                style: AppTextStyles.bodyMedium,
-              ),
-            ],
-          ),
-          
-          // Distance information - NEW ADDITION
-          if (distance > 0) ...[
-            const SizedBox(height: 8),
+        // Get delivery charges
+        final deliveryChargesState = ref.watch(deliveryChargesProvider);
+        final deliveryCharge = deliveryChargesState.deliveryCharge;
+        final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+        final distance = deliveryChargesState.distance;
+        
+        // Calculate final amount
+        final finalAmount = cartTotal + deliveryCharge;
+        
+        return Column(
+          children: [
+            // Quick summary with item count
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.directions_car,
-                      size: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Distance',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+                Text(
+                  '${cartItems.length} items',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 Text(
-                  '${distance.toStringAsFixed(1)} km',
+                  '₹${cartTotal.toStringAsFixed(2)}',
                   style: AppTextStyles.bodyMedium,
                 ),
               ],
             ),
-          ],
-          
-          const SizedBox(height: 8),
-          
-          // Delivery charges
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+            
+            // Distance information
+            if (distance > 0) ...[
+              const SizedBox(height: 8),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(
-                    Icons.local_shipping,
-                    size: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Delivery Fee',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  if (deliveryChargesState.isLoading)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4.0),
-                      child: SizedBox(
-                        width: 10,
-                        height: 10,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.directions_car,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Distance',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                    ),
+                    ],
+                  ),
+                  Text(
+                    '${distance.toStringAsFixed(1)} km',
+                    style: AppTextStyles.bodyMedium,
+                  ),
                 ],
               ),
-              Text(
-                deliveryChargesState.isLoading
-                    ? 'Calculating...'
-                    : isFreeDelivery 
-                      ? 'FREE' 
-                      : '₹${deliveryCharge.toStringAsFixed(2)}',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: isFreeDelivery ? Colors.green : null,
-                  fontWeight: isFreeDelivery ? FontWeight.bold : null,
-                ),
-              ),
             ],
-          ),
-          
-          // Savings if any
-          if (cartSavings > 0) ...[
+            
             const SizedBox(height: 8),
+            
+            // Delivery charges
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
                     Icon(
-                      Icons.savings,
+                      Icons.local_shipping,
                       size: 14,
-                      color: Colors.green,
+                      color: AppColors.textSecondary,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Savings',
+                      'Delivery Fee',
                       style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.textSecondary,
                       ),
                     ),
+                    if (deliveryChargesState.isLoading)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4.0),
+                        child: SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 Text(
-                  '₹${cartSavings.toStringAsFixed(2)}',
+                  deliveryChargesState.isLoading
+                      ? 'Calculating...'
+                      : isFreeDelivery 
+                        ? 'FREE' 
+                        : '₹${deliveryCharge.toStringAsFixed(2)}',
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.green,
+                    color: isFreeDelivery ? Colors.green : null,
+                    fontWeight: isFreeDelivery ? FontWeight.bold : null,
                   ),
                 ),
               ],
             ),
-          ],
-          
-          const Divider(height: 16),
-          
-          // Total
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TOTAL',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                '₹${finalAmount.toStringAsFixed(2)}',
-                style: AppTextStyles.bodyLarge.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
+            
+            // Savings if any
+            if (cartSavings > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.savings,
+                        size: 14,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Savings',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '₹${cartSavings.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-          
-          // Free delivery notification - NEW ADDITION
-          if (isFreeDelivery && distance > 0) ...[
-            const SizedBox(height: 8),
+            
+            const Divider(height: 16),
+            
+            // Total
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(
-                  Icons.check_circle,
-                  size: 14,
-                  color: Colors.green,
-                ),
-                const SizedBox(width: 4),
                 Text(
-                  'Free delivery eligible',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: Colors.green,
-                    fontWeight: FontWeight.w500,
+                  'TOTAL',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  '₹${finalAmount.toStringAsFixed(2)}',
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
                   ),
                 ),
               ],
             ),
+            
+            // Free delivery notification
+            if (isFreeDelivery && distance > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    size: 14,
+                    color: Colors.green,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Free delivery eligible',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
+
   // Build store pickup info from selected outlet data
   Widget _buildStorePickupInfo() {
     return Consumer(
@@ -3071,7 +3403,7 @@ Widget _buildCompactOrderSummary() {
         return selectedOutletAsync.when(
           data: (outlet) {
             if (outlet == null) {
-              return const SizedBox.shrink(); // No outlet selected
+              return const SizedBox.shrink();
             }
             
             return Padding(
@@ -3112,9 +3444,8 @@ Widget _buildCompactOrderSummary() {
                       style: const TextStyle(color: Colors.black87),
                     ),
                     const SizedBox(height: 4),
-                    // Display contact information if available, otherwise show a default
                     Text(
-                      'Contact: +91 1234567890', // Usually outlets would have contact info
+                      'Contact: +91 1234567890',
                       style: const TextStyle(color: Colors.black87),
                     ),
                     const SizedBox(height: 8),
@@ -3177,74 +3508,74 @@ Widget _buildCompactOrderSummary() {
       },
     );
   }
-  
-  Widget _buildPaymentMethodOption({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required String value,
-  }) {
-    final isSelected = _selectedPaymentMethod == value;
+}
+  // Widget _buildPaymentMethodOption({
+  //   required String title,
+  //   required String subtitle,
+  //   required IconData icon,
+  //   required String value,
+  // }) {
+  //   final isSelected = _selectedPaymentMethod == value;
     
-    return InkWell(
-      onTap: () => _selectPaymentMethod(value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16.0,
-          vertical: 12.0,
-        ),
-        child: Row(
-          children: [
-            // Icon
-            CircleAvatar(
-              backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
-              radius: 20,
-              child: Icon(
-                icon,
-                color: isSelected ? Colors.white : Colors.grey[700],
-                size: 18,
-              ),
-            ),
+  //   return InkWell(
+  //     onTap: () => _selectPaymentMethod(value),
+  //     child: Padding(
+  //       padding: const EdgeInsets.symmetric(
+  //         horizontal: 16.0,
+  //         vertical: 12.0,
+  //       ),
+  //       child: Row(
+  //         children: [
+  //           // Icon
+  //           CircleAvatar(
+  //             backgroundColor: isSelected ? AppColors.primary : Colors.grey[200],
+  //             radius: 20,
+  //             child: Icon(
+  //               icon,
+  //               color: isSelected ? Colors.white : Colors.grey[700],
+  //               size: 18,
+  //             ),
+  //           ),
             
-            const SizedBox(width: 16),
+  //           const SizedBox(width: 16),
             
-            // Text
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  //           // Text
+  //           Expanded(
+  //             child: Column(
+  //               crossAxisAlignment: CrossAxisAlignment.start,
+  //               children: [
+  //                 Text(
+  //                   title,
+  //                   style: AppTextStyles.bodyLarge.copyWith(
+  //                     fontWeight: FontWeight.w500,
+  //                   ),
+  //                 ),
+  //                 Text(
+  //                   subtitle,
+  //                   style: AppTextStyles.bodySmall.copyWith(
+  //                     color: AppColors.textSecondary,
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
             
-            // Radio button
-            Radio<String>(
-              value: value,
-              groupValue: _selectedPaymentMethod,
-              activeColor: AppColors.primary,
-              onChanged: (newValue) {
-                if (newValue != null) {
-                  _selectPaymentMethod(newValue);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  //           // Radio button
+  //           Radio<String>(
+  //             value: value,
+  //             groupValue: _selectedPaymentMethod,
+  //             activeColor: AppColors.primary,
+  //             onChanged: (newValue) {
+  //               if (newValue != null) {
+  //                 _selectPaymentMethod(newValue);
+  //               }
+  //             },
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildOrderSummary() {
   return Consumer(
@@ -3380,4 +3711,3 @@ Widget _buildCompactOrderSummary() {
     },
   );
   }
-}

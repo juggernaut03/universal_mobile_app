@@ -418,8 +418,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 child: Text(
                   category.categoryName,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w400,
-                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 9,
                   ),
                   textAlign: TextAlign.center,
                   maxLines: 2,

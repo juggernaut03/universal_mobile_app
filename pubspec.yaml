@@ -61,6 +61,9 @@ dependencies:
   share_plus: ^11.0.0
   carousel_slider: ^5.0.0
   url_launcher: ^6.3.1
+  firebase_core: ^3.13.1
+  firebase_messaging: ^15.2.6
+  flutter_local_notifications: ^19.2.1
 
 dev_dependencies:
   flutter_test:

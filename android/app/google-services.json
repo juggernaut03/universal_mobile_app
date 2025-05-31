@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "280705195901",
+    "project_id": "pushnotificationshalvi123",
+    "storage_bucket": "pushnotificationshalvi123.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:280705195901:android:005aa7fc1f3d66dcdaf614",
+        "android_client_info": {
+          "package_name": "com.example.patelmart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4qnztGc-OZkeiiX62VO8w2G3naFPSR9Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

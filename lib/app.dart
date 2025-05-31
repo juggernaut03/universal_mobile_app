@@ -82,6 +82,7 @@ void _initializeAuthFavoritesWatcher() {
         themeMode: ThemeMode.light, // Force light mode always
         debugShowCheckedModeBanner: false, // Remove debug banner
         routerConfig: router,
+        
       ),
     );
   }
