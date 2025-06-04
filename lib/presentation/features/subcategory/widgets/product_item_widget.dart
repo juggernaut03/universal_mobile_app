@@ -12,6 +12,7 @@ import '../../../../data/models/product_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/outlet_provider.dart';
 import '../../../providers/launch_flow_provider.dart';
+import '../../../providers/outlet_status_provider.dart'; // Add this import for outlet status
 
 class ProductItemWidget extends ConsumerStatefulWidget {
   final ProductModel product;
@@ -100,6 +101,48 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
     );
   }
 
+  // Build unavailability message widget
+  Widget _buildUnavailabilityMessage(dynamic status) {
+    String message;
+    Color textColor;
+    
+    // Determine message and styling based on outlet status
+    if (!status.isEnabled) {
+      message = "UNAVAILABLE";
+      textColor = AppColors.error;
+    } else if (!status.hasAnyServiceAvailable) {
+      message = "UNAVAILABLE";
+      textColor = AppColors.warning;
+    } else if (status.hasDeliveryOnly) {
+      message = "DELIVERY ONLY";
+      textColor = AppColors.info;
+    } else if (status.hasPickupOnly) {
+      message = "PICKUP ONLY";
+      textColor = AppColors.info;
+    } else {
+      // This shouldn't happen if cart is disabled, but just in case
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      height: 32, // Match the height of the normal add button
+      width: double.infinity,
+      alignment: Alignment.center,
+      child: Text(
+        message,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Get cart information from provider to check if this product is in cart
@@ -122,181 +165,202 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
         ? ((discount / widget.product.productMrp) * 100).round() 
         : 0;
 
-    return GestureDetector(
-      onTap: _navigateToProductDetail, // Navigate to product detail on tap
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10), // Reduced margin
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left side: Image with discount badge (40% width)
-            SizedBox(
-              width: MediaQuery.of(context).size.width * 0.4 - 16,
-              child: Stack(
-                children: [
-                  // Product image with caching - also tappable
-                  InkWell(
-                    onTap: _navigateToProductDetail,
-                    child: Padding(
-                      padding: const EdgeInsets.all(10.0), // Reduced padding
-                      child: Image.network(
-                        widget.product.pcodeImg.isNotEmpty 
-                            ? widget.product.pcodeImg 
-                            : ApiConstants.fallbackImageUrl,
-                        width: double.infinity,
-                        height: 110, // Reduced height
-                        fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Container(
-                            width: double.infinity,
-                            height: 110,
-                            color: Colors.grey[100],
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) => Image.network(
-                          ApiConstants.fallbackImageUrl,
+    // Check if cart is enabled from outlet status
+    final isCartEnabled = ref.watch(isCartEnabledProvider);
+    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10), // Reduced margin
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left side: Image with discount badge (40% width)
+          SizedBox(
+            width: MediaQuery.of(context).size.width * 0.4 - 16,
+            child: Stack(
+              children: [
+                // Product image with caching - ONLY this part is tappable
+                InkWell(
+                  onTap: _navigateToProductDetail,
+                  child: Padding(
+                    padding: const EdgeInsets.all(10.0), // Reduced padding
+                    child: Image.network(
+                      widget.product.pcodeImg.isNotEmpty 
+                          ? widget.product.pcodeImg 
+                          : ApiConstants.fallbackImageUrl,
+                      width: double.infinity,
+                      height: 110, // Reduced height
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
                           width: double.infinity,
                           height: 110,
-                          fit: BoxFit.contain,
-                        ),
+                          color: Colors.grey[100],
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => Image.network(
+                        ApiConstants.fallbackImageUrl,
+                        width: double.infinity,
+                        height: 110,
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ),
-                  
-                  // Discount badge
-                  if (discountPercent > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(4),
-                          bottomRight: Radius.circular(8),
-                        ),
+                ),
+                
+                // Discount badge
+                if (discountPercent > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        bottomRight: Radius.circular(8),
                       ),
-                      child: Text(
-                        "${discountPercent.toStringAsFixed(0)}% OFF",
+                    ),
+                    child: Text(
+                      "${discountPercent.toStringAsFixed(0)}% OFF",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10, // Reduced font size
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          
+          // Right side: Product details (60% width)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 8.0), // Reduced vertical padding
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Product name - reduced font size and spacing - NOT tappable
+                  Text(
+                    widget.product.productName,
+                    style: const TextStyle(
+                      fontSize: 14, // Reduced from 16
+                      fontWeight: FontWeight.w600,
+                      height: 1.2, // Reduced line height
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  
+                  const SizedBox(height: 4), // Reduced from 6
+                  
+                  // Package size and price per unit
+                  Text(
+                    "${widget.product.packageSize} ${widget.product.packageUnit.toLowerCase()} (₹${pricePerUnit.toStringAsFixed(2)}/GM)",
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 12, // Reduced from 14
+                      height: 1.1, // Reduced line height
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 6), // Reduced from 8
+                  
+                  // Price section
+                  Row(
+                    children: [
+                      Text(
+                        "₹${widget.product.ourPrice.toStringAsFixed(0)}",
                         style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10, // Reduced font size
+                          fontSize: 16, // Reduced from 18
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
+                      
+                      const SizedBox(width: 6), // Reduced from 8
+                      
+                      Text(
+                        "MRP₹${widget.product.productMrp.toStringAsFixed(0)}",
+                        style: TextStyle(
+                          decoration: TextDecoration.lineThrough,
+                          color: Colors.grey.shade600,
+                          fontSize: 12, // Reduced from 14
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 8), // Reduced from 10
+                  
+                  // Bottom row - now with consistent heights
+                  Row(
+                    children: [
+                      // Favorite button with increased size to match add button
+                      SizedBox(
+                        width: 32, // Fixed width to match button height
+                        height: 32, // Fixed height to match add button
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: FavoriteButton(
+                            product: widget.product,
+                            size: 20, // Increased size
+                            showSnackbarMessages: false, // Disable to prevent overlap
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 8),
+                      
+                      // Add to cart button or manual quantity selector with conditional logic
+                      Expanded(
+                        child: outletStatusAsync.when(
+                          data: (status) {
+                            // If outlet status is unknown, show normal buttons (fail-safe)
+                            if (status == null) {
+                              return isInCart
+                                  ? _buildManualQuantitySelector(quantity, true)
+                                  : _buildAddToCartButton(true);
+                            }
+                            
+                            // If cart is disabled due to outlet status, show disabled state
+                            if (!isCartEnabled) {
+                              return _buildUnavailabilityMessage(status);
+                            }
+                            
+                            // Normal add to cart button or quantity selector
+                            return isInCart
+                                ? _buildManualQuantitySelector(quantity, true)
+                                : _buildAddToCartButton(true);
+                          },
+                          loading: () => isInCart
+                              ? _buildManualQuantitySelector(quantity, true)
+                              : _buildAddToCartButton(true),
+                          error: (error, stackTrace) => isInCart
+                              ? _buildManualQuantitySelector(quantity, true)
+                              : _buildAddToCartButton(true),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            
-            // Right side: Product details (60% width)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 8.0), // Reduced vertical padding
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Product name - reduced font size and spacing
-                    InkWell(
-                      onTap: _navigateToProductDetail,
-                      child: Text(
-                        widget.product.productName,
-                        style: const TextStyle(
-                          fontSize: 14, // Reduced from 16
-                          fontWeight: FontWeight.w600,
-                          height: 1.2, // Reduced line height
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 4), // Reduced from 6
-                    
-                    // Package size and price per unit
-                    Text(
-                      "${widget.product.packageSize} ${widget.product.packageUnit.toLowerCase()} (₹${pricePerUnit.toStringAsFixed(2)}/GM)",
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12, // Reduced from 14
-                        height: 1.1, // Reduced line height
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 6), // Reduced from 8
-                    
-                    // Price section
-                    Row(
-                      children: [
-                        Text(
-                          "₹${widget.product.ourPrice.toStringAsFixed(0)}",
-                          style: const TextStyle(
-                            fontSize: 16, // Reduced from 18
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        
-                        const SizedBox(width: 6), // Reduced from 8
-                        
-                        Text(
-                          "MRP₹${widget.product.productMrp.toStringAsFixed(0)}",
-                          style: TextStyle(
-                            decoration: TextDecoration.lineThrough,
-                            color: Colors.grey.shade600,
-                            fontSize: 12, // Reduced from 14
-                          ),
-                        ),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 8), // Reduced from 10
-                    
-                    // Bottom row - now with consistent heights
-                    Row(
-                      children: [
-                        // Favorite button with increased size to match add button
-                        SizedBox(
-                          width: 32, // Fixed width to match button height
-                          height: 32, // Fixed height to match add button
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: FavoriteButton(
-                              product: widget.product,
-                              size: 20, // Increased size
-                              showSnackbarMessages: false, // Disable to prevent overlap
-                            ),
-                          ),
-                        ),
-                        
-                        const SizedBox(width: 8),
-                        
-                        // Add to cart button or manual quantity selector
-                        Expanded(
-                          child: isInCart
-                              ? _buildManualQuantitySelector(quantity)
-                              : _buildAddToCartButton(),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  // Manual quantity selector with improved styling - UPDATED to match best seller widget
-  Widget _buildManualQuantitySelector(int quantity) {
+  // Manual quantity selector with improved styling
+  Widget _buildManualQuantitySelector(int quantity, bool enabled) {
     return Container(
       height: 32, // Reduced height to match favorite button
       decoration: BoxDecoration(
@@ -307,20 +371,20 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
         children: [
           // Decrement button
           Material(
-            color: AppColors.primary,
+            color: enabled ? AppColors.primary : Colors.grey.shade300,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(3),
               bottomLeft: Radius.circular(3),
             ),
             child: InkWell(
-              onTap: () {
+              onTap: enabled ? () {
                 if (quantity > 1) {
                   _decrementQuantity();
                 } else {
                   // Remove item if quantity becomes 0
                   ref.read(cartProvider.notifier).removeItem(widget.product);
                 }
-              },
+              } : null,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(3),
                 bottomLeft: Radius.circular(3),
@@ -329,23 +393,24 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                 width: 32, // Fixed width to match height
                 height: 32, // Fixed height
                 alignment: Alignment.center,
-                child: const Icon(
+                child: Icon(
                   Icons.remove,
-                  color: Colors.white,
+                  color: enabled ? Colors.white : Colors.grey.shade600,
                   size: 16, // Smaller icon size for better appearance
                 ),
               ),
             ),
           ),
           
-          // Manual quantity input field - UPDATED to match best seller widget implementation
+          // Manual quantity input field
           Expanded(
             child: Container(
               height: 32,
-              color: Colors.white,
+              color: enabled ? Colors.white : Colors.grey.shade100,
               child: _ManualQuantityInput(
                 initialQuantity: quantity,
                 maxQuantity: widget.product.maxQuantityAllowed,
+                enabled: enabled,
                 onQuantityChanged: _handleManualQuantityInput,
               ),
             ),
@@ -353,13 +418,19 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
           
           // Increment button
           Material(
-            color: AppColors.primary,
+            color: enabled ? AppColors.primary : Colors.grey.shade300,
             borderRadius: const BorderRadius.only(
               topRight: Radius.circular(3),
               bottomRight: Radius.circular(3),
             ),
             child: InkWell(
-              onTap: _incrementQuantity,
+              onTap: enabled ? () {
+                if (quantity < widget.product.maxQuantityAllowed) {
+                  _incrementQuantity();
+                } else {
+                  _showMaxQuantityMessage();
+                }
+              } : null,
               borderRadius: const BorderRadius.only(
                 topRight: Radius.circular(3),
                 bottomRight: Radius.circular(3),
@@ -368,9 +439,9 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                 width: 32, // Fixed width to match height
                 height: 32, // Fixed height
                 alignment: Alignment.center,
-                child: const Icon(
+                child: Icon(
                   Icons.add,
-                  color: Colors.white,
+                  color: enabled ? Colors.white : Colors.grey.shade600,
                   size: 16, // Smaller icon size for better appearance
                 ),
               ),
@@ -382,47 +453,50 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
   }
 
   // Simple add to cart button with reduced height
-  Widget _buildAddToCartButton() {
+  Widget _buildAddToCartButton(bool enabled) {
     return SizedBox(
       height: 32, // Reduced height to match favorite button
       child: ElevatedButton.icon(
-        onPressed: _addToCart,
-        icon: const Icon(
+        onPressed: enabled ? _addToCart : null,
+        icon: Icon(
           Icons.shopping_cart_outlined,
-          color: Colors.white,
+          color: enabled ? Colors.white : Colors.grey.shade600,
           size: 12, // Reduced icon size
         ),
-        label: const Text(
+        label: Text(
           "ADD",
           style: TextStyle(
-            color: Colors.white,
+            color: enabled ? Colors.white : Colors.grey.shade600,
             fontWeight: FontWeight.bold,
             fontSize: 11, // Reduced font size
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: enabled ? AppColors.primary : Colors.grey.shade300,
           minimumSize: const Size(double.infinity, 32), // Reduced height
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
+          elevation: enabled ? 2 : 0,
         ),
       ),
     );
   }
 }
 
-// UPDATED Manual quantity input widget to match best seller widget implementation
+// Manual quantity input widget
 class _ManualQuantityInput extends StatefulWidget {
   final int initialQuantity;
   final int maxQuantity;
+  final bool enabled;
   final ValueChanged<int> onQuantityChanged;
 
   const _ManualQuantityInput({
     required this.initialQuantity,
     required this.maxQuantity,
     required this.onQuantityChanged,
+    this.enabled = true,
   });
 
   @override
@@ -497,13 +571,14 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
         child: TextField(
           controller: _controller,
           focusNode: _focusNode,
+          enabled: widget.enabled,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           maxLength: widget.maxQuantity.toString().length,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
-            color: Colors.black87,
+            color: widget.enabled ? Colors.black87 : Colors.grey.shade600,
           ),
           decoration: const InputDecoration(
             // Remove all borders and effects
@@ -543,13 +618,13 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
             _MaxQuantityInputFormatter(widget.maxQuantity),
           ],
           onSubmitted: (_) => _validateAndSubmit(),
-          onTap: () {
+          onTap: widget.enabled ? () {
             // Select all text when tapped for easy editing
             _controller.selection = TextSelection(
               baseOffset: 0,
               extentOffset: _controller.text.length,
             );
-          },
+          } : null,
         ),
       ),
     );

@@ -1,18 +1,20 @@
 // lib/presentation/features/support/faq_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/widgets/back_button_wrapper.dart';
+import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 
-class FAQScreen extends StatefulWidget {
+class FAQScreen extends ConsumerStatefulWidget {
   const FAQScreen({Key? key}) : super(key: key);
 
   @override
-  State<FAQScreen> createState() => _FAQScreenState();
+  ConsumerState<FAQScreen> createState() => _FAQScreenState();
 }
 
-class _FAQScreenState extends State<FAQScreen> {
+class _FAQScreenState extends ConsumerState<FAQScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<FAQCategory> allCategories = [];
   List<FAQCategory> filteredCategories = [];
@@ -23,6 +25,27 @@ class _FAQScreenState extends State<FAQScreen> {
     _initFAQData();
     filteredCategories = allCategories;
     _searchController.addListener(_filterFAQs);
+  }
+
+  // Custom back navigation handler - matches the pattern from category and cart screens
+  Future<bool> _handleBackPress() async {
+    final logger = ref.read(loggerProvider);
+    logger.log('Hardware back button pressed on FAQScreen - navigating to home');
+    
+    try {
+      // Navigate to home using go
+      context.go('/home');
+      
+      // Return false to prevent default back navigation
+      return false;
+    } catch (e) {
+      logger.error('Error handling back navigation: $e');
+      // If go fails, try push as fallback
+      if (context.mounted) {
+        context.pushReplacement('/home');
+      }
+      return false;
+    }
   }
 
   void _initFAQData() {
@@ -173,98 +196,117 @@ class _FAQScreenState extends State<FAQScreen> {
     super.dispose();
   }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Frequently Asked Questions'),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () {
-          if (Navigator.canPop(context)) {
-            context.pop();
-          } else {
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          final logger = ref.read(loggerProvider);
+          logger.log('PopScope: Back navigation intercepted on FAQScreen - going to home');
+          
+          // Navigate to home
+          if (context.mounted) {
             context.go('/home');
           }
-        },
-      ),
-    ),
-      body: Column(
-        children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search FAQs',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.neutral300),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
-                      )
-                    : null,
+        }
+      },
+      child: WillPopScope(
+        onWillPop: _handleBackPress,
+        child: BackButtonWrapper(
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Frequently Asked Questions'),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () {
+                  final logger = ref.read(loggerProvider);
+                  logger.log('FAQ back button pressed');
+                  // Use the same navigation logic as the hardware back button
+                  _handleBackPress();
+                },
               ),
             ),
-          ),
-
-          // FAQ sections
-          Expanded(
-            child: filteredCategories.isEmpty
-                ? _buildNoResultsFound()
-                : ListView.builder(
-                    itemCount: filteredCategories.length,
-                    itemBuilder: (context, categoryIndex) {
-                      final category = filteredCategories[categoryIndex];
-                      if (category.faqs.isEmpty) return const SizedBox.shrink();
-                      
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              left: 16,
-                              right: 16,
-                              top: 16,
-                              bottom: 8,
-                            ),
-                            child: Text(
-                              category.title,
-                              style: AppTextStyles.h6.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: category.faqs.length,
-                            itemBuilder: (context, faqIndex) {
-                              final faq = category.faqs[faqIndex];
-                              return _buildFAQItem(faq);
-                            },
-                          ),
-                        ],
-                      );
-                    },
+            body: Column(
+              children: [
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search FAQs',
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppColors.neutral300),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                              },
+                            )
+                          : null,
+                    ),
                   ),
+                ),
+
+                // FAQ sections
+                Expanded(
+                  child: filteredCategories.isEmpty
+                      ? _buildNoResultsFound()
+                      : ListView.builder(
+                          itemCount: filteredCategories.length,
+                          itemBuilder: (context, categoryIndex) {
+                            final category = filteredCategories[categoryIndex];
+                            if (category.faqs.isEmpty) return const SizedBox.shrink();
+                            
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 16,
+                                    right: 16,
+                                    top: 16,
+                                    bottom: 8,
+                                  ),
+                                  child: Text(
+                                    category.title,
+                                    style: AppTextStyles.h6.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: category.faqs.length,
+                                  itemBuilder: (context, faqIndex) {
+                                    final faq = category.faqs[faqIndex];
+                                    return _buildFAQItem(faq);
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
-    
-  );
-}
+    );
+  }
 
   Widget _buildFAQItem(FAQ faq) {
     return Container(

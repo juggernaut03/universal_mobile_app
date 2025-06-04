@@ -252,17 +252,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/account',
         name: RouteNames.account,
         builder: (context, state) => const AccountScreen(),
-        redirect: (context, state) async {
-          // Check if user is logged in
-          final container = ProviderScope.containerOf(context);
-          final authRepository = container.read(authRepositoryProvider);
+        // redirect: (context, state) async {
+        //   // Check if user is logged in
+        //   final container = ProviderScope.containerOf(context);
+        //   final authRepository = container.read(authRepositoryProvider);
           
-          final isLoggedIn = await authRepository.isLoggedIn();
-          if (!isLoggedIn) {
-            return '/auth/login?redirectRoute=/account';
-          }
-          return null;
-        },
+        //   final isLoggedIn = await authRepository.isLoggedIn();
+        //   if (!isLoggedIn) {
+        //     return '/auth/login?redirectRoute=/account';
+        //   }
+        //   return null;
+        // },
       ),
       GoRoute(
         path: '/category',
@@ -371,13 +371,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // Authentication routes
       GoRoute(
-        path: '/auth/login',
-        name: RouteNames.login,
-        builder: (context, state) {
-          final redirectRoute = state.uri.queryParameters['redirectRoute'];
-          return LoginScreen(redirectRoute: redirectRoute);
-        },
-      ),
+  path: '/auth/login',
+  name: RouteNames.login,
+  builder: (context, state) {
+    final redirectRoute = state.uri.queryParameters['redirectRoute']; // ✅ From URL
+    return LoginScreen(redirectRoute: redirectRoute);
+  },
+),
       
       GoRoute(
         path: '/auth/otp',
@@ -403,21 +403,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       // New Checkout Flow route
       GoRoute(
-        path: '/checkout-flow',
-        name: RouteNames.checkoutFlow,
-        builder: (context, state) => const CheckoutFlowScreen(),
-        redirect: (context, state) async {
-          // Check if user is logged in
-          final container = ProviderScope.containerOf(context);
-          final authRepository = container.read(authRepositoryProvider);
-          
-          final isLoggedIn = await authRepository.isLoggedIn();
-          if (!isLoggedIn) {
-            return '/auth/login?redirectRoute=/checkout-flow';
-          }
-          return null;
-        },
-      ),
+  path: '/checkout-flow',
+  name: RouteNames.checkoutFlow,
+  builder: (context, state) => const CheckoutFlowScreen(),
+  redirect: (context, state) async {
+    // Check if user is logged in
+    final container = ProviderScope.containerOf(context);
+    final authRepository = container.read(authRepositoryProvider);
+    
+    final isLoggedIn = await authRepository.isLoggedIn();
+    if (!isLoggedIn) {
+      return '/auth/login?redirectRoute=/checkout-flow'; // ✅ Protected
+    }
+    return null;
+  },
+),
       // Support and help routes
       GoRoute(
         path: '/about-us',
@@ -433,6 +433,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/help-support',
         name: RouteNames.helpSupport,
         builder: (context, state) => const HelpSupportScreen(),
+      ),
+         GoRoute(
+        path: '/refund',
+        name: RouteNames.refundPolicies,
+        builder: (context, state) => const RefundTncScreen(),
       ),
       GoRoute(
         path: '/favorites',

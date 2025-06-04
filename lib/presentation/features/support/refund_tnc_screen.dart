@@ -1,107 +1,146 @@
- // lib/presentation/features/support/refund_tnc_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // Add this import for ConsumerStatefulWidget
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/widgets/back_button_wrapper.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../providers/launch_flow_provider.dart'; // Add this import for loggerProvider
 
-class RefundTncScreen extends StatefulWidget {
+class RefundTncScreen extends ConsumerStatefulWidget { // Changed to ConsumerStatefulWidget
   const RefundTncScreen({Key? key}) : super(key: key);
 
   @override
-  State<RefundTncScreen> createState() => _RefundTncScreenState();
+  ConsumerState<RefundTncScreen> createState() => _RefundTncScreenState();
 }
 
-class _RefundTncScreenState extends State<RefundTncScreen> {
+class _RefundTncScreenState extends ConsumerState<RefundTncScreen> { // Changed to ConsumerState
   // Track expanded items
   bool _isPricingExpanded = false;
   bool _isTermsExpanded = false;
   bool _isPrivacyExpanded = false;
   bool _isDisclaimerExpanded = false;
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      title: const Text('Refund, Terms and Policies'),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () {
-          if (Navigator.canPop(context)) {
-            context.pop();
-          } else {
+  // Custom back navigation handler
+  Future<bool> _handleBackPress() async {
+    final logger = ref.read(loggerProvider);
+    logger.log('Hardware back button pressed on RefundTncScreen - navigating to home');
+    
+    try {
+      // Navigate to home using go
+      context.go('/home');
+      
+      // Return false to prevent default back navigation
+      return false;
+    } catch (e) {
+      logger.error('Error handling back navigation: $e');
+      // If go fails, try push as fallback
+      if (context.mounted) {
+        context.pushReplacement('/home');
+      }
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          final logger = ref.read(loggerProvider);
+          logger.log('PopScope: Back navigation intercepted on RefundTncScreen - going to home');
+          
+          // Navigate to home
+          if (context.mounted) {
             context.go('/home');
           }
-        },
-      ),
-    ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildExpandableSection(
-              title: 'Pricing, Delivery, Return and Refund Policy',
-              isExpanded: _isPricingExpanded,
-              onToggle: () {
-                setState(() {
-                  _isPricingExpanded = !_isPricingExpanded;
-                });
+        }
+      },
+      child: WillPopScope(
+        onWillPop: _handleBackPress,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Refund, Terms and Policies'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
               },
-              content: _buildPricingAndRefundPolicy(),
             ),
-            const Divider(height: 1),
-            
-            _buildExpandableSection(
-              title: 'Terms & Conditions',
-              isExpanded: _isTermsExpanded,
-              onToggle: () {
-                setState(() {
-                  _isTermsExpanded = !_isTermsExpanded;
-                });
-              },
-              content: _buildTermsAndConditions(),
-            ),
-            const Divider(height: 1),
-            
-            _buildExpandableSection(
-              title: 'Privacy Policy',
-              isExpanded: _isPrivacyExpanded,
-              onToggle: () {
-                setState(() {
-                  _isPrivacyExpanded = !_isPrivacyExpanded;
-                });
-              },
-              content: _buildPrivacyPolicy(),
-            ),
-            const Divider(height: 1),
-            
-            _buildExpandableSection(
-              title: 'Disclaimer',
-              isExpanded: _isDisclaimerExpanded,
-              onToggle: () {
-                setState(() {
-                  _isDisclaimerExpanded = !_isDisclaimerExpanded;
-                });
-              },
-              content: _buildDisclaimer(),
-            ),
-            const Divider(height: 1),
-            
-            // Last updated section
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Last Updated: April 15, 2025',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSecondary,
+          ),
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildExpandableSection(
+                  title: 'Pricing, Delivery, Return and Refund ',
+                  isExpanded: _isPricingExpanded,
+                  onToggle: () {
+                    setState(() {
+                      _isPricingExpanded = !_isPricingExpanded;
+                    });
+                  },
+                  content: _buildPricingAndRefundPolicy(),
                 ),
-                textAlign: TextAlign.center,
-              ),
+                const Divider(height: 1),
+                
+                _buildExpandableSection(
+                  title: 'Terms & Conditions',
+                  isExpanded: _isTermsExpanded,
+                  onToggle: () {
+                    setState(() {
+                      _isTermsExpanded = !_isTermsExpanded;
+                    });
+                  },
+                  content: _buildTermsAndConditions(),
+                ),
+                const Divider(height: 1),
+                
+                _buildExpandableSection(
+                  title: 'Privacy Policy',
+                  isExpanded: _isPrivacyExpanded,
+                  onToggle: () {
+                    setState(() {
+                      _isPrivacyExpanded = !_isPrivacyExpanded;
+                    });
+                  },
+                  content: _buildPrivacyPolicy(),
+                ),
+                const Divider(height: 1),
+                
+                _buildExpandableSection(
+                  title: 'Disclaimer',
+                  isExpanded: _isDisclaimerExpanded,
+                  onToggle: () {
+                    setState(() {
+                      _isDisclaimerExpanded = !_isDisclaimerExpanded;
+                    });
+                  },
+                  content: _buildDisclaimer(),
+                ),
+                const Divider(height: 1),
+                
+                // Last updated section
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Last Updated: April 15, 2025',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-   
-  );
+    );
+  }
 }
 
   Widget _buildExpandableSection({
@@ -406,4 +445,3 @@ Widget build(BuildContext context) {
       ),
     );
   }
-}

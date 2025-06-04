@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/widgets/favorite_button.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+// Add this import for outlet status
+import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/cached_network_image_widget.dart';
@@ -28,6 +30,127 @@ class BestSellerWidget extends ConsumerWidget {
     this.padding = const EdgeInsets.symmetric(vertical: 16),
   }) : super(key: key);
 
+  // Build unavailability message widget
+  Widget _buildUnavailabilityMessage(BuildContext context, WidgetRef ref, dynamic status) {
+    String title;
+    String message;
+    Color backgroundColor;
+    Color textColor;
+    IconData icon;
+    
+    // Determine message and styling based on outlet status
+    if (!status.isEnabled) {
+      title = 'Store Temporarily Closed';
+      message = status.storeMessage.isNotEmpty 
+          ? status.storeMessage 
+          : 'This store is currently not accepting orders.';
+      backgroundColor = AppColors.errorLight;
+      textColor = AppColors.error;
+      icon = Icons.store_outlined;
+    } else if (!status.hasAnyServiceAvailable) {
+      title = 'Services Temporarily Unavailable';
+      message = status.storeMessage.isNotEmpty 
+          ? status.storeMessage 
+          : 'Neither delivery nor pickup is currently available.';
+      backgroundColor = AppColors.warningLight;
+      textColor = AppColors.warning;
+      icon = Icons.delivery_dining_outlined;
+    } else if (status.hasDeliveryOnly) {
+      title = 'Limited Service Available';
+      message = status.storeMessage.isNotEmpty 
+          ? status.storeMessage 
+          : 'Only home delivery is currently available.';
+      backgroundColor = AppColors.infoLight;
+      textColor = AppColors.info;
+      icon = Icons.info_outline;
+    } else if (status.hasPickupOnly) {
+      title = 'Limited Service Available';
+      message = status.storeMessage.isNotEmpty 
+          ? status.storeMessage 
+          : 'Only store pickup is currently available.';
+      backgroundColor = AppColors.infoLight;
+      textColor = AppColors.info;
+      icon = Icons.info_outline;
+    } else {
+      // This shouldn't happen if cart is disabled, but just in case
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: textColor.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: textColor.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: textColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: textColor,
+              size: 24,
+            ),
+          ),
+          
+          const SizedBox(width: 16),
+          
+          // Message content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: textColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Refresh button
+          IconButton(
+            onPressed: () {
+              ref.read(refreshOutletStatusProvider)();
+            },
+            icon: Icon(
+              Icons.refresh,
+              color: textColor,
+              size: 20,
+            ),
+            tooltip: 'Refresh status',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Get the banner/slider data for this best seller section
@@ -38,6 +161,10 @@ class BestSellerWidget extends ConsumerWidget {
     
     // Get the background color separately to ensure it triggers a rebuild
     final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(bestSellerId));
+    
+    // Get outlet status for showing unavailability message
+    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
+    final isCartEnabled = ref.watch(isCartEnabledProvider);
     
     // Log the color for debugging
     ref.read(loggerProvider).log('Best Seller $bestSellerId background color: $backgroundColor');
@@ -62,6 +189,18 @@ class BestSellerWidget extends ConsumerWidget {
                 _buildMultipleBannersCarousel(context, banners),
               
               const SizedBox(height: 16),
+              
+              // Show unavailability message if cart is disabled
+              outletStatusAsync.when(
+                data: (status) {
+                  if (status != null && !isCartEnabled) {
+                    return _buildUnavailabilityMessage(context, ref, status);
+                  }
+                  return const SizedBox.shrink();
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (error, stackTrace) => const SizedBox.shrink(),
+              ),
               
               // Products Section
               productsAsync.when(
@@ -260,202 +399,209 @@ class BestSellerWidget extends ConsumerWidget {
   }
 
   Widget _buildProductCard(BuildContext context, WidgetRef ref, ProductModel product) {
-    // Calculate discount percentage
-    final discount = product.productMrp - product.ourPrice;
-    final discountPercent = product.productMrp > 0 
-        ? ((discount / product.productMrp) * 100).round() 
-        : 0;
-    
-    // Get cart information
-    final cartItems = ref.watch(cartProvider);
-    final cartItem = cartItems.where((item) => 
-      item.product.pCode == product.pCode).toList();
-    
-    final bool isInCart = cartItem.isNotEmpty;
-    final int quantity = isInCart ? cartItem.first.quantity : 0;
-    
-    return GestureDetector(
-      onTap: () {
-        // Navigate to product detail page
-        context.push('/product/${product.pCode}');
-      },
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+  // Calculate discount percentage
+  final discount = product.productMrp - product.ourPrice;
+  final discountPercent = product.productMrp > 0 
+      ? ((discount / product.productMrp) * 100).round() 
+      : 0;
+  
+  // Get cart information
+  final cartItems = ref.watch(cartProvider);
+  final cartItem = cartItems.where((item) => 
+    item.product.pCode == product.pCode).toList();
+  
+  final bool isInCart = cartItem.isNotEmpty;
+  final int quantity = isInCart ? cartItem.first.quantity : 0;
+  
+  return Container(
+    width: 160,
+    margin: const EdgeInsets.symmetric(horizontal: 8),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.grey.shade200),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Product image with discount badge and favorite button
+        Stack(
           children: [
-            // Product image with discount badge and favorite button
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(8),
-                    topRight: Radius.circular(8),
-                  ),
-                  child: CachedNetworkImageWidget(
-                    imageUrl: product.pcodeImg,
+            InkWell(
+              onTap: () {
+                // Navigate to product detail page
+                context.push('/product/${product.pCode}');
+              },
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+                child: CachedNetworkImageWidget(
+                  imageUrl: product.pcodeImg,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.contain,
+                  errorWidget: Container(
                     height: 120,
                     width: double.infinity,
-                    fit: BoxFit.contain,
-                    errorWidget: Container(
-                      height: 120,
-                      width: double.infinity,
-                      color: Colors.grey[100],
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.shopping_bag_outlined,
-                            color: Colors.grey[400],
-                            size: 32,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Product image',
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                if (discountPercent > 0)
-                  Positioned(
-                    top: 0,
-                    right: 0, // Positioned on right instead of left to avoid overlap with favorite button
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(8),
-                          bottomLeft: Radius.circular(8),
+                    color: Colors.grey[100],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.shopping_bag_outlined,
+                          color: Colors.grey[400],
+                          size: 32,
                         ),
-                      ),
-                      child: Text(
-                        "${discountPercent}% OFF",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                // Properly positioned favorite button at top left with better styling
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Product image',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
-                    padding: const EdgeInsets.all(2),
-                    child: FavoriteButton(
-                      product: product,
-                      size: 18,
-                      activeColor: Colors.red,
-                      inactiveColor: Colors.grey.shade600,
-                      showSnackbarMessages: false, // Disable snackbar in horizontal scroll
+                  ),
+                ),
+              ),
+            ),
+            if (discountPercent > 0)
+              Positioned(
+                top: 0,
+                right: 0, // Positioned on right instead of left to avoid overlap with favorite button
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(8),
+                      bottomLeft: Radius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    "${discountPercent}% OFF",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-              ],
-            ),
-            
-            // Product details
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Product name
-                  Text(
-                    product.productName,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  const SizedBox(height: 4),
-                  
-                  // Package size
-                  Text(
-                    "${product.packageSize} ${product.packageUnit}",
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Price section
-                  Row(
-                    children: [
-                      Text(
-                        "₹${product.ourPrice.toStringAsFixed(0)}",
-                        style: AppTextStyles.bodyLarge.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (product.productMrp > product.ourPrice)
-                        Text(
-                          "₹${product.productMrp.toStringAsFixed(0)}",
-                          style: AppTextStyles.bodySmall.copyWith(
-                            decoration: TextDecoration.lineThrough,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
               ),
-            ),
-            
-            const Spacer(),
-            
-            // Add to cart button or quantity selector with manual input
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: isInCart
-                  ? _buildManualQuantitySelector(context, ref, product, quantity)
-                  : _buildAddToCartButton(ref, product),
+            // Properly positioned favorite button at top left with better styling
+            Positioned(
+              top: 8,
+              left: 8,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(2),
+                child: FavoriteButton(
+                  product: product,
+                  size: 18,
+                  activeColor: Colors.red,
+                  inactiveColor: Colors.grey.shade600,
+                  showSnackbarMessages: false, // Disable snackbar in horizontal scroll
+                ),
+              ),
             ),
           ],
         ),
-      ),
-    );
-  }
+        
+        // Product details
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Product name
+              Text(
+                product.productName,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              
+              const SizedBox(height: 4),
+              
+              // Package size
+              Text(
+                "${product.packageSize} ${product.packageUnit}",
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Price section
+              Row(
+                children: [
+                  Text(
+                    "₹${product.ourPrice.toStringAsFixed(0)}",
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (product.productMrp > product.ourPrice)
+                    Text(
+                      "₹${product.productMrp.toStringAsFixed(0)}",
+                      style: AppTextStyles.bodySmall.copyWith(
+                        decoration: TextDecoration.lineThrough,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        
+        const Spacer(),
+        
+        // Add to cart button or quantity selector with manual input
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: isInCart
+              ? _buildManualQuantitySelector(context, ref, product, quantity)
+              : _buildConditionalAddToCartButton(ref, product),
+        ),
+      ],
+    ),
+  );
+}
 
   // Manual quantity selector with improved styling to match product_item_widget
   Widget _buildManualQuantitySelector(BuildContext context, WidgetRef ref, ProductModel product, int quantity) {
+    // Check if cart operations are enabled
+    final isCartEnabled = ref.watch(isCartEnabledProvider);
+    
     return Container(
       height: 32, // Reduced height to match product_item_widget
       decoration: BoxDecoration(
@@ -466,20 +612,20 @@ class BestSellerWidget extends ConsumerWidget {
         children: [
           // Decrement button
           Material(
-            color: AppColors.primary,
+            color: isCartEnabled ? AppColors.primary : Colors.grey.shade300,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(3),
               bottomLeft: Radius.circular(3),
             ),
             child: InkWell(
-              onTap: () {
+              onTap: isCartEnabled ? () {
                 if (quantity > 1) {
                   ref.read(cartProvider.notifier).decrementQuantity(product);
                 } else {
                   // Remove item if quantity becomes 0
                   ref.read(cartProvider.notifier).removeItem(product);
                 }
-              },
+              } : null,
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(3),
                 bottomLeft: Radius.circular(3),
@@ -488,9 +634,9 @@ class BestSellerWidget extends ConsumerWidget {
                 width: 32, // Fixed width to match height
                 height: 32, // Fixed height
                 alignment: Alignment.center,
-                child: const Icon(
+                child: Icon(
                   Icons.remove,
-                  color: Colors.white,
+                  color: isCartEnabled ? Colors.white : Colors.grey.shade600,
                   size: 16, // Smaller icon size for better appearance
                 ),
               ),
@@ -501,12 +647,15 @@ class BestSellerWidget extends ConsumerWidget {
           Expanded(
             child: Container(
               height: 32,
-              color: Colors.white,
+              color: isCartEnabled ? Colors.white : Colors.grey.shade100,
               child: _ManualQuantityInput(
                 initialQuantity: quantity,
                 maxQuantity: product.maxQuantityAllowed,
+                enabled: isCartEnabled,
                 onQuantityChanged: (newQuantity) {
-                  _handleManualQuantityInput(context, ref, product, newQuantity);
+                  if (isCartEnabled) {
+                    _handleManualQuantityInput(context, ref, product, newQuantity);
+                  }
                 },
               ),
             ),
@@ -514,19 +663,19 @@ class BestSellerWidget extends ConsumerWidget {
           
           // Increment button
           Material(
-            color: AppColors.primary,
+            color: isCartEnabled ? AppColors.primary : Colors.grey.shade300,
             borderRadius: const BorderRadius.only(
               topRight: Radius.circular(3),
               bottomRight: Radius.circular(3),
             ),
             child: InkWell(
-              onTap: () {
+              onTap: isCartEnabled ? () {
                 if (quantity < product.maxQuantityAllowed) {
                   ref.read(cartProvider.notifier).incrementQuantity(product);
                 } else {
                   _showMaxQuantityMessage(context, product);
                 }
-              },
+              } : null,
               borderRadius: const BorderRadius.only(
                 topRight: Radius.circular(3),
                 bottomRight: Radius.circular(3),
@@ -535,9 +684,9 @@ class BestSellerWidget extends ConsumerWidget {
                 width: 32, // Fixed width to match height
                 height: 32, // Fixed height
                 alignment: Alignment.center,
-                child: const Icon(
+                child: Icon(
                   Icons.add,
-                  color: Colors.white,
+                  color: isCartEnabled ? Colors.white : Colors.grey.shade600,
                   size: 16, // Smaller icon size for better appearance
                 ),
               ),
@@ -548,33 +697,123 @@ class BestSellerWidget extends ConsumerWidget {
     );
   }
 
-  // Simple add to cart button with reduced height to match product_item_widget
-  Widget _buildAddToCartButton(WidgetRef ref, ProductModel product) {
+  // Updated add to cart button with conditional logic based on outlet status
+  Widget _buildConditionalAddToCartButton(WidgetRef ref, ProductModel product) {
+    final isCartEnabled = ref.watch(isCartEnabledProvider);
+    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
+    
+    return outletStatusAsync.when(
+      data: (status) {
+        // If outlet status is unknown, show normal button (fail-safe)
+        if (status == null) {
+          return _buildAddToCartButton(ref, product, isEnabled: true);
+        }
+        
+        // If cart is disabled due to outlet status, show disabled button
+        if (!isCartEnabled) {
+          return _buildDisabledAddToCartButton(status.statusMessage);
+        }
+        
+        // Normal add to cart button
+        return _buildAddToCartButton(ref, product, isEnabled: true);
+      },
+      loading: () => _buildLoadingAddToCartButton(),
+      error: (error, stackTrace) => _buildAddToCartButton(ref, product, isEnabled: true), // Fail-safe: allow cart on error
+    );
+  }
+
+  // Normal add to cart button with enabled/disabled state
+  Widget _buildAddToCartButton(WidgetRef ref, ProductModel product, {required bool isEnabled}) {
     return SizedBox(
       height: 32, // Reduced height to match product_item_widget
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () => ref.read(cartProvider.notifier).addItem(product),
-        icon: const Icon(
+        onPressed: isEnabled ? () => ref.read(cartProvider.notifier).addItem(product) : null,
+        icon: Icon(
           Icons.shopping_cart_outlined,
-          color: Colors.white,
+          color: isEnabled ? Colors.white : Colors.grey.shade600,
           size: 12, // Reduced icon size
         ),
-        label: const Text(
+        label: Text(
           "ADD",
           style: TextStyle(
-            color: Colors.white,
+            color: isEnabled ? Colors.white : Colors.grey.shade600,
             fontWeight: FontWeight.bold,
             fontSize: 11, // Reduced font size
           ),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: isEnabled ? AppColors.primary : Colors.grey.shade300,
           minimumSize: const Size(double.infinity, 32), // Reduced height
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
+          elevation: isEnabled ? 2 : 0,
+        ),
+      ),
+    );
+  }
+
+  // Disabled add to cart button with status message
+  Widget _buildDisabledAddToCartButton(String reason) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 32,
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: null,
+            icon: Icon(
+              Icons.block,
+              color: Colors.grey.shade600,
+              size: 12,
+            ),
+            label: Text(
+              "UNAVAILABLE",
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.bold,
+                fontSize: 10, // Smaller font for longer text
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey.shade200,
+              minimumSize: const Size(double.infinity, 32),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              elevation: 0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Loading add to cart button
+  Widget _buildLoadingAddToCartButton() {
+    return SizedBox(
+      height: 32,
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey.shade200,
+          minimumSize: const Size(double.infinity, 32),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          elevation: 0,
+        ),
+        child: SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.grey.shade500),
+          ),
         ),
       ),
     );
@@ -622,11 +861,13 @@ class BestSellerWidget extends ConsumerWidget {
 class _ManualQuantityInput extends StatefulWidget {
   final int initialQuantity;
   final int maxQuantity;
+  final bool enabled;
   final ValueChanged<int> onQuantityChanged;
 
   const _ManualQuantityInput({
     required this.initialQuantity,
     required this.maxQuantity,
+    required this.enabled,
     required this.onQuantityChanged,
   });
 
@@ -702,13 +943,14 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
         child: TextField(
           controller: _controller,
           focusNode: _focusNode,
+          enabled: widget.enabled,
           keyboardType: TextInputType.number,
           textAlign: TextAlign.center,
           maxLength: widget.maxQuantity.toString().length,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
-            color: Colors.black87,
+            color: widget.enabled ? Colors.black87 : Colors.grey.shade600,
           ),
           decoration: const InputDecoration(
             // Remove all borders and effects
@@ -748,13 +990,13 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
             _MaxQuantityInputFormatter(widget.maxQuantity),
           ],
           onSubmitted: (_) => _validateAndSubmit(),
-          onTap: () {
+          onTap: widget.enabled ? () {
             // Select all text when tapped for easy editing
             _controller.selection = TextSelection(
               baseOffset: 0,
               extentOffset: _controller.text.length,
             );
-          },
+          } : null,
         ),
       ),
     );

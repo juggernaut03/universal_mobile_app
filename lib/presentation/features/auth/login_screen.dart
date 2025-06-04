@@ -8,7 +8,6 @@ import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
-import '../../../core/widgets/back_button_wrapper.dart';
 import '../../providers/auth_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -49,6 +48,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.read(mobileNumberProvider.notifier).state = _mobileController.text;
   }
 
+  // Single navigation handler
+  void _handleBackNavigation() {
+    final logger = ref.read(loggerProvider);
+    logger.log('Back navigation from LoginScreen');
+    
+    try {
+      // Always go to home - don't go to redirect route on back navigation
+      // Users should only go to redirect route after successful login
+      context.go('/home');
+    } catch (e) {
+      logger.error('Error handling back navigation: $e');
+      // Fallback - try to pop or go to home
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
+    }
+  }
+
   Future<void> _requestOtp() async {
     // Clear any previous errors
     setState(() {
@@ -83,13 +102,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // Navigate to OTP validation screen with proper redirect route
       if (mounted) {
         // Use pushReplacement to prevent going back to login after OTP
-        context.pushReplacement(
-          '/auth/otp',
-          extra: {
-            'mobile': mobileNumber,
-            'redirectRoute': widget.redirectRoute, // Pass the redirect route through
-          },
-        );
+         context.pushReplacement(
+    '/auth/otp',
+    extra: {
+      'mobile': mobileNumber,
+      'redirectRoute': widget.redirectRoute, // ✅ Preserved
+    },
+  );
       }
     } catch (e) {
       // Be more specific about the error
@@ -114,27 +133,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = ResponsiveUtils.isSmall(context);
     
-    return BackButtonWrapper(
-      customExitMessage: widget.redirectRoute != null 
-          ? null 
-          : 'Press back again to exit',
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          _handleBackNavigation();
+        }
+      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Login'),
           centerTitle: true,
-          leading: widget.redirectRoute != null 
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    // Navigate back to the route that sent us here
-                    if (widget.redirectRoute != null) {
-                      context.go(widget.redirectRoute!);
-                    } else {
-                      context.go('/home');
-                    }
-                  },
-                )
-              : null,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _handleBackNavigation,
+          ),
         ),
         body: SafeArea(
           child: Center(
@@ -152,19 +165,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     'assets/images/patelLogo.png',
                     height: isSmallScreen ? 120 : 150,
                     fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => 
+                        const Icon(Icons.store, size: 120, color: AppColors.primary),
                   ),
                   
                   const SizedBox(height: 40),
                   
                   // Welcome Text
                   Text(
-                    'Welcome to PatelMart',
-                    style: AppTextStyles.h4.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+  "Welcome to Patel's R Mart",
+  style: AppTextStyles.h4.copyWith(
+    color: AppColors.primary,
+    fontWeight: FontWeight.bold,
+  ),
+  textAlign: TextAlign.center,
+),
                   
                   const SizedBox(height: 8),
                   
@@ -179,13 +194,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Show redirect context if coming from a specific screen
                   if (widget.redirectRoute != null) ...[
                     const SizedBox(height: 8),
-                    Text(
-                      'Login to access ${_getScreenNameFromRoute(widget.redirectRoute!)}',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                       ),
-                      textAlign: TextAlign.center,
+                      child: Text(
+                        'Login to access ${_getScreenNameFromRoute(widget.redirectRoute!)}',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ],
                   
@@ -234,6 +257,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: AppColors.error, width: 1),
+                          ),
                         ),
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
@@ -258,6 +289,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         disabledBackgroundColor: AppColors.primaryLight.withOpacity(0.7),
+                        elevation: 2,
                       ),
                       child: _isLoading
                           ? const SizedBox(
@@ -280,12 +312,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 24),
                   
                   // Terms & Conditions
-                  Text(
-                    'By continuing, you agree to our Terms of Service and Privacy Policy',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'By continuing, you agree to our Terms of Service and Privacy Policy',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -313,6 +348,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return 'address book';
       case '/checkout-flow':
         return 'checkout';
+      case '/savings':
+        return 'savings';
+      case '/reorder':
+        return 'reorder';
       default:
         return 'this feature';
     }

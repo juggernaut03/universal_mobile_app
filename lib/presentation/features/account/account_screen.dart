@@ -1,4 +1,5 @@
-// lib/presentation/features/account/account_screen.dart (updated with improved AppBar and Drawer)
+// lib/presentation/features/account/account_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,334 +15,351 @@ import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/best_seller_providers.dart';
 
-class AccountScreen extends ConsumerWidget {
+class AccountScreen extends ConsumerStatefulWidget {
   const AccountScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AccountScreen> createState() => _AccountScreenState();
+}
+
+class _AccountScreenState extends ConsumerState<AccountScreen> {
+  // Add loading state for auth check
+  bool _isCheckingAuth = true;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Perform auth check on init
+    _checkAuthStatus();
+  }
+
+  // Check authentication status and redirect if needed
+  Future<void> _checkAuthStatus() async {
     final logger = ref.read(loggerProvider);
+    logger.log('Checking authentication status on AccountScreen');
+    
+    try {
+      // Get auth repository and check login status
+      final authRepository = ref.read(authRepositoryProvider);
+      final isLoggedIn = await authRepository.isLoggedIn();
+      
+      logger.log('Authentication status: ${isLoggedIn ? 'Logged in' : 'Not logged in'}');
+      
+      if (mounted) {
+        setState(() {
+          _isLoggedIn = isLoggedIn;
+          _isCheckingAuth = false;
+        });
+        
+        // If not logged in, redirect to login
+        if (!isLoggedIn && mounted) {
+          logger.log('User not logged in, redirecting to login screen');
+          // Use push replacement to replace the current screen with login
+          context.pushReplacement('/auth/login?redirectRoute=/account');
+        }
+      }
+    } catch (e) {
+      logger.error('Error checking authentication status: $e');
+      if (mounted) {
+        setState(() {
+          _isCheckingAuth = false;
+          _isLoggedIn = false;
+        });
+        // Redirect to login on error
+        if (mounted) {
+          context.pushReplacement('/auth/login?redirectRoute=/account');
+        }
+      }
+    }
+  }
+
+  // Custom back navigation handler
+  Future<bool> _handleBackPress() async {
+    final logger = ref.read(loggerProvider);
+    logger.log('Hardware back button pressed on AccountScreen - navigating to home');
+    
+    try {
+      // Navigate to home using go
+      context.go('/home');
+      
+      // Return false to prevent default back navigation
+      return false;
+    } catch (e) {
+      logger.error('Error handling back navigation: $e');
+      // If go fails, try push as fallback
+      if (context.mounted) {
+        context.pushReplacement('/home');
+      }
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final logger = ref.read(loggerProvider);
+    // We still observe the async provider for UI updates, but don't use it for navigation decisions
     final isLoggedInAsync = ref.watch(isLoggedInProvider);
     final int _navIndex = 4; // Account tab selected by default
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildAppBar(context, ref),
-      drawer: _buildDrawer(context, ref),
-      
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                children: [
-                  // User Profile menu item
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.person_outline,
-                    title: 'My Profile',
-                    onTap: () {
-                      // Check login status before navigating to profile
-                      isLoggedInAsync.whenData((isLoggedIn) {
-                        if (isLoggedIn) {
-                          // If logged in, go to profile screen
-                          context.push('/profile');
-                        } else {
-                          // If not logged in, go to login screen first
-                          context.push('/auth/login', extra: {
-                            'redirectRoute': '/profile'
-                          });
-                        }
-                      });
-                    },
-                  ),
-                  _buildDivider(),
-                  
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.shopping_bag_outlined,
-                    title: 'My Orders',
-                    onTap: () {
-                      // Check login status before navigating
-                      isLoggedInAsync.whenData((isLoggedIn) {
-                        if (isLoggedIn) {
-                          // Navigate to orders if logged in
-                          context.push('/my-orders');
-                        } else {
-                          // Go to login first if not logged in
-                          context.push('/auth/login', extra: {
-                            'redirectRoute': '/my-orders'
-                          });
-                        }
-                      });
-                    },
-                  ),
-                  _buildDivider(),
-                  
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.bookmark_border_outlined,
-                    title: 'My Saved List',
-                    onTap: () {
-                      // Check login status
-                      isLoggedInAsync.whenData((isLoggedIn) {
-                        if (isLoggedIn) {
-                          // Navigate to saved list if logged in
-                          context.push('/favorites');
-                        } else {
-                          // Go to login first if not logged in
-                          context.push('/auth/login', extra: {
-                            'redirectRoute': '/favorites'
-                          });
-                        }
-                      });
-                    },
-                  ),
-                  _buildDivider(),
-                  
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.replay_outlined,
-                    title: 'Quick Reorder',
-                    onTap: () {
-                      // Check login status
-                      isLoggedInAsync.whenData((isLoggedIn) {
-                        if (isLoggedIn) {
-                          context.push('/reorder');
-                        } else {
-                          // Go to login first
-                          context.push('/auth/login', extra: {
-                            'redirectRoute': '/reorder'
-                          });
-                        }
-                      });
-                    },
-                  ),
-                  _buildDivider(),
-                  
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.location_on_outlined,
-                    title: 'My Addresses',
-                    onTap: () {
-                      // Check login status
-                      isLoggedInAsync.whenData((isLoggedIn) {
-                        if (isLoggedIn) {
-                          // Navigate to address book
-                          context.go('/address-book');
-                        } else {
-                          // Go to login first if not logged in
-                          context.push('/auth/login', extra: {
-                            'redirectRoute': '/address-book'
-                          });
-                        }
-                      });
-                    },
-                  ),
-                  _buildDivider(),
-                  
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.savings_outlined,
-                    title: 'My Savings',
-                    onTap: () {
-                      // Check login status
-                      isLoggedInAsync.whenData((isLoggedIn) {
-                        if (isLoggedIn) {
-                          context.push('/savings');
-                        } else {
-                          // Go to login first if not logged in
-                          context.push('/auth/login', extra: {
-                            'redirectRoute': '/savings'
-                          });
-                        }
-                      });
-                    },
-                  ),
-                  _buildDivider(),
-                  
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.chat_bubble_outline,
-                    title: 'Help @ Patel Rmart',
-                    onTap: () {
-                      // Navigate to help (no login required)
-                      context.push('/help-support');
-                    },
-                  ),
-                  _buildDivider(),
-                  
-                  // Conditionally show Sign In or Sign Out based on login status
-                  isLoggedInAsync.when(
-                    data: (isLoggedIn) {
-                      return isLoggedIn 
-                          ? _buildMenuItem(
-                              context,
-                              icon: Icons.logout,
-                              title: 'Sign Out',
-                              onTap: () {
-                                // Handle sign out
-                                _showSignOutConfirmation(context, ref);
-                              },
-                            )
-                          : _buildMenuItem(
-                              context,
-                              icon: Icons.login,
-                              title: 'Sign In',
-                              onTap: () {
-                                // Navigate to login
-                                context.push('/auth/login');
-                              },
-                            );
-                    },
-                    loading: () => const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                    error: (_, __) => _buildMenuItem(
-                      context,
-                      icon: Icons.login,
-                      title: 'Sign In',
-                      onTap: () {
-                        // Navigate to login on error
-                        context.push('/auth/login');
-                      },
-                    ),
-                  ),
-                  _buildDivider(),
-                  
-                  // Savings banner
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _buildSavingsBanner(context, ref),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    // Show loading indicator while checking auth
+    if (_isCheckingAuth) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Account'),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
         ),
-      ),
-      
-      bottomNavigationBar: BottomNavigationWidget(
-        currentIndex: _navIndex,
-        onTap: (index) {
-          if (_navIndex == index) return; // Don't navigate if already on this tab
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          final logger = ref.read(loggerProvider);
+          logger.log('PopScope: Back navigation intercepted - going to home');
           
-          switch (index) {
-            case 0: // Home
-              context.go('/home');
-              break;
-            case 1: // Category
-              context.go('/category');
-              break;
-            case 2: // Orders
-              context.push('/cart');
-              break;
-            case 3: // Reorder
-              if (context.mounted) context.go('/reorder');
-              break;
-            case 4: // Account
-              // Already on account, do nothing
-              break;
+          // Navigate to home
+          if (context.mounted) {
+            context.go('/home');
           }
-        },
+        }
+      },
+      child: WillPopScope(
+        onWillPop: () => _handleBackPress(),
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          appBar: _buildAppBar(context, ref),
+          drawer: _buildDrawer(context, ref),
+          
+          body: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    children: [
+                      // User Profile menu item
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.person_outline,
+                        title: 'My Profile',
+                        onTap: () {
+                          context.push('/profile');
+                        },
+                      ),
+                      _buildDivider(),
+                      
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.shopping_bag_outlined,
+                        title: 'My Orders',
+                        onTap: () {
+                          context.push('/my-orders');
+                        },
+                      ),
+                      _buildDivider(),
+                      
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.bookmark_border_outlined,
+                        title: 'My Saved List',
+                        onTap: () {
+                          context.push('/favorites');
+                        },
+                      ),
+                      _buildDivider(),
+                      
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.replay_outlined,
+                        title: 'Quick Reorder',
+                        onTap: () {
+                          context.push('/reorder');
+                        },
+                      ),
+                      _buildDivider(),
+                      
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.location_on_outlined,
+                        title: 'My Addresses',
+                        onTap: () {
+                          context.go('/address-book');
+                        },
+                      ),
+                      _buildDivider(),
+                      
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.savings_outlined,
+                        title: 'My Savings',
+                        onTap: () {
+                          context.push('/savings');
+                        },
+                      ),
+                      _buildDivider(),
+                      
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.chat_bubble_outline,
+                        title: 'Help @ Patel Rmart',
+                        onTap: () {
+                          // Navigate to help (no login required)
+                          context.push('/help-support');
+                        },
+                      ),
+                      _buildDivider(),
+                      
+                      // Always show Sign Out since we've already confirmed login status
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.logout,
+                        title: 'Sign Out',
+                        onTap: () {
+                          // Handle sign out
+                          _showSignOutConfirmation(context, ref);
+                        },
+                      ),
+                      _buildDivider(),
+                      
+                      // Savings banner
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: _buildSavingsBanner(context, ref),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          bottomNavigationBar: BottomNavigationWidget(
+            currentIndex: _navIndex,
+            onTap: (index) {
+              if (_navIndex == index) return; // Don't navigate if already on this tab
+              
+              switch (index) {
+                case 0: // Home
+                  context.go('/home');
+                  break;
+                case 1: // Category
+                  context.go('/category');
+                  break;
+                case 2: // Orders
+                  context.push('/cart');
+                  break;
+                case 3: // Reorder
+                  if (context.mounted) context.go('/reorder');
+                  break;
+                case 4: // Account
+                  // Already on account, do nothing
+                  break;
+              }
+            },
+          ),
+        ),
       ),
     );
   }
 
- PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
-  final cartCount = ref.watch(cartCountProvider);
-  final logger = ref.read(loggerProvider);
-  
-  return AppBar(
-    backgroundColor: AppColors.primary,
-    foregroundColor: Colors.white,
-    elevation: 0,
-    centerTitle: false, // Change to false to align title to the left
-    title: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Image.asset(
-          'assets/images/patelLogo.png',
-          height: 42, // Increased from 32 to 40
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            logger.error('Error loading logo: $error');
-            return const Icon(Icons.store, color: Colors.white, size: 40);
-          },
-        ),
-      ],
-    ),
-    titleSpacing: 0, // Reduce spacing to move logo closer to drawer icon
-    leading: Builder(
-      builder: (context) => IconButton(
-        icon: const Icon(Icons.menu, color: Colors.white),
-        onPressed: () {
-          Scaffold.of(context).openDrawer();
-        },
-      ),
-    ),
-    actions: [
-      // Wishlist/Favorites icon
-      IconButton(
-        icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
-        onPressed: () {
-          logger.log('Favorites button pressed from account screen');
-          if (context.mounted) {
-            context.push('/favorites');
-          }
-        },
-      ),
-      // Cart icon with badge
-      Stack(
-        clipBehavior: Clip.none,
+  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
+    final cartCount = ref.watch(cartCountProvider);
+    final logger = ref.read(loggerProvider);
+    
+    return AppBar(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      centerTitle: false, // Change to false to align title to the left
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-            onPressed: () {
-              logger.log('Cart button pressed from account screen');
-              if (context.mounted) {
-                context.push('/cart');
-              }
+          Image.asset(
+            'assets/images/patelLogo.png',
+            height: 42, // Increased from 32 to 40
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              logger.error('Error loading logo: $error');
+              return const Icon(Icons.store, color: Colors.white, size: 40);
             },
           ),
-          if (cartCount > 0)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                child: Text(
-                  cartCount.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
         ],
       ),
-    ],
-  );
-}
+      titleSpacing: 0, // Reduce spacing to move logo closer to drawer icon
+      leading: Builder(
+        builder: (context) => IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () {
+            Scaffold.of(context).openDrawer();
+          },
+        ),
+      ),
+      actions: [
+        // Wishlist/Favorites icon
+        IconButton(
+          icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
+          onPressed: () {
+            logger.log('Favorites button pressed from account screen');
+            if (context.mounted) {
+              context.push('/favorites');
+            }
+          },
+        ),
+        // Cart icon with badge
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+              onPressed: () {
+                logger.log('Cart button pressed from account screen');
+                if (context.mounted) {
+                  context.push('/cart');
+                }
+              },
+            ),
+            if (cartCount > 0)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    cartCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildDrawer(BuildContext context, WidgetRef ref) {
     final selectedOutletAsync = ref.watch(selectedOutletProvider);
     final logger = ref.read(loggerProvider);
     final cartCount = ref.watch(cartCountProvider);
     final cartTotal = ref.watch(cartTotalProvider);
-    final isLoggedInAsync = ref.watch(isLoggedInProvider);
+    final userProfileAsync = ref.watch(userProfileProvider);
     
     return Drawer(
       child: Column(
@@ -363,9 +381,9 @@ class AccountScreen extends ConsumerWidget {
                       },
                     ),
                     // Show user status based on login
-                    isLoggedInAsync.when(
-                      data: (isLoggedIn) => Text(
-                        isLoggedIn ? 'Hi, User' : 'Hi, Guest',
+                    userProfileAsync.when(
+                      data: (userProfile) => Text(
+                        userProfile != null ? 'Hi, ${userProfile.mobile}' : 'Hi, Guest',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -373,7 +391,7 @@ class AccountScreen extends ConsumerWidget {
                         ),
                       ),
                       loading: () => const Text(
-                        'Hi, Guest',
+                        'Hi, User',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -381,7 +399,7 @@ class AccountScreen extends ConsumerWidget {
                         ),
                       ),
                       error: (_, __) => const Text(
-                        'Hi, Guest',
+                        'Hi, User',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -577,26 +595,6 @@ class AccountScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 
-                ListTile(
-                  leading: Icon(Icons.refresh, color: AppColors.primary),
-                  title: const Text('Refresh All Best Sellers'),
-                  onTap: () async {
-                    logger.log('Refresh Best Sellers pressed from account drawer');
-                    Navigator.pop(context);
-                    await ref.read(bestSellerRefreshProvider)();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Best seller data refreshed'),
-                          duration: const Duration(seconds: 2),
-                          backgroundColor: AppColors.primary,
-                        ),
-                      );
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Text(
@@ -652,8 +650,6 @@ class AccountScreen extends ConsumerWidget {
   }
 
   Widget _buildSavingsBanner(BuildContext context, WidgetRef ref) {
-    final isLoggedInAsync = ref.watch(isLoggedInProvider);
-    
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFD1EAD5), // Light mint green color
@@ -684,18 +680,7 @@ class AccountScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
-                  onPressed: () {
-                    // Check login status before navigating to savings
-                    isLoggedInAsync.whenData((isLoggedIn) {
-                      if (isLoggedIn) {
-                        context.push('/savings');
-                      } else {
-                        context.push('/auth/login', extra: {
-                          'redirectRoute': '/savings'
-                        });
-                      }
-                    });
-                  },
+                  onPressed: () => context.push('/savings'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -759,6 +744,8 @@ class AccountScreen extends ConsumerWidget {
                     backgroundColor: Colors.green,
                   ),
                 );
+                // After logout, push to login screen
+                context.pushReplacement('/home');
               }
             },
             style: ElevatedButton.styleFrom(

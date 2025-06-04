@@ -13,6 +13,7 @@ import '../../../core/widgets/cached_network_image_widget.dart';
 import '../../../data/models/product_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/launch_flow_provider.dart';
+import '../../providers/outlet_status_provider.dart'; // Add this import for outlet status
 import 'widgets/suggested_product_card.dart';
 
 class SingleProductScreen extends ConsumerStatefulWidget {
@@ -214,6 +215,48 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
     );
   }
   
+  // Build unavailability message widget
+  Widget _buildUnavailabilityMessage(dynamic status) {
+    String message;
+    Color textColor;
+    
+    // Determine message and styling based on outlet status
+    if (!status.isEnabled) {
+      message = "UNAVAILABLE";
+      textColor = AppColors.error;
+    } else if (!status.hasAnyServiceAvailable) {
+      message = "UNAVAILABLE";
+      textColor = AppColors.warning;
+    } else if (status.hasDeliveryOnly) {
+      message = "DELIVERY ONLY";
+      textColor = AppColors.info;
+    } else if (status.hasPickupOnly) {
+      message = "PICKUP ONLY";
+      textColor = AppColors.info;
+    } else {
+      // This shouldn't happen if cart is disabled, but just in case
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      height: 48,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(4), // Changed from 8 to 4 to match
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        message,
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     // Get cart information
@@ -224,6 +267,10 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
     final bool isInCart = cartItem.isNotEmpty;
     final int currentQuantity = isInCart ? cartItem.first.quantity : 0;
     final cartCount = ref.watch(cartCountProvider);
+    
+    // Check if cart is enabled from outlet status
+    final isCartEnabled = ref.watch(isCartEnabledProvider);
+    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -324,9 +371,32 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
                   // Quantity selector on the left
                   Expanded(
                     flex: 2,
-                    child: isInCart
-                        ? _buildManualQuantitySelector(currentQuantity)
-                        : _buildAddToCartButton(),
+                    child: outletStatusAsync.when(
+                      data: (status) {
+                        // If outlet status is unknown, show normal buttons (fail-safe)
+                        if (status == null) {
+                          return isInCart
+                              ? _buildManualQuantitySelector(currentQuantity, true)
+                              : _buildAddToCartButton(true);
+                        }
+                        
+                        // If cart is disabled due to outlet status, show disabled state
+                        if (!isCartEnabled) {
+                          return _buildUnavailabilityMessage(status);
+                        }
+                        
+                        // Normal add to cart button or quantity selector
+                        return isInCart
+                            ? _buildManualQuantitySelector(currentQuantity, true)
+                            : _buildAddToCartButton(true);
+                      },
+                      loading: () => isInCart
+                          ? _buildManualQuantitySelector(currentQuantity, true)
+                          : _buildAddToCartButton(true),
+                      error: (error, stackTrace) => isInCart
+                          ? _buildManualQuantitySelector(currentQuantity, true)
+                          : _buildAddToCartButton(true),
+                    ),
                   ),
                   
                   const SizedBox(width: 16),
@@ -343,7 +413,7 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
                           foregroundColor: Colors.white,
                           elevation: 2,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(4), // Changed from 8 to 4
                           ),
                         ),
                         icon: Stack(
@@ -389,88 +459,92 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
     );
   }
 
-  // Manual quantity selector with text input capability
-  Widget _buildManualQuantitySelector(int quantity) {
+  // Manual quantity selector - FIXED to match best_seller_screen style
+  Widget _buildManualQuantitySelector(int quantity, bool enabled) {
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4), // Changed from 8 to 4
         border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: Row(
         children: [
           // Decrement button
-          GestureDetector(
-            onTap: () {
-              if (quantity > 1) {
-                ref.read(cartProvider.notifier).decrementQuantity(_product!);
-              } else {
-                // Remove item if quantity becomes 0
-                ref.read(cartProvider.notifier).removeItem(_product!);
-              }
-            },
-            child: Container(
-              width: 40,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(7),
-                  bottomLeft: Radius.circular(7),
-                ),
+          Material(
+            color: enabled ? AppColors.primary : Colors.grey.shade300,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(3),
+              bottomLeft: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: enabled ? () {
+                if (quantity > 1) {
+                  ref.read(cartProvider.notifier).decrementQuantity(_product!);
+                } else {
+                  // Remove item if quantity becomes 0
+                  ref.read(cartProvider.notifier).removeItem(_product!);
+                }
+              } : null,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(3),
+                bottomLeft: Radius.circular(3),
               ),
-              child: const Icon(
-                Icons.remove,
-                color: Colors.white,
-                size: 20,
+              child: Container(
+                width: 48, // Fixed width to match height
+                height: 48,
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.remove,
+                  color: enabled ? Colors.white : Colors.grey.shade600,
+                  size: 20,
+                ),
               ),
             ),
           ),
           
-          // Manual quantity input field
+          // Manual quantity input field with improved centering
           Expanded(
             child: Container(
               height: 48,
-              alignment: Alignment.center,
-              color: Colors.white,
+              color: enabled ? Colors.white : Colors.grey.shade100,
+              alignment: Alignment.center, // Add alignment to center
               child: _ManualQuantityInput(
                 initialQuantity: quantity,
                 maxQuantity: _product!.maxQuantityAllowed,
+                enabled: enabled,
                 onQuantityChanged: _handleManualQuantityInput,
               ),
             ),
           ),
           
           // Increment button
-          GestureDetector(
-            onTap: () {
-              if (quantity < _product!.maxQuantityAllowed) {
-                ref.read(cartProvider.notifier).incrementQuantity(_product!);
-              } else {
-                _showMaxQuantityMessage();
-              }
-            },
-            child: Container(
-              width: 40,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(7),
-                  bottomRight: Radius.circular(7),
-                ),
+          Material(
+            color: enabled ? AppColors.primary : Colors.grey.shade300,
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(3),
+              bottomRight: Radius.circular(3),
+            ),
+            child: InkWell(
+              onTap: enabled ? () {
+                if (quantity < _product!.maxQuantityAllowed) {
+                  ref.read(cartProvider.notifier).incrementQuantity(_product!);
+                } else {
+                  _showMaxQuantityMessage();
+                }
+              } : null,
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(3),
+                bottomRight: Radius.circular(3),
               ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 20,
+              child: Container(
+                width: 48, // Fixed width to match height
+                height: 48,
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.add,
+                  color: enabled ? Colors.white : Colors.grey.shade600,
+                  size: 20,
+                ),
               ),
             ),
           ),
@@ -479,28 +553,41 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
     );
   }
 
-  // Simple add to cart button (when item is not in cart)
-  Widget _buildAddToCartButton() {
+  // Simple add to cart button - matching best_seller_screen style
+  Widget _buildAddToCartButton(bool enabled) {
     return SizedBox(
       height: 48,
-      width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () => ref.read(cartProvider.notifier).addItem(_product!),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+        onPressed: enabled ? _addToCart : null,
+        icon: Icon(
+          Icons.shopping_cart_outlined,
+          color: enabled ? Colors.white : Colors.grey.shade600,
+          size: 18,
+        ),
+        label: Text(
+          "ADD",
+          style: TextStyle(
+            color: enabled ? Colors.white : Colors.grey.shade600,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        icon: const Icon(Icons.add_shopping_cart_outlined),
-        label: const Text(
-          "ADD TO CART",
-          style: TextStyle(fontWeight: FontWeight.bold),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: enabled ? AppColors.primary : Colors.grey.shade300,
+          minimumSize: const Size(double.infinity, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4), // Changed from 8 to 4
+          ),
+          elevation: enabled ? 2 : 0,
         ),
       ),
     );
+  }
+  
+  // Add to cart helper method
+  void _addToCart() {
+    if (_product != null) {
+      ref.read(cartProvider.notifier).addItem(_product!);
+    }
   }
   
   Widget _buildProductDetails() {
@@ -841,16 +928,18 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
   }
 }
 
-// Custom manual quantity input widget
+// Custom manual quantity input widget - FIXED to match best_seller_screen
 class _ManualQuantityInput extends StatefulWidget {
   final int initialQuantity;
   final int maxQuantity;
   final ValueChanged<int> onQuantityChanged;
+  final bool enabled;
 
   const _ManualQuantityInput({
     required this.initialQuantity,
     required this.maxQuantity,
     required this.onQuantityChanged,
+    this.enabled = true,
   });
 
   @override
@@ -917,36 +1006,70 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      keyboardType: TextInputType.number,
-      textAlign: TextAlign.center,
-      maxLength: widget.maxQuantity.toString().length,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-        color: Colors.black87,
+    return Container(
+      // Add alignment to center the TextField both horizontally and vertically
+      alignment: Alignment.center,
+      child: Material(
+        color: Colors.transparent,
+        child: TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          enabled: widget.enabled,
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          maxLength: widget.maxQuantity.toString().length,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: widget.enabled ? Colors.black87 : Colors.grey.shade600,
+          ),
+          decoration: const InputDecoration(
+            // Remove all borders and effects
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            
+            // Remove padding and set isCollapsed to true to ensure proper vertical centering
+            contentPadding: EdgeInsets.zero,
+            isDense: true,
+            isCollapsed: true,
+            
+            // Hide counter
+            counterText: '',
+            
+            // Remove fill color
+            filled: false,
+            fillColor: Colors.transparent,
+            
+            // Remove helper text space
+            helperText: null,
+            
+            // Disable hover effects
+            hoverColor: Colors.transparent,
+          ),
+          
+          // Disable cursor and selection handles on mobile for better UX
+          showCursor: false,
+          enableInteractiveSelection: false,
+          
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
+            _MaxQuantityInputFormatter(widget.maxQuantity),
+          ],
+          onSubmitted: (_) => _validateAndSubmit(),
+          onTap: widget.enabled ? () {
+            // Select all text when tapped for easy editing
+            _controller.selection = TextSelection(
+              baseOffset: 0,
+              extentOffset: _controller.text.length,
+            );
+          } : null,
+        ),
       ),
-      decoration: const InputDecoration(
-        border: InputBorder.none,
-        counterText: '', // Hide character counter
-        contentPadding: EdgeInsets.zero,
-        isDense: true,
-      ),
-      inputFormatters: [
-        FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(widget.maxQuantity.toString().length),
-        _MaxQuantityInputFormatter(widget.maxQuantity),
-      ],
-      onSubmitted: (_) => _validateAndSubmit(),
-      onTap: () {
-        // Select all text when tapped for easy editing
-        _controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _controller.text.length,
-        );
-      },
     );
   }
 }
