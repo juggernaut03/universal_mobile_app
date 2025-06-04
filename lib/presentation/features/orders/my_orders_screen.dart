@@ -163,7 +163,7 @@ class MyOrdersScreen extends ConsumerWidget {
                     context,
                     icon: Icons.refresh,
                     iconColor: Colors.blue,
-                    title: 'Quick Reorder',
+                    title: 'Reorder',
                     subtitle: 'From Past Orders',
                     onTap: () => context.push('/reorder'),
                   ),

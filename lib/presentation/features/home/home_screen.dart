@@ -1,8 +1,9 @@
-// lib/presentation/features/home/optimized_home_screen.dart
+// lib/presentation/features/home/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:patelmart/core/widgets/bottom_navigation_widget.dart';
 import 'package:patelmart/core/widgets/header_widget.dart';
 import 'package:patelmart/core/widgets/search_widget.dart';
@@ -14,10 +15,47 @@ import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widg
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/logger.dart';
+import '../../../data/repositories/profile_repository.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/cart_provider.dart';
+
+// Provider for the profile repository (add this if not already present)
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
+  final logger = ref.watch(loggerProvider);
+  return ProfileRepository(
+    client: http.Client(),
+    logger: logger,
+  );
+});
+
+// Provider to fetch user profile details from API for drawer
+final drawerUserProfileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final authRepository = ref.read(authRepositoryProvider);
+  final userProfile = await authRepository.getUserProfile();
+  
+  if (userProfile == null) {
+    return {};
+  }
+  
+  final profileRepository = ref.read(profileRepositoryProvider);
+  try {
+    final profileData = await profileRepository.getUserProfile(
+      userProfile.mobile,
+      userProfile.accessKey,
+    );
+    return profileData;
+  } catch (e) {
+    // Return basic info if API call fails
+    return {
+      'mobile_number': userProfile.mobile,
+      'first_name': '',
+      'last_name': '',
+    };
+  }
+});
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -257,36 +295,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildAppBarContent() {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Row(
-      children: [
-        // Menu button
-        Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Menu button
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
           ),
-        ),
-        
-        // Logo - aligned after the drawer icon instead of centered
-        Image.asset(
-          'assets/images/patelLogo.png',
-          height: 42,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => 
-              const Icon(Icons.store, color: Colors.white, size: 42),
-        ),
-        
-        // Spacer to push action buttons to the right
-        const Spacer(),
-        
-        // Action buttons
-        _buildActionButtons(),
-      ],
-    ),
-  );
-}
+          
+          // Logo - aligned after the drawer icon instead of centered
+          Image.asset(
+            'assets/images/patelLogo.png',
+            height: 42,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => 
+                const Icon(Icons.store, color: Colors.white, size: 42),
+          ),
+          
+          // Spacer to push action buttons to the right
+          const Spacer(),
+          
+          // Action buttons
+          _buildActionButtons(),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionButtons() {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -432,8 +471,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
 
-        // Spacing
-        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        // REDUCED SPACING: Smaller gap after search
+        const SliverToBoxAdapter(child: SizedBox(height: 8)), // Reduced from 16 to 8
 
         // Popular Categories - using RepaintBoundary for better performance
         SliverToBoxAdapter(
@@ -444,24 +483,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               showViewAll: false,
               itemWidth: 110,
               itemHeight: 120,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding from 8 to 4
               spacing: 12,
             ),
           ),
         ),
 
+        // MINIMAL SPACING: Very small gap between categories and banner
+        const SliverToBoxAdapter(child: SizedBox(height: 4)), // Added minimal spacing
+
         // Promotional Banner - wrapped in RepaintBoundary
         SliverToBoxAdapter(
           child: RepaintBoundary(
-            child: PromotionalBannerWidget(
-              height: 300,
-              autoPlay: true,
-              autoPlayInterval: const Duration(seconds: 4),
-              fadeTransitionDuration: const Duration(milliseconds: 800),
-              showPageIndicator: true,
-              indicatorActiveColor: AppColors.primary,
-              indicatorInactiveColor: Colors.white.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(10),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical margin
+              child: PromotionalBannerWidget(
+                height: 300,
+                autoPlay: true,
+                autoPlayInterval: const Duration(seconds: 4),
+                fadeTransitionDuration: const Duration(milliseconds: 800),
+                showPageIndicator: true,
+                indicatorActiveColor: AppColors.primary,
+                indicatorInactiveColor: Colors.white.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ),
@@ -589,23 +634,120 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Top row with back button and greeting
           Row(
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
-              const Text(
-                'Hi, Guest',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final isLoggedInAsync = ref.watch(isLoggedInProvider);
+                    final userProfileAsync = ref.watch(drawerUserProfileProvider);
+                    
+                    return isLoggedInAsync.when(
+                      data: (isLoggedIn) {
+                        if (!isLoggedIn) {
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              context.go('/auth/login');
+                            },
+                            child: const Text(
+                              'Hi, Guest (Tap to Login)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        // User is logged in, show profile name
+                        return userProfileAsync.when(
+                          data: (profileData) {
+                            // Extract username from profile data
+                            String username = 'User'; // Default fallback
+                            
+                            if (profileData.isNotEmpty) {
+                              // Try to construct full name from first and last name
+                              final firstName = profileData['first_name']?.toString().trim() ?? '';
+                              final lastName = profileData['last_name']?.toString().trim() ?? '';
+                              
+                              if (firstName.isNotEmpty && lastName.isNotEmpty) {
+                                username = '$firstName $lastName';
+                              } else if (firstName.isNotEmpty) {
+                                username = firstName;
+                              } else if (lastName.isNotEmpty) {
+                                username = lastName;
+                              } else {
+                                // If no name data, try to use mobile number as fallback
+                                final mobile = profileData['mobile_number']?.toString() ?? '';
+                                if (mobile.isNotEmpty) {
+                                  // Show only last 4 digits for privacy
+                                  username = mobile.length > 4 ? '***${mobile.substring(mobile.length - 4)}' : mobile;
+                                }
+                              }
+                            }
+                            
+                            return Text(
+                              'Hi, $username',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
+                          loading: () => const Text(
+                            'Hi, ',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          error: (error, _) => const Text(
+                            'Hi, User',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      },
+                      loading: () => const Text(
+                        'Hi, Guest',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      error: (error, _) => const Text(
+                        'Hi, Guest',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
           
+          const SizedBox(height: 8),
+          
+          // Location row
           Consumer(
             builder: (context, ref, _) {
               final selectedPincode = ref.watch(selectedPincodeProvider);
@@ -632,13 +774,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             },
           ),
           
-          Image.asset(
-            'assets/images/patelLogo.png',
-            height: 40,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.store, color: Colors.white, size: 40),
-          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -677,9 +813,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         onTap: () => _navigateFromDrawer('/help-support'),
       ),
       _DrawerItem(
+        icon: Icons.description_outlined,
+        title: 'Refund,Terms and Policies',
+        onTap: () => _navigateFromDrawer('/refund'),
+      ),
+      _DrawerItem(
+        icon: Icons.chat_bubble_outline,
+        title: 'Frequently Asked Questions',
+        onTap: () => _navigateFromDrawer('/faq'),
+      ),
+      
+      _DrawerItem(
         icon: Icons.info_outline,
         title: 'About Us',
-        onTap: () => _navigateFromDrawer('/debug/notifications'),
+        onTap: () => _navigateFromDrawer('/about-us'),
       ),
       _DrawerItem(
         icon: Icons.store,

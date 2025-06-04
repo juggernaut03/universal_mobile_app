@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
+import '../../../core/widgets/back_button_wrapper.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/services/cart_validator.dart';
 import '../../providers/cart_provider.dart';
@@ -22,6 +23,27 @@ import 'package:patelmart/presentation/providers/cart_validator_provider.dart' a
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({Key? key}) : super(key: key);
+
+  // Custom back navigation handler - matches the pattern from category screen
+  Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {
+    final logger = ref.read(loggerProvider);
+    logger.log('Hardware back button pressed on CartScreen - navigating to home');
+    
+    try {
+      // Navigate to home using go
+      context.go('/home');
+      
+      // Return false to prevent default back navigation
+      return false;
+    } catch (e) {
+      logger.error('Error handling back navigation: $e');
+      // If go fails, try push as fallback
+      if (context.mounted) {
+        context.pushReplacement('/home');
+      }
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,159 +68,171 @@ class CartScreen extends ConsumerWidget {
     // Saved for later items (mock data for demonstration)
     final savedItems = 1;
     
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: _buildEnhancedAppBar(context, ref),
-      body: Column(
-        children: [
-          // Add the Cart Session Info Widget for visual feedback on session state
-        
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          final logger = ref.read(loggerProvider);
+          logger.log('PopScope: Back navigation intercepted on CartScreen - going to home');
           
-          // Cart Summary section
-          _buildCartSummary(context, cartSavings, cartTotal),
-          
-          // Divider
-          const Divider(height: 1),
-          
-          // Main content - scrollable
-          Expanded(
-            child: cartItems.isEmpty
-                ? _buildEmptyCart(context)
-                : _buildCartContent(context, ref, cartItems, backInStockItems, savedItems),
-          ),
-          
-          // Checkout button
-          if (cartItems.isNotEmpty)
-            _buildCheckoutButton(
-              context, 
-              ref,
-              canCheckout: canCheckout, 
-              cartTotal: cartTotal,
-              cartValidationState: cartValidationState,
-              minimumOrderValue: minimumOrderValue,
+          // Navigate to home
+          if (context.mounted) {
+            context.go('/home');
+          }
+        }
+      },
+      child: WillPopScope(
+        onWillPop: () => _handleBackPress(context, ref),
+        child: BackButtonWrapper(
+          child: Scaffold(
+            backgroundColor: Colors.white,
+            appBar: _buildEnhancedAppBar(context, ref),
+            body: Column(
+              children: [
+                // Add the Cart Session Info Widget for visual feedback on session state
+                
+                // Cart Summary section
+                _buildCartSummary(context, cartSavings, cartTotal),
+                
+                // Divider
+                const Divider(height: 1),
+                
+                // Main content - scrollable
+                Expanded(
+                  child: cartItems.isEmpty
+                      ? _buildEmptyCart(context)
+                      : _buildCartContent(context, ref, cartItems, backInStockItems, savedItems),
+                ),
+                
+                // Checkout button
+                if (cartItems.isNotEmpty)
+                  _buildCheckoutButton(
+                    context, 
+                    ref,
+                    canCheckout: canCheckout, 
+                    cartTotal: cartTotal,
+                    cartValidationState: cartValidationState,
+                    minimumOrderValue: minimumOrderValue,
+                  ),
+              ],
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
 
   PreferredSizeWidget _buildEnhancedAppBar(BuildContext context, WidgetRef ref) {
-  final cartCount = ref.watch(cartCountProvider);
-  final cartTotal = ref.watch(cartTotalProvider);
-  final logger = ref.read(loggerProvider);
-  
-  return AppBar(
-    backgroundColor: AppColors.primary,
-    elevation: 0,
-    leading: IconButton(
-      icon: const Icon(Icons.arrow_back, color: Colors.white),
-      onPressed: () {
-        logger.log('Cart back button pressed');
-        // Use context.canPop() to check if we can go back, otherwise go to home
-        if (context.canPop()) {
-          context.pop();
-        } else {
-          // If we can't pop (e.g., deep link directly to cart), go to home
-          context.go('/home');
-        }
-      },
-    ),
-    title: const Text(
-      'Cart',
-      style: TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w500,
-      ),
-    ),
-    centerTitle: true,
-    actions: [
-      // Favorites/Wishlist icon
-      IconButton(
-        icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
+    final cartCount = ref.watch(cartCountProvider);
+    final cartTotal = ref.watch(cartTotalProvider);
+    final logger = ref.read(loggerProvider);
+    
+    return AppBar(
+      backgroundColor: AppColors.primary,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () {
-          logger.log('Favorites button pressed from cart');
-          context.push('/favorites');
+          logger.log('Cart back button pressed');
+          // Use the same navigation logic as the hardware back button
+          _handleBackPress(context, ref);
         },
-        tooltip: 'View Favorites',
       ),
-      
-      // Simplified Cart icon with only quantity badge
-      Stack(
-        alignment: Alignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart, color: Colors.white),
-            onPressed: () {
-              // Already in cart screen, show current cart status
-              if (cartCount > 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'You have ${cartCount} item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(0)})',
+      title: const Text(
+        'Cart',
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        // Favorites/Wishlist icon
+        IconButton(
+          icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
+          onPressed: () {
+            logger.log('Favorites button pressed from cart');
+            context.push('/favorites');
+          },
+          tooltip: 'View Favorites',
+        ),
+        
+        // Simplified Cart icon with only quantity badge
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.shopping_cart, color: Colors.white),
+              onPressed: () {
+                // Already in cart screen, show current cart status
+                if (cartCount > 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'You have ${cartCount} item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(0)})',
+                      ),
+                      duration: const Duration(seconds: 2),
+                      backgroundColor: AppColors.primary,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    duration: const Duration(seconds: 2),
-                    backgroundColor: AppColors.primary,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Your cart is empty'),
+                      duration: Duration(seconds: 2),
+                      backgroundColor: Colors.grey,
+                      behavior: SnackBarBehavior.floating,
                     ),
+                  );
+                }
+              },
+              tooltip: 'Cart Summary',
+            ),
+            
+            // Simple quantity badge - only shows count
+            if (cartCount > 0)
+              Positioned(
+                top: 4,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
                   ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Your cart is empty'),
-                    duration: Duration(seconds: 2),
-                    backgroundColor: Colors.grey,
-                    behavior: SnackBarBehavior.floating,
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
                   ),
-                );
-              }
-            },
-            tooltip: 'Cart Summary',
-          ),
-          
-          // Simple quantity badge - only shows count
-          if (cartCount > 0)
-            Positioned(
-              top: 4,
-              right: 6,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 2,
-                      offset: const Offset(0, 1),
+                  child: Text(
+                    cartCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 20,
-                  minHeight: 20,
-                ),
-                child: Text(
-                  cartCount.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
-        ],
-      ),
-      
-      const SizedBox(width: 8),
-    ],
-  );
-}
-
+          ],
+        ),
+        
+        const SizedBox(width: 8),
+      ],
+    );
+  }
 
   /// Format cart total for display in badge
   String _formatCartTotal(double total) {
@@ -707,7 +741,7 @@ class CartScreen extends ConsumerWidget {
     if (context.mounted) {
       if (isLoggedIn) {
         // User is logged in, proceed to the new checkout flow
-        context.push('/checkout-flow');
+       context.push('/checkout-flow');
       } else {
         // User is not logged in, show login screen with redirect
         context.push(

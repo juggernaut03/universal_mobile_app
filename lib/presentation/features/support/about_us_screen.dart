@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/core/widgets/back_button_wrapper.dart';
+import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/cached_network_image_widget.dart';
@@ -10,111 +11,149 @@ import '../../../core/widgets/cached_network_image_widget.dart';
 class AboutUsScreen extends ConsumerWidget {
   const AboutUsScreen({Key? key}) : super(key: key);
 
+  // Custom back navigation handler
+  Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {
+    final logger = ref.read(loggerProvider);
+    logger.log('Hardware back button pressed on AboutUsScreen - navigating to home');
+    
+    try {
+      // Navigate to home using go
+      context.go('/home');
+      
+      // Return false to prevent default back navigation
+      return false;
+    } catch (e) {
+      logger.error('Error handling back navigation: $e');
+      // If go fails, try push as fallback
+      if (context.mounted) {
+        context.pushReplacement('/home');
+      }
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-   return Scaffold(
-    appBar: AppBar(
-      title: const Text('About Us'),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () {
-          if (Navigator.canPop(context)) {
-            context.pop();
-          } else {
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          final logger = ref.read(loggerProvider);
+          logger.log('PopScope: Back navigation intercepted on AboutUsScreen - going to home');
+          
+          // Navigate to home
+          if (context.mounted) {
             context.go('/home');
           }
-        },
-      ),
-    ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Logo and tagline
-            Container(
-              color: AppColors.neutral100,
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Column(
-                children: [
-                  Image.asset(
-                    'assets/images/patelLogo.png',
-                    height: 60,
+        }
+      },
+      child: WillPopScope(
+        onWillPop: () => _handleBackPress(context, ref),
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('About Us'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
+              },
+            ),
+          ),
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Logo and tagline
+                Container(
+                  color: AppColors.neutral100,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Column(
+                    children: [
+                      Image.asset(
+                        'assets/images/patelLogo.png',
+                        height: 60,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your daily partner!',
+                        style: AppTextStyles.h6.copyWith(
+                          color: AppColors.textSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Your daily partner!',
-                    style: AppTextStyles.h6.copyWith(
-                      color: AppColors.textSecondary,
-                      fontStyle: FontStyle.italic,
-                    ),
+                ),
+                
+                // Our Story section
+                _buildSection(
+                  title: 'Our Story',
+                  icon: Icons.history,
+                  content: _buildStoryContent(),
+                ),
+                
+                // Founders section
+                _buildSection(
+                  title: 'Founders',
+                  icon: Icons.people,
+                  content: _buildFoundersContent(),
+                ),
+                
+                // Vision & Mission section
+                _buildSection(
+                  title: 'Vision & Mission',
+                  icon: Icons.visibility,
+                  content: _buildVisionMissionContent(),
+                ),
+                
+                // Our Stores section
+                _buildSection(
+                  title: 'Our Stores',
+                  icon: Icons.store,
+                  content: _buildStoresContent(),
+                ),
+                
+                // Contact Us section
+                _buildSection(
+                  title: 'Contact Us',
+                  icon: Icons.contact_mail,
+                  content: _buildContactContent(context),
+                ),
+                
+                // Version info at bottom
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Text(
+                        'App Version: 5.2.1',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '© 2025 Patel\'s Rmart. All rights reserved.',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            
-            // Our Story section
-            _buildSection(
-              title: 'Our Story',
-              icon: Icons.history,
-              content: _buildStoryContent(),
-            ),
-            
-            // Founders section
-            _buildSection(
-              title: 'Founders',
-              icon: Icons.people,
-              content: _buildFoundersContent(),
-            ),
-            
-            // Vision & Mission section
-            _buildSection(
-              title: 'Vision & Mission',
-              icon: Icons.visibility,
-              content: _buildVisionMissionContent(),
-            ),
-            
-            // Our Stores section
-            _buildSection(
-              title: 'Our Stores',
-              icon: Icons.store,
-              content: _buildStoresContent(),
-            ),
-            
-            // Contact Us section
-            _buildSection(
-              title: 'Contact Us',
-              icon: Icons.contact_mail,
-              content: _buildContactContent(context),
-            ),
-            
-            // Version info at bottom
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Text(
-                    'App Version: 5.2.1',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '© 2025 Patel\'s Rmart. All rights reserved.',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
-   
-  );
+    );
+  }
 }
 
   Widget _buildSection({
@@ -653,4 +692,3 @@ class AboutUsScreen extends ConsumerWidget {
       ),
     );
   }
-}

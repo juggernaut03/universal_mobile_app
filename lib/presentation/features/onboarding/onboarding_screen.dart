@@ -218,11 +218,12 @@ class OnboardingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+    // INCREASED IMAGE SIZE - Changed from 0.7/0.6/0.5 to 0.85/0.75/0.65
     final imageSize = ResponsiveUtils.getResponsiveValue(
       context: context,
-      small: screenSize.width * 0.7,
-      medium: screenSize.width * 0.6,
-      large: screenSize.width * 0.5,
+      small: screenSize.width * 0.85,   // Increased from 0.7
+      medium: screenSize.width * 0.75,  // Increased from 0.6
+      large: screenSize.width * 0.65,   // Increased from 0.5
     );
 
     return Padding(
@@ -230,10 +231,9 @@ class OnboardingPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Image with animation
+          // Image with animation - REMOVED BORDER AND INCREASED SIZE
           AnimatedImageContainer(
             size: imageSize,
-            color: AppColors.primaryLighter.withOpacity(0.2),
             imagePath: data.imagePath,
           ),
           const SizedBox(height: 48),
@@ -263,16 +263,14 @@ class OnboardingPage extends StatelessWidget {
   }
 }
 
-// Animated container for WebP images
+// Animated container for WebP images - REMOVED BORDER AND BACKGROUND COLOR
 class AnimatedImageContainer extends StatefulWidget {
   final double size;
-  final Color color;
   final String imagePath;
 
   const AnimatedImageContainer({
     Key? key,
     required this.size,
-    required this.color,
     required this.imagePath,
   }) : super(key: key);
 
@@ -314,14 +312,11 @@ class _AnimatedImageContainerState extends State<AnimatedImageContainer>
       builder: (context, child) {
         return Transform.scale(
           scale: _scaleAnimation.value,
-          child: Container(
+          // REMOVED: Container with border and background color
+          // CHANGED: Direct image without container wrapper
+          child: SizedBox(
             width: widget.size,
             height: widget.size,
-            decoration: BoxDecoration(
-              color: widget.color,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            padding: const EdgeInsets.all(16),
             child: Image.asset(
               widget.imagePath,
               fit: BoxFit.contain,

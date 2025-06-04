@@ -33,78 +33,116 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   int _navIndex = 1; // Category tab selected by default
   bool _isRefreshing = false;
   
+  // Custom back navigation handler
+  Future<bool> _handleBackPress() async {
+    final logger = ref.read(loggerProvider);
+    logger.log('Hardware back button pressed on CategoryScreen - navigating to home');
+    
+    try {
+      // Navigate to home using go
+      context.go('/home');
+      
+      // Return false to prevent default back navigation
+      return false;
+    } catch (e) {
+      logger.error('Error handling back navigation: $e');
+      // If go fails, try push as fallback
+      if (context.mounted) {
+        context.pushReplacement('/home');
+      }
+      return false;
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     final departmentsAsync = ref.watch(departmentsProvider);
     final allCategoriesAsync = ref.watch(allCategoriesProvider);
     final logger = ref.read(loggerProvider);
     
-    return BackButtonWrapper(
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: _buildAppBar(),
-        drawer: _buildDrawer(),
-        body: Column(
-          children: [
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _handleRefresh,
-                child: departmentsAsync.when(
-                  data: (departments) {
-                    return allCategoriesAsync.when(
-                      data: (categoriesByDepartment) {
-                        // Set initial selected department if none is selected
-                        if (_currentDepartmentId == null && departments.isNotEmpty) {
-                          _currentDepartmentId = departments[0].departmentId;
-                        }
-                        
-                        // Validate that current selection exists in new data
-                        if (_currentDepartmentId != null && 
-                            !departments.any((dept) => dept.departmentId == _currentDepartmentId)) {
-                          _currentDepartmentId = departments.isNotEmpty ? departments[0].departmentId : null;
-                        }
-                        
-                        return Row(
-                          children: [
-                            // Left side: Departments (30% width)
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * 0.3,
-                              child: _buildDepartmentList(departments),
-                            ),
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          final logger = ref.read(loggerProvider);
+          logger.log('PopScope: Back navigation intercepted - going to home');
+          
+          // Navigate to home
+          if (context.mounted) {
+            context.go('/home');
+          }
+        }
+      },
+      child: WillPopScope(
+        onWillPop: _handleBackPress,
+        child: BackButtonWrapper(
+          child: Scaffold(
+            backgroundColor: Colors.white,
+            appBar: _buildAppBar(),
+            drawer: _buildDrawer(),
+            body: Column(
+              children: [
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _handleRefresh,
+                    child: departmentsAsync.when(
+                      data: (departments) {
+                        return allCategoriesAsync.when(
+                          data: (categoriesByDepartment) {
+                            // Set initial selected department if none is selected
+                            if (_currentDepartmentId == null && departments.isNotEmpty) {
+                              _currentDepartmentId = departments[0].departmentId;
+                            }
                             
-                            // Right side: Categories (70% width)
-                            Expanded(
-                              child: _buildCategoriesForDepartment(categoriesByDepartment),
-                            ),
-                          ],
+                            // Validate that current selection exists in new data
+                            if (_currentDepartmentId != null && 
+                                !departments.any((dept) => dept.departmentId == _currentDepartmentId)) {
+                              _currentDepartmentId = departments.isNotEmpty ? departments[0].departmentId : null;
+                            }
+                            
+                            return Row(
+                              children: [
+                                // Left side: Departments (30% width)
+                                SizedBox(
+                                  width: MediaQuery.of(context).size.width * 0.3,
+                                  child: _buildDepartmentList(departments),
+                                ),
+                                
+                                // Right side: Categories (70% width)
+                                Expanded(
+                                  child: _buildCategoriesForDepartment(categoriesByDepartment),
+                                ),
+                              ],
+                            );
+                          },
+                          loading: () => _buildShimmerLoading(context),
+                          error: (error, stackTrace) {
+                            logger.error('Error loading categories: $error');
+                            return AppErrorWidget(
+                              errorType: ErrorType.server,
+                              message: 'Error loading categories. Please try again.',
+                              onRetry: () => ref.refresh(allCategoriesProvider),
+                            );
+                          },
                         );
                       },
                       loading: () => _buildShimmerLoading(context),
                       error: (error, stackTrace) {
-                        logger.error('Error loading categories: $error');
+                        logger.error('Error loading departments: $error');
                         return AppErrorWidget(
                           errorType: ErrorType.server,
-                          message: 'Error loading categories. Please try again.',
-                          onRetry: () => ref.refresh(allCategoriesProvider),
+                          message: 'Error loading departments. Please try again.',
+                          onRetry: () => ref.refresh(departmentsProvider),
                         );
                       },
-                    );
-                  },
-                  loading: () => _buildShimmerLoading(context),
-                  error: (error, stackTrace) {
-                    logger.error('Error loading departments: $error');
-                    return AppErrorWidget(
-                      errorType: ErrorType.server,
-                      message: 'Error loading departments. Please try again.',
-                      onRetry: () => ref.refresh(departmentsProvider),
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+            bottomNavigationBar: _buildBottomNavigation(),
+          ),
         ),
-        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }
@@ -848,24 +886,24 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 ),
                 const Divider(height: 1),
                 
-                ListTile(
-                  leading: Icon(Icons.refresh, color: AppColors.primary),
-                  title: const Text('Refresh All Categories'),
-                  onTap: () async {
-                    logger.log('Refresh Categories pressed');
-                    Navigator.pop(context);
-                    await _handleRefresh();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Categories refreshed'),
-                          duration: const Duration(seconds: 2),
-                          backgroundColor: AppColors.primary,
-                        ),
-                      );
-                    }
-                  },
-                ),
+                // ListTile(
+                //   leading: Icon(Icons.refresh, color: AppColors.primary),
+                //   title: const Text('Refresh All Categories'),
+                //   onTap: () async {
+                //     logger.log('Refresh Categories pressed');
+                //     Navigator.pop(context);
+                //     await _handleRefresh();
+                //     if (context.mounted) {
+                //       ScaffoldMessenger.of(context).showSnackBar(
+                //         SnackBar(
+                //           content: const Text('Categories refreshed'),
+                //           duration: const Duration(seconds: 2),
+                //           backgroundColor: AppColors.primary,
+                //         ),
+                //       );
+                //     }
+                //   },
+                // ),
                 const Divider(height: 1),
                 
                 Padding(

@@ -8,6 +8,7 @@ import '../../../core/widgets/error_widgets.dart';
 import '../../../data/models/product_model.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/favorites_provider.dart';
+import '../../providers/outlet_status_provider.dart'; // Add this import for outlet status
 import '../subcategory/widgets/product_item_widget.dart';
 
 /// A screen to display the user's favorite products
@@ -197,6 +198,10 @@ class FavoritesScreen extends ConsumerWidget {
       return _buildEmptyState(context);
     }
     
+    // Get outlet status to check if cart is enabled
+    final isCartEnabled = ref.watch(isCartEnabledProvider);
+    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
+
     // Show favorites list
     return RefreshIndicator(
       onRefresh: () async {
@@ -208,23 +213,29 @@ class FavoritesScreen extends ConsumerWidget {
         itemCount: favoritesState.favoriteProducts.length,
         itemBuilder: (context, index) {
           final product = favoritesState.favoriteProducts[index];
+          
+          // Note: We're still using the ProductItemWidget but with specific behavior handling
+          // The ProductItemWidget should already have the conditional cart button logic
+          // If it doesn't, you'll need to update that component separately
           return Container(
             margin: const EdgeInsets.only(bottom: 8),
             child: ProductItemWidget(
               product: product,
               onAddToCart: () {
-                // Show a snackbar when added to cart
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${product.productName} added to cart'),
-                    duration: const Duration(seconds: 2),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                // Only show cart snackbar if cart is enabled
+                if (isCartEnabled) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${product.productName} added to cart'),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
               },
               onToggleFavorite: () {
                 // This will be handled by the ProductItemWidget itself
@@ -289,23 +300,29 @@ class FavoritesScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
+
             OutlinedButton(
               onPressed: () {
                 context.go('/category');
               },
+              
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: Text(
-                'Browse Categories',
-                style: AppTextStyles.buttonMedium.copyWith(
-                  color: AppColors.primary,
-                ),
-              ),
+              
+              child: Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 10.0), // or EdgeInsets.all(8.0)
+  child: Text(
+    'Browse Products',
+    style: AppTextStyles.buttonMedium.copyWith(
+      color: AppColors.primary,
+    ),
+  ),
+),
             ),
           ],
         ),

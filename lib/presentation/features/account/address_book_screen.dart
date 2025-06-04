@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/logger.dart';
+import '../../../core/widgets/back_button_wrapper.dart';
 import '../../../core/widgets/error_widgets.dart';
 import '../../../data/models/address_model.dart';
 import '../../providers/auth_providers.dart';
@@ -134,43 +135,88 @@ final directAddressListProvider = FutureProvider<List<Address>>((ref) async {
 class AddressBookScreen extends ConsumerWidget {
   const AddressBookScreen({Key? key}) : super(key: key);
 
+  // Custom back navigation handler - matches the pattern from other screens
+  Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {
+    final logger = ref.read(loggerProvider);
+    logger.log('Hardware back button pressed on AddressBookScreen - navigating to account');
+    
+    try {
+      // Navigate to account using go
+      context.go('/account');
+      
+      // Return false to prevent default back navigation
+      return false;
+    } catch (e) {
+      logger.error('Error handling back navigation: $e');
+      // If go fails, try push as fallback
+      if (context.mounted) {
+        context.pushReplacement('/account');
+      }
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Use the direct address list provider instead of the repository-based one
     final addressesAsyncValue = ref.watch(directAddressListProvider);
     final logger = ref.read(loggerProvider);
     
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Address Book'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/account'),  // Use go instead of pop
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          final logger = ref.read(loggerProvider);
+          logger.log('PopScope: Back navigation intercepted on AddressBookScreen - going to account');
+          
+          // Navigate to account
+          if (context.mounted) {
+            context.go('/account');
+          }
+        }
+      },
+      child: WillPopScope(
+        onWillPop: () => _handleBackPress(context, ref),
+        child: BackButtonWrapper(
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Text('Address Book'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () {
+                  final logger = ref.read(loggerProvider);
+                  logger.log('Address Book back button pressed');
+                  // Use the same navigation logic as the hardware back button
+                  _handleBackPress(context, ref);
+                },
+              ),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            body: SafeArea(
+              child: addressesAsyncValue.when(
+                data: (addresses) {
+                  logger.log('Rendering ${addresses.length} addresses');
+                  return _buildAddressList(context, ref, addresses);
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) {
+                  logger.error('Error loading addresses: $error');
+                  return AppErrorWidget(
+                    errorType: ErrorType.network,
+                    message: 'Failed to load addresses: $error',
+                    onRetry: () => ref.refresh(directAddressListProvider),
+                  );
+                },
+              ),
+            ),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => context.push('/add-address'),
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+          ),
         ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: SafeArea(
-        child: addressesAsyncValue.when(
-          data: (addresses) {
-            logger.log('Rendering ${addresses.length} addresses');
-            return _buildAddressList(context, ref, addresses);
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) {
-            logger.error('Error loading addresses: $error');
-            return AppErrorWidget(
-              errorType: ErrorType.network,
-              message: 'Failed to load addresses: $error',
-              onRetry: () => ref.refresh(directAddressListProvider),
-            );
-          },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/add-address'),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

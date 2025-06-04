@@ -439,25 +439,25 @@ class OrderDetailScreen extends ConsumerWidget {
           
           // Tax Information
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            color: Colors.blue[50],
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, color: Colors.blue, size: 16),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    'Tax of ₹${(order.totalAmount * 0.05).toStringAsFixed(2)} has been included in the total amount.',
-                    style: const TextStyle(
-                      color: Colors.blue,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Container(
+          //   padding: const EdgeInsets.all(10),
+          //   color: Colors.blue[50],
+          //   child: Row(
+          //     children: [
+          //       const Icon(Icons.info_outline, color: Colors.blue, size: 16),
+          //       const SizedBox(width: 6),
+          //       Expanded(
+          //         child: Text(
+          //           'Tax of ₹${(order.totalAmount * 0.05).toStringAsFixed(2)} has been included in the total amount.',
+          //           style: const TextStyle(
+          //             color: Colors.blue,
+          //             fontSize: 11,
+          //           ),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
         ],
       ),
     );
@@ -536,27 +536,27 @@ class OrderDetailScreen extends ConsumerWidget {
                         padding: const EdgeInsets.only(bottom: 2),
                         child: Row(
                           children: [
-                            Text(
-                              'You Save ₹${savings.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                color: Colors.amber[700],
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                            // Text(
+                            //   'You Save ₹${savings.toStringAsFixed(0)}',
+                            //   style: TextStyle(
+                            //     color: Colors.amber[700],
+                            //     fontSize: 11,
+                            //     fontWeight: FontWeight.w500,
+                            //   ),
+                            // ),
                           ],
                         ),
                       ),
                     Row(
                       children: [
-                        Text(
-                          'You Pay ₹${(sellingPrice * item.quantity).toStringAsFixed(0)}',
-                          style: TextStyle(
-                            color: Colors.green[700],
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        // Text(
+                        //   'You Pay ₹${(sellingPrice * item.quantity).toStringAsFixed(0)}',
+                        //   style: TextStyle(
+                        //     color: Colors.green[700],
+                        //     fontSize: 11,
+                        //     fontWeight: FontWeight.w500,
+                        //   ),
+                        // ),
                       ],
                     ),
                   ],
