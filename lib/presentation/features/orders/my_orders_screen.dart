@@ -16,7 +16,7 @@ import 'order_detail_screen.dart';
 // Provider for order filtering
 final orderFilterProvider = StateProvider<String>((ref) => 'All');
 
-// Provider for fetching and filtering orders
+// Provider for fetching and filtering orders with proper sorting
 final ordersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
   final logger = ref.read(loggerProvider);
   logger.log('Fetching orders list');
@@ -45,18 +45,28 @@ final ordersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
             order.status.toLowerCase() != 'pending')
         .toList();
     
-    // Sort by latest first (most recent order date first) - FRONTEND SORTING
+    // Sort by latest order_date_time first (most recent order first)
     filteredOrders.sort((a, b) {
-      // Compare dates - latest date comes first
-      final comparison = b.orderDate.compareTo(a.orderDate);
-      logger.log('Comparing order dates: ${a.orderId} (${a.orderDate}) vs ${b.orderId} (${b.orderDate}) = $comparison');
+      final aDateTime = a.orderDateTime ?? a.orderDate;
+      final bDateTime = b.orderDateTime ?? b.orderDate;
+      
+      // Latest date/time comes first (descending order)
+      final comparison = bDateTime.compareTo(aDateTime);
+      
+      logger.log('Comparing orders: '
+          'Order ${a.displayOrderId} (${aDateTime}) vs '
+          'Order ${b.displayOrderId} (${bDateTime}) = $comparison');
+      
       return comparison;
     });
     
-    logger.log('Orders fetched and sorted by latest date first. Total: ${filteredOrders.length}');
+    logger.log('Orders fetched and sorted by latest date/time first. Total: ${filteredOrders.length}');
+    
     if (filteredOrders.isNotEmpty) {
-      logger.log('Latest order: ${filteredOrders.first.orderId} - ${filteredOrders.first.orderDate}');
-      logger.log('Oldest order: ${filteredOrders.last.orderId} - ${filteredOrders.last.orderDate}');
+      final latest = filteredOrders.first;
+      final oldest = filteredOrders.last;
+      logger.log('Latest order: ${latest.displayOrderId} - ${latest.orderDateTime ?? latest.orderDate}');
+      logger.log('Oldest order: ${oldest.displayOrderId} - ${oldest.orderDateTime ?? oldest.orderDate}');
     }
     
     return filteredOrders;
@@ -96,8 +106,12 @@ final filteredOrdersProvider = Provider<List<Order>>((ref) {
         }).toList();
       }
       
-      // Ensure filtered list is also sorted by latest date first
-      filteredList.sort((a, b) => b.orderDate.compareTo(a.orderDate));
+      // Ensure filtered list maintains sorting by latest order_date_time first
+      filteredList.sort((a, b) {
+        final aDateTime = a.orderDateTime ?? a.orderDate;
+        final bDateTime = b.orderDateTime ?? b.orderDate;
+        return bDateTime.compareTo(aDateTime);
+      });
       
       return filteredList;
     },
@@ -135,7 +149,6 @@ class MyOrdersScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () {
-              // Navigate to help screen
               context.push('/help-support');
             },
             child: const Text(
@@ -151,13 +164,13 @@ class MyOrdersScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          // Quick reorder and savings cards - Reduced height and cleaner design
+          // Quick reorder and savings cards
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
             child: Row(
               children: [
-                // Quick Reorder Card - Sleeker design
+                // Quick Reorder Card
                 Expanded(
                   child: _buildActionCard(
                     context,
@@ -169,14 +182,14 @@ class MyOrdersScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // My Savings Card - Sleeker design
+                // My Savings Card
                 Expanded(
                   child: _buildActionCard(
                     context,
                     icon: Icons.savings_outlined,
                     iconColor: AppColors.primary,
                     title: 'My Savings',
-                    subtitle: 'Track  Savings',
+                    subtitle: 'Track Savings',
                     onTap: () => context.push('/savings'),
                   ),
                 ),
@@ -220,7 +233,6 @@ class MyOrdersScreen extends ConsumerWidget {
                 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    // Refresh the orders
                     return ref.refresh(ordersProvider.future);
                   },
                   child: ListView.builder(

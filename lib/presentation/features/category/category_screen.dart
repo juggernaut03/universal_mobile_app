@@ -4,11 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
+import 'package:patelmart/core/widgets/app_drawer_widget.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
-import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:shimmer/shimmer.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/back_button_wrapper.dart';
 import '../../../core/widgets/bottom_navigation_widget.dart';
@@ -18,7 +16,6 @@ import '../../../data/models/department_model.dart';
 import '../../../data/models/category_model.dart';
 import '../../providers/category_providers.dart';
 import '../../providers/launch_flow_provider.dart';
-import '../../providers/outlet_provider.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
@@ -79,7 +76,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           child: Scaffold(
             backgroundColor: Colors.white,
             appBar: _buildAppBar(),
-            drawer: _buildDrawer(),
+            drawer: const AppDrawerWidget(), // ✅ Using reusable drawer instead of custom one
             body: Column(
               children: [
                 Expanded(
@@ -252,8 +249,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: SizedBox(
-                          width: 70,
-                          height: 70,
+                          width: 100,
+                          height: 100,
                           child: CachedNetworkImageWidget(
                             imageUrl: department.imageLink,
                             fit: BoxFit.cover,
@@ -279,19 +276,19 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    // const SizedBox(height: 6),
                     // Department name
-                    Text(
-                      department.departmentName,
-                      style: TextStyle(
-                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        fontSize: 11,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    // Text(
+                    //   department.departmentName,
+                    //   style: TextStyle(
+                    //     color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                    //     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    //     fontSize: 11,
+                    //   ),
+                    //   textAlign: TextAlign.center,
+                    //   maxLines: 2,
+                    //   overflow: TextOverflow.ellipsis,
+                    // ),
                   ],
                 ),
               ),
@@ -679,249 +676,5 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         });
       }
     }
-  }
-  
-  Widget _buildDrawer() {
-    final selectedOutletAsync = ref.watch(selectedOutletProvider);
-    final logger = ref.read(loggerProvider);
-    final cartCount = ref.watch(cartCountProvider);
-    final cartTotal = ref.watch(cartTotalProvider);
-    
-    return Drawer(
-      child: Column(
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () {
-                        logger.log('Drawer back button pressed');
-                        Navigator.pop(context);
-                      },
-                    ),
-                    const Text(
-                      'Hi, Guest',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    selectedOutletAsync.when(
-                      data: (outlet) => Expanded(
-                        child: Text(
-                          ref.watch(selectedPincodeProvider) ?? 'No pincode selected',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      loading: () => const Text(
-                        'Loading...',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      error: (_, __) => const Text(
-                        'Error loading location',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.white, size: 18),
-                      onPressed: () {
-                        logger.log('Edit location pressed from drawer');
-                        Navigator.pop(context);
-                        if (mounted) {
-                          context.go('/location-change');
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                
-                Image.asset(
-                  'assets/images/patelLogo.png',
-                  height: 40,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    logger.error('Error loading drawer logo: $error');
-                    return const Icon(Icons.store, color: Colors.white, size: 40);
-                  },
-                ),
-              ],
-            ),
-          ),
-          
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                ListTile(
-                  leading: Icon(Icons.grid_view, color: AppColors.primary),
-                  title: const Text('SHOP BY CATEGORY'),
-                  trailing: const Icon(Icons.navigate_next),
-                  onTap: () {
-                    logger.log('Shop by category pressed');
-                    Navigator.pop(context);
-                  },
-                ),
-                const Divider(height: 1),
-                
-                ListTile(
-                  leading: Icon(Icons.shopping_cart, color: AppColors.primary),
-                  title: const Text('View Cart'),
-                  trailing: cartCount > 0
-                      ? Text(
-                          '₹${cartTotal.toStringAsFixed(2)} (${cartCount.toString()})',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                  onTap: () {
-                    logger.log('View Cart pressed');
-                    Navigator.pop(context);
-                    if (mounted) {
-                      context.push('/cart');
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                
-                ListTile(
-                  leading: Icon(Icons.help_outline, color: AppColors.primary),
-                  title: const Text('Help & Support'),
-                  onTap: () {
-                    logger.log('Help & Support pressed');
-                    Navigator.pop(context);
-                    if (mounted) {
-                      context.go('/help-support');
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                
-                ListTile(
-                  leading: Icon(Icons.description_outlined, color: AppColors.primary),
-                  title: const Text('Refund, Terms and Policies'),
-                  onTap: () {
-                    logger.log('Refund policies pressed');
-                    Navigator.pop(context);
-                    if (mounted) {
-                      context.go('/refund-policies');
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                
-                ListTile(
-                  leading: Icon(Icons.chat_bubble_outline, color: AppColors.primary),
-                  title: const Text('Frequently Asked Questions'),
-                  onTap: () {
-                    logger.log('FAQ pressed');
-                    Navigator.pop(context);
-                    if (mounted) {
-                      context.go('/faq');
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                
-                ListTile(
-                  leading: Icon(Icons.info_outline, color: AppColors.primary),
-                  title: const Text('About Us'),
-                  onTap: () {
-                    logger.log('About Us pressed');
-                    Navigator.pop(context);
-                    if (mounted) {
-                      context.go('/about-us');
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                
-                ListTile(
-                  leading: Icon(Icons.store, color: AppColors.primary),
-                  title: const Text('Store Information'),
-                  onTap: () {
-                    logger.log('Store Information pressed');
-                    Navigator.pop(context);
-                    if (mounted) {
-                      context.go('/store-info');
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                
-                ListTile(
-                  leading: Icon(Icons.location_on, color: AppColors.primary),
-                  title: const Text('Change Location'),
-                  onTap: () {
-                    logger.log('Change Location pressed');
-                    Navigator.pop(context);
-                    if (mounted) {
-                      context.go('/location-change');
-                    }
-                  },
-                ),
-                const Divider(height: 1),
-                
-                // ListTile(
-                //   leading: Icon(Icons.refresh, color: AppColors.primary),
-                //   title: const Text('Refresh All Categories'),
-                //   onTap: () async {
-                //     logger.log('Refresh Categories pressed');
-                //     Navigator.pop(context);
-                //     await _handleRefresh();
-                //     if (context.mounted) {
-                //       ScaffoldMessenger.of(context).showSnackBar(
-                //         SnackBar(
-                //           content: const Text('Categories refreshed'),
-                //           duration: const Duration(seconds: 2),
-                //           backgroundColor: AppColors.primary,
-                //         ),
-                //       );
-                //     }
-                //   },
-                // ),
-                const Divider(height: 1),
-                
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Version 5.2.1',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

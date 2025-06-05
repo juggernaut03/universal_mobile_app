@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 import '../models/order_model.dart';
-import '../repositories/auth_repository.dart'; // Make sure to import this
+import '../repositories/auth_repository.dart';
 
 class OrderRepository {
   final http.Client _client;
@@ -16,7 +16,7 @@ class OrderRepository {
 
   OrderRepository({
     required http.Client client,
-    required AuthRepository authRepository, // This parameter was missing
+    required AuthRepository authRepository,
     required Logger logger,
   }) : 
     _client = client,
@@ -49,142 +49,73 @@ class OrderRepository {
     }).toList();
   }
   
-Future<List<Order>> getOrderHistoryWithCustomEndpoint(
-  String mobileNumber,
-  String accessKey,
-  {required String customEndpoint}
-) async {
-  try {
-    _logger.log('Fetching order history with custom endpoint: $customEndpoint');
-    
-    // Create the URI with the custom endpoint
-    final uri = Uri.parse('${ApiConstants.baseUrl}$customEndpoint');
-    
-    // Create request body with mobile number and access key
-    final requestBody = {
-      'project_code': ApiConstants.projectCode,
-      'mobile_number': mobileNumber,
-      'access_key': accessKey,
-      'store_code': 'KLK',  // Use the store code that works in Postman
-    };
-    
-    _logger.log('Request details for custom endpoint: ${jsonEncode(requestBody)}');
-    
-    final response = await _client.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(requestBody),
-    ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
-    
-    _logger.log('Custom endpoint response status: ${response.statusCode}');
-    
-    if (response.statusCode == 200) {
-      try {
+  // Get order history using the updated API
+  Future<List<Order>> getOrderHistory() async {
+    try {
+      // Get user profile to get access key
+      final userProfile = await _authRepository.getUserProfile();
+      if (userProfile == null) {
+        throw Exception('User not logged in');
+      }
+      
+      final uri = Uri.parse('${ApiConstants.baseUrl}/get_orders_history');
+      final storeCode = await _getStoreCode();
+      
+      // Updated request body to match the new API format
+      final requestBody = {
+        "access_key": userProfile.accessKey,
+        "store_code": storeCode,
+      };
+      
+      _logger.log('Fetching order history with updated API format');
+      _logger.log('Request details: ${jsonEncode(requestBody)}');
+      
+      final response = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
+      
+      _logger.log('Response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
         final dynamic jsonData = jsonDecode(response.body);
         
-        // Handle different response formats
         if (jsonData is List) {
-          _logger.log('Response is a list with ${jsonData.length} items');
           return jsonData.map((item) => Order.fromJson(item)).toList();
-        } else if (jsonData is Map) {
-          _logger.log('Response is a map with keys: ${jsonData.keys.toList()}');
-          
-          if (jsonData.containsKey('orders') && jsonData['orders'] is List) {
-            final List orders = jsonData['orders'];
-            return orders.map((item) => Order.fromJson(item)).toList();
-          } else if (jsonData.containsKey('data') && jsonData['data'] is List) {
-            final List orders = jsonData['data'];
-            return orders.map((item) => Order.fromJson(item)).toList();
-          } else {
-            _logger.error('Expected orders array not found in response');
-            return [];
-          }
+        } else if (jsonData is Map && jsonData.containsKey('orders')) {
+          final List orders = jsonData['orders'];
+          return orders.map((item) => Order.fromJson(item)).toList();
         } else {
           _logger.error('Unexpected response format');
           return [];
         }
-      } catch (e) {
-        _logger.error('Error parsing JSON response: $e');
+      } else {
+        _logger.error('Failed to fetch order history: ${response.statusCode} - ${response.body}');
         return [];
       }
-    } else {
-      _logger.error('Failed with custom endpoint: ${response.statusCode} - ${response.body}');
+    } catch (e) {
+      _logger.error('Error fetching order history: $e');
       return [];
     }
-  } catch (e) {
-    _logger.error('Error with custom endpoint: $e');
-    return [];
   }
-}
 
-Future<String> _getStoreCode() async {
+  Future<String> _getStoreCode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final outletJson = prefs.getString(ApiConstants.keyOutlet);
       
       if (outletJson != null) {
         final outlet = jsonDecode(outletJson);
-        return outlet['store_code'] ?? 'TTL'; // Default to TTL if not found
+        return outlet['store_code'] ?? 'KLK'; // Default to KLK as shown in API example
       }
       
-      return 'TTL'; // Default store code
+      return 'KLK'; // Default store code
     } catch (e) {
       _logger.error('Error getting store code: $e');
-      return 'TTL'; // Default store code on error
+      return 'KLK'; // Default store code on error
     }
   }
-  // Get order history
-  Future<List<Order>> getOrderHistory() async {
-  try {
-    // Get user profile to get mobile number and access key
-    final userProfile = await _authRepository.getUserProfile();
-    if (userProfile == null) {
-      throw Exception('User not logged in');
-    }
-    
-    final uri = Uri.parse('${ApiConstants.baseUrl}/get_orders_history');
-    final storeCode = await _getStoreCode();
-    
-    // FIXED: Correct request body matching Postman exactly
-    final requestBody = {
-      'project_code': ApiConstants.projectCode,  // ✅ Added missing field
-      'access_key': userProfile.accessKey,       // ✅ Correct field order
-      'store_code': storeCode,                   // ✅ Dynamic store code
-      // Note: mobile_number is not needed for this endpoint based on Postman
-    };
-    
-    _logger.log('Fetching order history with correct format');
-    _logger.log('Request details: ${jsonEncode(requestBody)}');
-    
-    final response = await _client.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(requestBody),
-    ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
-    
-    _logger.log('Response status: ${response.statusCode}');
-    
-    if (response.statusCode == 200) {
-      final dynamic jsonData = jsonDecode(response.body);
-      
-      if (jsonData is List) {
-        return jsonData.map((item) => Order.fromJson(item)).toList();
-      } else if (jsonData is Map && jsonData.containsKey('orders')) {
-        final List orders = jsonData['orders'];
-        return orders.map((item) => Order.fromJson(item)).toList();
-      } else {
-        _logger.error('Unexpected response format');
-        return [];
-      }
-    } else {
-      _logger.error('Failed to fetch order history: ${response.statusCode} - ${response.body}');
-      return [];
-    }
-  } catch (e) {
-    _logger.error('Error fetching order history: $e');
-    return [];
-  }
-}
   
   // Get order details
   Future<Order?> getOrderDetails(String orderId) async {
@@ -310,7 +241,8 @@ Future<String> _getStoreCode() async {
       }
       
       final uri = Uri.parse('${ApiConstants.baseUrl}/reorder');
-      final storeCode = _getStoreCode();
+      final storeCode = await _getStoreCode();
+      
       // Create request body with order ID, mobile number, and access key
       final requestBody = {
         'project_code': ApiConstants.projectCode,
