@@ -2550,6 +2550,8 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
 
  // Update the _placeOrder method in your PaymentStep class
 
+// Updated _placeOrder function with order_date_time support
+
 Future<void> _placeOrder() async {
   // Save instructions
   widget.checkoutData.specialInstructions = _instructionsController.text;
@@ -2738,11 +2740,13 @@ Future<void> _placeOrder() async {
     logger.log('Sending order confirmation with identifiers: deviceId=$deviceId, tempOrderId=$tempOrderId');
     logger.log('Order details: ${cartItems.length} items, $deliveryMode, $paymentMode');
     logger.log('Delivery address pincode: ${deliveryAddress.deliveryAddrPincode}');
+    logger.log('Order will include order_date_time field automatically');
     if (accessKey != null) {
       logger.log('Including access key for authentication with API');
     }
     
     // Call order service to confirm order with Address model (not Map)
+    // The OrderService now automatically includes order_date_time field
     final orderService = ref.read(orderServiceProvider);
     final orderResult = await orderService.confirmOrder(
       deviceId: deviceId,
@@ -2775,6 +2779,7 @@ Future<void> _placeOrder() async {
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
       
       logger.log('Order placed successfully with pincode: ${deliveryAddress.deliveryAddrPincode}');
+      logger.log('Order includes order_date_time field automatically');
       
       // Clear cart after successful order
       ref.read(cartProvider.notifier).clearCart(clearCartKeyInStorage: true);
@@ -2832,73 +2837,73 @@ Future<void> _placeOrder() async {
   }
 }
 
-  void _showOrderSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => WillPopScope(
-        onWillPop: () async => false,
-        child: Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 64,
+void _showOrderSuccessDialog() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => WillPopScope(
+      onWillPop: () async => false,
+      child: Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.check_circle,
+                color: Colors.green,
+                size: 64,
+              ),
+              
+              const SizedBox(height: 16),
+              
+              Text(
+                'Order Placed Successfully!',
+                style: AppTextStyles.h5,
+                textAlign: TextAlign.center,
+              ),
+              
+              const SizedBox(height: 8),
+              
+              Text(
+                widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup
+                    ? 'Your order has been placed successfully with order date and time recorded. You can collect it from our store.'
+                    : 'Your order has been placed successfully with order date and time recorded. You can track your order in the Orders section.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
                 ),
-                
-                const SizedBox(height: 16),
-                
-                Text(
-                  'Order Placed Successfully!',
-                  style: AppTextStyles.h5,
-                  textAlign: TextAlign.center,
-                ),
-                
-                const SizedBox(height: 8),
-                
-                Text(
-                  widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup
-                      ? 'Your order has been placed successfully. You can collect it from our store.'
-                      : 'Your order has been placed successfully. You can track your order in the Orders section.',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                
-                const SizedBox(height: 24),
-                
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      context.go('/home');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                textAlign: TextAlign.center,
+              ),
+              
+              const SizedBox(height: 24),
+              
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    context.go('/home');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('CONTINUE SHOPPING'),
                   ),
+                  child: const Text('CONTINUE SHOPPING'),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   IconData _getPaymentMethodIcon(PaymentMethod method) {
     switch (method.paymentModeName.toLowerCase()) {

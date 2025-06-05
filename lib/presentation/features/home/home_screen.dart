@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
+import 'package:patelmart/core/widgets/app_drawer_widget.dart';
 import 'package:patelmart/core/widgets/bottom_navigation_widget.dart';
 import 'package:patelmart/core/widgets/header_widget.dart';
 import 'package:patelmart/core/widgets/search_widget.dart';
@@ -12,50 +12,11 @@ import 'package:patelmart/presentation/features/home/widgets/popular_category_wi
 import 'package:patelmart/presentation/features/home/widgets/promotional_banner_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/utils/logger.dart';
-import '../../../data/repositories/profile_repository.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
-import '../../providers/launch_flow_provider.dart';
 import '../../providers/cart_provider.dart';
-
-// Provider for the profile repository (add this if not already present)
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return ProfileRepository(
-    client: http.Client(),
-    logger: logger,
-  );
-});
-
-// Provider to fetch user profile details from API for drawer
-final drawerUserProfileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final authRepository = ref.read(authRepositoryProvider);
-  final userProfile = await authRepository.getUserProfile();
-  
-  if (userProfile == null) {
-    return {};
-  }
-  
-  final profileRepository = ref.read(profileRepositoryProvider);
-  try {
-    final profileData = await profileRepository.getUserProfile(
-      userProfile.mobile,
-      userProfile.accessKey,
-    );
-    return profileData;
-  } catch (e) {
-    // Return basic info if API call fails
-    return {
-      'mobile_number': userProfile.mobile,
-      'first_name': '',
-      'last_name': '',
-    };
-  }
-});
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -231,7 +192,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       child: Scaffold(
         backgroundColor: Colors.white,
         body: _buildOptimizedBody(),
-        drawer: _buildOptimizedDrawer(),
+        drawer: const AppDrawerWidget(), // ✅ Using reusable drawer
         bottomNavigationBar: _buildBottomNavigation(),
         floatingActionButton: _buildFloatingActionButton(),
         floatingActionButtonLocation: FloatingActionButtonLocation.miniEndFloat,
@@ -489,27 +450,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ),
 
-        // MINIMAL SPACING: Very small gap between categories and banner
-        const SliverToBoxAdapter(child: SizedBox(height: 4)), // Added minimal spacing
-
         // Promotional Banner - wrapped in RepaintBoundary
         SliverToBoxAdapter(
           child: RepaintBoundary(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical margin
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), 
+              // Reduced vertical margin
               child: PromotionalBannerWidget(
-                height: 300,
-                autoPlay: true,
-                autoPlayInterval: const Duration(seconds: 4),
-                fadeTransitionDuration: const Duration(milliseconds: 800),
-                showPageIndicator: true,
-                indicatorActiveColor: AppColors.primary,
-                indicatorInactiveColor: Colors.white.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(10),
+              showPageIndicator: true,
+              autoPlay: true,
+              autoPlayInterval: const Duration(seconds: 5),
+              enableRefresh: true,
+              margin: EdgeInsets.symmetric(
+              horizontal: ResponsiveBreakpoints.isMobile(context) ? 16 : 24,
+               
               ),
+              onBannerTap: () {
+                // Optional custom tap handling
+              },
             ),
           ),
-        ),
+            ),
+          ),
+        
 
         // Best Seller sections - optimized with RepaintBoundary and keys
         ...List.generate(4, (index) {
@@ -616,265 +579,4 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       onPressed: _refreshHomeData,
     );
   }
-
-  Widget _buildOptimizedDrawer() {
-    return Drawer(
-      child: Column(
-        children: [
-          _buildDrawerHeader(),
-          Expanded(child: _buildDrawerItems()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawerHeader() {
-    return DrawerHeader(
-      decoration: BoxDecoration(color: AppColors.primary),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row with back button and greeting
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
-              Expanded(
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final isLoggedInAsync = ref.watch(isLoggedInProvider);
-                    final userProfileAsync = ref.watch(drawerUserProfileProvider);
-                    
-                    return isLoggedInAsync.when(
-                      data: (isLoggedIn) {
-                        if (!isLoggedIn) {
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.pop(context);
-                              context.go('/auth/login');
-                            },
-                            child: const Text(
-                              'Hi, Guest (Tap to Login)',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          );
-                        }
-                        
-                        // User is logged in, show profile name
-                        return userProfileAsync.when(
-                          data: (profileData) {
-                            // Extract username from profile data
-                            String username = 'User'; // Default fallback
-                            
-                            if (profileData.isNotEmpty) {
-                              // Try to construct full name from first and last name
-                              final firstName = profileData['first_name']?.toString().trim() ?? '';
-                              final lastName = profileData['last_name']?.toString().trim() ?? '';
-                              
-                              if (firstName.isNotEmpty && lastName.isNotEmpty) {
-                                username = '$firstName $lastName';
-                              } else if (firstName.isNotEmpty) {
-                                username = firstName;
-                              } else if (lastName.isNotEmpty) {
-                                username = lastName;
-                              } else {
-                                // If no name data, try to use mobile number as fallback
-                                final mobile = profileData['mobile_number']?.toString() ?? '';
-                                if (mobile.isNotEmpty) {
-                                  // Show only last 4 digits for privacy
-                                  username = mobile.length > 4 ? '***${mobile.substring(mobile.length - 4)}' : mobile;
-                                }
-                              }
-                            }
-                            
-                            return Text(
-                              'Hi, $username',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            );
-                          },
-                          loading: () => const Text(
-                            'Hi, ',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          error: (error, _) => const Text(
-                            'Hi, User',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        );
-                      },
-                      loading: () => const Text(
-                        'Hi, Guest',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      error: (error, _) => const Text(
-                        'Hi, Guest',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Location row
-          Consumer(
-            builder: (context, ref, _) {
-              final selectedPincode = ref.watch(selectedPincodeProvider);
-              return Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      selectedPincode ?? 'No pincode selected',
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.white, size: 18),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      context.go('/location-change');
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-          
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDrawerItems() {
-    final drawerItems = [
-      _DrawerItem(
-        icon: Icons.grid_view,
-        title: 'SHOP BY CATEGORY',
-        onTap: () => _navigateFromDrawer('/category'),
-      ),
-      _DrawerItem(
-        icon: Icons.shopping_cart,
-        title: 'View Cart',
-        onTap: () => _navigateFromDrawer('/cart'),
-        trailing: Consumer(
-          builder: (context, ref, _) {
-            final cartCount = ref.watch(cartCountProvider);
-            final cartTotal = ref.watch(cartTotalProvider);
-            return cartCount > 0
-                ? Text(
-                    '₹${cartTotal.toStringAsFixed(2)} (${cartCount.toString()})',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : const SizedBox.shrink();
-          },
-        ),
-      ),
-      _DrawerItem(
-        icon: Icons.help_outline,
-        title: 'Help & Support',
-        onTap: () => _navigateFromDrawer('/help-support'),
-      ),
-      _DrawerItem(
-        icon: Icons.description_outlined,
-        title: 'Refund,Terms and Policies',
-        onTap: () => _navigateFromDrawer('/refund'),
-      ),
-      _DrawerItem(
-        icon: Icons.chat_bubble_outline,
-        title: 'Frequently Asked Questions',
-        onTap: () => _navigateFromDrawer('/faq'),
-      ),
-      
-      _DrawerItem(
-        icon: Icons.info_outline,
-        title: 'About Us',
-        onTap: () => _navigateFromDrawer('/about-us'),
-      ),
-      _DrawerItem(
-        icon: Icons.store,
-        title: 'Store Information',
-        onTap: () => _navigateFromDrawer('/store-info'),
-      ),
-      _DrawerItem(
-        icon: Icons.location_on,
-        title: 'Change Location',
-        onTap: () => _navigateFromDrawer('/location-change'),
-      ),
-    ];
-
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      itemCount: drawerItems.length,
-      separatorBuilder: (context, index) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final item = drawerItems[index];
-        return ListTile(
-          leading: Icon(item.icon, color: AppColors.primary),
-          title: Text(item.title),
-          trailing: item.trailing ?? const Icon(Icons.navigate_next),
-          onTap: item.onTap,
-        );
-      },
-    );
-  }
-
-  void _navigateFromDrawer(String route) {
-    Navigator.pop(context);
-    if (mounted) {
-      context.go(route);
-    }
-  }
-}
-
-// Helper class for drawer items
-class _DrawerItem {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-  final Widget? trailing;
-
-  const _DrawerItem({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-    this.trailing,
-  });
 }

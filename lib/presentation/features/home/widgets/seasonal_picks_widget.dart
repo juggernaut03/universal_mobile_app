@@ -1,7 +1,7 @@
-
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart'; // Add this import for GoRouter
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
@@ -172,16 +172,16 @@ class SeasonalPicksWidget extends ConsumerWidget {
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 0),
             itemBuilder: (context, index) {
               final category = categories[index];
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 0),
                 child: GestureDetector(
                   onTap: () => _navigateToCategory(context, category),
                   child: CachedNetworkImage(
                     imageUrl: category.imageUrl,
-                    width: 180,
+                    width: 180, 
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -195,10 +195,10 @@ class SeasonalPicksWidget extends ConsumerWidget {
     );
   }
   
-  /// Navigate to the category details screen
+  /// Navigate to the category details screen using GoRouter
   void _navigateToCategory(BuildContext context, SeasonalCategory category) {
-    Navigator.pushNamed(
-      context,
+    // Use context.push() instead of Navigator.pushNamed() to match GoRouter navigation
+    context.push(
       '/subcategory/${category.categoryId}/${category.departmentId}/${Uri.encodeComponent(category.categoryName)}',
     );
   }

@@ -23,7 +23,13 @@ class OrderDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final logger = ref.read(loggerProvider);
-    logger.log('Building OrderDetailScreen for order: ${order.orderId}');
+    logger.log('Building OrderDetailScreen for order: ${order.displayOrderId}');
+
+    // Use order_date_time if available, otherwise fallback to orderDate
+    final displayDate = order.orderDateTime ?? order.orderDate;
+    final dateFormatter = DateFormat('dd-MMM-yyyy');
+    final timeFormatter = DateFormat('hh:mm a');
+    final fullDateFormatter = DateFormat('EEEE, dd MMMM yyyy');
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -88,13 +94,37 @@ class OrderDetailScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _buildInfoRow('Order Number:', '# ${order.orderId}'),
-                      const SizedBox(height: 12),
+                      
+                      // Order Number - Use actual_order_id if available
                       _buildInfoRow(
-                        'Ordered Date:', 
-                        DateFormat('dd-MMM-yyyy').format(order.orderDate)
+                        'Order Number:', 
+                        order.actualOrderId != null 
+                            ? '#${order.actualOrderId}' 
+                            : '#${order.orderId}'
                       ),
                       const SizedBox(height: 12),
+                      
+                      // Order Date and Time - Use order_date_time
+                      _buildInfoRow(
+                        'Ordered Date:', 
+                        dateFormatter.format(displayDate)
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Order Time
+                      _buildInfoRow(
+                        'Ordered Time:', 
+                        timeFormatter.format(displayDate)
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Full Date Display
+                      _buildInfoRow(
+                        'Order Day:', 
+                        fullDateFormatter.format(displayDate)
+                      ),
+                      const SizedBox(height: 12),
+                      
                       _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(0)}'),
                       const SizedBox(height: 12),
                       _buildInfoRow('Payment Mode:', order.paymentMethod),
@@ -140,6 +170,65 @@ class OrderDetailScreen extends ConsumerWidget {
                             fontStyle: FontStyle.italic,
                           ),
                         ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Order Timing Information Section
+                Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Order Timeline',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Recent order indicator
+                      if (order.isRecent)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green[200]!),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.access_time, size: 14, color: Colors.green[700]),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Recent Order (Last 24 hours)',
+                                style: TextStyle(
+                                  color: Colors.green[700],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      
+                      const SizedBox(height: 8),
+                      
+                      // Time since order
+                      Text(
+                        'Ordered ${_getTimeAgo(displayDate)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -216,6 +305,22 @@ class OrderDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  // Helper method to get time ago string
+  String _getTimeAgo(DateTime orderDate) {
+    final now = DateTime.now();
+    final difference = now.difference(orderDate);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago';
+    } else {
+      return 'Just now';
+    }
   }
 
   Widget _buildInfoRow(String label, String value) {
@@ -436,28 +541,6 @@ class OrderDetailScreen extends ConsumerWidget {
               ),
             ),
           ],
-          
-          // Tax Information
-          const SizedBox(height: 12),
-          // Container(
-          //   padding: const EdgeInsets.all(10),
-          //   color: Colors.blue[50],
-          //   child: Row(
-          //     children: [
-          //       const Icon(Icons.info_outline, color: Colors.blue, size: 16),
-          //       const SizedBox(width: 6),
-          //       Expanded(
-          //         child: Text(
-          //           'Tax of ₹${(order.totalAmount * 0.05).toStringAsFixed(2)} has been included in the total amount.',
-          //           style: const TextStyle(
-          //             color: Colors.blue,
-          //             fontSize: 11,
-          //           ),
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
         ],
       ),
     );
@@ -530,33 +613,28 @@ class OrderDetailScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 6),
                     
-                    // Price and Savings
-                    if (savings > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: Row(
-                          children: [
-                            // Text(
-                            //   'You Save ₹${savings.toStringAsFixed(0)}',
-                            //   style: TextStyle(
-                            //     color: Colors.amber[700],
-                            //     fontSize: 11,
-                            //     fontWeight: FontWeight.w500,
-                            //   ),
-                            // ),
-                          ],
-                        ),
-                      ),
+                    // Price information
                     Row(
                       children: [
-                        // Text(
-                        //   'You Pay ₹${(sellingPrice * item.quantity).toStringAsFixed(0)}',
-                        //   style: TextStyle(
-                        //     color: Colors.green[700],
-                        //     fontSize: 11,
-                        //     fontWeight: FontWeight.w500,
-                        //   ),
-                        // ),
+                        Text(
+                          '₹${(sellingPrice * item.quantity).toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (savings > 0) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '₹${(mrp * item.quantity).toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],

@@ -20,16 +20,26 @@ class OrderCardWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Use order_date_time if available, otherwise fallback to orderDate
+    final displayDate = order.orderDateTime ?? order.orderDate;
     final dateFormatter = DateFormat('dd MMM yyyy');
-    final dateString = dateFormatter.format(order.orderDate);
+    final timeFormatter = DateFormat('hh:mm a');
+    
+    final dateString = dateFormatter.format(displayDate);
+    final timeString = timeFormatter.format(displayDate);
     
     // Calculate correct savings: MRP Total - Our Price Total
     final correctSavings = max(0.0, order.totalMrp - order.totalAmount);
     
-    // Format order ID to show only first 8 characters
-    final truncatedOrderId = order.orderId.length > 8 
-        ? '${order.orderId.substring(0, 8)}...' 
-        : order.orderId;
+    // Use actual_order_id for display, fallback to truncated orderId
+    String displayOrderId;
+    if (order.actualOrderId != null) {
+      displayOrderId = '#${order.actualOrderId}';
+    } else {
+      displayOrderId = order.orderId.length > 8 
+          ? '#${order.orderId.substring(0, 8)}...' 
+          : '#${order.orderId}';
+    }
 
     return InkWell(
       onTap: () => onOrderTap(order),
@@ -73,7 +83,7 @@ class OrderCardWidget extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        '#$truncatedOrderId',
+                        displayOrderId,
                         style: const TextStyle(
                           color: Colors.black87,
                           fontWeight: FontWeight.w600,
@@ -133,13 +143,22 @@ class OrderCardWidget extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Delivery Date
+                        // Order Date and Time
                         Text(
                           dateString,
                           style: const TextStyle(
                             color: Colors.black87,
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'at $timeString',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         const SizedBox(height: 4),

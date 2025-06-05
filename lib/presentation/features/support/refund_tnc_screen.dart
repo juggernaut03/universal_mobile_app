@@ -1,24 +1,122 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // Add this import for ConsumerStatefulWidget
+import 'package:flutter_html/flutter_html.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:patelmart/core/widgets/back_button_wrapper.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../providers/launch_flow_provider.dart'; // Add this import for loggerProvider
+import '../../providers/launch_flow_provider.dart';
 
-class RefundTncScreen extends ConsumerStatefulWidget { // Changed to ConsumerStatefulWidget
+// Provider for refund policy content
+final refundPolicyContentProvider = FutureProvider<String>((ref) async {
+  final logger = ref.read(loggerProvider);
+  try {
+    logger.log('Fetching refund policy content from API');
+    final response = await http.get(
+      Uri.parse('https://newtech.shalviadvision.com/api/refund_policy'),
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body);
+      
+      if (data.containsKey('message')) {
+        return data['message'] as String;
+      } else if (data.containsKey('content')) {
+        return data['content'] as String;
+      } else if (data is String) {
+        return data;
+      } else {
+        logger.error('Unexpected response format: $data');
+        return 'Refund policy information will be available soon. Please contact customer support for assistance.';
+      }
+    }
+    
+    logger.error('Failed to load refund policy content: ${response.statusCode}');
+    throw Exception('Failed to load refund policy content: ${response.statusCode}');
+  } catch (e) {
+    logger.error('Error fetching refund policy content: $e');
+    throw Exception('Unable to load content. Please check your connection and try again.');
+  }
+});
+
+// Provider for terms and conditions content
+final termsConditionsContentProvider = FutureProvider<String>((ref) async {
+  final logger = ref.read(loggerProvider);
+  try {
+    logger.log('Fetching terms and conditions content from API');
+    final response = await http.get(
+      Uri.parse('https://newtech.shalviadvision.com/api/terms_and_conditions'),
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body);
+      
+      if (data.containsKey('message')) {
+        return data['message'] as String;
+      } else if (data.containsKey('content')) {
+        return data['content'] as String;
+      } else if (data is String) {
+        return data;
+      } else {
+        logger.error('Unexpected T&C response format: $data');
+        return 'Terms and conditions information will be available soon. Please contact customer support for assistance.';
+      }
+    }
+    
+    logger.error('Failed to load terms and conditions content: ${response.statusCode}');
+    throw Exception('Failed to load terms and conditions content: ${response.statusCode}');
+  } catch (e) {
+    logger.error('Error fetching terms and conditions content: $e');
+    throw Exception('Unable to load content. Please check your connection and try again.');
+  }
+});
+
+// Provider for privacy policy content
+final privacyPolicyContentProvider = FutureProvider<String>((ref) async {
+  final logger = ref.read(loggerProvider);
+  try {
+    logger.log('Fetching privacy policy content from API');
+    final response = await http.get(
+      Uri.parse('https://newtech.shalviadvision.com/api/privacy_policy'),
+    );
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body);
+      
+      if (data.containsKey('message')) {
+        return data['message'] as String;
+      } else if (data.containsKey('content')) {
+        return data['content'] as String;
+      } else if (data is String) {
+        return data;
+      } else {
+        logger.error('Unexpected privacy policy response format: $data');
+        return 'Privacy policy information will be available soon. Please contact customer support for assistance.';
+      }
+    }
+    
+    logger.error('Failed to load privacy policy content: ${response.statusCode}');
+    throw Exception('Failed to load privacy policy content: ${response.statusCode}');
+  } catch (e) {
+    logger.error('Error fetching privacy policy content: $e');
+    throw Exception('Unable to load content. Please check your connection and try again.');
+  }
+});
+
+class RefundTncScreen extends ConsumerStatefulWidget {
   const RefundTncScreen({Key? key}) : super(key: key);
 
   @override
   ConsumerState<RefundTncScreen> createState() => _RefundTncScreenState();
 }
 
-class _RefundTncScreenState extends ConsumerState<RefundTncScreen> { // Changed to ConsumerState
+class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
   // Track expanded items
-  bool _isPricingExpanded = false;
   bool _isTermsExpanded = false;
+  bool _isRefundExpanded = false;
   bool _isPrivacyExpanded = false;
-  bool _isDisclaimerExpanded = false;
 
   // Custom back navigation handler
   Future<bool> _handleBackPress() async {
@@ -26,14 +124,10 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> { // Changed 
     logger.log('Hardware back button pressed on RefundTncScreen - navigating to home');
     
     try {
-      // Navigate to home using go
       context.go('/home');
-      
-      // Return false to prevent default back navigation
       return false;
     } catch (e) {
       logger.error('Error handling back navigation: $e');
-      // If go fails, try push as fallback
       if (context.mounted) {
         context.pushReplacement('/home');
       }
@@ -43,14 +137,17 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> { // Changed 
 
   @override
   Widget build(BuildContext context) {
+    final termsContent = ref.watch(termsConditionsContentProvider);
+    final refundContent = ref.watch(refundPolicyContentProvider);
+    final privacyContent = ref.watch(privacyPolicyContentProvider);
+    
     return PopScope(
-      canPop: false, // Prevent default pop behavior
+      canPop: false,
       onPopInvoked: (bool didPop) async {
         if (!didPop) {
           final logger = ref.read(loggerProvider);
           logger.log('PopScope: Back navigation intercepted on RefundTncScreen - going to home');
           
-          // Navigate to home
           if (context.mounted) {
             context.go('/home');
           }
@@ -60,7 +157,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> { // Changed 
         onWillPop: _handleBackPress,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('Refund, Terms and Policies'),
+            title: const Text('Terms & Policies'),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
@@ -75,65 +172,68 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> { // Changed 
           body: SingleChildScrollView(
             child: Column(
               children: [
-                _buildExpandableSection(
-                  title: 'Pricing, Delivery, Return and Refund ',
-                  isExpanded: _isPricingExpanded,
-                  onToggle: () {
-                    setState(() {
-                      _isPricingExpanded = !_isPricingExpanded;
-                    });
-                  },
-                  content: _buildPricingAndRefundPolicy(),
-                ),
-                const Divider(height: 1),
-                
+                // Terms & Conditions Section
                 _buildExpandableSection(
                   title: 'Terms & Conditions',
+                  subtitle: 'Legal terms and user agreements',
                   isExpanded: _isTermsExpanded,
                   onToggle: () {
                     setState(() {
                       _isTermsExpanded = !_isTermsExpanded;
                     });
                   },
-                  content: _buildTermsAndConditions(),
+                  content: _buildApiContent(
+                    termsContent, 
+                    'Terms & Conditions',
+                    termsConditionsContentProvider,
+                  ),
                 ),
                 const Divider(height: 1),
                 
+                // Refund Policy Section
+                _buildExpandableSection(
+                  title: 'Refund & Return Policy',
+                  subtitle: 'Return, refund and delivery policies',
+                  isExpanded: _isRefundExpanded,
+                  onToggle: () {
+                    setState(() {
+                      _isRefundExpanded = !_isRefundExpanded;
+                    });
+                  },
+                  content: _buildApiContent(
+                    refundContent, 
+                    'Refund Policy',
+                    refundPolicyContentProvider,
+                  ),
+                ),
+                const Divider(height: 1),
+                
+                // Privacy Policy Section
                 _buildExpandableSection(
                   title: 'Privacy Policy',
+                  subtitle: 'Data collection and usage policies',
                   isExpanded: _isPrivacyExpanded,
                   onToggle: () {
                     setState(() {
                       _isPrivacyExpanded = !_isPrivacyExpanded;
                     });
                   },
-                  content: _buildPrivacyPolicy(),
-                ),
-                const Divider(height: 1),
-                
-                _buildExpandableSection(
-                  title: 'Disclaimer',
-                  isExpanded: _isDisclaimerExpanded,
-                  onToggle: () {
-                    setState(() {
-                      _isDisclaimerExpanded = !_isDisclaimerExpanded;
-                    });
-                  },
-                  content: _buildDisclaimer(),
-                ),
-                const Divider(height: 1),
-                
-                // Last updated section
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Last Updated: April 15, 2025',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
+                  content: _buildApiContent(
+                    privacyContent, 
+                    'Privacy Policy',
+                    privacyPolicyContentProvider,
                   ),
                 ),
+                const Divider(height: 1),
+                
+                // Quick Actions Section
+                _buildQuickActionsSection(),
+                
+                // Contact Information Section
+                _buildContactSection(),
+                
+                // Footer
+                _buildFooter(),
               ],
             ),
           ),
@@ -141,10 +241,10 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> { // Changed 
       ),
     );
   }
-}
 
   Widget _buildExpandableSection({
     required String title,
+    required String subtitle,
     required bool isExpanded,
     required VoidCallback onToggle,
     required Widget content,
@@ -153,295 +253,510 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> { // Changed 
       children: [
         InkWell(
           onTap: onToggle,
-          child: Padding(
+          child: Container(
             padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: isExpanded 
+                  ? AppColors.primary.withOpacity(0.05)
+                  : Colors.transparent,
+              border: Border(
+                left: BorderSide(
+                  color: isExpanded ? AppColors.primary : Colors.transparent,
+                  width: 4,
+                ),
+              ),
+            ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: AppTextStyles.h6.copyWith(
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.h6.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: isExpanded ? AppColors.primary : AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Icon(
                   isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                  color: AppColors.primary,
+                  color: isExpanded ? AppColors.primary : AppColors.textSecondary,
                 ),
               ],
             ),
           ),
         ),
         if (isExpanded) content,
-        const Divider(height: 1),
       ],
     );
   }
 
-  Widget _buildPricingAndRefundPolicy() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'When you use our Services, you will also be subject to the terms set out in this Pricing, Delivery, Return, and Refund Policy along with the Terms and Conditions, and the Privacy Policy.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'Pricing and Availability:',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'The prices mentioned for all the products listed on the Website and/or the Mobile App at the time of ordering will be the prices charged on the date of the delivery. We may at our sole discretion also offer products at a reduced price for a limited period on the Services. All prices are inclusive of GST unless stated otherwise.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'We list availability information for products sold by us on the Website and/or the Mobile App, including on each product information page. However, there may be circumstances where any of the products you order turns out unavailable. We will inform you by email or SMS at the time of processing your order if any products you order turn out to be unavailable.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'Delivery Policy:',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We deliver orders within the promised delivery time, which may vary based on your location and the selected delivery slot. In case of any delay, we will notify you promptly. Delivery is subject to availability of products and manpower. We reserve the right to cancel or delay deliveries in case of unforeseen circumstances.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'Return Policy:',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'You can return products within 7 days of delivery if they are:',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 8),
-          _buildBulletPoint('Damaged or defective'),
-          _buildBulletPoint('Expired or near expiry'),
-          _buildBulletPoint('Not as described on the app'),
-          _buildBulletPoint('Wrong product delivered'),
-          const SizedBox(height: 16),
-          
-          Text(
-            'For fresh produce and perishable items, returns must be reported within 24 hours of delivery. Returns are subject to verification by our team. We reserve the right to decline returns that don\'t meet our policy criteria.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'Refund Policy:',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Refunds will be processed within 5-7 business days after the return is verified. The refund will be issued to the original payment method used during purchase. For cash on delivery orders, refunds will be processed via bank transfer or as store credit, as per your preference.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Please note that shipping charges, if any, are non-refundable except in cases where the return is due to our error.',
-            style: AppTextStyles.bodyMedium,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTermsAndConditions() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Detailed terms and conditions will be displayed here.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            '1. Acceptance of Terms',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'By accessing or using Patel\'s Rmart services, including our mobile application, website, and delivery services, you agree to be bound by these Terms and Conditions. If you do not agree to these terms, please refrain from using our services.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            '2. Account Registration',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'You must register an account to use certain features of our services. You agree to provide accurate, current, and complete information during registration and to update such information to keep it accurate, current, and complete. You are responsible for safeguarding your account credentials and for all activities that occur under your account.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            '3. Products and Services',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We strive to provide accurate product information, including descriptions, pricing, and availability. However, errors may occur. We reserve the right to correct any errors and to change or update information at any time without prior notice.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            '4. Intellectual Property',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'All content, including text, graphics, logos, and software, is the property of Patel\'s Rmart and is protected by intellectual property laws. You may not reproduce, distribute, or create derivative works from this content without express written permission.',
-            style: AppTextStyles.bodyMedium,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPrivacyPolicy() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '1. Information We Collect',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We collect information you provide directly, such as name, address, email, phone number, and payment information. We also collect data about your usage of our services, device information, and location data (with your permission).',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            '2. How We Use Your Information',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We use your information to process orders, provide customer service, improve our services, send promotional communications (if you opt in), and comply with legal obligations. We may use anonymized data for business analytics and market research.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            '3. Information Sharing',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We may share your information with delivery partners, payment processors, and service providers who help us operate our business. We do not sell your personal information to third parties. We may disclose information if required by law or to protect our rights or the safety of others.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            '4. Data Security',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'We implement appropriate technical and organizational measures to protect your personal information. However, no method of transmission over the Internet or electronic storage is 100% secure. We cannot guarantee absolute security.',
-            style: AppTextStyles.bodyMedium,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDisclaimer() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Disclaimer of Warranties:',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'OUR SERVICES ARE PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS. PATEL\'S RMART MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, REGARDING THE OPERATION OF OUR SERVICES OR THE INFORMATION, CONTENT, MATERIALS, OR PRODUCTS INCLUDED.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'TO THE FULLEST EXTENT PERMISSIBLE BY APPLICABLE LAW, PATEL\'S RMART DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. PATEL\'S RMART DOES NOT WARRANT THAT THE SERVICES, INFORMATION, CONTENT, MATERIALS, OR PRODUCTS INCLUDED WILL BE UNINTERRUPTED OR ERROR-FREE.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'Limitation of Liability:',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'PATEL\'S RMART SHALL NOT BE LIABLE FOR ANY DAMAGES OF ANY KIND ARISING FROM THE USE OF OUR SERVICES, INCLUDING, BUT NOT LIMITED TO, DIRECT, INDIRECT, INCIDENTAL, PUNITIVE, AND CONSEQUENTIAL DAMAGES, EVEN IF PATEL\'S RMART HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.',
-            style: AppTextStyles.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          
-          Text(
-            'Indemnification:',
-            style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'You agree to indemnify, defend, and hold harmless Patel\'s Rmart, its affiliates, and their respective officers, directors, employees, agents, and representatives from and against any and all claims, damages, costs, and expenses, including attorneys\' fees, arising from or related to your use of our services or your violation of these Terms and Conditions.',
-            style: AppTextStyles.bodyMedium,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBulletPoint(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 16, bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              shape: BoxShape.circle,
+  Widget _buildApiContent(
+    AsyncValue<String> contentAsync, 
+    String contentType,
+    FutureProvider<String> provider,
+  ) {
+    return contentAsync.when(
+      data: (content) {
+        return Container(
+          color: AppColors.neutral50,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Html(
+              data: content,
+              style: {
+                "p": Style(
+                  fontSize: FontSize(15),
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black87,
+                  margin: Margins(bottom: Margin(14)),
+                  lineHeight: LineHeight(1.6),
+                ),
+                "strong": Style(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+                "h1": Style(
+                  fontSize: FontSize(22),
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  margin: Margins(bottom: Margin(16), top: Margin(20)),
+                ),
+                "h2": Style(
+                  fontSize: FontSize(20),
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  margin: Margins(bottom: Margin(14), top: Margin(16)),
+                ),
+                "h3": Style(
+                  fontSize: FontSize(18),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                  margin: Margins(bottom: Margin(12), top: Margin(14)),
+                ),
+                "br": Style(
+                  margin: Margins(bottom: Margin(8)),
+                ),
+                "ul": Style(
+                  margin: Margins(bottom: Margin(16), left: Margin(20)),
+                ),
+                "ol": Style(
+                  margin: Margins(bottom: Margin(16), left: Margin(20)),
+                ),
+                "li": Style(
+                  margin: Margins(bottom: Margin(6)),
+                  fontSize: FontSize(15),
+                  lineHeight: LineHeight(1.5),
+                ),
+                "blockquote": Style(
+                  backgroundColor: AppColors.primaryLighter.withOpacity(0.1),
+                  padding: HtmlPaddings.all(12),
+                  margin: Margins(bottom: Margin(16)),
+                  border: Border(
+                    left: BorderSide(
+                      color: AppColors.primary,
+                      width: 4,
+                    ),
+                  ),
+                ),
+                "table": Style(
+                  border: Border.all(color: AppColors.neutral300),
+                  margin: Margins(bottom: Margin(16)),
+                ),
+                "th": Style(
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  padding: HtmlPaddings.all(8),
+                  fontWeight: FontWeight.bold,
+                ),
+                "td": Style(
+                  padding: HtmlPaddings.all(8),
+                  border: Border.all(color: AppColors.neutral300),
+                ),
+              },
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: AppTextStyles.bodyMedium,
+        );
+      },
+      loading: () => Container(
+        color: AppColors.neutral50,
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          children: [
+            CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading $contentType...',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+      error: (error, stack) => Builder(
+        builder: (context) => Container(
+          color: AppColors.neutral50,
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Unable to Load $contentType',
+                      style: AppTextStyles.h6.copyWith(
+                        color: AppColors.error,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Please check your internet connection and try again.',
+                      style: AppTextStyles.bodyMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ProviderScope.containerOf(context).refresh(provider);
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Fallback info
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.neutral100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.neutral300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, 
+                             size: 16, 
+                             color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Need Immediate Help?',
+                          style: AppTextStyles.bodyLarge.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Contact our support team for assistance with $contentType:',
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.phone, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          '+91 8188252372',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsSection() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withOpacity(0.1),
+            AppColors.primaryLighter.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Quick Actions',
+              style: AppTextStyles.h6.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickActionButton(
+                    icon: Icons.help_outline,
+                    title: 'Get Help',
+                    onTap: () => context.push('/help-support'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildQuickActionButton(
+                    icon: Icons.info_outline,
+                    title: 'About Us',
+                    onTap: () => context.push('/about-us'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.neutral300),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontWeight: FontWeight.w500,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLighter.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.support_agent,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Customer Support',
+                  style: AppTextStyles.h5.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Have questions about our policies? We\'re here to help!',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            _buildContactItem(
+              icon: Icons.phone,
+              title: 'Phone Support',
+              detail: '+91 8188252372',
+              subtitle: 'Available 9 AM - 7 PM',
+            ),
+            const SizedBox(height: 12),
+            _buildContactItem(
+              icon: Icons.email,
+              title: 'Email Support',
+              detail: 'customercare@patelsrmart.com',
+              subtitle: 'Get response within 24 hours',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactItem({
+    required IconData icon,
+    required String title,
+    required String detail,
+    String? subtitle,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLighter.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: AppColors.primary,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTextStyles.labelLarge.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                detail,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFooter() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.neutral100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Last Updated: December 2024',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '© 2024 Patel\'s Rmart. All rights reserved.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'These terms are governed by Indian law and subject to the jurisdiction of courts in Maharashtra, India.',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
+}

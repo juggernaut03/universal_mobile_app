@@ -16,7 +16,9 @@ class Order {
   final List<CartItem> items;
   final String status;
   final String? deliveryAddress;
-  final double? deliveryAmount; // Added for delivery fees
+  final double? deliveryAmount;
+  final DateTime? orderDateTime; // This is the primary field for order date/time
+  final int? actualOrderId; // This is the display order ID
 
   Order({
     required this.orderId,
@@ -31,6 +33,8 @@ class Order {
     required this.status,
     this.deliveryAddress,
     this.deliveryAmount,
+    this.orderDateTime,
+    this.actualOrderId,
   });
 
   // Convert order to JSON
@@ -47,6 +51,8 @@ class Order {
       'status': status,
       'deliveryAddress': deliveryAddress,
       'deliveryAmount': deliveryAmount,
+      'orderDateTime': orderDateTime?.toIso8601String(),
+      'actualOrderId': actualOrderId,
       'items': items.map((item) => {
         'productId': item.product.pCode,
         'productName': item.product.productName,
@@ -60,50 +66,90 @@ class Order {
     };
   }
 
-  // Create order from JSON with stored product data
+  // Helper method to parse UTC datetime and convert to local time
+  static DateTime? _parseOrderDateTime(String? dateTimeString) {
+    if (dateTimeString == null || dateTimeString.isEmpty) {
+      return null;
+    }
+    
+    try {
+      // Parse the UTC datetime
+      DateTime utcDateTime = DateTime.parse(dateTimeString);
+      
+      // Convert UTC to local timezone
+      DateTime localDateTime = utcDateTime.toLocal();
+      
+      print('Original UTC: $dateTimeString');
+      print('Parsed UTC: $utcDateTime');
+      print('Local time: $localDateTime');
+      
+      return localDateTime;
+    } catch (e) {
+      print('Error parsing order_date_time: $e');
+      return null;
+    }
+  }
+
+  // Create order from JSON with proper timezone handling
   factory Order.fromJson(Map<String, dynamic> json) {
     // Convert cart_items to CartItems
     final List<CartItem> items = [];
     if (json['cart_items'] != null) {
       for (final item in json['cart_items']) {
-        // Create product from API response format
-        final product = ProductModel(
-          id: '',
-          pCode: item['pcode'] ?? '',
-          pcodeImg: item['product_image_link'] ?? '',
-          barcode: '',
-          productName: item['product_name'] ?? 'Product',
-          productDescription: '',
-          packageSize: double.tryParse(item['package_size']?.toString() ?? '0') ?? 0.0,
-          packageUnit: item['package_unit'] ?? '',
-          productMrp: double.tryParse(item['product_mrp']?.toString() ?? '0') ?? 0.0,
-          ourPrice: double.tryParse(item['selling_price']?.toString() ?? '0') ?? 0.0,
-          brandName: '',
-          storeCode: '',
-          pcodestatus: '',
-          deptId: '',
-          categoryId: '',
-          subCategoryId: '',
-          storeQuantity: 10,
-          maxQuantityAllowed: 10,
-        );
-        
-        items.add(CartItem(
-          product: product,
-          quantity: item['quantity'] ?? 1,
-        ));
+        try {
+          final productModel = ProductModel(
+            id: '',
+            pCode: item['pcode'] ?? '',
+            pcodeImg: item['product_image_link'] ?? '',
+            barcode: '',
+            productName: item['product_name'] ?? 'Product',
+            productDescription: '',
+            packageSize: double.tryParse(item['package_size']?.toString() ?? '0') ?? 0.0,
+            packageUnit: item['package_unit'] ?? '',
+            productMrp: double.tryParse(item['product_mrp']?.toString() ?? '0') ?? 0.0,
+            ourPrice: double.tryParse(item['selling_price']?.toString() ?? '0') ?? 0.0,
+            brandName: '',
+            storeCode: '',
+            pcodestatus: '',
+            deptId: '',
+            categoryId: '',
+            subCategoryId: '',
+            storeQuantity: 10,
+            maxQuantityAllowed: 10,
+          );
+          
+          items.add(CartItem(
+            product: productModel,
+            quantity: item['quantity'] ?? 1,
+          ));
+        } catch (e) {
+          print('Error parsing cart item: $e');
+        }
       }
     }
     
-    // Extract delivery date
+    // Extract and properly handle order_date_time with timezone conversion
+    DateTime? orderDateTime = _parseOrderDateTime(json['order_date_time']);
+    
+    // Use order_date_time as primary, fallback to delivery_date, then current time
     DateTime orderDate;
     try {
-      orderDate = json['delivery_date'] != null 
-          ? DateTime.parse(json['delivery_date']) 
-          : DateTime.now();
+      if (orderDateTime != null) {
+        orderDate = orderDateTime;
+      } else if (json['delivery_date'] != null) {
+        // Handle delivery_date as well
+        DateTime deliveryDateTime = DateTime.parse(json['delivery_date']);
+        orderDate = deliveryDateTime.toLocal();
+      } else {
+        orderDate = DateTime.now();
+      }
     } catch (e) {
+      print('Error parsing dates: $e');
       orderDate = DateTime.now();
     }
+    
+    // Extract actual_order_id for display
+    final actualOrderId = json['actual_order_id'] as int?;
     
     // Extract total MRP and our price from API
     final totalMrp = double.tryParse(json['total_amount_mrp']?.toString() ?? '0') ?? 0.0;
@@ -133,17 +179,88 @@ class Order {
     
     return Order(
       orderId: json['_id'] ?? json['temp_order_id'] ?? 'UNKNOWN',
-      orderDate: orderDate,
+      orderDate: orderDate, // This will be properly converted to local time
       deliveryMethod: json['delivery_mode'] ?? 'Home Delivery',
       deliverySlot: json['delivery_slot'] ?? '09:00 AM - 12:00 PM',
-      totalAmount: totalOurPrice,
-      totalMrp: totalMrp, // Store the MRP total
-      savings: correctSavings, // Use correct savings calculation
+      totalAmount: totalOurPrice + deliveryCharges, // Include delivery charges in total
+      totalMrp: totalMrp,
+      savings: correctSavings,
       paymentMethod: json['payment_mode'] ?? 'COD',
       status: json['order_status'] ?? 'Order Confirmed',
       deliveryAddress: formattedAddress,
-      deliveryAmount: deliveryCharges, // Add delivery charges
+      deliveryAmount: deliveryCharges,
       items: items,
+      orderDateTime: orderDateTime, // Store the converted local time
+      actualOrderId: actualOrderId, // Store actual_order_id for display
     );
+  }
+
+  // Helper method to get display order ID - prioritize actual_order_id
+  String get displayOrderId {
+    if (actualOrderId != null) {
+      return actualOrderId.toString();
+    }
+    // Fallback to temp_order_id or _id
+    return orderId;
+  }
+
+  // Helper method to get formatted order date using local time
+  String get formattedOrderDate {
+    final displayDate = orderDateTime ?? orderDate;
+    return '${displayDate.day.toString().padLeft(2, '0')}/${displayDate.month.toString().padLeft(2, '0')}/${displayDate.year}';
+  }
+
+  // Helper method to get formatted order time using local time
+  String get formattedOrderTime {
+    final displayDate = orderDateTime ?? orderDate;
+    final hour = displayDate.hour > 12 
+        ? displayDate.hour - 12 
+        : displayDate.hour == 0 
+            ? 12 
+            : displayDate.hour;
+    final amPm = displayDate.hour >= 12 ? 'PM' : 'AM';
+    return '${hour.toString().padLeft(2, '0')}:${displayDate.minute.toString().padLeft(2, '0')} $amPm';
+  }
+
+  // Helper method to get full formatted date and time
+  String get formattedOrderDateTime {
+    return '${formattedOrderDate} at ${formattedOrderTime}';
+  }
+
+  // Helper method to check if order is recent (within last 24 hours)
+  bool get isRecent {
+    final displayDate = orderDateTime ?? orderDate;
+    final now = DateTime.now();
+    final difference = now.difference(displayDate);
+    return difference.inHours < 24;
+  }
+
+  // Helper method to get order status color
+  String get statusColor {
+    switch (status.toLowerCase()) {
+      case 'order confirmed':
+        return '#4CAF50'; // Green
+      case 'processing':
+        return '#FF9800'; // Orange
+      case 'shipped':
+        return '#2196F3'; // Blue
+      case 'delivered':
+        return '#4CAF50'; // Green
+      case 'cancelled':
+        return '#F44336'; // Red
+      default:
+        return '#757575'; // Grey
+    }
+  }
+
+  // Method for sorting - use order_date_time as primary sort field
+  DateTime get sortableDateTime {
+    return orderDateTime ?? orderDate;
+  }
+
+  // Debug method to see timezone information
+  String get debugTimeInfo {
+    final displayDate = orderDateTime ?? orderDate;
+    return 'Local: $displayDate, Timezone: ${displayDate.timeZoneName}, Offset: ${displayDate.timeZoneOffset}';
   }
 }
