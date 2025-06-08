@@ -1,4 +1,4 @@
-// lib/app.dart - Updated to support popup lifecycle management
+// lib/app.dart - Simplified to avoid conflicts with main.dart lifecycle handling
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -19,54 +19,24 @@ class MyApp extends ConsumerStatefulWidget {
   ConsumerState<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
-  bool _hasInitializedAppLifecycle = false;
-
+class _MyAppState extends ConsumerState<MyApp> {
+  // Remove WidgetsBindingObserver from here since main.dart handles it
+  
   @override
   void initState() {
     super.initState();
     
-    // Add observer for additional lifecycle handling
-    WidgetsBinding.instance.addObserver(this);
-    
-    // Initialize app lifecycle handler after build
+    // Simple initialization - main.dart handles the complex lifecycle
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeAppLifecycleHandler();
+      _logAppReady();
     });
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  void _initializeAppLifecycleHandler() {
-    if (!_hasInitializedAppLifecycle && mounted) {
-      try {
-        // Initialize the app lifecycle handler
-        ref.read(appLifecycleHandlerProvider);
-        _hasInitializedAppLifecycle = true;
-        
-        ref.read(loggerProvider).log('✅ App lifecycle handler initialized in MyApp');
-      } catch (e) {
-        ref.read(loggerProvider).error('❌ Failed to initialize app lifecycle handler: $e');
-      }
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    
-    // Additional lifecycle handling specific to the app widget
-    if (state == AppLifecycleState.resumed && mounted) {
-      // Ensure popup system is ready when app resumes
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted && _hasInitializedAppLifecycle) {
-          ref.read(loggerProvider).log('🔄 App resumed - popup system check');
-        }
-      });
+  void _logAppReady() {
+    try {
+      ref.read(loggerProvider).log('✅ MyApp widget ready - UI can be rendered');
+    } catch (e) {
+      ref.read(loggerProvider).error('❌ MyApp initialization error: $e');
     }
   }
 
