@@ -41,78 +41,48 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
   final ScrollController _scrollController = ScrollController();
   
   int _selectedIndex = 0;
-  int _navIndex = 1; // Starting on category tab index
+  int _navIndex = 1;
   bool _isRefreshing = false;
-  bool _isSearchSticky = false;
-  bool _isTabBarSticky = false; // New state for tab bar stickiness
   
-  // Animation controllers for smooth transitions
-  late AnimationController _appBarAnimationController;
-  late AnimationController _searchAnimationController;
-  late AnimationController _tabBarAnimationController; // New controller for tab bar
-  late Animation<double> _titleOpacityAnimation;
-  late Animation<double> _titleScaleAnimation;
-  late Animation<Offset> _searchSlideAnimation;
-  late Animation<Offset> _tabBarSlideAnimation; // New animation for tab bar
+  // Simplified state management - no jerky boolean switches
+  double _scrollOffset = 0.0;
   
-  // Scroll thresholds
-  static const double _stickyThreshold = 80.0;
-  static const double _tabBarStickyThreshold = 130.0; // New threshold for tab bar
+  // Single animation controller for smooth transitions
+  late AnimationController _headerAnimationController;
+  late Animation<double> _headerOpacity;
+  late Animation<double> _headerScale;
+  
+  // Smooth thresholds
+  static const double _headerFadeStart = 30.0;
+  static const double _headerFadeEnd = 80.0;
+  static const double _stickyHeaderThreshold = 100.0;
 
   @override
   void initState() {
     super.initState();
     
-    // Animation controllers
-    _appBarAnimationController = AnimationController(
+    // Single animation controller for all header animations
+    _headerAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     
-    _searchAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 250),
-      vsync: this,
-    );
-    
-    // New tab bar animation controller
-    _tabBarAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 250),
-      vsync: this,
-    );
-    
-    // Title animations
-    _titleOpacityAnimation = Tween<double>(
+    // Smooth fade animation
+    _headerOpacity = Tween<double>(
       begin: 1.0,
       end: 0.0,
     ).animate(CurvedAnimation(
-      parent: _appBarAnimationController,
-      curve: Curves.easeOutCubic,
+      parent: _headerAnimationController,
+      curve: Curves.easeInOutCubic,
     ));
     
-    _titleScaleAnimation = Tween<double>(
+    // Smooth scale animation
+    _headerScale = Tween<double>(
       begin: 1.0,
-      end: 0.8,
+      end: 0.9,
     ).animate(CurvedAnimation(
-      parent: _appBarAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
-    
-    // Search slide animation - slides from top
-    _searchSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _searchAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
-    
-    // Tab bar slide animation - slides from top
-    _tabBarSlideAnimation = Tween<Offset>(
-      begin: const Offset(0, -1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _tabBarAnimationController,
-      curve: Curves.easeOutCubic,
+      parent: _headerAnimationController,
+      curve: Curves.easeInOutCubic,
     ));
     
     _scrollController.addListener(_onScroll);
@@ -128,43 +98,22 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     _searchController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-    _appBarAnimationController.dispose();
-    _searchAnimationController.dispose();
-    _tabBarAnimationController.dispose(); // Dispose new controller
+    _headerAnimationController.dispose();
     super.dispose();
   }
 
   void _onScroll() {
-    final scrollOffset = _scrollController.offset;
-    final shouldSearchBeSticky = scrollOffset > _stickyThreshold;
-    final shouldTabBarBeSticky = scrollOffset > _tabBarStickyThreshold;
+    final offset = _scrollController.offset;
     
-    // Handle sticky search bar animation
-    if (shouldSearchBeSticky != _isSearchSticky) {
+    // Only update if there's a significant change to prevent excessive rebuilds
+    if ((offset - _scrollOffset).abs() > 2.0) {
       setState(() {
-        _isSearchSticky = shouldSearchBeSticky;
+        _scrollOffset = offset;
       });
       
-      if (_isSearchSticky) {
-        _appBarAnimationController.forward();
-        _searchAnimationController.forward();
-      } else {
-        _appBarAnimationController.reverse();
-        _searchAnimationController.reverse();
-      }
-    }
-    
-    // Handle sticky tab bar animation
-    if (shouldTabBarBeSticky != _isTabBarSticky) {
-      setState(() {
-        _isTabBarSticky = shouldTabBarBeSticky;
-      });
-      
-      if (_isTabBarSticky) {
-        _tabBarAnimationController.forward();
-      } else {
-        _tabBarAnimationController.reverse();
-      }
+      // Smooth animation based on scroll position
+      final progress = ((offset - _headerFadeStart) / (_headerFadeEnd - _headerFadeStart)).clamp(0.0, 1.0);
+      _headerAnimationController.animateTo(progress);
     }
   }
 
@@ -190,19 +139,12 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     });
     
     try {
-      // Set the refresh flag to true which will trigger cache clearing in the providers
       ref.read(refreshSubcategoryProvider.notifier).state = true;
-      
-      // Re-fetch the subcategories
       await ref.refresh(subcategoriesProvider(widget.categoryId).future);
       
-      // Get the subcategories data, handling the AsyncValue properly
       final subcategoriesAsync = ref.read(subcategoriesProvider(widget.categoryId));
+      String subCategoryId = "0";
       
-      // Setup filter parameters based on selected tab
-      String subCategoryId = "0"; // Default to "ALL"
-      
-      // Only try to access subcategory ID if we have data and the selected index is valid
       if (_selectedIndex > 0) {
         subcategoriesAsync.whenData((subcategories) {
           if (_selectedIndex <= subcategories.length) {
@@ -211,9 +153,8 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         });
       }
       
-      // Get store code from selected outlet
       final selectedOutlet = ref.read(selectedOutletProvider).valueOrNull;
-      final storeCode = selectedOutlet?.storeCode ?? "TTL"; // Fallback to TTL if no outlet selected
+      final storeCode = selectedOutlet?.storeCode ?? "TTL";
       
       final filterParams = ProductFilterParams(
         deptId: widget.deptId,
@@ -222,10 +163,8 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         storeCode: storeCode,
       );
       
-      // Re-fetch the products
       await ref.refresh(productsProvider(filterParams).future);
     } catch (e) {
-      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -253,7 +192,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     }
   }
 
-  // Build the tab bar widget that can be used both in normal position and sticky position
+  // Build the tab bar widget
   Widget _buildTabBarWidget(List subcategories) {
     if (_tabController == null) return const SizedBox.shrink();
     
@@ -263,10 +202,10 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 0,
             blurRadius: 2,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -311,7 +250,6 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
               fontWeight: FontWeight.w500,
             ),
           ),
-          // Sort dropdown button
           InkWell(
             onTap: () {
               _showSortOptions(context);
@@ -354,20 +292,17 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     
     // Setup tab controller when data is available
     subcategoriesAsync.whenData((subcategories) {
-      final tabCount = subcategories.length + 1; // +1 for "ALL" tab
+      final tabCount = subcategories.length + 1;
       
       if (_tabController == null || _tabController!.length != tabCount) {
-        // Dispose existing controller if it exists
         _tabController?.dispose();
         
-        // Create new controller with correct number of tabs
         _tabController = TabController(
           length: tabCount,
           vsync: this,
           initialIndex: _selectedIndex < tabCount ? _selectedIndex : 0,
         );
         
-        // Add listener for tab changes
         _tabController!.addListener(() {
           if (!_tabController!.indexIsChanging && mounted) {
             setState(() {
@@ -378,11 +313,9 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
       }
     });
     
-    // Get the store code from the selected outlet
     final selectedOutletAsync = ref.watch(selectedOutletProvider);
     final storeCode = selectedOutletAsync.asData?.value?.storeCode ?? "TTL";
     
-    // Setup filter parameters based on selected tab
     final filterParams = subcategoriesAsync.valueOrNull != null && 
                          subcategoriesAsync.valueOrNull!.isNotEmpty && 
                          _selectedIndex > 0 && 
@@ -396,7 +329,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         : ProductFilterParams(
             deptId: widget.deptId,
             categoryId: widget.categoryId,
-            subCategoryId: "0", // Default to "ALL"
+            subCategoryId: "0",
             storeCode: storeCode,
           );
     
@@ -405,272 +338,284 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     final cartCount = ref.watch(cartCountProvider);
     final currentSortOption = ref.watch(sortOptionProvider);
     
+    // Check if we should show sticky header
+    final showStickyHeader = _scrollOffset > _stickyHeaderThreshold;
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Main content
-          Column(
-            children: [
-              // Dynamic App Bar - changes height based on scroll
-              _buildDynamicAppBar(),
-              
-              // Main scrollable content
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _handleRefresh,
-                  color: AppColors.primary,
-                  child: CustomScrollView(
-                    controller: _scrollController,
-                    slivers: [
-                      // Tab Bar (normal position)
-                      SliverToBoxAdapter(
-                        child: subcategoriesAsync.when(
-                          data: (subcategories) {
-                            return _buildTabBarWidget(subcategories);
-                          },
-                          loading: () => _buildTabBarShimmer(),
-                          error: (_, __) => Container(
-                            height: 50,
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Failed to load subcategories',
-                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+          // Main content with NestedScrollView for smoother sticky behavior
+          NestedScrollView(
+            controller: _scrollController,
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                // Dynamic App Bar as Sliver
+                SliverAppBar(
+                  expandedHeight: 56,
+                  floating: false,
+                  pinned: true,
+                  backgroundColor: AppColors.primary,
+                  elevation: 2,
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => context.pop(),
+                  ),
+                  title: AnimatedBuilder(
+                    animation: _headerOpacity,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _headerScale.value,
+                        child: Opacity(
+                          opacity: _headerOpacity.value,
+                          child: Text(
+                            widget.categoryName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                      
-                      // Product Count & Filter Section (normal position)
-                      SliverToBoxAdapter(
-                        child: productsAsync.when(
-                          data: (products) => _buildFilterSection(products, currentSortOption),
-                          loading: () => _buildFilterShimmer(),
-                          error: (_, __) => const SizedBox.shrink(),
-                        ),
-                      ),
-                      
-                      // Product List
-                      SliverFillRemaining(
-                        child: productsAsync.when(
-                          data: (products) {
-                            // Apply sorting through the provider
-                            final sortedProducts = ref.watch(sortedProductsProvider(products));
-                            
-                            return sortedProducts.isEmpty
-                                ? _buildEmptyState()
-                                : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                    itemCount: sortedProducts.length,
-                                    itemBuilder: (context, index) {
-                                      final product = sortedProducts[index];
-                                      return ProductItemWidget(
-                                        product: product,
-                                        onAddToCart: () {
-                                          // This is now handled directly in the ProductItemWidget
-                                        },
-                                        onToggleFavorite: () {
-                                          // TODO: Implement favorite functionality
-                                        },
-                                      );
+                      );
+                    },
+                  ),
+                  actions: [
+                    AnimatedBuilder(
+                      animation: _headerOpacity,
+                      builder: (context, child) {
+                        return Opacity(
+                          opacity: _headerOpacity.value,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.search, color: Colors.white),
+                                onPressed: () {
+                                  logger.log('Search button pressed');
+                                  context.push('/search');
+                                },
+                              ),
+                              Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+                                    onPressed: () {
+                                      logger.log('Cart button pressed');
+                                      if (mounted) {
+                                        context.push('/cart');
+                                      }
                                     },
-                                  );
-                          },
-                          loading: () => _buildProductsShimmer(),
-                          error: (error, _) => Center(
-                            child: AppErrorWidget(
-                              errorType: ErrorType.server,
-                              message: 'Error loading products: ${error.toString()}',
-                              onRetry: () => ref.refresh(productsProvider(filterParams)),
+                                  ),
+                                  if (cartCount > 0)
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 16,
+                                          minHeight: 16,
+                                        ),
+                                        child: Text(
+                                          cartCount.toString(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                
+                // Sticky Tab Bar
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _StickyTabBarDelegate(
+                    child: subcategoriesAsync.when(
+                      data: (subcategories) => _buildTabBarWidget(subcategories),
+                      loading: () => _buildTabBarShimmer(),
+                      error: (_, __) => Container(
+                        height: 50,
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Failed to load subcategories',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Filter Section
+                SliverToBoxAdapter(
+                  child: productsAsync.when(
+                    data: (products) => _buildFilterSection(products, currentSortOption),
+                    loading: () => _buildFilterShimmer(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                ),
+              ];
+            },
+            body: RefreshIndicator(
+              onRefresh: _handleRefresh,
+              color: AppColors.primary,
+              child: productsAsync.when(
+                data: (products) {
+                  final sortedProducts = ref.watch(sortedProductsProvider(products));
+                  
+                  if (sortedProducts.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    itemCount: sortedProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = sortedProducts[index];
+                      return ProductItemWidget(
+                        product: product,
+                        onAddToCart: () {
+                          // Handled in ProductItemWidget
+                        },
+                        onToggleFavorite: () {
+                          // TODO: Implement favorite functionality
+                        },
+                      );
+                    },
+                  );
+                },
+                loading: () => _buildProductsShimmer(),
+                error: (error, _) => Center(
+                  child: AppErrorWidget(
+                    errorType: ErrorType.server,
+                    message: 'Error loading products: ${error.toString()}',
+                    onRetry: () => ref.refresh(productsProvider(filterParams)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Floating sticky header only when scrolled far enough
+          if (showStickyHeader)
+            Positioned(
+              top: MediaQuery.of(context).padding.top,
+              left: 0,
+              right: 0,
+              child: Material(
+                elevation: 4,
+                child: Container(
+                  height: 56,
+                  color: AppColors.primary,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => context.pop(),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            widget.categoryName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.search, color: Colors.white),
+                        onPressed: () {
+                          logger.log('Search button pressed');
+                          context.push('/search');
+                        },
+                      ),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+                            onPressed: () {
+                              logger.log('Cart button pressed');
+                              if (mounted) {
+                                context.push('/cart');
+                              }
+                            },
+                          ),
+                          if (cartCount > 0)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  cartCount.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
-            ],
-          ),
-          
-          // Floating sticky search bar that appears at the very top
-          AnimatedBuilder(
-            animation: _searchSlideAnimation,
-            builder: (context, child) {
-              return _isSearchSticky
-                  ? Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: SlideTransition(
-                        position: _searchSlideAnimation,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                offset: const Offset(0, 2),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: SafeArea(
-                            child: Container(
-                              height: 56,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Row(
-                                children: [
-                                  // Back button
-                                  IconButton(
-                                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                                    onPressed: () => context.pop(),
-                                  ),
-                                  
-                                  // Title
-                                  Expanded(
-                                    child: Center(
-                                      child: Text(
-                                        widget.categoryName,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ),
-                                  
-                                  // Search icon
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.search,
-                                      color: Colors.white,
-                                    ),
-                                    onPressed: () {
-                                      logger.log('Search button pressed');
-                                      context.push('/search');
-                                    },
-                                  ),
-                                  
-                                  // Cart icon with badge
-                                  Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                                        onPressed: () {
-                                          logger.log('Cart button pressed');
-                                          if (mounted) {
-                                            context.push('/cart');
-                                          }
-                                        },
-                                      ),
-                                      if (cartCount > 0)
-                                        Positioned(
-                                          right: 0,
-                                          top: 0,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.red,
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            constraints: const BoxConstraints(
-                                              minWidth: 16,
-                                              minHeight: 16,
-                                            ),
-                                            child: Text(
-                                              cartCount.toString(),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink();
-            },
-          ),
-          
-          // Floating sticky tab bar and filter section
-          AnimatedBuilder(
-            animation: _tabBarSlideAnimation,
-            builder: (context, child) {
-              return _isTabBarSticky
-                  ? Positioned(
-                      top: _isSearchSticky ? 56 + MediaQuery.of(context).padding.top : 0,
-                      left: 0,
-                      right: 0,
-                      child: SlideTransition(
-                        position: _tabBarSlideAnimation,
-                        child: Column(
-                          children: [
-                            // Sticky Tab Bar
-                            subcategoriesAsync.when(
-                              data: (subcategories) => _buildTabBarWidget(subcategories),
-                              loading: () => _buildTabBarShimmer(),
-                              error: (_, __) => Container(
-                                height: 50,
-                                alignment: Alignment.center,
-                                child: Text(
-                                  'Failed to load subcategories',
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
-                                ),
-                              ),
-                            ),
-                            
-                            // Sticky Filter Section
-                            productsAsync.when(
-                              data: (products) => _buildFilterSection(products, currentSortOption),
-                              loading: () => _buildFilterShimmer(),
-                              error: (_, __) => const SizedBox.shrink(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink();
-            },
-          ),
+            ),
         ],
       ),
       
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // This is our persistent cart widget
           const PersistentCartWidget(),
-          
-          // The existing bottom navigation bar
           BottomNavigationWidget(
             currentIndex: _navIndex,
             onTap: (index) {
               setState(() {
                 _navIndex = index;
               });
-              // Handle navigation based on index
-              if (index == 0) { // Home
+              if (index == 0) {
                 context.go('/home');
-              } else if (index == 1) { // Category
+              } else if (index == 1) {
                 context.go('/category');
-              } else if (index == 2) { // Cart
+              } else if (index == 2) {
                 context.push('/cart');
-              } else if (index == 3) { // Reorder
+              } else if (index == 3) {
                 context.push('/reorder');
-              } else if (index == 4) { // Account
+              } else if (index == 4) {
                 context.go('/account');
               }
             },
@@ -688,135 +633,6 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.miniEndFloat,
-    );
-  }
-
-  Widget _buildDynamicAppBar() {
-    final cartCount = ref.watch(cartCountProvider);
-    
-    return AnimatedBuilder(
-      animation: Listenable.merge([_titleOpacityAnimation, _titleScaleAnimation]),
-      builder: (context, child) {
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                offset: const Offset(0, 2),
-                blurRadius: 4,
-              ),
-            ],
-          ),
-          child: SafeArea(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              height: _isSearchSticky ? 0 : 56, // Collapse height when sticky
-              child: _isSearchSticky 
-                  ? const SizedBox.shrink() // Completely hide when sticky
-                  : Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          // Back button
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
-                            onPressed: () => context.pop(),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                          
-                          // Category title with fade and scale animation
-                          Expanded(
-                            child: Transform.scale(
-                              scale: _titleScaleAnimation.value,
-                              child: Opacity(
-                                opacity: _titleOpacityAnimation.value,
-                                child: Text(
-                                  widget.categoryName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                          ),
-                          
-                          // Action buttons with fade animation
-                          Opacity(
-                            opacity: _titleOpacityAnimation.value,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Search icon
-                                IconButton(
-                                  icon: const Icon(Icons.search, color: Colors.white),
-                                  onPressed: () {
-                                    ref.read(loggerProvider).log('Search button pressed');
-                                    context.push('/search');
-                                  },
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
-                                
-                                const SizedBox(width: 16),
-                                
-                                // Cart icon with badge
-                                Stack(
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                                      onPressed: () {
-                                        ref.read(loggerProvider).log('Cart button pressed');
-                                        if (mounted) {
-                                          context.push('/cart');
-                                        }
-                                      },
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                    if (cartCount > 0)
-                                      Positioned(
-                                        right: -5,
-                                        top: -5,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          constraints: const BoxConstraints(
-                                            minWidth: 16,
-                                            minHeight: 16,
-                                          ),
-                                          child: Text(
-                                            cartCount.toString(),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-            ),
-          ),
-        );
-      },
     );
   }
   
@@ -851,28 +667,15 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
               ),
             ),
             const Divider(),
-            _buildSortOption(
-              context,
-              "Default",
-              SortOption.none,
-            ),
-            _buildSortOption(
-              context,
-              "Price: Low to High",
-              SortOption.priceLowToHigh,
-            ),
-            _buildSortOption(
-              context,
-              "Price: High to Low",
-              SortOption.priceHighToLow,
-            ),
+            _buildSortOption(context, "Default", SortOption.none),
+            _buildSortOption(context, "Price: Low to High", SortOption.priceLowToHigh),
+            _buildSortOption(context, "Price: High to Low", SortOption.priceHighToLow),
           ],
         ),
       ),
     );
   }
   
-  // Build a sort option item
   Widget _buildSortOption(BuildContext context, String title, SortOption option) {
     final currentOption = ref.watch(sortOptionProvider);
     bool isSelected = currentOption == option;
@@ -909,7 +712,6 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     );
   }
   
-  // Empty state when no products are found
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -998,7 +800,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: 5, // Show 5 tab placeholders
+        itemCount: 5,
         itemBuilder: (context, index) {
           return Container(
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
@@ -1018,7 +820,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
   Widget _buildProductsShimmer() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      itemCount: 5, // Show 5 shimmer items
+      itemCount: 5,
       itemBuilder: (context, index) {
         return Shimmer.fromColors(
           baseColor: Colors.grey[300]!,
@@ -1054,5 +856,28 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         ),
       ),
     );
+  }
+}
+
+// Custom delegate for sticky tab bar
+class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _StickyTabBarDelegate({required this.child});
+
+  @override
+  double get minExtent => 50;
+
+  @override
+  double get maxExtent => 50;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
+    return true;
   }
 }

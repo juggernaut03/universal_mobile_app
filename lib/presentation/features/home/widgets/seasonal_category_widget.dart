@@ -45,19 +45,22 @@ class SeasonalCategory {
   }
 }
 
-/// Response model for the API
+/// Updated response model for the API including background color
 class SeasonalCategoryResponse {
   final String title;
+  final String categoryBgColor;
   final List<SeasonalCategory> categories;
 
   SeasonalCategoryResponse({
     required this.title,
+    required this.categoryBgColor,
     required this.categories,
   });
 
   factory SeasonalCategoryResponse.fromJson(Map<String, dynamic> json) {
     return SeasonalCategoryResponse(
       title: json['title'] ?? 'Popular Categories',
+      categoryBgColor: json['category_bg_color'] ?? '#FFFFFF',
       categories: (json['categories_details'] as List<dynamic>? ?? [])
           .map((item) => SeasonalCategory.fromJson(item))
           .toList(),
@@ -97,6 +100,18 @@ class SeasonalCategoryApi {
     } catch (e) {
       throw Exception('Network error: $e');
     }
+  }
+}
+
+/// Utility function to convert hex color string to Color
+Color hexToColor(String hexString) {
+  try {
+    final buffer = StringBuffer();
+    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
+    buffer.write(hexString.replaceFirst('#', ''));
+    return Color(int.parse(buffer.toString(), radix: 16));
+  } catch (e) {
+    return Colors.white; // Fallback color
   }
 }
 
@@ -162,17 +177,19 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   final EdgeInsets padding;
   final double spacing;
   final bool enablePullToRefresh;
+  final double imageHeight;
 
   const SeasonalCategoryWidget({
     Key? key,
     this.departmentId = 2, // Default department ID from your example
-    this.itemWidth = 140,
-    this.itemHeight = 160,
+    this.itemWidth = 120,
+    this.itemHeight = 120,
     this.showTitle = true,
     this.showViewAll = true,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
     this.spacing = 12,
     this.enablePullToRefresh = true,
+    this.imageHeight = 80,
   }) : super(key: key);
 
   @override
@@ -233,22 +250,30 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     );
   }
 
-  /// Build the main category section
+  /// Build the main category section with background color from API
   Widget _buildCategorySection(BuildContext context, SeasonalCategoryResponse response) {
     if (response.categories.isEmpty) {
       return const SizedBox.shrink();
     }
 
+    final backgroundColor = hexToColor(response.categoryBgColor);
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section header with refresh button
-          if (showTitle) _buildSectionHeader(context, response.title, ),
+          // Section header
+          if (showTitle) _buildSectionHeader(context, response.title),
           
           // Horizontal scrolling categories
           _buildHorizontalCategories(context, response.categories),
+          
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -257,7 +282,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   /// Build section header with title and optional view all button
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
-      padding: padding,
+      padding: padding.add(const EdgeInsets.only(top: 16)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -308,37 +333,28 @@ class SeasonalCategoryWidget extends ConsumerWidget {
         separatorBuilder: (context, index) => SizedBox(width: spacing),
         itemBuilder: (context, index) {
           final category = categories[index];
-          return _buildCategoryCard(context, category);
+          return _buildCategoryItem(context, category);
         },
       ),
     );
   }
 
-  /// Build individual category card
-  Widget _buildCategoryCard(BuildContext context, SeasonalCategory category) {
+  /// Build individual category item with consistent card dimensions
+  Widget _buildCategoryItem(BuildContext context, SeasonalCategory category) {
     return GestureDetector(
       onTap: () => _handleCategoryTap(context, category),
-      child: Container(
+      child: SizedBox(
         width: itemWidth,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+        height: itemHeight,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Category image
-            Expanded(
-              child: _buildCategoryImage(category),
-            ),
+            // Card-shaped image with fixed dimensions
+            _buildCardImage(category),
             
-            // Category name
+            const SizedBox(height: 8),
+            
+            // Category name with fixed height container
             _buildCategoryName(category),
           ],
         ),
@@ -346,25 +362,37 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     );
   }
 
-  /// Build category image with caching and error handling
-  Widget _buildCategoryImage(SeasonalCategory category) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-        ),
+  /// Build card-shaped category image with consistent dimensions
+  Widget _buildCardImage(SeasonalCategory category) {
+    return Container(
+      width: imageHeight,
+      height: imageHeight,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
         child: CachedNetworkImage(
           imageUrl: category.imageLink,
           fit: BoxFit.cover,
+          width: imageHeight,
+          height: imageHeight,
           placeholder: (context, url) => Container(
-            color: Colors.grey[100],
+            width: imageHeight,
+            height: imageHeight,
+            color: Colors.grey[50],
             child: Center(
               child: SizedBox(
-                width: 24,
-                height: 24,
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(
@@ -375,21 +403,23 @@ class SeasonalCategoryWidget extends ConsumerWidget {
             ),
           ),
           errorWidget: (context, url, error) => Container(
-            color: Colors.grey[100],
+            width: imageHeight,
+            height: imageHeight,
+            color: Colors.grey[50],
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.image_not_supported_outlined,
                   color: Colors.grey[400],
-                  size: 32,
+                  size: 20,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  'Image not available',
+                  'No image',
                   style: TextStyle(
                     color: Colors.grey[500],
-                    fontSize: 10,
+                    fontSize: 8,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -403,24 +433,16 @@ class SeasonalCategoryWidget extends ConsumerWidget {
 
   /// Build category name text
   Widget _buildCategoryName(SeasonalCategory category) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
+    return Text(
+      category.categoryName,
+      style: AppTextStyles.bodySmall.copyWith(
+        fontWeight: FontWeight.w500,
+        color: AppColors.textPrimary,
+        height: 1.2,
       ),
-      child: Text(
-        category.categoryName,
-        style: AppTextStyles.bodySmall.copyWith(
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-          height: 1.2,
-        ),
-        textAlign: TextAlign.center,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
+      textAlign: TextAlign.center,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 
@@ -447,13 +469,17 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   Widget _buildLoadingState() {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header shimmer
           if (showTitle)
             Padding(
-              padding: padding,
+              padding: padding.add(const EdgeInsets.only(top: 16)),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -487,45 +513,43 @@ class SeasonalCategoryWidget extends ConsumerWidget {
               padding: padding,
               itemCount: 5,
               separatorBuilder: (context, index) => SizedBox(width: spacing),
-              itemBuilder: (context, index) => _buildLoadingCard(),
+              itemBuilder: (context, index) => _buildLoadingItem(),
             ),
           ),
+          
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  /// Build individual loading card
-  Widget _buildLoadingCard() {
-    return Container(
+  /// Build individual loading item with consistent dimensions
+  Widget _buildLoadingItem() {
+    return SizedBox(
       width: itemWidth,
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
+      height: itemHeight,
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              ),
+          // Card-shaped image placeholder
+          Container(
+            width: imageHeight,
+            height: imageHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey[200],
             ),
           ),
+          
+          const SizedBox(height: 8),
+          
+          // Text placeholder with fixed height
           Container(
-            width: double.infinity,
-            height: 40,
-            padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(4),
-              ),
+            width: itemWidth * 0.8,
+            height: 32, // Match the category name height
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
         ],
@@ -539,6 +563,10 @@ class SeasonalCategoryWidget extends ConsumerWidget {
       height: showTitle ? 120 : 80,
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: padding,
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

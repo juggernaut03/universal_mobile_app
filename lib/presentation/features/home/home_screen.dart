@@ -40,21 +40,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   late ScrollController _scrollController;
   late TextEditingController _searchController;
   
-  // Animation controllers - optimized
-  late AnimationController _stickyBarController;
-  late Animation<double> _stickyBarAnimation;
+  // Single animation controller for smooth transitions
+  late AnimationController _headerAnimationController;
+  late Animation<double> _headerOpacity;
+  late Animation<double> _headerScale;
   
   // State management
   int _currentNavIndex = 0;
-  bool _isSearchSticky = false;
   DateTime? _lastBackPressTime;
   String? _lastOutletStoreCode; // Track outlet changes
   bool _hasInitializedPopup = false; // Track if popup has been initialized for this session
   
-  // Performance optimizations
-  static const double _stickyThreshold = 80.0;
-  static const Duration _animationDuration = Duration(milliseconds: 200);
-  bool _isScrolling = false;
+  // Smooth scroll tracking
+  double _scrollOffset = 0.0;
+  
+  // Smooth thresholds for better UX
+  static const double _headerFadeStart = 40.0;
+  static const double _headerFadeEnd = 100.0;
+  static const double _stickyHeaderThreshold = 120.0;
   
   @override
   bool get wantKeepAlive => true; // Keep alive for better performance
@@ -74,18 +77,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _scrollController = ScrollController();
     _searchController = TextEditingController();
     
-    // Single animation controller for sticky bar
-    _stickyBarController = AnimationController(
-      duration: _animationDuration,
+    // Single animation controller for all header animations
+    _headerAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     
-    _stickyBarAnimation = CurvedAnimation(
-      parent: _stickyBarController,
-      curve: Curves.fastOutSlowIn, // Better curve for smooth animation
-    );
+    // Smooth fade animation
+    _headerOpacity = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimationController,
+      curve: Curves.easeInOutCubic,
+    ));
     
-    // Optimized scroll listener with debouncing
+    // Smooth scale animation
+    _headerScale = Tween<double>(
+      begin: 1.0,
+      end: 0.9,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimationController,
+      curve: Curves.easeInOutCubic,
+    ));
+    
+    // Optimized scroll listener
     _scrollController.addListener(_onScrollOptimized);
     
     // Search controller listener
@@ -101,7 +117,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _scrollController.removeListener(_onScrollOptimized);
     _scrollController.dispose();
     _searchController.dispose();
-    _stickyBarController.dispose();
+    _headerAnimationController.dispose();
     super.dispose();
   }
 
@@ -142,25 +158,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
-  // Optimized scroll handling with debouncing
+  // FIXED: Optimized scroll handling without jerky boolean switches
   void _onScrollOptimized() {
     if (!mounted) return;
     
-    final scrollOffset = _scrollController.offset;
-    final shouldBeSticky = scrollOffset > _stickyThreshold;
+    final offset = _scrollController.offset;
     
-    // Only update if state actually changes
-    if (shouldBeSticky != _isSearchSticky) {
+    // Only update if there's a significant change to prevent excessive rebuilds
+    if ((offset - _scrollOffset).abs() > 2.0) {
       setState(() {
-        _isSearchSticky = shouldBeSticky;
+        _scrollOffset = offset;
       });
       
-      // Animate sticky bar
-      if (_isSearchSticky) {
-        _stickyBarController.forward();
-      } else {
-        _stickyBarController.reverse();
-      }
+      // Smooth animation based on scroll position
+      final progress = ((offset - _headerFadeStart) / (_headerFadeEnd - _headerFadeStart)).clamp(0.0, 1.0);
+      _headerAnimationController.animateTo(progress);
     }
   }
 
@@ -419,6 +431,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final outletAsync = ref.watch(selectedOutletProvider);
     outletAsync.whenData((outlet) => _handleOutletChange(outlet));
     
+    // Check if we should show sticky header
+    final showStickyHeader = _scrollOffset > _stickyHeaderThreshold;
+    
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) async {
@@ -430,8 +445,142 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            // Main content
-            _buildOptimizedBody(),
+            // Main content with NestedScrollView for smooth sticky behavior
+            NestedScrollView(
+              controller: _scrollController,
+              headerSliverBuilder: (context, innerBoxIsScrolled) {
+                return [
+                  // Dynamic App Bar as Sliver
+                  SliverAppBar(
+                    expandedHeight: 56,
+                    floating: false,
+                    pinned: true,
+                    backgroundColor: AppColors.primary,
+                    elevation: 2,
+                    leading: Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.white),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
+                    ),
+                    title: AnimatedBuilder(
+                      animation: _headerOpacity,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _headerScale.value,
+                          child: Opacity(
+                            opacity: _headerOpacity.value,
+                            child: Image.asset(
+                              'assets/images/patelLogo.png',
+                              height: 42,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => 
+                                  const Icon(Icons.store, color: Colors.white, size: 42),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    centerTitle: false,
+                    actions: [
+                      AnimatedBuilder(
+                        animation: _headerOpacity,
+                        builder: (context, child) {
+                          return Opacity(
+                            opacity: _headerOpacity.value,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
+                                  onPressed: () => context.push('/favorites'),
+                                ),
+                                _buildCartButton(),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  
+                  // Header section (pincode display)
+                  SliverToBoxAdapter(
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        final selectedPincode = ref.watch(selectedPincodeProvider);
+                        return HeaderWidget(
+                          pincode: selectedPincode ?? 'Not Set',
+                          onChangeTap: () => context.go('/location-change'),
+                        );
+                      },
+                    ),
+                  ),
+                  
+                  // Search bar
+                  SliverToBoxAdapter(
+                    child: SearchWidget(
+                      controller: _searchController,
+                      onSearch: (query) {
+                        if (query.isNotEmpty) {
+                          context.push('/search?query=${Uri.encodeComponent(query)}');
+                        }
+                      },
+                      showSuggestions: false,
+                    ),
+                  ),
+                ];
+              },
+              body: RefreshIndicator(
+                onRefresh: _refreshHomeData,
+                color: AppColors.primary,
+                child: _buildScrollableContent(),
+              ),
+            ),
+            
+            // Floating sticky header only when scrolled far enough
+            if (showStickyHeader)
+              Positioned(
+                top: MediaQuery.of(context).padding.top,
+                left: 0,
+                right: 0,
+                child: Material(
+                  elevation: 4,
+                  child: Container(
+                    height: 56,
+                    color: AppColors.primary,
+                    child: Row(
+                      children: [
+                        Builder(
+                          builder: (context) => IconButton(
+                            icon: const Icon(Icons.menu, color: Colors.white),
+                            onPressed: () => Scaffold.of(context).openDrawer(),
+                          ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            child: SearchWidget(
+                              controller: _searchController,
+                              onSearch: (query) {
+                                if (query.isNotEmpty) {
+                                  context.push('/search?query=${Uri.encodeComponent(query)}');
+                                }
+                              },
+                              showSuggestions: false,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
+                          onPressed: () => context.push('/favorites'),
+                        ),
+                        _buildCartButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             
             // POPUP OVERLAY - This is the key addition
             const HomePopupWidget(),
@@ -442,106 +591,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         floatingActionButton: _buildFloatingActionButton(),
         floatingActionButtonLocation: FloatingActionButtonLocation.miniEndFloat,
       ),
-    );
-  }
-
-  Widget _buildOptimizedBody() {
-    return Stack(
-      children: [
-        // Main scrollable content
-        Column(
-          children: [
-            // Static app bar
-            _buildStaticAppBar(),
-            
-            // Scrollable content
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshHomeData,
-                color: AppColors.primary,
-                child: _buildScrollableContent(),
-              ),
-            ),
-          ],
-        ),
-        
-        // Sticky search bar
-        _buildStickySearchBar(),
-      ],
-    );
-  }
-
-  Widget _buildStaticAppBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(0, 2),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: AnimatedBuilder(
-          animation: _stickyBarAnimation,
-          builder: (context, child) {
-            return AnimatedContainer(
-              duration: _animationDuration,
-              height: _isSearchSticky ? 0 : 56,
-              child: _isSearchSticky 
-                  ? const SizedBox.shrink()
-                  : _buildAppBarContent(),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppBarContent() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          // Menu button
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
-          
-          // Logo - aligned after the drawer icon instead of centered
-          Image.asset(
-            'assets/images/patelLogo.png',
-            height: 42,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => 
-                const Icon(Icons.store, color: Colors.white, size: 42),
-          ),
-          
-          // Spacer to push action buttons to the right
-          const Spacer(),
-          
-          // Action buttons
-          _buildActionButtons(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
-          onPressed: () => context.push('/favorites'),
-        ),
-        _buildCartButton(),
-      ],
     );
   }
 
@@ -588,117 +637,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  Widget _buildStickySearchBar() {
-    return AnimatedBuilder(
-      animation: _stickyBarAnimation,
-      builder: (context, child) {
-        return _isSearchSticky
-            ? Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Transform.translate(
-                  offset: Offset(0, -56 * (1 - _stickyBarAnimation.value)),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          offset: const Offset(0, 2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: SafeArea(
-                      child: Container(
-                        height: 56,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 16),
-                                child: SearchWidget(
-                                  controller: _searchController,
-                                  onSearch: (query) {
-                                    if (query.isNotEmpty) {
-                                      context.push('/search?query=${Uri.encodeComponent(query)}');
-                                    }
-                                  },
-                                  showSuggestions: false,
-                                ),
-                              ),
-                            ),
-                            _buildActionButtons(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            : const SizedBox.shrink();
-      },
-    );
-  }
-
   Widget _buildScrollableContent() {
-    return CustomScrollView(
-      controller: _scrollController,
+    return SingleChildScrollView(
       // Performance optimization: Use cacheExtent to pre-render nearby widgets
-      cacheExtent: 500,
-      slivers: [
-        // Header (disappears when sticky)
-        if (!_isSearchSticky)
-          SliverToBoxAdapter(
-            child: Consumer(
-              builder: (context, ref, _) {
-                final selectedPincode = ref.watch(selectedPincodeProvider);
-                return HeaderWidget(
-                  pincode: selectedPincode ?? 'Not Set',
-                  onChangeTap: () => context.go('/location-change'),
-                );
-              },
+      child: Column(
+        children: [
+          // REDUCED SPACING: Smaller gap after search
+          const SizedBox(height: 8), // Reduced from 16 to 8
+
+          // Popular Categories - using RepaintBoundary for better performance
+          RepaintBoundary(
+            child: const SeasonalCategoryWidget(
+              departmentId: 2, // Your department ID
+              itemWidth: 100,
+              itemHeight: 100,
+              showTitle: false,
+              showViewAll: false,
+              spacing: 12,
+              padding: EdgeInsets.symmetric(horizontal: 16),
             ),
           ),
 
-        // Search bar (disappears when sticky)
-        if (!_isSearchSticky)
-          SliverToBoxAdapter(
-            child: SearchWidget(
-              controller: _searchController,
-              onSearch: (query) {
-                if (query.isNotEmpty) {
-                  context.push('/search?query=${Uri.encodeComponent(query)}');
-                }
-              },
-              showSuggestions: false,
-            ),
-          ),
-
-        // REDUCED SPACING: Smaller gap after search
-        const SliverToBoxAdapter(child: SizedBox(height: 8)), // Reduced from 16 to 8
-
-        // Popular Categories - using RepaintBoundary for better performance
-       SliverToBoxAdapter(
-            child: RepaintBoundary(
-              child: const SeasonalCategoryWidget(
-                departmentId: 2, // Your department ID
-                itemWidth: 100,
-                itemHeight: 100,
-                showTitle: false,
-                showViewAll: false,
-                spacing: 12,
-                padding: EdgeInsets.symmetric(horizontal: 16),
-              ),
-            ),
-          ),
-
-
-        // Promotional Banner - wrapped in RepaintBoundary
-        SliverToBoxAdapter(
-          child: RepaintBoundary(
+          // Promotional Banner - wrapped in RepaintBoundary
+          RepaintBoundary(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), 
               // Reduced vertical margin
@@ -710,13 +671,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
           ),
-        ),
 
-        // Best Seller sections - optimized with RepaintBoundary and keys
-        ...List.generate(4, (index) {
-          final bestSellerId = index + 1;
-          return SliverToBoxAdapter(
-            child: RepaintBoundary(
+          // Best Seller sections - optimized with RepaintBoundary and keys
+          ...List.generate(4, (index) {
+            final bestSellerId = index + 1;
+            return RepaintBoundary(
               key: ValueKey('best_seller_repaint_$bestSellerId'),
               child: Consumer(
                 builder: (context, ref, _) {
@@ -731,21 +690,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   );
                 },
               ),
-            ),
-          );
-        }),
+            );
+          }),
 
-        // Seasonal Picks
-        SliverToBoxAdapter(
-          child: RepaintBoundary(
+          // Seasonal Picks
+          RepaintBoundary(
             child: const SeasonalPicksWidget(),
           ),
-        ),
 
-        // Popular Category sections
-        ...List.generate(4, (index) {
-          return SliverToBoxAdapter(
-            child: RepaintBoundary(
+          // Popular Category sections
+          ...List.generate(4, (index) {
+            return RepaintBoundary(
               key: ValueKey('popular_category_repaint_${index + 2}'),
               child: PopularCategoryWidget(
                 sectionId: index + 2,
@@ -756,15 +711,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 spacing: 12,
               ),
-            ),
-          );
-        }),
+            );
+          }),
 
-        // Bottom spacing
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 60),
-        ),
-      ],
+          // Bottom spacing
+          const SizedBox(height: 60),
+        ],
+      ),
     );
   }
 
