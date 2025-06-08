@@ -396,78 +396,79 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     );
   }
   
-  Widget _buildCategoryCard(CategoryModel category) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: () {
-          final departmentId = _currentDepartmentId ?? '';
-          context.push(
-            '/subcategory/${category.categoryId}/$departmentId/${Uri.encodeComponent(category.categoryName)}',
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: CachedNetworkImageWidget(
-                  imageUrl: category.imageLink,
-                  fit: BoxFit.contain,
-                  placeholder: Container(
-                    color: Colors.grey[50],
-                    child: Center(
-                      child: SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  errorWidget: Container(
-                    color: Colors.grey[50],
-                    child: Center(
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        color: Colors.grey[400],
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                child: Text(
-                  category.categoryName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 9,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
   
+Widget _buildCategoryCard(CategoryModel category) {
+  return Card(
+    elevation: 2,
+    color: Colors.white, // ✅ Explicitly set white background to match departments
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: InkWell(
+      onTap: () {
+        final departmentId = _currentDepartmentId ?? '';
+        context.push(
+          '/subcategory/${category.categoryId}/$departmentId/${Uri.encodeComponent(category.categoryName)}',
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CachedNetworkImageWidget(
+                imageUrl: category.imageLink,
+                fit: BoxFit.contain,
+                placeholder: Container(
+                  color: Colors.grey[50],
+                  child: Center(
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+                errorWidget: Container(
+                  color: Colors.grey[50],
+                  child: Center(
+                    child: Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Colors.grey[400],
+                      size: 48,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              child: Text(
+                category.categoryName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 9,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
   Widget _buildBottomNavigation() {
     return BottomNavigationWidget(
       currentIndex: _navIndex,

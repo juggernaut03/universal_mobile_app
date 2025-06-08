@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
@@ -21,6 +22,7 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
   late Animation<double> _backdropAnimation;
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
@@ -53,7 +55,7 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
 
     _backdropAnimation = Tween<double>(
       begin: 0.0,
-      end: 0.7,
+      end: 1.0, // Full opacity backdrop to completely block background
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
@@ -72,8 +74,29 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
   @override
   void dispose() {
     _displayTimer?.cancel();
+    _removeOverlay();
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _showOverlayPopup(PopupResponse popupData) {
+    if (_overlayEntry != null) return;
+    
+    // Create overlay entry that will be rendered at the absolute top level
+    _overlayEntry = OverlayEntry(
+      builder: (context) => _buildFullScreenBlockingOverlay(popupData),
+    );
+    
+    // Insert overlay at the top level of the app
+    Overlay.of(context, rootOverlay: true)?.insert(_overlayEntry!);
+    
+    // Start animation
+    _animationController.forward();
   }
 
   @override
@@ -83,41 +106,53 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
     // Listen for popup visibility changes
     ref.listen<PopupDisplayState>(popupDisplayStateProvider, (previous, current) {
       if (current.isVisible && (previous == null || !previous.isVisible)) {
-        _animationController.forward();
+        // Show popup when state becomes visible
+        final storeCode = current.currentStoreCode;
+        if (storeCode != null) {
+          final popupDataAsync = ref.read(popupDataProvider(storeCode));
+          popupDataAsync.whenData((popupData) {
+            if (popupData?.offerImageUrl.isNotEmpty == true) {
+              _showOverlayPopup(popupData!);
+            }
+          });
+        }
       } else if (!current.isVisible && (previous?.isVisible ?? false)) {
-        _animationController.reverse();
+        // Hide popup when state becomes hidden
+        _closePopup();
       }
     });
     
-    if (!popupState.isVisible || popupState.currentStoreCode == null) {
-      return const SizedBox.shrink();
-    }
-
-    final popupDataAsync = ref.watch(popupDataProvider(popupState.currentStoreCode!));
-
-    return popupDataAsync.when(
-      data: (popupData) {
-        if (popupData?.offerImageUrl.isEmpty ?? true) {
-          // If no popup data, hide the popup
+    // If popup is visible, fetch data and show overlay
+    if (popupState.isVisible && popupState.currentStoreCode != null) {
+      final popupDataAsync = ref.watch(popupDataProvider(popupState.currentStoreCode!));
+      
+      popupDataAsync.whenData((popupData) {
+        if (popupData?.offerImageUrl.isNotEmpty == true && _overlayEntry == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showOverlayPopup(popupData!);
+          });
+        } else if (popupData?.offerImageUrl.isEmpty == true) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(popupDisplayStateProvider.notifier).hidePopup();
           });
-          return const SizedBox.shrink();
         }
-        return _buildPopupOverlay(popupData!);
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (error, stack) {
-        // On error, hide the popup
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref.read(popupDisplayStateProvider.notifier).hidePopup();
-        });
-        return const SizedBox.shrink();
-      },
-    );
+      });
+      
+      popupDataAsync.whenOrNull(
+        error: (error, stack) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(popupDisplayStateProvider.notifier).hidePopup();
+          });
+        },
+      );
+    }
+    
+    // This widget itself doesn't render anything visible
+    // All popup content is rendered via the overlay
+    return const SizedBox.shrink();
   }
 
-  Widget _buildPopupOverlay(PopupResponse popupData) {
+  Widget _buildFullScreenBlockingOverlay(PopupResponse popupData) {
     return Material(
       color: Colors.transparent,
       child: AnimatedBuilder(
@@ -126,12 +161,43 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
           return Opacity(
             opacity: _opacityAnimation.value,
             child: Container(
-              color: Colors.black.withOpacity(_backdropAnimation.value),
-              child: Center(
-                child: Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: _buildPopupContent(popupData),
-                ),
+              // This container covers the ENTIRE screen including system UI
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.9 * _backdropAnimation.value),
+              ),
+              child: Stack(
+                children: [
+                  // Full-screen gesture detector to block ALL interactions
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onTap: _closePopup,
+                      onPanDown: (_) => _preventInteraction(),
+                      onPanStart: (_) => _preventInteraction(),
+                      onPanUpdate: (_) => _preventInteraction(),
+                      onPanEnd: (_) => _preventInteraction(),
+                      onLongPress: _preventInteraction,
+                      onLongPressStart: (_) => _preventInteraction,
+                      onDoubleTap: _preventInteraction,
+                      onTapDown: (_) => _preventInteraction(),
+                      onTapUp: (_) => _preventInteraction(),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        color: Colors.transparent,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                    ),
+                  ),
+                  // Popup content
+                  Center(
+                    child: Transform.scale(
+                      scale: _scaleAnimation.value,
+                      child: _buildPopupContent(popupData),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -140,64 +206,82 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
     );
   }
 
+  void _preventInteraction() {
+    // Add haptic feedback to indicate interaction is blocked
+    HapticFeedback.lightImpact();
+  }
+
   Widget _buildPopupContent(PopupResponse popupData) {
     final screenSize = MediaQuery.of(context).size;
-    final popupWidth = screenSize.width * 0.75;
-    final popupHeight = screenSize.height * 0.7;
+    final popupWidth = screenSize.width * 0.85;
+    final popupHeight = screenSize.height * 0.79;
 
     return Container(
       width: popupWidth,
       height: popupHeight,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.6),
+            blurRadius: 30,
+            offset: const Offset(0, 20),
+            spreadRadius: 5,
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            // Popup Image - Enhanced loading with multiple fallbacks
+            // Popup Image
             Positioned.fill(
               child: _buildEnhancedImage(popupData.offerImageUrl),
             ),
-            // Close Button
+            // Close Button with enhanced visibility and larger tap area
             Positioned(
-              top: 12,
-              right: 12,
+              top: 16,
+              right: 16,
               child: GestureDetector(
                 onTap: _closePopup,
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withOpacity(0.9),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1,
+                      color: Colors.white,
+                      width: 2,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.close,
                     color: Colors.white,
-                    size: 22,
+                    size: 26,
                   ),
                 ),
               ),
             ),
-            // Tap to dismiss overlay
-            Positioned.fill(
+            // Larger invisible tap area around close button
+            Positioned(
+              top: 0,
+              right: 0,
               child: GestureDetector(
                 onTap: _closePopup,
-                behavior: HitTestBehavior.translucent,
-                child: Container(),
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  color: Colors.transparent,
+                ),
               ),
             ),
           ],
@@ -207,29 +291,23 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
   }
 
   Widget _buildEnhancedImage(String imageUrl) {
-    // Clean and validate the image URL
     final cleanUrl = imageUrl.trim();
     
-    // Debug logging to see what URL we're getting from API
     ref.read(loggerProvider).log('🖼️ Popup image URL from API: "$cleanUrl"');
     
-    // If URL is empty, use fallback image
     if (cleanUrl.isEmpty) {
       ref.read(loggerProvider).log('📭 Empty image URL, using fallback');
       return _buildFallbackImage();
     }
     
-    // If URL is invalid, use fallback image
     if (!_isValidUrl(cleanUrl)) {
       ref.read(loggerProvider).log('❌ Invalid image URL format, using fallback');
       return _buildFallbackImage();
     }
 
-    // Try to load the API image with enhanced error handling
     return CachedNetworkImage(
       imageUrl: cleanUrl,
       fit: BoxFit.cover,
-      // Enhanced loading indicator
       placeholder: (context, url) {
         ref.read(loggerProvider).log('⏳ Loading popup image: $url');
         return Container(
@@ -239,28 +317,28 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 40,
-                  height: 40,
+                  width: 50,
+                  height: 50,
                   child: CircularProgressIndicator(
                     color: AppColors.primary,
-                    strokeWidth: 3,
+                    strokeWidth: 4,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Text(
-                  'Loading offer...',
+                  'Loading Special Offer...',
                   style: TextStyle(
-                    color: AppColors.neutral600,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    color: AppColors.neutral700,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'From: ${_getDomainFromUrl(url)}',
+                  'Please wait',
                   style: TextStyle(
-                    color: AppColors.neutral400,
-                    fontSize: 10,
+                    color: AppColors.neutral500,
+                    fontSize: 12,
                   ),
                 ),
               ],
@@ -268,24 +346,11 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
           ),
         );
       },
-      // Enhanced error handling with detailed logging
       errorWidget: (context, url, error) {
         ref.read(loggerProvider).error('🚫 API popup image failed to load: $url');
         ref.read(loggerProvider).error('🚫 Error details: $error');
-        
-        // Compare with fallback URL to see if they're the same
-        const fallbackUrl = 'https://upload.wikimedia.org/wikipedia/commons/0/0f/Eiffel_Tower_Vertical.JPG';
-        if (cleanUrl == fallbackUrl) {
-          ref.read(loggerProvider).log('⚠️ API URL is same as fallback but still failed!');
-          // If API URL is same as fallback and still fails, show error
-          return _buildImageError('Network connectivity issue');
-        }
-        
-        // Try fallback image
-        ref.read(loggerProvider).log('🔄 Switching to fallback image...');
         return _buildFallbackImage();
       },
-      // Enhanced HTTP headers for better compatibility
       httpHeaders: {
         'User-Agent': 'Patel Mart Mobile App/1.0',
         'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
@@ -293,11 +358,9 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache',
       },
-      // Timeout and caching settings
       fadeInDuration: const Duration(milliseconds: 300),
       fadeOutDuration: const Duration(milliseconds: 100),
-      // Force refresh if needed
-      cacheKey: '${cleanUrl}_${DateTime.now().millisecondsSinceEpoch ~/ 60000}', // Cache for 1 minute
+      cacheKey: '${cleanUrl}_${DateTime.now().millisecondsSinceEpoch ~/ 60000}',
     );
   }
 
@@ -316,20 +379,20 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                width: 40,
-                height: 40,
+                width: 50,
+                height: 50,
                 child: CircularProgressIndicator(
                   color: AppColors.primary,
-                  strokeWidth: 3,
+                  strokeWidth: 4,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(
-                'Loading default offer...',
+                'Loading Default Offer...',
                 style: TextStyle(
-                  color: AppColors.neutral600,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  color: AppColors.neutral700,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -337,9 +400,8 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
         ),
       ),
       errorWidget: (context, url, error) {
-        // If even fallback fails, show error UI
         ref.read(loggerProvider).error('🚫 Fallback popup image also failed: $error');
-        return _buildImageError('Unable to load any offer image');
+        return _buildImageError('Unable to load offer image');
       },
       httpHeaders: {
         'User-Agent': 'Patel Mart Mobile App/1.0',
@@ -353,39 +415,30 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
     );
   }
 
-  String _getDomainFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      return uri.host;
-    } catch (e) {
-      return 'unknown';
-    }
-  }
-
   Widget _buildImageError(String message) {
     return Container(
       color: AppColors.neutral100,
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 Icons.image_not_supported_outlined,
                 color: AppColors.neutral500,
-                size: 64,
+                size: 80,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Text(
-                'Offer Image',
+                'Special Offer',
                 style: TextStyle(
                   color: AppColors.neutral700,
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
                 message,
                 style: TextStyle(
@@ -394,13 +447,18 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
-              TextButton.icon(
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
                 onPressed: _closePopup,
-                icon: Icon(Icons.close, color: AppColors.primary),
-                label: Text(
-                  'Close',
-                  style: TextStyle(color: AppColors.primary),
+                icon: const Icon(Icons.close),
+                label: const Text('Close'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -420,8 +478,14 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
   }
 
   void _closePopup() async {
-    if (mounted) {
+    if (mounted && _overlayEntry != null) {
+      // Animate out
       await _animationController.reverse();
+      
+      // Remove overlay
+      _removeOverlay();
+      
+      // Update state
       ref.read(popupDisplayStateProvider.notifier).hidePopup();
     }
   }
