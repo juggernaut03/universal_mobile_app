@@ -13,11 +13,33 @@ import '../../providers/location_provider.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 
-class LocationChangeScreen extends ConsumerWidget {
+class LocationChangeScreen extends ConsumerStatefulWidget {
   const LocationChangeScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LocationChangeScreen> createState() => _LocationChangeScreenState();
+}
+
+class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
+  bool _isDisposed = false;
+  bool _isNavigating = false;
+  
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
+  void _safeSetState(VoidCallback callback) {
+    if (!_isDisposed && mounted) {
+      setState(callback);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isDisposed) return const SizedBox.shrink();
+    
     final selectedPincode = ref.watch(selectedPincodeProvider);
     final selectedOutletAsync = ref.watch(selectedOutletProvider);
     final isScreenSmall = ResponsiveUtils.isSmall(context);
@@ -27,13 +49,10 @@ class LocationChangeScreen extends ConsumerWidget {
     logger.log('Building LocationChangeScreen - Pincode: $selectedPincode');
 
     return PopScope(
-      // This prevents the automatic pop behavior
       canPop: false,
-      // Handle the back button press
       onPopInvoked: (didPop) async {
-        if (!didPop) {
-          // Navigate to home when back is pressed
-          context.go('/home');
+        if (!didPop && !_isNavigating) {
+          _safeNavigateToHome();
         }
       },
       child: Scaffold(
@@ -41,10 +60,7 @@ class LocationChangeScreen extends ConsumerWidget {
           title: const Text('Change Location'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              // Explicitly navigate to home when the app bar back button is pressed
-              context.go('/home');
-            },
+            onPressed: _safeNavigateToHome,
           ),
         ),
         body: SafeArea(
@@ -74,6 +90,16 @@ class LocationChangeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _safeNavigateToHome() {
+    if (_isDisposed || !mounted || _isNavigating) return;
+    
+    _safeSetState(() {
+      _isNavigating = true;
+    });
+    
+    context.go('/home');
   }
 
   Widget _buildCurrentLocationCard(
@@ -197,173 +223,7 @@ class LocationChangeScreen extends ConsumerWidget {
           icon: Icons.my_location,
           title: 'Change Delivery Pincode',
           description: 'Detect your location automatically using GPS',
-          onTap: () async {
-            logger.log('Automatic Location Detection tapped');
-            
-            // Show loading indicator
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => const Center(
-                child: CircularProgressIndicator(),
-              ),
-            );
-            
-            try {
-              // First check if location services are enabled
-              bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-              if (!serviceEnabled) {
-                // Close loading dialog
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  // Show location services dialog
-                  _showLocationServicesDialog(context);
-                }
-                return; // Exit early
-              }
-              
-              // Force refresh the current pincode provider
-              ref.refresh(currentPincodeProvider);
-              
-              final currentPin = await ref.read(currentPincodeProvider.future);
-              logger.log('Retrieved pincode from location: $currentPin');
-              
-              if (context.mounted) {
-                Navigator.pop(context); // Dismiss loading indicator
-                
-                if (currentPin == null) {
-                  logger.log('Could not detect location, showing error');
-                  _showErrorSnackBar(
-                    context,
-                    'Could not detect your location. Please try manual selection.',
-                  );
-                } else {
-                  // Force refresh to get the latest data
-                  ref.refresh(isPincodeServiceableProvider(currentPin));
-                  
-                  final isServiceable = await ref.read(
-                    isPincodeServiceableProvider(currentPin).future,
-                  );
-                  logger.log('Pincode $currentPin serviceable: $isServiceable');
-                  
-                  if (isServiceable) {
-                    logger.log('Pincode is serviceable, saving and checking for outlets');
-                    // Save the pincode
-                    await ref.read(selectedPincodeProvider.notifier).selectPincode(currentPin);
-                    
-                    // Check if there are multiple outlets
-                    final outlets = await ref.read(
-                      availableOutletsProvider(currentPin).future
-                    );
-                    
-                    if (outlets.isEmpty) {
-                      _showErrorSnackBar(
-                        context,
-                        'No stores available for this location. Please try another location.'
-                      );
-                    } else if (outlets.length == 1) {
-                      // If only one outlet, select it automatically
-                      logger.log('Single outlet found, auto-selecting');
-                      await ref.read(selectedOutletProvider.notifier).selectOutlet(outlets[0]);
-                      
-                      // Update launch flow state
-                      ref.read(launchFlowProvider.notifier).outletSelected();
-                      
-                      // Navigate to home
-                      if (context.mounted) {
-                        // Show success message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Store "${outlets[0].name}" selected automatically'),
-                            backgroundColor: AppColors.success,
-                          ),
-                        );
-                        
-                        // Go to store info
-                        context.go('/home');
-                      }
-                    } else {
-                      // Update launch flow state
-                      ref.read(launchFlowProvider.notifier).pincodeSelected();
-                      
-                      // Navigate to outlet selection
-                      if (context.mounted) {
-                        context.go('/outlet-selection');
-                      }
-                    }
-                  } else {
-                    logger.log('Pincode is not serviceable, showing serviceable pincodes');
-                    
-                    // Show a dialog with all serviceable pincodes for manual selection
-                    if (context.mounted) {
-                      _showServiceablePincodesDialog(context, ref);
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              logger.error('Error during location detection: $e');
-              if (context.mounted) {
-                Navigator.pop(context); // Dismiss loading indicator
-                
-                if (e is LocationPermissionException) {
-                  // Improved location permission handling
-                  if (e.message.contains('disabled')) {
-                    // Location services are disabled
-                    _showLocationServicesDialog(context);
-                  } else {
-                    // Other permission issues
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Row(
-                          children: [
-                            Icon(
-                              Icons.location_disabled,
-                              color: AppColors.warning,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 8),
-                            const Text('Location Permission Required'),
-                          ],
-                        ),
-                        content: Text(e.message),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              // Try to open app settings
-                              final opened = await Geolocator.openAppSettings();
-                              if (!opened && context.mounted) {
-                                _showErrorSnackBar(
-                                  context,
-                                  'Please enable location permissions in your device settings.',
-                                );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                            ),
-                            child: const Text('Open Settings'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                } else {
-                  // Show generic error
-                  _showErrorSnackBar(
-                    context,
-                    'Error detecting location: ${e.toString()}',
-                  );
-                }
-              }
-            }
-          },
+          onTap: () => _handleAutoLocationDetection(context, ref, logger),
         ),
         const SizedBox(height: 16),
         
@@ -372,114 +232,286 @@ class LocationChangeScreen extends ConsumerWidget {
           icon: Icons.store,
           title: 'Change Store',
           description: 'Select a different store in your area',
-          onTap: () async {
-            // Use ref.read instead of context.read
-            final selectedPincode = ref.read(selectedPincodeProvider);
-            logger.log('Change Store tapped, pincode: $selectedPincode');
-            
-            if (selectedPincode != null) {
-              // Show loading indicator
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
-              
-              try {
-                // Check how many outlets are available for this pincode
-                final outlets = await ref.read(
-                  availableOutletsProvider(selectedPincode).future
-                );
-                
-                // Dismiss loading indicator
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-                
-                if (outlets.isEmpty) {
-                  // No outlets available
-                  _showErrorSnackBar(
-                    context,
-                    'No stores available for your pincode. Please try a different pincode.',
-                  );
-                } else if (outlets.length == 1) {
-                  // Only one outlet available, show info message
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: AppColors.info,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text('Single Outlet'),
-                        ],
-                      ),
-                      content: Text(
-                        'Your selected pincode ($selectedPincode) has only one store available. '
-                        'Please change your pincode to try different stores.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            // Show pincode selection dialog to change pincode
-                            _showServiceablePincodesDialog(context, ref);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                          ),
-                          child: const Text('Change Pincode'),
-                        ),
-                      ],
-                    ),
-                  );
-                } else {
-                  // Multiple outlets available, navigate to outlet selection
-                  logger.log('Navigating to outlet-selection');
-                  context.go('/outlet-selection');
-                }
-              } catch (e) {
-                logger.error('Error checking available outlets: $e');
-                if (context.mounted) {
-                  Navigator.pop(context); // Dismiss loading indicator if still showing
-                  _showErrorSnackBar(
-                    context,
-                    'Error loading stores. Please try again.',
-                  );
-                }
-              }
-            } else {
-              logger.log('No pincode found, showing error');
-              _showErrorSnackBar(
-                context,
-                'Please select a pincode first',
-              );
-            }
-          },
+          onTap: () => _handleChangeStore(context, ref, logger),
         ),
       ],
     );
   }
 
-  void _showLocationServicesDialog(BuildContext context) {
+  Future<void> _handleAutoLocationDetection(
+    BuildContext context, 
+    WidgetRef ref, 
+    dynamic logger
+  ) async {
+    if (_isDisposed || !mounted) return;
+    
+    logger.log('Automatic Location Detection tapped');
+    
+    // Show loading indicator
+    _showLoadingDialog(context);
+    
+    try {
+      // First check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          Navigator.pop(context);
+          _showLocationServicesDialog(context);
+        }
+        return;
+      }
+      
+      // Force refresh the current pincode provider
+      ref.refresh(currentPincodeProvider);
+      
+      final currentPin = await ref.read(currentPincodeProvider.future);
+      logger.log('Retrieved pincode from location: $currentPin');
+      
+      if (mounted) {
+        Navigator.pop(context);
+        
+        if (currentPin == null) {
+          logger.log('Could not detect location, showing error');
+          _showErrorSnackBar(
+            context,
+            'Could not detect your location. Please try manual selection.',
+          );
+        } else {
+          await _processDetectedPincode(context, ref, logger, currentPin);
+        }
+      }
+    } catch (e) {
+      logger.error('Error during location detection: $e');
+      if (mounted) {
+        Navigator.pop(context);
+        await _handleLocationError(context, e);
+      }
+    }
+  }
+
+  Future<void> _processDetectedPincode(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic logger,
+    String pincode,
+  ) async {
+    try {
+      // Force refresh to get the latest data
+      ref.refresh(isPincodeServiceableProvider(pincode));
+      
+      final isServiceable = await ref.read(
+        isPincodeServiceableProvider(pincode).future,
+      );
+      logger.log('Pincode $pincode serviceable: $isServiceable');
+      
+      if (isServiceable) {
+        logger.log('Pincode is serviceable, saving and checking for outlets');
+        await ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
+        
+        final outlets = await ref.read(
+          availableOutletsProvider(pincode).future
+        );
+        
+        await _handleOutletSelection(context, ref, logger, outlets);
+      } else {
+        logger.log('Pincode is not serviceable, showing serviceable pincodes');
+        if (mounted) {
+          _showServiceablePincodesDialog(context, ref);
+        }
+      }
+    } catch (e) {
+      logger.error('Error processing detected pincode: $e');
+      if (mounted) {
+        _showErrorSnackBar(context, 'Error processing location: ${e.toString()}');
+      }
+    }
+  }
+
+  Future<void> _handleOutletSelection(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic logger,
+    List<dynamic> outlets,
+  ) async {
+    if (outlets.isEmpty) {
+      _showErrorSnackBar(
+        context,
+        'No stores available for this location. Please try another location.'
+      );
+    } else if (outlets.length == 1) {
+      logger.log('Single outlet found, auto-selecting');
+      await ref.read(selectedOutletProvider.notifier).selectOutlet(outlets[0]);
+      
+      ref.read(launchFlowProvider.notifier).outletSelected();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Store "${outlets[0].name}" selected automatically'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        
+        _safeNavigateToHome();
+      }
+    } else {
+      ref.read(launchFlowProvider.notifier).pincodeSelected();
+      
+      if (mounted && !_isNavigating) {
+        _safeSetState(() {
+          _isNavigating = true;
+        });
+        context.go('/outlet-selection');
+      }
+    }
+  }
+
+  Future<void> _handleLocationError(BuildContext context, dynamic error) async {
+    if (error is LocationPermissionException) {
+      if (error.message.contains('disabled')) {
+        _showLocationServicesDialog(context);
+      } else {
+        _showLocationPermissionDialog(context, error);
+      }
+    } else {
+      _showErrorSnackBar(
+        context,
+        'Error detecting location: ${error.toString()}',
+      );
+    }
+  }
+
+  Future<void> _handleChangeStore(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic logger,
+  ) async {
+    if (_isDisposed || !mounted) return;
+    
+    final selectedPincode = ref.read(selectedPincodeProvider);
+    logger.log('Change Store tapped, pincode: $selectedPincode');
+    
+    if (selectedPincode != null) {
+      _showLoadingDialog(context);
+      
+      try {
+        final outlets = await ref.read(
+          availableOutletsProvider(selectedPincode).future
+        );
+        
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        
+        if (outlets.isEmpty) {
+          _showErrorSnackBar(
+            context,
+            'No stores available for your pincode. Please try a different pincode.',
+          );
+        } else if (outlets.length == 1) {
+          _showSingleOutletDialog(context, ref, selectedPincode);
+        } else {
+          logger.log('Navigating to outlet-selection');
+          if (!_isNavigating) {
+            _safeSetState(() {
+              _isNavigating = true;
+            });
+            context.go('/outlet-selection');
+          }
+        }
+      } catch (e) {
+        logger.error('Error checking available outlets: $e');
+        if (mounted) {
+          Navigator.pop(context);
+          _showErrorSnackBar(context, 'Error loading stores. Please try again.');
+        }
+      }
+    } else {
+      logger.log('No pincode found, showing error');
+      _showErrorSnackBar(context, 'Please select a pincode first');
+    }
+  }
+
+  void _showLoadingDialog(BuildContext context) {
+    if (!mounted || _isDisposed) return;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => PopScope(
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Loading...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSingleOutletDialog(BuildContext context, WidgetRef ref, String selectedPincode) {
+    if (!mounted || _isDisposed) return;
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.info_outline,
+              color: AppColors.info,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Single Outlet'),
+          ],
+        ),
+        content: Text(
+          'Your selected pincode ($selectedPincode) has only one store available. '
+          'Please change your pincode to try different stores.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _showServiceablePincodesDialog(context, ref);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            child: const Text('Change Pincode'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLocationServicesDialog(BuildContext context) {
+    if (!mounted || _isDisposed) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => PopScope(
         canPop: true,
-        onPopInvoked: (didPop) {
-          // No additional cleanup needed when this dialog is dismissed
-        },
         child: AlertDialog(
           title: Row(
             children: [
@@ -531,25 +563,18 @@ class LocationChangeScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 
-                // Open location settings
                 final opened = await Geolocator.openLocationSettings();
-                if (!opened && context.mounted) {
-                  // If we couldn't open settings, show error
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Please enable location services in your device settings.',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      backgroundColor: AppColors.error,
-                    ),
+                if (!opened && mounted) {
+                  _showErrorSnackBar(
+                    context,
+                    'Please enable location services in your device settings.',
                   );
                 }
               },
@@ -560,6 +585,51 @@ class LocationChangeScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showLocationPermissionDialog(BuildContext context, LocationPermissionException error) {
+    if (!mounted || _isDisposed) return;
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.location_disabled,
+              color: AppColors.warning,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Location Permission Required'),
+          ],
+        ),
+        content: Text(error.message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              
+              final opened = await Geolocator.openAppSettings();
+              if (!opened && mounted) {
+                _showErrorSnackBar(
+                  context,
+                  'Please enable location permissions in your device settings.',
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            child: const Text('Open Settings'),
+          ),
+        ],
       ),
     );
   }
@@ -627,250 +697,47 @@ class LocationChangeScreen extends ConsumerWidget {
   }
 
   void _showServiceablePincodesDialog(BuildContext context, WidgetRef ref) {
-    // TextEditingController for search functionality
-    final searchController = TextEditingController();
-    // State for filtered pincodes
-    final ValueNotifier<String> searchQuery = ValueNotifier<String>('');
+    if (!mounted || _isDisposed) return;
     
     showDialog(
       context: context,
-      barrierDismissible: true, // Allow dismissal by tapping outside
-      builder: (context) {
-        return PopScope(
-          // Handle hardware back button press
-          canPop: true,
-          onPopInvoked: (didPop) {
-            if (!didPop) {
-              // Properly dispose resources before popping
-              searchController.dispose();
-              searchQuery.dispose();
-              Navigator.of(context).pop();
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return _ServiceablePincodesDialog(
+          onPincodeSelected: (pincode) async {
+            try {
+              // Close dialog first
+              Navigator.of(dialogContext).pop();
+              
+              // Small delay to ensure dialog is properly closed
+              await Future.delayed(const Duration(milliseconds: 100));
+              
+              // Set the selected pincode
+              if (mounted && !_isDisposed) {
+                await ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
+                
+                // Navigate to outlet selection
+                if (mounted && !_isNavigating) {
+                  _safeSetState(() {
+                    _isNavigating = true;
+                  });
+                  context.go('/outlet-selection');
+                }
+              }
+            } catch (e) {
+              if (mounted && !_isDisposed) {
+                _showErrorSnackBar(context, 'Error selecting pincode: $e');
+              }
             }
           },
-          child: Dialog(
-            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              width: double.maxFinite,
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header with title and close button
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Serviceable Pincodes',
-                          style: AppTextStyles.h6.copyWith(color: Colors.white),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () {
-                            // Properly dispose resources when manually closed
-                            searchController.dispose();
-                            searchQuery.dispose();
-                            Navigator.pop(context);
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Search bar
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: TextField(
-                      controller: searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by pincode',
-                        hintStyle: TextStyle(color: Colors.grey[600]),
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onChanged: (value) {
-                        searchQuery.value = value;
-                      },
-                    ),
-                  ),
-                  
-                  // Pincode grid
-                  Flexible(
-                    child: Consumer(
-                      builder: (context, ref, _) {
-                        final pincodesAsync = ref.watch(allPincodesProvider);
-                        
-                        return pincodesAsync.when(
-                          data: (pincodes) {
-                            if (pincodes.isEmpty) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: Text('No serviceable pincodes found'),
-                                ),
-                              );
-                            }
-                            
-                            return ValueListenableBuilder<String>(
-                              valueListenable: searchQuery,
-                              builder: (context, query, _) {
-                                // Filter pincodes based on search query
-                                final filteredPincodes = query.isEmpty
-                                    ? pincodes
-                                    : pincodes.where((p) => 
-                                        p.pincode.contains(query)).toList();
-                                
-                                if (filteredPincodes.isEmpty) {
-                                  return Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Text(
-                                        'No pincodes match your search',
-                                        style: AppTextStyles.bodyMedium,
-                                      ),
-                                    ),
-                                  );
-                                }
-                                
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                  child: GridView.builder(
-                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 3,
-                                      crossAxisSpacing: 10,
-                                      mainAxisSpacing: 10,
-                                      childAspectRatio: 2.4,
-                                    ),
-                                    itemCount: filteredPincodes.length,
-                                    itemBuilder: (context, index) {
-                                      final pincode = filteredPincodes[index];
-                                      return _buildPincodeCard(context, ref, pincode.pincode);
-                                    },
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                          loading: () => const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24.0),
-                              child: CircularProgressIndicator(),
-                            ),
-                          ),
-                          error: (_, __) => Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Text(
-                                'Error loading pincodes. Please try again.',
-                                style: AppTextStyles.bodyMedium,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         );
       },
-    ).then((_) {
-      // Ensure controllers are disposed when dialog is closed
-      // This is a safety net in case the other disposal methods weren't called
-      if (searchController.hasListeners) {
-        searchController.dispose();
-      }
-      if (searchQuery.hasListeners) {
-        searchQuery.dispose();
-      }
-    });
-  }
-
-  Widget _buildPincodeCard(BuildContext context, WidgetRef ref, String pincode) {
-    return InkWell(
-      onTap: () async {
-        // Get references to providers before closing dialog
-        final logger = ref.read(loggerProvider);
-        final pincodeNotifier = ref.read(selectedPincodeProvider.notifier);
-        final launchFlowNotifier = ref.read(launchFlowProvider.notifier);
-        
-        // Close dialog
-        Navigator.pop(context);
-        
-        // Show loading indicator
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-        
-        try {
-          await pincodeNotifier.selectPincode(pincode);
-          
-          // Update the launch flow state
-          launchFlowNotifier.pincodeSelected();
-          
-          // Close loading indicator
-          if (context.mounted) {
-            Navigator.pop(context);
-            
-            // Navigate to outlet selection
-            context.go('/outlet-selection');
-          }
-        } catch (e) {
-          logger.error('Error selecting pincode: $e');
-          if (context.mounted) {
-            Navigator.pop(context); // Close loading indicator
-            _showErrorSnackBar(context, 'Failed to select pincode. Please try again.');
-          }
-        }
-      },
-      child: Container(
-        height: 36, // Explicitly set a smaller height
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            pincode,
-            style: TextStyle(
-              color: AppColors.primary,
-              fontSize: 15, // Slightly smaller font
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
   void _showErrorSnackBar(BuildContext context, String message) {
+    if (!mounted || _isDisposed) return;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -883,6 +750,294 @@ class LocationChangeScreen extends ConsumerWidget {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+}
+
+// Separate dialog widget to handle its own state and disposal
+class _ServiceablePincodesDialog extends ConsumerStatefulWidget {
+  final Function(String) onPincodeSelected;
+  
+  const _ServiceablePincodesDialog({
+    required this.onPincodeSelected,
+  });
+
+  @override
+  ConsumerState<_ServiceablePincodesDialog> createState() => _ServiceablePincodesDialogState();
+}
+
+class _ServiceablePincodesDialogState extends ConsumerState<_ServiceablePincodesDialog> {
+  late TextEditingController _searchController;
+  late ValueNotifier<String> _searchQuery;
+  bool _isDisposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _searchQuery = ValueNotifier<String>('');
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _searchQuery.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (!_isDisposed && mounted) {
+      _searchQuery.value = _searchController.text;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: true,
+      onPopInvoked: (didPop) {
+        // Additional cleanup is handled in dispose()
+      },
+      child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          width: double.maxFinite,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+            minHeight: 300,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select Pincode',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search pincode...',
+                    hintStyle: TextStyle(color: Colors.grey[600]),
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Content
+              Flexible(
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final pincodesAsync = ref.watch(allPincodesProvider);
+                    
+                    return pincodesAsync.when(
+                      data: (pincodes) {
+                        if (pincodes.isEmpty) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.location_off,
+                                    size: 48,
+                                    color: Colors.grey,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'No serviceable pincodes found',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        return ValueListenableBuilder<String>(
+                          valueListenable: _searchQuery,
+                          builder: (context, query, _) {
+                            final filteredPincodes = query.isEmpty
+                                ? pincodes
+                                : pincodes.where((p) => 
+                                    p.pincode.toLowerCase().contains(query.toLowerCase())
+                                  ).toList();
+                            
+                            if (filteredPincodes.isEmpty) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.search_off,
+                                        size: 48,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No pincodes match "$query"',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+                            
+                            return SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: filteredPincodes.map((pincode) {
+                                  return _buildPincodeChip(pincode.pincode);
+                                }).toList(),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      error: (error, stackTrace) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                size: 48,
+                                color: Colors.red,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Error loading pincodes',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                error.toString(),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () {
+                                  ref.invalidate(allPincodesProvider);
+                                },
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPincodeChip(String pincode) {
+    return InkWell(
+      onTap: () {
+        if (!_isDisposed && mounted) {
+          widget.onPincodeSelected(pincode);
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          pincode,
+          style: TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
         ),
       ),
     );

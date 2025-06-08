@@ -152,139 +152,143 @@ class BestSellerWidget extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Get the banner/slider data for this best seller section
-    final bannerAsync = ref.watch(bestSellerBannerProvider(bestSellerId));
-    
-    // Get the product data for this best seller section
-    final productsAsync = ref.watch(bestSellerProductsProvider(bestSellerId));
-    
-    // Get the background color separately to ensure it triggers a rebuild
-    final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(bestSellerId));
-    
-    // Get outlet status for showing unavailability message
-    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
-    final isCartEnabled = ref.watch(isCartEnabledProvider);
-    
-    // Log the color for debugging
-    ref.read(loggerProvider).log('Best Seller $bestSellerId background color: $backgroundColor');
+ @override
+Widget build(BuildContext context, WidgetRef ref) {
+  // Get the banner/slider data for this best seller section
+  final bannerAsync = ref.watch(bestSellerBannerProvider(bestSellerId));
+  
+  // Get the background color separately to ensure it triggers a rebuild
+  final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(bestSellerId));
+  
+  // Get outlet status for showing unavailability message
+  final outletStatusAsync = ref.watch(currentOutletStatusProvider);
+  final isCartEnabled = ref.watch(isCartEnabledProvider);
+  
+  // Log the color for debugging
+  ref.read(loggerProvider).log('Best Seller $bestSellerId background color: $backgroundColor');
 
-    return bannerAsync.when(
-      data: (banners) {
-        // Container with a unique key based on the background color to force rebuild
-        return Container(
-          key: ValueKey('best_seller_${bestSellerId}_${backgroundColor.value}'),
-          color: backgroundColor, // Apply background color to entire widget
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Banner/Slider Section - Conditional based on banner count
-              if (banners.isEmpty)
-                const SizedBox.shrink() // No banner to show
-              else if (banners.length == 1)
-                // Single banner - no carousel, just a static image
-                _buildSingleBanner(context, banners.first)
-              else
-                // Multiple banners - use carousel with auto-play
-                _buildMultipleBannersCarousel(context, banners),
-              
-              const SizedBox(height: 16),
-              
-              // Show unavailability message if cart is disabled
-              outletStatusAsync.when(
-                data: (status) {
-                  if (status != null && !isCartEnabled) {
-                    return _buildUnavailabilityMessage(context, ref, status);
-                  }
-                  return const SizedBox.shrink();
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (error, stackTrace) => const SizedBox.shrink(),
-              ),
-              
-              // Products Section
-              productsAsync.when(
-                data: (products) {
-                  if (products.isEmpty) {
-                    return const EmptyStateWidget(
-                      title: 'No products available',
-                      subtitle: 'Check back soon for new products',
-                      icon: Icons.shopping_bag_outlined,
-                    );
-                  }
-
-                  // Log product image URLs for debugging
-                  for (var product in products.take(3)) { // Log only first 3 to avoid spamming
-                    ref.read(loggerProvider).log('Product image URL: ${product.productName} -> ${product.pcodeImg}');
-                  }
-
-                  return Container(
-                    height: height,
-                    padding: padding,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      itemCount: products.length,
-                      itemBuilder: (context, index) {
-                        final product = products[index];
-                        return _buildProductCard(context, ref, product);
-                      },
-                    ),
-                  );
-                },
-                loading: () => SizedBox(
-                  height: height,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                error: (error, stackTrace) => Center(
-                  child: AppErrorWidget(
-                    errorType: ErrorType.generic,
-                    message: 'Error loading products: $error',
-                    onRetry: () => ref.refresh(bestSellerProductsProvider(bestSellerId)),
-                  ),
-                ),
-              ),
-            ],
+  return bannerAsync.when(
+    data: (banners) {
+      // Container with a unique key based on the background color to force rebuild
+      return Container(
+        key: ValueKey('best_seller_${bestSellerId}_${backgroundColor.value}'),
+        color: backgroundColor, // Apply background color to entire widget
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Banner/Slider Section - Conditional based on banner count
+            if (banners.isEmpty)
+              const SizedBox.shrink() // No banner to show
+            else if (banners.length == 1)
+              // Single banner - no carousel, just a static image
+              _buildSingleBanner(context, banners.first)
+            else
+              // Multiple banners - use carousel with auto-play
+              _buildMultipleBannersCarousel(context, banners),
+            
+            const SizedBox(height: 16),
+            
+            // Show unavailability message if cart is disabled
+            outletStatusAsync.when(
+              data: (status) {
+                if (status != null && !isCartEnabled) {
+                  return _buildUnavailabilityMessage(context, ref, status);
+                }
+                return const SizedBox.shrink();
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (error, stackTrace) => const SizedBox.shrink(),
+            ),
+            
+            // Products Section - Only show if banners are not empty
+            if (banners.isNotEmpty) // New condition: Only show products if banners exist
+              _buildProductsSection(context, ref),
+          ],
+        ),
+      );
+    },
+    loading: () => Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          // Loading indicator for banner
+          Container(
+            color: Colors.white,
+            height: MediaQuery.of(context).size.width * (200 / 800),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
           ),
+        ],
+      ),
+    ),
+    error: (error, stackTrace) => Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          // Error state for banner
+          Container(
+            color: Colors.white,
+            height: MediaQuery.of(context).size.width * (200 / 800),
+            child: Center(
+              child: Text('Error loading banner: $error'),
+            ),
+          ),
+          // We're not showing products in error state at all, as per requirement
+        ],
+      ),
+    ),
+  );
+}
+Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
+  final productsAsync = ref.watch(bestSellerProductsProvider(bestSellerId));
+  
+  return productsAsync.when(
+    data: (products) {
+      if (products.isEmpty) {
+        return const EmptyStateWidget(
+          title: 'No products available',
+          subtitle: 'Check back soon for new products',
+          icon: Icons.shopping_bag_outlined,
         );
-      },
-      loading: () => Container(
-        color: Colors.white,
-        child: Column(
-          children: [
-            // Loading indicator for banner
-            Container(
-              color: Colors.white,
-              height: MediaQuery.of(context).size.width * (200 / 800),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            ),
-          ],
-        ),
-      ),
-      error: (error, stackTrace) => Container(
-        color: Colors.white,
-        child: Column(
-          children: [
-            // Error state for banner
-            Container(
-              color: Colors.white,
-              height: MediaQuery.of(context).size.width * (200 / 800),
-              child: Center(
-                child: Text('Error loading banner: $error'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+      }
 
+      // Log product image URLs for debugging
+      for (var product in products.take(3)) { // Log only first 3 to avoid spamming
+        ref.read(loggerProvider).log('Product image URL: ${product.productName} -> ${product.pcodeImg}');
+      }
+
+      return Container(
+        height: height,
+        padding: padding,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return _buildProductCard(context, ref, product);
+          },
+        ),
+      );
+    },
+    loading: () => SizedBox(
+      height: height,
+      child: Center(
+        child: CircularProgressIndicator(
+          color: AppColors.primary,
+        ),
+      ),
+    ),
+    error: (error, stackTrace) => Center(
+      child: AppErrorWidget(
+        errorType: ErrorType.generic,
+        message: 'Error loading products: $error',
+        onRetry: () => ref.refresh(bestSellerProductsProvider(bestSellerId)),
+      ),
+    ),
+  );
+}
   // Build single banner without carousel
   Widget _buildSingleBanner(BuildContext context, dynamic banner) {
     return GestureDetector(

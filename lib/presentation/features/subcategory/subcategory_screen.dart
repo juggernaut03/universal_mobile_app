@@ -44,16 +44,20 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
   int _navIndex = 1; // Starting on category tab index
   bool _isRefreshing = false;
   bool _isSearchSticky = false;
+  bool _isTabBarSticky = false; // New state for tab bar stickiness
   
   // Animation controllers for smooth transitions
   late AnimationController _appBarAnimationController;
   late AnimationController _searchAnimationController;
+  late AnimationController _tabBarAnimationController; // New controller for tab bar
   late Animation<double> _titleOpacityAnimation;
   late Animation<double> _titleScaleAnimation;
   late Animation<Offset> _searchSlideAnimation;
+  late Animation<Offset> _tabBarSlideAnimation; // New animation for tab bar
   
   // Scroll thresholds
   static const double _stickyThreshold = 80.0;
+  static const double _tabBarStickyThreshold = 130.0; // New threshold for tab bar
 
   @override
   void initState() {
@@ -66,6 +70,12 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     );
     
     _searchAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 250),
+      vsync: this,
+    );
+    
+    // New tab bar animation controller
+    _tabBarAnimationController = AnimationController(
       duration: const Duration(milliseconds: 250),
       vsync: this,
     );
@@ -96,6 +106,15 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
       curve: Curves.easeOutCubic,
     ));
     
+    // Tab bar slide animation - slides from top
+    _tabBarSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _tabBarAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+    
     _scrollController.addListener(_onScroll);
     
     _searchController.addListener(() {
@@ -111,17 +130,19 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     _scrollController.dispose();
     _appBarAnimationController.dispose();
     _searchAnimationController.dispose();
+    _tabBarAnimationController.dispose(); // Dispose new controller
     super.dispose();
   }
 
   void _onScroll() {
     final scrollOffset = _scrollController.offset;
-    final shouldBeSticky = scrollOffset > _stickyThreshold;
+    final shouldSearchBeSticky = scrollOffset > _stickyThreshold;
+    final shouldTabBarBeSticky = scrollOffset > _tabBarStickyThreshold;
     
     // Handle sticky search bar animation
-    if (shouldBeSticky != _isSearchSticky) {
+    if (shouldSearchBeSticky != _isSearchSticky) {
       setState(() {
-        _isSearchSticky = shouldBeSticky;
+        _isSearchSticky = shouldSearchBeSticky;
       });
       
       if (_isSearchSticky) {
@@ -130,6 +151,19 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
       } else {
         _appBarAnimationController.reverse();
         _searchAnimationController.reverse();
+      }
+    }
+    
+    // Handle sticky tab bar animation
+    if (shouldTabBarBeSticky != _isTabBarSticky) {
+      setState(() {
+        _isTabBarSticky = shouldTabBarBeSticky;
+      });
+      
+      if (_isTabBarSticky) {
+        _tabBarAnimationController.forward();
+      } else {
+        _tabBarAnimationController.reverse();
       }
     }
   }
@@ -219,6 +253,99 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     }
   }
 
+  // Build the tab bar widget that can be used both in normal position and sticky position
+  Widget _buildTabBarWidget(List subcategories) {
+    if (_tabController == null) return const SizedBox.shrink();
+    
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 2,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.black87,
+        indicatorColor: Colors.transparent,
+        labelStyle: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w600),
+        unselectedLabelStyle: AppTextStyles.labelMedium,
+        tabs: [
+          _buildTab("ALL", _selectedIndex == 0),
+          ...subcategories.map((subcategory) => 
+            _buildTab(
+              subcategory.subCategoryName, 
+              _selectedIndex == subcategories.indexOf(subcategory) + 1
+            )
+          ).toList(),
+        ],
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+      ),
+    );
+  }
+
+  // Build the filter section widget
+  Widget _buildFilterSection(List products, SortOption currentSortOption) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            "${products.length} Products",
+            style: AppTextStyles.labelMedium.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          // Sort dropdown button
+          InkWell(
+            onTap: () {
+              _showSortOptions(context);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.neutral300),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "Sort: ${_getSortOptionName(currentSortOption)}",
+                    style: AppTextStyles.labelSmall.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.sort,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final subcategoriesAsync = ref.watch(subcategoriesProvider(widget.categoryId));
@@ -296,50 +423,11 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
                   child: CustomScrollView(
                     controller: _scrollController,
                     slivers: [
-                      // Tab Bar
+                      // Tab Bar (normal position)
                       SliverToBoxAdapter(
                         child: subcategoriesAsync.when(
                           data: (subcategories) {
-                            // Check if tab controller is initialized
-                            if (_tabController == null) return const SizedBox.shrink();
-                            
-                            return Container(
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.2),
-                                    spreadRadius: 1,
-                                    blurRadius: 2,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: TabBar(
-                                controller: _tabController,
-                                isScrollable: true,
-                                labelColor: Colors.white,
-                                unselectedLabelColor: Colors.black87,
-                                indicatorColor: Colors.transparent,
-                                labelStyle: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w600),
-                                unselectedLabelStyle: AppTextStyles.labelMedium,
-                                tabs: [
-                                  _buildTab("ALL", _selectedIndex == 0),
-                                  ...subcategories.map((subcategory) => 
-                                    _buildTab(
-                                      subcategory.subCategoryName, 
-                                      _selectedIndex == subcategories.indexOf(subcategory) + 1
-                                    )
-                                  ).toList(),
-                                ],
-                                onTap: (index) {
-                                  setState(() {
-                                    _selectedIndex = index;
-                                  });
-                                },
-                              ),
-                            );
+                            return _buildTabBarWidget(subcategories);
                           },
                           loading: () => _buildTabBarShimmer(),
                           error: (_, __) => Container(
@@ -353,85 +441,40 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
                         ),
                       ),
                       
-                      // Product Count & List
+                      // Product Count & Filter Section (normal position)
+                      SliverToBoxAdapter(
+                        child: productsAsync.when(
+                          data: (products) => _buildFilterSection(products, currentSortOption),
+                          loading: () => _buildFilterShimmer(),
+                          error: (_, __) => const SizedBox.shrink(),
+                        ),
+                      ),
+                      
+                      // Product List
                       SliverFillRemaining(
                         child: productsAsync.when(
                           data: (products) {
                             // Apply sorting through the provider
                             final sortedProducts = ref.watch(sortedProductsProvider(products));
                             
-                            return Column(
-                              children: [
-                                // Product Count with Sort Option
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        "${products.length} Products",
-                                        style: AppTextStyles.labelMedium.copyWith(
-                                          color: AppColors.textSecondary,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      // Sort dropdown button
-                                      InkWell(
-                                        onTap: () {
-                                          _showSortOptions(context);
+                            return sortedProducts.isEmpty
+                                ? _buildEmptyState()
+                                : ListView.builder(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                    itemCount: sortedProducts.length,
+                                    itemBuilder: (context, index) {
+                                      final product = sortedProducts[index];
+                                      return ProductItemWidget(
+                                        product: product,
+                                        onAddToCart: () {
+                                          // This is now handled directly in the ProductItemWidget
                                         },
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            border: Border.all(color: AppColors.neutral300),
-                                            borderRadius: BorderRadius.circular(16),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                "Sort: ${_getSortOptionName(currentSortOption)}",
-                                                style: AppTextStyles.labelSmall.copyWith(
-                                                  color: AppColors.textPrimary,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Icon(
-                                                Icons.sort,
-                                                size: 16,
-                                                color: AppColors.primary,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                
-                                // Product List
-                                Expanded(
-                                  child: sortedProducts.isEmpty
-                                      ? _buildEmptyState()
-                                      : ListView.builder(
-                                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                          itemCount: sortedProducts.length,
-                                          itemBuilder: (context, index) {
-                                            final product = sortedProducts[index];
-                                            return ProductItemWidget(
-                                              product: product,
-                                              onAddToCart: () {
-                                                // This is now handled directly in the ProductItemWidget
-                                              },
-                                              onToggleFavorite: () {
-                                                // TODO: Implement favorite functionality
-                                              },
-                                            );
-                                          },
-                                        ),
-                                ),
-                              ],
-                            );
+                                        onToggleFavorite: () {
+                                          // TODO: Implement favorite functionality
+                                        },
+                                      );
+                                    },
+                                  );
                           },
                           loading: () => _buildProductsShimmer(),
                           error: (error, _) => Center(
@@ -555,6 +598,47 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
                               ),
                             ),
                           ),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink();
+            },
+          ),
+          
+          // Floating sticky tab bar and filter section
+          AnimatedBuilder(
+            animation: _tabBarSlideAnimation,
+            builder: (context, child) {
+              return _isTabBarSticky
+                  ? Positioned(
+                      top: _isSearchSticky ? 56 + MediaQuery.of(context).padding.top : 0,
+                      left: 0,
+                      right: 0,
+                      child: SlideTransition(
+                        position: _tabBarSlideAnimation,
+                        child: Column(
+                          children: [
+                            // Sticky Tab Bar
+                            subcategoriesAsync.when(
+                              data: (subcategories) => _buildTabBarWidget(subcategories),
+                              loading: () => _buildTabBarShimmer(),
+                              error: (_, __) => Container(
+                                height: 50,
+                                alignment: Alignment.center,
+                                child: Text(
+                                  'Failed to load subcategories',
+                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+                                ),
+                              ),
+                            ),
+                            
+                            // Sticky Filter Section
+                            productsAsync.when(
+                              data: (products) => _buildFilterSection(products, currentSortOption),
+                              loading: () => _buildFilterShimmer(),
+                              error: (_, __) => const SizedBox.shrink(),
+                            ),
+                          ],
                         ),
                       ),
                     )
@@ -860,6 +944,43 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     );
   }
 
+  // Shimmer for filter section loading
+  Widget _buildFilterShimmer() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              width: 100,
+              height: 16,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+          Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              width: 120,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Shimmer for tab bar loading
   Widget _buildTabBarShimmer() {
     return Container(
@@ -895,64 +1016,23 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
 
   // Shimmer for products loading
   Widget _buildProductsShimmer() {
-    return Column(
-      children: [
-        // Product Count shimmer
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(
-                  width: 100,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(
-                  width: 120,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ],
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      itemCount: 5, // Show 5 shimmer items
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
+          child: Container(
+            height: 120,
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
-        ),
-        
-        // Product list shimmer
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            itemCount: 5, // Show 5 shimmer items
-            itemBuilder: (context, index) {
-              return Shimmer.fromColors(
-                baseColor: Colors.grey[300]!,
-                highlightColor: Colors.grey[100]!,
-                child: Container(
-                  height: 120,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 

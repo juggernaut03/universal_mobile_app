@@ -484,7 +484,7 @@ class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidge
   double _calculateHeight(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final aspectRatio = 800 / 620; // Original banner aspect ratio
+    final aspectRatio = 800 / 400; // Original banner aspect ratio
     
     if (ResponsiveBreakpoints.isMobile(context)) {
       // Mobile: Calculate height based on full screen width
@@ -515,12 +515,11 @@ class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidge
   }
 
   BorderRadius _getResponsiveBorderRadius(BuildContext context) {
-    if (widget.borderRadius != null) return widget.borderRadius!;
-    
-    // No border radius for full width banners
-    return BorderRadius.zero;
-  }
-
+  if (widget.borderRadius != null) return widget.borderRadius!;
+  
+  // Use circular border radius of 12 instead of zero
+  return BorderRadius.circular(14.0);
+}
   @override
   Widget build(BuildContext context) {
     final bannersAsync = ref.watch(promotionalBannersProvider);
@@ -545,17 +544,20 @@ class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidge
     );
   }
   
-  Widget _buildFullWidthBannerCarousel(BuildContext context, List<PromotionalBanner> banners) {
-    final height = _calculateHeight(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    return SizedBox(
-      height: height,
-      width: screenWidth, // Full screen width
-      child: Stack(
-        children: [
-          // Banner PageView
-          FadeTransition(
+Widget _buildFullWidthBannerCarousel(BuildContext context, List<PromotionalBanner> banners) {
+  final height = _calculateHeight(context);
+  final screenWidth = MediaQuery.of(context).size.width;
+  final borderRadius = _getResponsiveBorderRadius(context);
+  
+  return SizedBox(
+    height: height,
+    width: screenWidth, // Full screen width
+    child: Stack(
+      children: [
+        // Banner PageView with ClipRRect for border radius
+        ClipRRect(
+          borderRadius: borderRadius,
+          child: FadeTransition(
             opacity: _fadeAnimation,
             child: PageView.builder(
               controller: _bannerController.pageController,
@@ -575,140 +577,142 @@ class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidge
               },
             ),
           ),
-          
-          // Page Indicators
-          if (widget.showPageIndicator && banners.length > 1)
-            _buildResponsivePageIndicator(context, banners.length),
-          
-          // Refresh button (if enabled)
-          if (widget.enableRefresh)
-            _buildRefreshButton(context),
-        ],
-      ),
-    );
-  }
+        ),
+        
+        // Page Indicators
+        if (widget.showPageIndicator && banners.length > 1)
+          _buildResponsivePageIndicator(context, banners.length),
+        
+        // Refresh button (if enabled)
+        if (widget.enableRefresh)
+          _buildRefreshButton(context),
+      ],
+    ),
+  );
+}
+
   
   Widget _buildBannerItem(BuildContext context, PromotionalBanner banner) {
-    // Convert hex color string to Color
-    Color backgroundColor = Colors.white;
-    try {
-      final colorString = banner.backgroundColor.replaceAll('#', '');
-      if (colorString.length == 6) {
-        backgroundColor = Color(int.parse('FF$colorString', radix: 16));
-      } else if (colorString.length == 8) {
-        backgroundColor = Color(int.parse(colorString, radix: 16));
-      }
-    } catch (e) {
-      backgroundColor = Colors.white;
+  // Convert hex color string to Color
+  Color backgroundColor = Colors.white;
+  try {
+    final colorString = banner.backgroundColor.replaceAll('#', '');
+    if (colorString.length == 6) {
+      backgroundColor = Color(int.parse('FF$colorString', radix: 16));
+    } else if (colorString.length == 8) {
+      backgroundColor = Color(int.parse(colorString, radix: 16));
     }
-    
-    return GestureDetector(
-      onTap: () {
-        // Pause auto-play briefly on tap
-        _bannerController.stopAutoPlay();
-        Timer(const Duration(seconds: 3), () {
-          _bannerController.resumeAutoPlay();
-        });
-        
-        // Handle custom tap callback
-        if (widget.onBannerTap != null) {
-          widget.onBannerTap!();
-        }
-        
-        // Handle redirection
-        if (banner.redirectLink.isNotEmpty) {
-          _handleBannerRedirection(context, banner.redirectLink);
-        }
-      },
-      child: Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: backgroundColor,
-        child: Stack(
-          children: [
-            // Background color layer
-            Container(
-              width: double.infinity,
-              height: double.infinity,
+  } catch (e) {
+    backgroundColor = Colors.white;
+  }
+  
+  return GestureDetector(
+    onTap: () {
+      // Pause auto-play briefly on tap
+      _bannerController.stopAutoPlay();
+      Timer(const Duration(seconds: 3), () {
+        _bannerController.resumeAutoPlay();
+      });
+      
+      // Handle custom tap callback
+      if (widget.onBannerTap != null) {
+        widget.onBannerTap!();
+      }
+      
+      // Handle redirection
+      if (banner.redirectLink.isNotEmpty) {
+        _handleBannerRedirection(context, banner.redirectLink);
+      }
+    },
+    child: Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: backgroundColor,
+      child: Stack(
+        children: [
+          // Background color layer
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: backgroundColor,
+          ),
+          
+          // Banner image
+          CachedNetworkImage(
+            key: ValueKey('promotional_${banner.id}_${banner.imageUrl}'),
+            imageUrl: banner.imageUrl,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            placeholder: (context, url) => Container(
               color: backgroundColor,
-            ),
-            
-            // Banner image
-            CachedNetworkImage(
-              key: ValueKey('promotional_${banner.id}_${banner.imageUrl}'),
-              imageUrl: banner.imageUrl,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              placeholder: (context, url) => Container(
-                color: backgroundColor,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          widget.indicatorActiveColor ?? AppColors.primary,
-                        ),
-                        strokeWidth: 2,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        widget.indicatorActiveColor ?? AppColors.primary,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Loading...',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                      strokeWidth: 2,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Loading...',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: backgroundColor,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.image_not_supported_outlined,
-                        color: Colors.grey[400],
-                        size: ResponsiveBreakpoints.isMobile(context) ? 40 : 50,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Banner unavailable',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: ResponsiveBreakpoints.isMobile(context) ? 12 : 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              fadeInDuration: const Duration(milliseconds: 300),
-              fadeOutDuration: const Duration(milliseconds: 200),
-            ),
-            
-            // Subtle gradient overlay for better visual appeal
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.05),
+                    ),
                   ],
                 ),
               ),
             ),
-          ],
-        ),
+            errorWidget: (context, url, error) => Container(
+              color: backgroundColor,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Colors.grey[400],
+                      size: ResponsiveBreakpoints.isMobile(context) ? 40 : 50,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Banner unavailable',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: ResponsiveBreakpoints.isMobile(context) ? 12 : 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            fadeInDuration: const Duration(milliseconds: 300),
+            fadeOutDuration: const Duration(milliseconds: 200),
+          ),
+          
+          // Subtle gradient overlay for better visual appeal
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.05),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
   
   Widget _buildResponsivePageIndicator(BuildContext context, int pageCount) {
     final indicatorSize = ResponsiveBreakpoints.isMobile(context) ? 6.0 : 8.0;
@@ -788,10 +792,13 @@ class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidge
   }
   
   Widget _buildLoadingIndicator(BuildContext context) {
-    final height = _calculateHeight(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    return Container(
+  final height = _calculateHeight(context);
+  final screenWidth = MediaQuery.of(context).size.width;
+  final borderRadius = _getResponsiveBorderRadius(context);
+  
+  return ClipRRect(
+    borderRadius: borderRadius,
+    child: Container(
       height: height,
       width: screenWidth,
       color: Colors.grey[200],
@@ -816,14 +823,18 @@ class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidge
           ],
         ),
       ),
-    );
-  }
-  
+    ),
+  );
+}
+
   Widget _buildErrorState(BuildContext context) {
-    final height = _calculateHeight(context);
-    final screenWidth = MediaQuery.of(context).size.width;
-    
-    return Container(
+  final height = _calculateHeight(context);
+  final screenWidth = MediaQuery.of(context).size.width;
+  final borderRadius = _getResponsiveBorderRadius(context);
+  
+  return ClipRRect(
+    borderRadius: borderRadius,
+    child: Container(
       height: height,
       width: screenWidth,
       color: Colors.grey[100],
@@ -873,8 +884,9 @@ class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidge
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
   
   void _handleBannerRedirection(BuildContext context, String redirectLink) {
     try {

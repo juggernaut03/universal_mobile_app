@@ -1,4 +1,3 @@
-// lib/presentation/features/home/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,15 +7,24 @@ import 'package:patelmart/core/widgets/bottom_navigation_widget.dart';
 import 'package:patelmart/core/widgets/header_widget.dart';
 import 'package:patelmart/core/widgets/search_widget.dart';
 import 'package:patelmart/presentation/features/cart/widgets/persistent_cart_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/home_popup_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/popular_category_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/promotional_banner_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
+import 'package:patelmart/presentation/providers/popular_category_providers.dart';
+import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/outlet_model.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/cart_provider.dart';
+// POPUP IMPORTS
+import '../../providers/popup_providers.dart';
+// APP LIFECYCLE HANDLER
+import '../../../core/handlers/app_lifecycle_handler.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -26,7 +34,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> 
-    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   
   // Controllers and scroll management
   late ScrollController _scrollController;
@@ -40,6 +48,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   int _currentNavIndex = 0;
   bool _isSearchSticky = false;
   DateTime? _lastBackPressTime;
+  String? _lastOutletStoreCode; // Track outlet changes
+  bool _hasInitializedPopup = false; // Track if popup has been initialized for this session
   
   // Performance optimizations
   static const double _stickyThreshold = 80.0;
@@ -52,6 +62,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void initState() {
     super.initState();
+    
+    // Initialize app lifecycle handler - FIXED: Moved to post frame callback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(appLifecycleHandlerProvider);
+      }
+    });
     
     // Initialize controllers
     _scrollController = ScrollController();
@@ -74,8 +91,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // Search controller listener
     _searchController.addListener(_onSearchChanged);
     
-    // Preload critical data
+    // Preload critical data and initialize popup
     _preloadCriticalData();
+    _initializePopupWithDelay();
   }
 
   @override
@@ -85,6 +103,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _searchController.dispose();
     _stickyBarController.dispose();
     super.dispose();
+  }
+
+  // ENHANCED POPUP INITIALIZATION - Shows IMMEDIATELY on app launch
+  void _initializePopupWithDelay() {
+    // Initialize popup immediately after widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Minimal delay to ensure UI is ready
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _initializePopup();
+        }
+      });
+    });
+  }
+
+  void _initializePopup() {
+    final outletAsync = ref.read(selectedOutletProvider);
+    outletAsync.whenData((outlet) {
+      if (outlet != null && mounted && !_hasInitializedPopup) {
+        ref.read(popupDisplayStateProvider.notifier).initializePopupState(outlet.storeCode);
+        _lastOutletStoreCode = outlet.storeCode;
+        _hasInitializedPopup = true;
+      }
+    });
+  }
+
+  // Handle outlet changes for popup reinitialization
+  void _handleOutletChange(OutletModel? outlet) {
+    if (outlet != null && _lastOutletStoreCode != outlet.storeCode) {
+      final currentState = ref.read(popupDisplayStateProvider);
+      if (currentState.currentStoreCode != outlet.storeCode) {
+        ref.read(popupDisplayStateProvider.notifier).resetForNewStore(outlet.storeCode);
+        ref.read(popupDisplayStateProvider.notifier).initializePopupState(outlet.storeCode);
+        _hasInitializedPopup = true;
+      }
+      _lastOutletStoreCode = outlet.storeCode;
+    }
   }
 
   // Optimized scroll handling with debouncing
@@ -150,37 +205,219 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
-  // Optimized refresh with proper error handling
+  // COMPREHENSIVE REFRESH METHOD FOR ALL HOME SCREEN WIDGETS
   Future<void> _refreshHomeData() async {
     try {
-      await Future.wait([
-        ref.read(bestSellerRefreshProvider)(),
-        // Add other refresh operations here
-      ]);
+      // Add haptic feedback
+      HapticFeedback.lightImpact();
       
+      // Show loading indicator with descriptive message
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Data refreshed successfully'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Refreshing all home screen data...',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 5),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
+
+      // Execute all refresh operations in parallel for better performance
+      final refreshOperations = <Future<void>>[];
+
+      // 1. Best Seller sections (1-4) - using existing provider
+      refreshOperations.add(
+        ref.read(bestSellerRefreshProvider)().catchError((e) {
+          ref.read(loggerProvider).error('Best seller refresh failed: $e');
+        })
+      );
+
+      // 2. Popular Categories (1-5) - using existing provider
+      refreshOperations.add(
+        ref.read(popularCategoryRefreshProvider)().catchError((e) {
+          ref.read(loggerProvider).error('Popular categories refresh failed: $e');
+        })
+      );
+
+      // 3. Promotional Banner - using existing provider
+      refreshOperations.add(
+        ref.read(promotionalBannerRefreshProvider)().catchError((e) {
+          ref.read(loggerProvider).error('Promotional banner refresh failed: $e');
+        })
+      );
+
+      // 4. Seasonal Picks - manual refresh since no dedicated provider exists
+      refreshOperations.add(
+        _refreshSeasonalPicksData().catchError((e) {
+          ref.read(loggerProvider).error('Seasonal picks refresh failed: $e');
+        })
+      );
+
+      // Wait for all refresh operations to complete
+      await Future.wait(refreshOperations);
+
+      if (mounted) {
+        // Add success haptic feedback
+        HapticFeedback.mediumImpact();
+        
+        // Dismiss the loading snackbar
+        ScaffoldMessenger.of(context).clearSnackBars();
+        
+        // Show success message with animation
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  Icons.check_circle_outline, 
+                  color: Colors.white, 
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Home screen refreshed successfully!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green[600],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+        
+        // Optional: Smooth scroll to top after refresh
+        if (_scrollController.hasClients && _scrollController.offset > 100) {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      }
+
+      // Log successful refresh
+      ref.read(loggerProvider).log('Home screen refresh completed successfully');
+
     } catch (e) {
+      // Add error haptic feedback
+      HapticFeedback.heavyImpact();
+      
+      // Handle any unexpected errors
       if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to refresh data'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  Icons.error_outline, 
+                  color: Colors.white, 
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Refresh failed. Tap retry to try again.',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red[600],
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              backgroundColor: Colors.red[800],
+              onPressed: _refreshHomeData,
+            ),
           ),
         );
       }
+      
+      // Log the error with details
+      ref.read(loggerProvider).error('Home screen refresh failed with error: $e');
+    }
+  }
+
+  // Helper method to refresh seasonal picks data specifically
+  Future<void> _refreshSeasonalPicksData() async {
+    try {
+      final outletAsync = ref.read(selectedOutletProvider);
+      
+      await outletAsync.when(
+        data: (outlet) async {
+          if (outlet != null) {
+            // Refresh both seasonal banner and categories
+            await Future.wait([
+              ref.refresh(bannerProvider(outlet.storeCode).future),
+              ref.refresh(categoriesProvider(outlet.storeCode).future),
+            ]);
+            
+            ref.read(loggerProvider).log('Seasonal picks refreshed for store: ${outlet.storeCode}');
+          } else {
+            ref.read(loggerProvider).log('No outlet selected, skipping seasonal picks refresh');
+          }
+        },
+        loading: () {
+          ref.read(loggerProvider).log('Outlet still loading, skipping seasonal picks refresh');
+          return Future.value();
+        },
+        error: (error, stackTrace) {
+          ref.read(loggerProvider).error('Outlet error during seasonal picks refresh: $error');
+          return Future.value();
+        },
+      );
+    } catch (e) {
+      ref.read(loggerProvider).error('Failed to refresh seasonal picks: $e');
+      rethrow; // Re-throw to be caught by the main refresh method
     }
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+    
+    // Watch for outlet changes and handle popup reinitialization
+    final outletAsync = ref.watch(selectedOutletProvider);
+    outletAsync.whenData((outlet) => _handleOutletChange(outlet));
     
     return PopScope(
       canPop: false,
@@ -191,7 +428,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       },
       child: Scaffold(
         backgroundColor: Colors.white,
-        body: _buildOptimizedBody(),
+        body: Stack(
+          children: [
+            // Main content
+            _buildOptimizedBody(),
+            
+            // POPUP OVERLAY - This is the key addition
+            const HomePopupWidget(),
+          ],
+        ),
         drawer: const AppDrawerWidget(), // ✅ Using reusable drawer
         bottomNavigationBar: _buildBottomNavigation(),
         floatingActionButton: _buildFloatingActionButton(),
@@ -436,19 +681,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         const SliverToBoxAdapter(child: SizedBox(height: 8)), // Reduced from 16 to 8
 
         // Popular Categories - using RepaintBoundary for better performance
-        SliverToBoxAdapter(
-          child: RepaintBoundary(
-            child: const PopularCategoryWidget(
-              sectionId: 1,
-              showTitle: false,
-              showViewAll: false,
-              itemWidth: 110,
-              itemHeight: 120,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Reduced vertical padding from 8 to 4
-              spacing: 12,
+       SliverToBoxAdapter(
+            child: RepaintBoundary(
+              child: const SeasonalCategoryWidget(
+                departmentId: 2, // Your department ID
+                itemWidth: 100,
+                itemHeight: 100,
+                showTitle: false,
+                showViewAll: false,
+                spacing: 12,
+                padding: EdgeInsets.symmetric(horizontal: 16),
+              ),
             ),
           ),
-        ),
+
 
         // Promotional Banner - wrapped in RepaintBoundary
         SliverToBoxAdapter(
@@ -456,23 +702,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), 
               // Reduced vertical margin
-              child: PromotionalBannerWidget(
-              showPageIndicator: true,
-              autoPlay: true,
-              autoPlayInterval: const Duration(seconds: 5),
-              enableRefresh: true,
-              margin: EdgeInsets.symmetric(
-              horizontal: ResponsiveBreakpoints.isMobile(context) ? 16 : 24,
-               
+              child: const PromotionalBannerWidget(
+                showPageIndicator: true,
+                autoPlay: true,
+                autoPlayInterval: Duration(seconds: 5),
+                enableRefresh: true,
               ),
-              onBannerTap: () {
-                // Optional custom tap handling
-              },
             ),
           ),
-            ),
-          ),
-        
+        ),
 
         // Best Seller sections - optimized with RepaintBoundary and keys
         ...List.generate(4, (index) {
@@ -571,12 +809,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  // ENHANCED FLOATING ACTION BUTTON WITH LOADING STATES
   Widget _buildFloatingActionButton() {
-    return FloatingActionButton(
-      mini: true,
-      backgroundColor: AppColors.primary.withOpacity(0.8),
-      child: const Icon(Icons.refresh, color: Colors.white),
-      onPressed: _refreshHomeData,
+    return Consumer(
+      builder: (context, ref, _) {
+        // Watch for loading states from all major providers
+        final bestSellerLoading = ref.watch(bestSellerBannerProvider(1)).isLoading ||
+                                  ref.watch(bestSellerBannerProvider(2)).isLoading ||
+                                  ref.watch(bestSellerBannerProvider(3)).isLoading ||
+                                  ref.watch(bestSellerBannerProvider(4)).isLoading;
+        
+        final popularCategoryLoading = ref.watch(popularCategoryProvider(1)).isLoading ||
+                                       ref.watch(popularCategoryProvider(2)).isLoading ||
+                                       ref.watch(popularCategoryProvider(3)).isLoading ||
+                                       ref.watch(popularCategoryProvider(4)).isLoading ||
+                                       ref.watch(popularCategoryProvider(5)).isLoading;
+        
+        final promotionalBannerLoading = ref.watch(promotionalBannersProvider).isLoading;
+        
+        // Check seasonal picks loading
+        final outletAsync = ref.watch(selectedOutletProvider);
+        final seasonalLoading = outletAsync.when(
+          data: (outlet) {
+            if (outlet != null) {
+              return ref.watch(bannerProvider(outlet.storeCode)).isLoading ||
+                     ref.watch(categoriesProvider(outlet.storeCode)).isLoading;
+            }
+            return false;
+          },
+          loading: () => false,
+          error: (_, __) => false,
+        );
+        
+        final isRefreshing = bestSellerLoading || 
+                            popularCategoryLoading || 
+                            promotionalBannerLoading || 
+                            seasonalLoading;
+        
+        return AnimatedScale(
+          scale: isRefreshing ? 0.95 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          child: FloatingActionButton(
+            mini: true,
+            backgroundColor: isRefreshing 
+                ? AppColors.primary.withOpacity(0.7)
+                : AppColors.primary.withOpacity(0.8),
+            elevation: isRefreshing ? 2 : 4,
+            onPressed: isRefreshing ? null : _refreshHomeData,
+            tooltip: isRefreshing ? 'Refreshing...' : 'Refresh home screen',
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeInOut,
+              switchOutCurve: Curves.easeInOut,
+              child: isRefreshing
+                  ? SizedBox(
+                      key: const ValueKey('loading'),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Icon(
+                      Icons.refresh,
+                      key: const ValueKey('refresh_icon'),
+                      color: Colors.white,
+                      size: 20,
+                    ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // TESTING METHOD - Add popup testing button in debug mode (optional)
+  Widget? _buildDebugPopupButton() {
+    // Only show in debug mode
+    assert(() {
+      return true;
+    }());
+    
+    return Positioned(
+      bottom: 120,
+      right: 16,
+      child: FloatingActionButton(
+        mini: true,
+        backgroundColor: Colors.orange,
+        onPressed: () {
+          ref.read(popupDisplayStateProvider.notifier).forceShowPopup();
+        },
+        child: const Icon(Icons.announcement, color: Colors.white),
+      ),
     );
   }
 }
