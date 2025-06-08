@@ -1,7 +1,8 @@
+// lib/presentation/features/home/widgets/seasonal_picks_widget.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart'; // Add this import for GoRouter
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
@@ -43,7 +44,7 @@ class SeasonalCategory {
   }
 }
 
-/// API service for fetching seasonal data
+/// Enhanced API service for fetching seasonal data with refresh capability
 class SeasonalApi {
   final String baseUrl = 'https://newtech.shalviadvision.com/api';
   final String projectCode = 'RET5890';
@@ -51,60 +52,121 @@ class SeasonalApi {
 
   SeasonalApi({http.Client? client}) : client = client ?? http.Client();
 
-  /// Fetch the seasonal banner
-  Future<List<SeasonalBanner>> getBanner(String storeCode) async {
+  /// Fetch the seasonal banner with optional cache busting
+  Future<List<SeasonalBanner>> getBanner(String storeCode, {bool forceRefresh = false}) async {
+    final requestBody = {
+      'banner_type_id': 10,
+      'store_code': storeCode,
+      'platform': 'Android',
+      'project_code': projectCode,
+    };
+    
+    // Add timestamp for cache busting when force refresh is requested
+    if (forceRefresh) {
+      requestBody['timestamp'] = DateTime.now().millisecondsSinceEpoch.toString();
+    }
+
     final response = await client.post(
       Uri.parse('$baseUrl/get_banner'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'banner_type_id': 10,
-        'store_code': storeCode,
-        'platform': 'Android',
-        'project_code': projectCode,
-      }),
+      body: jsonEncode(requestBody),
     );
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((json) => SeasonalBanner.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load banner');
+      throw Exception('Failed to load banner: ${response.statusCode}');
     }
   }
 
-  /// Fetch the seasonal categories
-  Future<List<SeasonalCategory>> getCategories(String storeCode) async {
+  /// Fetch the seasonal categories with optional cache busting
+  Future<List<SeasonalCategory>> getCategories(String storeCode, {bool forceRefresh = false}) async {
+    final requestBody = {
+      'store_code': storeCode,
+      'project_code': projectCode,
+    };
+    
+    // Add timestamp for cache busting when force refresh is requested
+    if (forceRefresh) {
+      requestBody['timestamp'] = DateTime.now().millisecondsSinceEpoch.toString();
+    }
+
     final response = await client.post(
       Uri.parse('$baseUrl/get_seasonal_picks'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'store_code': storeCode,
-        'project_code': projectCode,
-      }),
+      body: jsonEncode(requestBody),
     );
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((json) => SeasonalCategory.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load categories');
+      throw Exception('Failed to load categories: ${response.statusCode}');
     }
+  }
+
+  /// Clear any internal caches
+  void clearCache() {
+    // Placeholder for future cache implementation
+    // This could be used to clear HTTP client cache if implemented
   }
 }
 
 /// Provider for the API service
 final seasonalApiProvider = Provider<SeasonalApi>((ref) => SeasonalApi());
 
-/// Provider for the banner data
+/// Provider to force refresh seasonal picks data
+final refreshSeasonalPicksProvider = StateProvider<bool>((ref) => false);
+
+/// Provider for the banner data with refresh capability
 final bannerProvider = FutureProvider.family<List<SeasonalBanner>, String>((ref, storeCode) async {
   final api = ref.watch(seasonalApiProvider);
-  return api.getBanner(storeCode);
+  final forceRefresh = ref.watch(refreshSeasonalPicksProvider);
+  
+  return api.getBanner(storeCode, forceRefresh: forceRefresh);
 });
 
-/// Provider for the category data
+/// Provider for the category data with refresh capability
 final categoriesProvider = FutureProvider.family<List<SeasonalCategory>, String>((ref, storeCode) async {
   final api = ref.watch(seasonalApiProvider);
-  return api.getCategories(storeCode);
+  final forceRefresh = ref.watch(refreshSeasonalPicksProvider);
+  
+  return api.getCategories(storeCode, forceRefresh: forceRefresh);
+});
+
+/// Provider for refreshing seasonal picks data
+final seasonalPicksRefreshProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    try {
+      // Set the refresh flag to true
+      ref.read(refreshSeasonalPicksProvider.notifier).state = true;
+      
+      // Get the current outlet
+      final outletAsync = ref.read(selectedOutletProvider);
+      
+      await outletAsync.when(
+        data: (outlet) async {
+          if (outlet != null) {
+            // Refresh both providers
+            await Future.wait([
+              ref.refresh(bannerProvider(outlet.storeCode).future),
+              ref.refresh(categoriesProvider(outlet.storeCode).future),
+            ]);
+          }
+        },
+        loading: () => Future.value(),
+        error: (_, __) => Future.value(),
+      );
+      
+      // Reset the refresh flag
+      ref.read(refreshSeasonalPicksProvider.notifier).state = false;
+    } catch (e) {
+      // Reset the refresh flag even on error
+      ref.read(refreshSeasonalPicksProvider.notifier).state = false;
+      rethrow;
+    }
+  };
 });
 
 /// The main seasonal picks widget
@@ -132,8 +194,8 @@ class SeasonalPicksWidget extends ConsumerWidget {
           ],
         );
       },
-      loading: () => const SizedBox(),
-      error: (_, __) => const SizedBox(),
+      loading: () => _buildLoadingState(),
+      error: (error, stackTrace) => _buildErrorState(context, error),
     );
   }
   
@@ -145,20 +207,58 @@ class SeasonalPicksWidget extends ConsumerWidget {
       data: (banners) {
         if (banners.isEmpty) return const SizedBox();
         
-        return CachedNetworkImage(
-          imageUrl: banners.first.imageUrl,
-          width: double.infinity,
-          fit: BoxFit.fitWidth,
-          placeholder: (_, __) => const SizedBox(height: 100),
-          errorWidget: (_, __, ___) => const SizedBox(),
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: CachedNetworkImage(
+              imageUrl: banners.first.imageUrl,
+              width: double.infinity,
+              fit: BoxFit.fitWidth,
+              placeholder: (_, __) => Container(
+                height: 120,
+                color: Colors.grey[200],
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              errorWidget: (_, __, ___) => Container(
+                height: 120,
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Icon(Icons.error_outline, color: Colors.grey),
+                ),
+              ),
+            ),
+          ),
         );
       },
-      loading: () => const SizedBox(height: 100),
-      error: (_, __) => const SizedBox(),
+      loading: () => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      ),
+      error: (error, _) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Center(
+          child: Icon(Icons.error_outline, color: Colors.grey),
+        ),
+      ),
     );
   }
   
-  /// Build the horizontal category list
+  /// Build the horizontal category list - FIXED VERSION
   Widget _buildCategories(BuildContext context, WidgetRef ref, String storeCode) {
     final categoriesAsync = ref.watch(categoriesProvider(storeCode));
     
@@ -168,38 +268,161 @@ class SeasonalPicksWidget extends ConsumerWidget {
         
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          height: 230,
+          height: 200, // Reduced height since no text needed
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
-            padding: const EdgeInsets.symmetric(horizontal: 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             itemBuilder: (context, index) {
               final category = categories[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 0),
-                child: GestureDetector(
-                  onTap: () => _navigateToCategory(context, category),
-                  child: CachedNetworkImage(
-                    imageUrl: category.imageUrl,
-                    width: 180, 
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              );
+              return _buildCategoryItem(context, category, index == 0, index == categories.length - 1);
             },
           ),
         );
       },
-      loading: () => const SizedBox(height: 100),
-      error: (_, __) => const SizedBox(),
+      loading: () => Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        height: 230,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: 5, // Show placeholder items
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemBuilder: (context, index) {
+            return Container(
+              width: 140,
+              margin: EdgeInsets.only(
+                right: 12,
+                left: index == 0 ? 0 : 0,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          },
+        ),
+      ),
+      error: (error, _) => Container(
+        height: 100,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.grey[400], size: 24),
+              const SizedBox(height: 8),
+              Text(
+                'Failed to load categories',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
   
-  /// Navigate to the category details screen using GoRouter
-  void _navigateToCategory(BuildContext context, SeasonalCategory category) {
-    // Use context.push() instead of Navigator.pushNamed() to match GoRouter navigation
-    context.push(
-      '/subcategory/${category.categoryId}/${category.departmentId}/${Uri.encodeComponent(category.categoryName)}',
+  /// Build individual category item - IMAGE ONLY VERSION
+  Widget _buildCategoryItem(BuildContext context, SeasonalCategory category, bool isFirst, bool isLast) {
+    return Container(
+      width: 180, // Wider since we're only showing image
+      margin: EdgeInsets.only(
+        right: isLast ? 0 : 12,
+        left: isFirst ? 0 : 0,
+      ),
+      child: InkWell(
+        onTap: () {
+          // Navigate to category
+          if (category.categoryId.isNotEmpty && category.departmentId.isNotEmpty) {
+            context.push('/subcategory/${category.categoryId}/${category.departmentId}/${Uri.encodeComponent(category.categoryName)}');
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: CachedNetworkImage(
+            imageUrl: category.imageUrl,
+            width: 180,
+            height: 180, // Square aspect ratio for better display
+            fit: BoxFit.cover,
+            placeholder: (_, __) => Container(
+              width: 180,
+              height: 180,
+              color: Colors.grey[200],
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            errorWidget: (_, __, ___) => Container(
+              width: 180,
+              height: 180,
+              color: Colors.grey[200],
+              child: const Center(
+                child: Icon(Icons.image_not_supported, color: Colors.grey, size: 32),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  /// Build loading state
+  Widget _buildLoadingState() {
+    return Container(
+      height: 300,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Loading seasonal picks...',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Build error state
+  Widget _buildErrorState(BuildContext context, Object error) {
+    return Container(
+      height: 100,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.red[200]!),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: Colors.red[400], size: 24),
+            const SizedBox(height: 8),
+            Text(
+              'Failed to load seasonal picks',
+              style: TextStyle(color: Colors.red[700], fontSize: 12),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

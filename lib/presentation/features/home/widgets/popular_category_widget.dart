@@ -23,8 +23,8 @@ class PopularCategoryWidget extends ConsumerStatefulWidget {
     this.showTitle = true,
     this.showViewAll = true,
     this.itemWidth = 110,
-    this.itemHeight = 120,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    this.itemHeight = 140,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     this.spacing = 12,
   }) : super(key: key);
 

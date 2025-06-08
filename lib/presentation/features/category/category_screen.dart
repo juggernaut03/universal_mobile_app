@@ -554,7 +554,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 4), 
                   Container(
                     width: 60,
                     height: 12,

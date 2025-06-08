@@ -24,29 +24,48 @@ class PincodeSelectionScreen extends ConsumerStatefulWidget {
 }
 
 class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen> {
-  final TextEditingController _searchController = TextEditingController();
+  late TextEditingController _searchController;
   bool _isLocationDetectionAttempted = false;
   bool _isLoading = false;
   String _searchQuery = '';
   bool _hasShownLocationModal = false;
   String? _nonServiceablePincode;
+  bool _isDisposed = false;
+  bool _isNavigating = false;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     _searchController.addListener(_onSearchChanged);
     
     // Schedule location checks for the next frame to avoid build issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         _tryAutoLocationDetection();
         _checkLocationServiceability();
       }
     });
   }
   
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _safeSetState(VoidCallback callback) {
+    if (!_isDisposed && mounted) {
+      setState(callback);
+    }
+  }
+
   // Check if we need to show location serviceability modals
   Future<void> _checkLocationServiceability() async {
+    if (_isDisposed || !mounted) return;
+    
     final logger = ref.read(loggerProvider);
     
     // Only check if we haven't shown a modal yet
@@ -60,20 +79,20 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
     final locationInfo = ref.read(locationInfoProvider);
     
     if (locationInfo.nonServiceablePincode != null) {
-      setState(() {
+      _safeSetState(() {
         _nonServiceablePincode = locationInfo.nonServiceablePincode;
       });
       
       // Show modal in next frame to avoid rebuild issues
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (mounted && !_isDisposed) {
           _showNonServiceableAreaModal(context);
         }
       });
     } else if (locationInfo.locationError != null) {
       // Handle location errors in next frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (mounted && !_isDisposed) {
           _handleLocationError(locationInfo.locationError!);
         }
       });
@@ -81,6 +100,8 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
   }
   
   void _handleLocationError(String errorType) {
+    if (_isDisposed || !mounted) return;
+    
     final logger = ref.read(loggerProvider);
     logger.log('Handling location error: $errorType');
     
@@ -94,6 +115,8 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
   }
 
   Future<void> _tryAutoLocationDetection() async {
+    if (_isDisposed || !mounted) return;
+    
     final logger = ref.read(loggerProvider);
     final launchState = ref.read(launchFlowProvider);
     
@@ -102,7 +125,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
     if (launchState == AppLaunchState.needLocationPermission && !_isLocationDetectionAttempted) {
       logger.log('Auto-triggering location detection');
       
-      setState(() {
+      _safeSetState(() {
         _isLocationDetectionAttempted = true;
         _isLoading = true;
       });
@@ -113,7 +136,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
       } catch (e) {
         logger.error('Error in auto location detection: $e');
         
-        if (mounted) {
+        if (mounted && !_isDisposed) {
           if (e is LocationPermissionException) {
             await LocationService.handleLocationError(
               context, 
@@ -131,24 +154,17 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
           }
         }
       } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+        _safeSetState(() {
+          _isLoading = false;
+        });
       }
     }
   }
 
-  @override
-  void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
-    super.dispose();
-  }
-
   void _onSearchChanged() {
-    setState(() {
+    if (_isDisposed || !mounted) return;
+    
+    _safeSetState(() {
       _searchQuery = _searchController.text;
     });
   }
@@ -167,6 +183,8 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_isDisposed) return const SizedBox.shrink();
+    
     final allPincodesAsync = ref.watch(allPincodesProvider);
     final launchState = ref.watch(launchFlowProvider);
     final logger = ref.read(loggerProvider);
@@ -190,7 +208,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
             title: const Text('Detecting Location'),
             leading: canGoBack ? IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.go('/location-change'),
+              onPressed: () => _safeNavigateToLocationChange(),
             ) : null,
           ),
           body: Center(
@@ -206,7 +224,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    setState(() {
+                    _safeSetState(() {
                       _isLoading = false;
                     });
                   },
@@ -229,126 +247,142 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
               if (canGoBack) {
-                context.go('/location-change');
+                _safeNavigateToLocationChange();
               }
             },
           ),
         ),
-        body: Column(
-          children: [
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search by pincode',
-                  hintStyle: TextStyle(color: Colors.grey[600]),
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search by pincode',
+                    hintStyle: TextStyle(color: Colors.grey[600]),
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
-            ),
-            
-            // Pincode grid
-            Expanded(
-              child: allPincodesAsync.when(
-                data: (allPincodes) {
-                  if (allPincodes.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No serviceable pincodes found',
-                        style: AppTextStyles.bodyLarge,
+              
+              // Pincode grid - wrapped in Expanded and safe area
+              Expanded(
+                child: allPincodesAsync.when(
+                  data: (allPincodes) {
+                    if (allPincodes.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.location_off,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No serviceable pincodes found',
+                              style: AppTextStyles.h5,
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    
+                    // Filter pincodes locally based on search query
+                    final filteredPincodes = _filterPincodes(allPincodes, _searchQuery);
+                    
+                    if (filteredPincodes.isEmpty && _searchQuery.isNotEmpty) {
+                      // Show "no results" message when search has no matches
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No matching pincodes found',
+                              style: AppTextStyles.h5,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Try a different Pincode',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    
+                    // Use SingleChildScrollView with proper constraints
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height * 0.6,
+                        ),
+                        child: Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: filteredPincodes.map((pincode) {
+                            return _buildPincodeCard(pincode.pincode);
+                          }).toList(),
+                        ),
                       ),
                     );
-                  }
-                  
-                  // Filter pincodes locally based on search query
-                  final filteredPincodes = _filterPincodes(allPincodes, _searchQuery);
-                  
-                  if (filteredPincodes.isEmpty && _searchQuery.isNotEmpty) {
-                    // Show "no results" message when search has no matches
-                    return Center(
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (error, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.search_off,
+                            Icons.error_outline,
                             size: 64,
-                            color: Colors.grey[400],
+                            color: AppColors.error,
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'No matching pincodes found',
-                            style: AppTextStyles.h5,
+                            'Error loading pincodes',
+                            style: AppTextStyles.h5.copyWith(color: AppColors.error),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Try a different Pincode',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                            error.toString(),
+                            style: AppTextStyles.bodyMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: () => ref.refresh(allPincodesProvider),
+                            child: const Text('Retry'),
                           ),
                         ],
                       ),
-                    );
-                  }
-                  
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 2.4,
-                      ),
-                      itemCount: filteredPincodes.length,
-                      itemBuilder: (context, index) {
-                        final pincode = filteredPincodes[index];
-                        return _buildPincodeCard(pincode.pincode);
-                      },
                     ),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: AppColors.error,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error loading pincodes',
-                        style: AppTextStyles.h5.copyWith(color: AppColors.error),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        error.toString(),
-                        style: AppTextStyles.bodyMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () => ref.refresh(allPincodesProvider),
-                        child: const Text('Retry'),
-                      ),
-                    ],
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -357,8 +391,10 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
   Widget _buildPincodeCard(String pincode) {
     return InkWell(
       onTap: () => _selectPincode(pincode),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        height: 36, // Explicitly set a smaller height
+        width: (MediaQuery.of(context).size.width - 52) / 3, // Calculate width for 3 columns
+        height: 40,
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey[300]!),
           borderRadius: BorderRadius.circular(8),
@@ -368,7 +404,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
             pincode,
             style: TextStyle(
               color: AppColors.primary,
-              fontSize: 15, // Slightly smaller font
+              fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -377,11 +413,23 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
     );
   }
 
+  void _safeNavigateToLocationChange() {
+    if (_isDisposed || !mounted || _isNavigating) return;
+    
+    _safeSetState(() {
+      _isNavigating = true;
+    });
+    
+    context.go('/location-change');
+  }
+
   Future<void> _selectPincode(String pincode) async {
+    if (_isDisposed || !mounted || _isNavigating) return;
+    
     final logger = ref.read(loggerProvider);
     logger.log('Selecting pincode: $pincode');
     
-    setState(() {
+    _safeSetState(() {
       _isLoading = true;
     });
 
@@ -399,13 +447,16 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
         ref.read(launchFlowProvider.notifier).pincodeSelected();
         
         // Navigate to outlet selection screen
-        if (mounted) {
+        if (mounted && !_isDisposed && !_isNavigating) {
+          _safeSetState(() {
+            _isNavigating = true;
+          });
           context.go('/outlet-selection');
         }
       } else {
         logger.log('Pincode is not serviceable, showing error');
         // Show error message if pincode is not serviceable
-        if (mounted) {
+        if (mounted && !_isDisposed) {
           _showErrorSnackBar('Sorry! We currently do not serve in this area: $pincode');
         }
       }
@@ -413,7 +464,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
       logger.error('Error selecting pincode: $e');
       
       // Show error message
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         String message = 'Error checking pincode';
         ErrorType errorType = ErrorType.generic;
         
@@ -426,33 +477,33 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
         
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
+          builder: (dialogContext) => AlertDialog(
             content: AppErrorWidget(
               errorType: errorType,
               message: message,
               onRetry: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 _selectPincode(pincode);
               },
-              onCancel: () => Navigator.pop(context),
+              onCancel: () => Navigator.pop(dialogContext),
             ),
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      _safeSetState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _detectCurrentLocation() async {
+    if (_isDisposed || !mounted) return;
+    
     final logger = ref.read(loggerProvider);
     logger.log('Manual location detection triggered');
     
-    setState(() {
+    _safeSetState(() {
       _isLoading = true;
     });
 
@@ -491,7 +542,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
           ref.read(launchFlowProvider.notifier).outletSelected();
           
           // Navigate to store info
-          if (mounted) {
+          if (mounted && !_isDisposed && !_isNavigating) {
             // Show success message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -501,6 +552,9 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
             );
             
             // Go to store info
+            _safeSetState(() {
+              _isNavigating = true;
+            });
             context.go('/store-info');
           }
         } else {
@@ -508,7 +562,10 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
           ref.read(launchFlowProvider.notifier).pincodeSelected();
           
           // Navigate to outlet selection
-          if (mounted) {
+          if (mounted && !_isDisposed && !_isNavigating) {
+            _safeSetState(() {
+              _isNavigating = true;
+            });
             context.go('/outlet-selection');
           }
         }
@@ -518,7 +575,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
     } catch (e) {
       logger.error('Error detecting location: $e');
       
-      if (mounted) {
+      if (mounted && !_isDisposed) {
         if (e is LocationPermissionException) {
           await LocationService.handleLocationError(
             context, 
@@ -532,16 +589,14 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
         }
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      _safeSetState(() {
+        _isLoading = false;
+      });
     }
   }
 
   void _showErrorSnackBar(String message) {
-    if (!mounted) return;
+    if (!mounted || _isDisposed) return;
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -561,14 +616,13 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
   }
   
   void _showNonServiceableAreaModal(BuildContext context) {
+    if (!mounted || _isDisposed) return;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => PopScope(
+      builder: (dialogContext) => PopScope(
         canPop: true,
-        onPopInvoked: (didPop) {
-          // No additional cleanup needed when this dialog is dismissed
-        },
         child: AlertDialog(
           title: Row(
             children: [
@@ -621,7 +675,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
           actions: [
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
@@ -635,14 +689,13 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
   }
   
   void _showLocationServicesDialog(BuildContext context) {
+    if (!mounted || _isDisposed) return;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => PopScope(
+      builder: (dialogContext) => PopScope(
         canPop: true,
-        onPopInvoked: (didPop) {
-          // No additional cleanup needed when this dialog is dismissed
-        },
         child: AlertDialog(
           title: Row(
             children: [
@@ -694,16 +747,16 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Choose Manually'),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 
                 // Open location settings
                 final opened = await Geolocator.openLocationSettings();
-                if (!opened && context.mounted) {
+                if (!opened && mounted && !_isDisposed) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
@@ -727,14 +780,13 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
   }
   
   void _showLocationPermissionDialog(BuildContext context) {
+    if (!mounted || _isDisposed) return;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => PopScope(
+      builder: (dialogContext) => PopScope(
         canPop: true,
-        onPopInvoked: (didPop) {
-          // No additional cleanup needed when this dialog is dismissed
-        },
         child: AlertDialog(
           title: Row(
             children: [
@@ -744,7 +796,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
                 size: 24,
               ),
               const SizedBox(width: 8),
-              const Text('Location Disabled'),
+              const Text('Location Permission Required'),
             ],
           ),
           content: Column(
@@ -786,16 +838,16 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Choose Manually'),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 
                 // Open app settings
                 final opened = await Geolocator.openAppSettings();
-                if (!opened && context.mounted) {
+                if (!opened && mounted && !_isDisposed) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
@@ -819,14 +871,13 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
   }
   
   void _showNetworkErrorDialog(BuildContext context) {
+    if (!mounted || _isDisposed) return;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => PopScope(
+      builder: (dialogContext) => PopScope(
         canPop: true,
-        onPopInvoked: (didPop) {
-          // No additional cleanup needed when this dialog is dismissed
-        },
         child: AlertDialog(
           title: Row(
             children: [
@@ -878,12 +929,12 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Choose Manually'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
                 // Retry location fetch
                 ref.read(launchFlowProvider.notifier).fetchLocationAndCheckPincode();
               },
@@ -893,259 +944,6 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
               child: const Text('Try Again'),
             ),
           ],
-        ),
-      ),
-    );
-  }
-  
-  void _showServiceablePincodesDialog(BuildContext context, WidgetRef ref) {
-    // TextEditingController for search functionality
-    final searchController = TextEditingController();
-    // State for filtered pincodes
-    final ValueNotifier<String> searchQuery = ValueNotifier<String>('');
-    
-    showDialog(
-      context: context,
-      barrierDismissible: true, // Allow dismissal by tapping outside
-      builder: (context) {
-        return PopScope(
-          // Handle hardware back button press
-          canPop: true,
-          onPopInvoked: (didPop) {
-            if (!didPop) {
-              // Properly dispose resources before popping
-              searchController.dispose();
-              searchQuery.dispose();
-              Navigator.of(context).pop();
-            }
-          },
-          child: Dialog(
-            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Container(
-              width: double.maxFinite,
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header with title and close button
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Serviceable Pincodes',
-                          style: AppTextStyles.h6.copyWith(color: Colors.white),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () {
-                            // Properly dispose resources when manually closed
-                            searchController.dispose();
-                            searchQuery.dispose();
-                            Navigator.pop(context);
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Search bar
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: TextField(
-                      controller: searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by pincode',
-                        hintStyle: TextStyle(color: Colors.grey[600]),
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onChanged: (value) {
-                        searchQuery.value = value;
-                      },
-                    ),
-                  ),
-                  
-                  // Pincode grid - simplified to avoid nested providers
-                  Flexible(
-                    child: Consumer(
-                      builder: (context, ref, _) {
-                        final pincodesAsync = ref.watch(allPincodesProvider);
-                        
-                        // Handle loading state
-                        if (pincodesAsync.isLoading) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24.0),
-                              child: CircularProgressIndicator(),
-                            ),
-                          );
-                        }
-                        
-                        // Handle error state
-                        if (pincodesAsync.hasError) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Text(
-                                'Error loading pincodes. Please try again.',
-                                style: AppTextStyles.bodyMedium,
-                              ),
-                            ),
-                          );
-                        }
-                        
-                        // Get data
-                        final pincodes = pincodesAsync.value ?? [];
-                        
-                        if (pincodes.isEmpty) {
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Text('No serviceable pincodes found'),
-                            ),
-                          );
-                        }
-                        
-                        // Use ValueListenableBuilder for search filtering
-                        return ValueListenableBuilder<String>(
-                          valueListenable: searchQuery,
-                          builder: (context, query, _) {
-                            // Filter pincodes based on search query
-                            final filteredPincodes = query.isEmpty
-                                ? pincodes
-                                : pincodes.where((p) => 
-                                    p.pincode.contains(query)).toList();
-                            
-                            if (filteredPincodes.isEmpty) {
-                              return Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    'No pincodes match your search',
-                                    style: AppTextStyles.bodyMedium,
-                                  ),
-                                ),
-                              );
-                            }
-                            
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                              child: GridView.builder(
-                                // Use a different builder method to avoid state issues
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 3,
-                                  crossAxisSpacing: 10,
-                                  mainAxisSpacing: 10,
-                                  childAspectRatio: 2.4,
-                                ),
-                                itemCount: filteredPincodes.length,
-                                itemBuilder: (context, index) {
-                                  final pincode = filteredPincodes[index];
-                                  return _buildServiceablePincodeCard(context, ref, pincode.pincode);
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    ).then((_) {
-      // Ensure controllers are disposed when dialog is closed
-      // This is a safety net in case the other disposal methods weren't called
-      if (searchController.hasListeners) {
-        searchController.dispose();
-      }
-      if (searchQuery.hasListeners) {
-        searchQuery.dispose();
-      }
-    });
-  }
-
-  Widget _buildServiceablePincodeCard(BuildContext context, WidgetRef ref, String pincode) {
-    return InkWell(
-      onTap: () async {
-        // Get references to providers before closing dialog
-        final logger = ref.read(loggerProvider);
-        final pincodeNotifier = ref.read(selectedPincodeProvider.notifier);
-        final launchFlowNotifier = ref.read(launchFlowProvider.notifier);
-        
-        // Close dialog
-        Navigator.pop(context);
-        
-        // Show loading indicator
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-        
-        try {
-          await pincodeNotifier.selectPincode(pincode);
-          
-          // Update the launch flow state
-          launchFlowNotifier.pincodeSelected();
-          
-          // Close loading indicator
-          if (context.mounted) {
-            Navigator.pop(context);
-            
-            // Navigate to outlet selection
-            context.go('/outlet-selection');
-          }
-        } catch (e) {
-          logger.error('Error selecting pincode: $e');
-          if (context.mounted) {
-            Navigator.pop(context); // Close loading indicator
-            _showErrorSnackBar( 'Failed to select pincode. Please try again.');
-          }
-        }
-      },
-      child: Container(
-        height: 36, // Explicitly set a smaller height
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            pincode,
-            style: TextStyle(
-              color: AppColors.primary,
-              fontSize: 15, // Slightly smaller font
-              fontWeight: FontWeight.w500,
-            ),
-          ),
         ),
       ),
     );

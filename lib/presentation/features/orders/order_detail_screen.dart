@@ -545,8 +545,17 @@ class OrderDetailScreen extends ConsumerWidget {
       ),
     );
   }
-
-  Widget _buildItemsList(Order order) {
+Widget _buildItemsList(Order order) {
+    // DEBUG: Let's see what the actual status is
+    print('DEBUG: Original status: "${order.status}"');
+    print('DEBUG: Status length: ${order.status.length}');
+    print('DEBUG: Status toLowerCase: "${order.status.toLowerCase()}"');
+    print('DEBUG: Status trim toLowerCase: "${order.status.trim().toLowerCase()}"');
+    
+    // Check if we should show prices based on order status
+    final shouldShowPrices = _shouldShowItemPrices(order.status);
+    print('DEBUG: shouldShowPrices result: $shouldShowPrices');
+    
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -611,32 +620,73 @@ class OrderDetailScreen extends ConsumerWidget {
                         fontSize: 11,
                       ),
                     ),
-                    const SizedBox(height: 6),
                     
-                    // Price information
-                    Row(
-                      children: [
-                        Text(
-                          '₹${(sellingPrice * item.quantity).toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            color: Colors.black87,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (savings > 0) ...[
-                          const SizedBox(width: 8),
+                    // DEBUG: Always show what status check result is
+                    const SizedBox(height: 6),
+                    // Container(
+                    //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    //   decoration: BoxDecoration(
+                    //     color: Colors.yellow[100],
+                    //     borderRadius: BorderRadius.circular(12),
+                    //     border: Border.all(color: Colors.yellow[300]!),
+                    //   ),
+                    //   child: Text(
+                    //     'DEBUG: Status="${order.status}" | ShowPrices=$shouldShowPrices',
+                    //     style: TextStyle(
+                    //       color: Colors.black,
+                    //       fontSize: 9,
+                    //       fontWeight: FontWeight.bold,
+                    //     ),
+                    //   ),
+                    // ),
+                    
+                    // Conditional price display based on order status
+                    if (shouldShowPrices) ...[
+                      const SizedBox(height: 6),
+                      // Price information - only show for processing orders
+                      Row(
+                        children: [
                           Text(
-                            '₹${(mrp * item.quantity).toStringAsFixed(0)}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 11,
-                              decoration: TextDecoration.lineThrough,
+                            '₹${(sellingPrice * item.quantity).toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if (savings > 0) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              '₹${(mrp * item.quantity).toStringAsFixed(0)}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 11,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
+                      ),
+                    ] else ...[
+                      // For delivered/cancelled orders, show a subtle message instead of prices
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Text(
+                          _getPriceHiddenMessage(order.status),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -647,6 +697,52 @@ class OrderDetailScreen extends ConsumerWidget {
     );
   }
 
+  // Helper method to determine if prices should be shown based on order status
+  bool _shouldShowItemPrices(String status) {
+    // Clean the status string - remove any whitespace and convert to lowercase
+    final cleanStatus = status.trim().toLowerCase();
+    
+    print('DEBUG _shouldShowItemPrices: cleanStatus = "$cleanStatus"');
+    
+    // Check if status contains certain keywords instead of exact match
+    if (cleanStatus.contains('delivered')) {
+      print('DEBUG: Found "delivered" in status');
+      return false;
+    }
+    
+    if (cleanStatus.contains('cancelled') || cleanStatus.contains('canceled')) {
+      print('DEBUG: Found "cancelled" or "canceled" in status');
+      return false;
+    }
+    
+    // If it's processing, confirmed, preparing, shipped, etc., show prices
+    if (cleanStatus.contains('processing') || 
+        cleanStatus.contains('confirmed') || 
+        cleanStatus.contains('preparing') || 
+        cleanStatus.contains('shipped')) {
+      print('DEBUG: Found active status in status');
+      return true;
+    }
+    
+    // Default to showing prices for unknown statuses
+    print('DEBUG: Unknown status, defaulting to show prices');
+    return true;
+  }
+
+
+  String _getPriceHiddenMessage(String status) {
+    final cleanStatus = status.trim().toLowerCase();
+    
+    if (cleanStatus.contains('delivered')) {
+      return 'Order completed';
+    }
+    
+    if (cleanStatus.contains('cancelled') || cleanStatus.contains('canceled')) {
+      return 'Order cancelled';
+    }
+    
+    return 'Price not available';
+  }
   // Method to add items to cart again
   void _reorderItems(BuildContext context, WidgetRef ref, Order order) {
     final cartNotifier = ref.read(cartProvider.notifier);
