@@ -13,6 +13,8 @@ import 'core/utils/logger.dart';
 // POPUP LIFECYCLE IMPORTS
 import 'core/handlers/app_lifecycle_handler.dart';
 import 'presentation/providers/popup_providers.dart';
+// NOTIFICATION IMPORTS
+import 'data/services/firebase_notification_service.dart';
 
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -70,7 +72,7 @@ void main() async {
           loggerProvider.overrideWithValue(logger),
           backButtonHandlerProvider.overrideWithValue(BackButtonHandler(logger: logger)),
         ],
-        child: const AppWithLifecycleHandler(),
+        child: const AppWithLifecycleAndNotificationHandler(),
       ),
     );
     
@@ -127,19 +129,21 @@ void main() async {
   }
 }
 
-/// Wrapper widget that handles app lifecycle for popup management
-class AppWithLifecycleHandler extends ConsumerStatefulWidget {
-  const AppWithLifecycleHandler({super.key});
+/// Enhanced wrapper widget that handles BOTH app lifecycle for popup management AND notifications
+class AppWithLifecycleAndNotificationHandler extends ConsumerStatefulWidget {
+  const AppWithLifecycleAndNotificationHandler({super.key});
 
   @override
-  ConsumerState<AppWithLifecycleHandler> createState() => _AppWithLifecycleHandlerState();
+  ConsumerState<AppWithLifecycleAndNotificationHandler> createState() => _AppWithLifecycleAndNotificationHandlerState();
 }
 
-class _AppWithLifecycleHandlerState extends ConsumerState<AppWithLifecycleHandler> 
+class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWithLifecycleAndNotificationHandler> 
     with WidgetsBindingObserver {
   
   AppLifecycleState? _lastLifecycleState;
   bool _hasInitializedPopupSystem = false;
+  bool _hasInitializedNotifications = false;
+  bool _appFullyInitialized = false;
 
   @override
   void initState() {
@@ -148,9 +152,9 @@ class _AppWithLifecycleHandlerState extends ConsumerState<AppWithLifecycleHandle
     // Add lifecycle observer
     WidgetsBinding.instance.addObserver(this);
     
-    // Initialize popup system after app is built
+    // Initialize app systems after app is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializePopupSystem();
+      _initializeAppSystems();
     });
   }
 
@@ -158,6 +162,41 @@ class _AppWithLifecycleHandlerState extends ConsumerState<AppWithLifecycleHandle
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// Initialize both popup and notification systems
+  Future<void> _initializeAppSystems() async {
+    try {
+      final logger = ref.read(loggerProvider);
+      logger.log('🚀 Starting app systems initialization...');
+      
+      // STEP 1: Initialize popup system first (lighter)
+      _initializePopupSystem();
+      
+      // STEP 2: Initialize app launch flow
+      await _initializeAppLaunchFlow();
+      
+      // Mark app as ready
+      if (mounted) {
+        setState(() {
+          _appFullyInitialized = true;
+        });
+      }
+      
+      // STEP 3: Initialize notifications AFTER app is stable (separate)
+      _initializeNotificationsWhenSafe();
+      
+      logger.log('✅ App systems initialization completed');
+      
+    } catch (e) {
+      ref.read(loggerProvider).error('❌ App systems initialization failed: $e');
+      // Don't crash - just mark as initialized
+      if (mounted) {
+        setState(() {
+          _appFullyInitialized = true;
+        });
+      }
+    }
   }
 
   void _initializePopupSystem() {
@@ -171,6 +210,47 @@ class _AppWithLifecycleHandlerState extends ConsumerState<AppWithLifecycleHandle
       } catch (e) {
         ref.read(loggerProvider).error('❌ Failed to initialize popup system: $e');
       }
+    }
+  }
+
+  Future<void> _initializeAppLaunchFlow() async {
+    try {
+      // Initialize launch flow if needed
+      final launchState = ref.read(launchFlowProvider);
+      ref.read(loggerProvider).log('Launch state: $launchState');
+      // Add any launch flow initialization here if needed
+    } catch (e) {
+      ref.read(loggerProvider).error('Launch flow initialization error: $e');
+    }
+  }
+
+  /// Initialize notifications AFTER app is completely stable
+  Future<void> _initializeNotificationsWhenSafe() async {
+    if (_hasInitializedNotifications) return;
+    
+    try {
+      final logger = ref.read(loggerProvider);
+      logger.log('🔔 Starting notification initialization...');
+      
+      // Wait for app to be completely stable
+      await Future.delayed(const Duration(seconds: 3));
+      
+      // Check if we're still mounted and app is ready
+      if (!mounted || !_appFullyInitialized) {
+        logger.log('⚠️ App not ready for notifications, skipping');
+        return;
+      }
+      
+      // Initialize the notification service
+      final notificationService = ref.read(firebaseNotificationServiceProvider);
+      await notificationService.initializeWhenReady();
+      
+      _hasInitializedNotifications = true;
+      logger.log('✅ Notifications initialized successfully');
+      
+    } catch (e) {
+      ref.read(loggerProvider).error('⚠️ Notification initialization failed: $e');
+      // Don't crash the app - just continue without notifications
     }
   }
 
@@ -201,7 +281,7 @@ class _AppWithLifecycleHandlerState extends ConsumerState<AppWithLifecycleHandle
       else if (_lastLifecycleState == null && state == AppLifecycleState.resumed) {
         logger.log('🎯 App launched fresh - popup system ready');
         
-        // Ensure popup system is initialized on fresh launch
+        // Ensure systems are initialized on fresh launch
         Future.delayed(const Duration(milliseconds: 1000), () {
           if (mounted && !_hasInitializedPopupSystem) {
             _initializePopupSystem();
@@ -218,6 +298,41 @@ class _AppWithLifecycleHandlerState extends ConsumerState<AppWithLifecycleHandle
 
   @override
   Widget build(BuildContext context) {
+    // Show loading screen until app is ready
+    if (!_appFullyInitialized) {
+      return MaterialApp(
+        title: 'PatelMart',
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // App logo placeholder
+                FlutterLogo(size: 80),
+                SizedBox(height: 24),
+                
+                // Loading indicator
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                
+                // Loading text
+                Text(
+                  'Loading PatelMart...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        debugShowCheckedModeBanner: false,
+      );
+    }
+
+    // App is ready - show the main app
     return const MyApp();
   }
 }

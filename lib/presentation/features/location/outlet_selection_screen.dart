@@ -252,7 +252,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
+                Column(
                   children: [
                     _buildInfoItem(
                       Icons.access_time,
