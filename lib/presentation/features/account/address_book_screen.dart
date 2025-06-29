@@ -179,6 +179,7 @@ class AddressBookScreen extends ConsumerWidget {
         onWillPop: () => _handleBackPress(context, ref),
         child: BackButtonWrapper(
           child: Scaffold(
+            backgroundColor: Colors.white, // Set white background
             appBar: AppBar(
               title: const Text('Address Book'),
               leading: IconButton(

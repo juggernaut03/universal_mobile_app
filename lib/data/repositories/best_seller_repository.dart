@@ -18,6 +18,7 @@ class BestSellerRepository {
   static const int _cacheDurationHours = 20; // Cache duration of 20 hours
   static const String _bannerCacheKeyPrefix = 'best_seller_banner_';
   static const String _productsCacheKeyPrefix = 'best_seller_products_';
+  static const String _titleCacheKeyPrefix = 'best_seller_title_'; // New cache key for titles
   static const String _timestampKeyPrefix = 'timestamp_';
   static const String _lastCacheClearKey = 'last_best_seller_cache_clear_time';
 
@@ -47,7 +48,7 @@ class BestSellerRepository {
       if (cachedData != null && (currentTime - cachedTimestamp < _cacheDurationHours * 3600000)) {
         _logger.log('Using cached best seller banners data for ID $bestSellerId');
         final List<dynamic> decoded = jsonDecode(cachedData);
-        return decoded.map((item) => BestSellerBanner.fromJson(item)).toList();
+        return decoded.map((item) => BestSellerBanner.fromJson(_castToStringMap(item))).toList();
       }
 
       _logger.log('Fetching best seller banners for ID $bestSellerId from API');
@@ -69,11 +70,11 @@ class BestSellerRepository {
       
       if (response is List) {
         // Direct array response
-        banners = response.map((item) => BestSellerBanner.fromJson(item)).toList();
+        banners = response.map((item) => BestSellerBanner.fromJson(_castToStringMap(item))).toList();
       } else if (response is Map && response.containsKey('data')) {
         // Response with data wrapper
         if (response['data'] is List) {
-          banners = (response['data'] as List).map((item) => BestSellerBanner.fromJson(item)).toList();
+          banners = (response['data'] as List).map((item) => BestSellerBanner.fromJson(_castToStringMap(item))).toList();
         }
       } else {
         _logger.error('Invalid response format for banners: $response');
@@ -105,14 +106,14 @@ class BestSellerRepository {
       if (cachedData != null) {
         _logger.log('Using expired cached banners data due to error');
         final List<dynamic> decoded = jsonDecode(cachedData);
-        return decoded.map((item) => BestSellerBanner.fromJson(item)).toList();
+        return decoded.map((item) => BestSellerBanner.fromJson(_castToStringMap(item))).toList();
       }
       
       return [];
     }
   }
 
-  // Fetch products for a specific best seller section
+  // Fetch products for a specific best seller section - Updated to handle title
   Future<List<ProductModel>> getBestSellerProducts(int bestSellerId) async {
     try {
       // Check if cache should be cleared (2 AM daily)
@@ -129,8 +130,17 @@ class BestSellerRepository {
       // Check if cache is valid (not older than cache duration)
       if (cachedData != null && (currentTime - cachedTimestamp < _cacheDurationHours * 3600000)) {
         _logger.log('Using cached best seller products data for ID $bestSellerId');
-        final List<dynamic> decoded = jsonDecode(cachedData);
-        return decoded.map((item) => ProductModel.fromJson(item)).toList();
+        final dynamic decoded = jsonDecode(cachedData);
+        
+        // Handle both old format (direct array) and new format (with title)
+        if (decoded is List) {
+          // Old format - direct array
+          return decoded.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+        } else if (decoded is Map) {
+          // New format - with title and bestseller_details
+          final response = BestSellerProductsResponse.fromJson(_castToStringMap(decoded));
+          return response.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+        }
       }
 
       _logger.log('Fetching best seller products for ID $bestSellerId from API');
@@ -146,12 +156,35 @@ class BestSellerRepository {
         },
       );
 
-      if (response is List) {
-        final products = response.map((item) => ProductModel.fromJson(item)).toList();
+      if (response is Map && response.containsKey('title') && response.containsKey('bestseller_details')) {
+        // New API format with title and bestseller_details
+        final bestSellerResponse = BestSellerProductsResponse.fromJson(_castToStringMap(response));
+        final products = bestSellerResponse.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+        
+        // Cache the entire response (including title)
+        await prefs.setString(cacheKey, jsonEncode(response));
+        await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
+        
+        // Cache the title separately for easy access
+        await prefs.setString('$_titleCacheKeyPrefix$bestSellerId', bestSellerResponse.title);
+        
+        // Pre-cache product images for better user experience
+        _preCacheProductImages(products);
+        
+        _logger.log('Cached best seller title for ID $bestSellerId: ${bestSellerResponse.title}');
+        
+        return products;
+      } else if (response is List) {
+        // Old API format - direct array of products
+        final products = response.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
         
         // Cache the products
         await prefs.setString(cacheKey, jsonEncode(response));
         await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
+        
+        // Cache default title for backward compatibility
+        final defaultTitle = BestSellerConfig.getDefaultTitle(bestSellerId);
+        await prefs.setString('$_titleCacheKeyPrefix$bestSellerId', defaultTitle);
         
         // Pre-cache product images for better user experience
         _preCacheProductImages(products);
@@ -171,11 +204,52 @@ class BestSellerRepository {
       
       if (cachedData != null) {
         _logger.log('Using expired cached products data due to error');
-        final List<dynamic> decoded = jsonDecode(cachedData);
-        return decoded.map((item) => ProductModel.fromJson(item)).toList();
+        final dynamic decoded = jsonDecode(cachedData);
+        
+        // Handle both old format (direct array) and new format (with title)
+        if (decoded is List) {
+          return decoded.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+        } else if (decoded is Map) {
+          final response = BestSellerProductsResponse.fromJson(_castToStringMap(decoded));
+          return response.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+        }
       }
       
       return [];
+    }
+  }
+  
+  // New method to get the title for a best seller section
+  Future<String> getBestSellerTitle(int bestSellerId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedTitle = prefs.getString('$_titleCacheKeyPrefix$bestSellerId');
+      
+      if (cachedTitle != null) {
+        _logger.log('Using cached title for best seller ID $bestSellerId: $cachedTitle');
+        return cachedTitle;
+      }
+      
+      // If no cached title, return default
+      final defaultTitle = BestSellerConfig.getDefaultTitle(bestSellerId);
+      _logger.log('Using default title for best seller ID $bestSellerId: $defaultTitle');
+      return defaultTitle;
+    } catch (e) {
+      _logger.error('Error getting best seller title for ID $bestSellerId: $e');
+      return BestSellerConfig.getDefaultTitle(bestSellerId);
+    }
+  }
+  
+  // Helper method to safely cast Map<dynamic, dynamic> to Map<String, dynamic>
+  Map<String, dynamic> _castToStringMap(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      return data;
+    } else if (data is Map) {
+      // Convert Map<dynamic, dynamic> to Map<String, dynamic>
+      return Map<String, dynamic>.from(data);
+    } else {
+      _logger.error('Invalid data type for casting to Map<String, dynamic>: ${data.runtimeType}');
+      throw ArgumentError('Expected Map but got ${data.runtimeType}');
     }
   }
   
@@ -297,8 +371,11 @@ class BestSellerRepository {
       for (final key in keys) {
         if (key.startsWith(_bannerCacheKeyPrefix) || 
             key.startsWith(_productsCacheKeyPrefix) ||
+            key.startsWith(_titleCacheKeyPrefix) || // Include title cache keys
             (key.startsWith(_timestampKeyPrefix) && 
-            (key.contains(_bannerCacheKeyPrefix) || key.contains(_productsCacheKeyPrefix)))) {
+            (key.contains(_bannerCacheKeyPrefix) || 
+             key.contains(_productsCacheKeyPrefix) || 
+             key.contains(_titleCacheKeyPrefix)))) {
           await prefs.remove(key);
           _logger.log('Removed cache key: $key');
         }
@@ -313,4 +390,3 @@ class BestSellerRepository {
     }
   }
 }
-

@@ -38,15 +38,11 @@ class CartValidationDialog extends StatelessWidget {
               // Dialog Header with warning icon
               Row(
                 children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: AppColors.warning,
-                    size: 28,
-                  ),
+                 
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      "Cart Update Required",
+                      "Quick Update",
                       style: AppTextStyles.h5.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -61,23 +57,19 @@ class CartValidationDialog extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.2),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      color: AppColors.warning,
-                      size: 24,
-                    ),
+                    
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        "There are issues with items in your cart. Please update your cart to continue.",
+                        " Please update your cart to continue ",
                         style: AppTextStyles.bodyMedium.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: AppColors.warning,
+                          color: Colors.red,
                         ),
                       ),
                     ),
@@ -89,7 +81,7 @@ class CartValidationDialog extends StatelessWidget {
               
               // Explanation text
               Text(
-                "Your cart requires attention before you can proceed. Please update your cart to continue.",
+                "Some items price, quantity or stock may have changed.Please check",
                 style: AppTextStyles.bodyMedium,
               ),
               
@@ -118,7 +110,7 @@ class CartValidationDialog extends StatelessWidget {
               // 3. Other issues
               if (result.itemsWithIssues.isNotEmpty)
                 _buildIssueList(
-                  "Other issues:", 
+                  "Update", 
                   result.itemsWithIssues.map((item) => 
                     "${item.product.productName}: ${item.issue}"
                   ).toList()
@@ -132,7 +124,7 @@ class CartValidationDialog extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: Text(
-                    "There are issues with your cart that require updating. Clicking 'UPDATE CART' will refresh your cart with the latest information.",
+                    " Clicking 'UPDATE CART' will refresh your cart with the latest information.",
                     style: AppTextStyles.bodyMedium.copyWith(
                       fontStyle: FontStyle.italic,
                     ),

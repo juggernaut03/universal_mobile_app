@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:patelmart/utils/order_status_utils.dart';
 import 'dart:math';
 
 import '../../../core/constants/app_colors.dart';
@@ -11,11 +12,13 @@ import '../../../data/models/order_model.dart';
 class OrderCardWidget extends ConsumerWidget {
   final Order order;
   final Function(Order) onOrderTap;
+  final VoidCallback? onReorderTap;
 
   const OrderCardWidget({
     Key? key,
     required this.order,
     required this.onOrderTap,
+    this.onReorderTap,
   }) : super(key: key);
 
   @override
@@ -40,6 +43,11 @@ class OrderCardWidget extends ConsumerWidget {
           ? '#${order.orderId.substring(0, 8)}...' 
           : '#${order.orderId}';
     }
+
+    // Normalize the status using our utility
+    final normalizedStatus = OrderStatusUtils.normalizeStatus(order.status);
+    final statusColor = OrderStatusUtils.getStatusColor(order.status);
+    final statusIcon = OrderStatusUtils.getStatusIcon(order.status);
 
     return InkWell(
       onTap: () => onOrderTap(order),
@@ -98,29 +106,33 @@ class OrderCardWidget extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  // Order status chip
+                  // Order status chip with new status mapping
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(order.status).withOpacity(0.1),
+                      color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: statusColor.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _getStatusIcon(order.status),
-                          color: _getStatusColor(order.status),
+                          statusIcon,
+                          color: statusColor,
                           size: 10,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          order.status,
+                          normalizedStatus,
                           style: TextStyle(
-                            color: _getStatusColor(order.status),
+                            color: statusColor,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -162,6 +174,20 @@ class OrderCardWidget extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
+                        
+                        // Status description for better user understanding
+                        Text(
+                          OrderStatusUtils.getStatusDescription(order.status),
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        
                         Text(
                           order.deliverySlot,
                           style: TextStyle(
@@ -268,7 +294,7 @@ class OrderCardWidget extends ConsumerWidget {
               ),
             ),
 
-            // Bottom action area - Cleaner design with just reorder
+            // Bottom action area with dynamic buttons based on status
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
               decoration: BoxDecoration(
@@ -309,73 +335,163 @@ class OrderCardWidget extends ConsumerWidget {
                   else
                     const Spacer(),
 
-                  // Reorder button - More prominent
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.refresh,
-                          size: 12,
-                          color: Colors.white,
+                  // Dynamic action buttons based on order status
+                  Row(
+                    children: [
+                      // Track order button for orders in progress
+                      if (OrderStatusUtils.canTrackOrder(order.status)) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.track_changes,
+                                size: 12,
+                                color: Colors.blue,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'TRACK',
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          'REORDER',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
+                        const SizedBox(width: 8),
+                      ],
+
+                      // Cancel button for orders that can be cancelled
+                      if (OrderStatusUtils.canCancelOrder(order.status)) ...[
+                        // Container(
+                        //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        //   decoration: BoxDecoration(
+                        //     color: Colors.red.withOpacity(0.1),
+                        //     borderRadius: BorderRadius.circular(16),
+                        //     border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        //   ),
+                        //   child: Row(
+                        //     mainAxisSize: MainAxisSize.min,
+                        //     children: [
+                        //       Icon(
+                        //         Icons.cancel_outlined,
+                        //         size: 12,
+                        //         color: Colors.red,
+                        //       ),
+                        //       const SizedBox(width: 4),
+                        //       Text(
+                        //         'CANCEL',
+                        //         style: TextStyle(
+                        //           color: Colors.red,
+                        //           fontWeight: FontWeight.w600,
+                        //           fontSize: 11,
+                        //         ),
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
+                        const SizedBox(width: 8),
+                      ],
+
+                      // Reorder button for orders that can be reordered
+                      if (OrderStatusUtils.canReorder(order.status)) ...[
+                        InkWell(
+                          onTap: onReorderTap,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.refresh,
+                                  size: 12,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'REORDER',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
                 ],
               ),
             ),
+
+            // Progress indicator for orders in progress
+            if (OrderStatusUtils.isOrderInProgress(order.status)) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Order Progress',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        Text(
+                          '${(OrderStatusUtils.getProgressPercentage(order.status) * 100).toInt()}%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: statusColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: OrderStatusUtils.getProgressPercentage(order.status),
+                      backgroundColor: Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                      minHeight: 3,
+                    ),
+                    const SizedBox(height: 4),
+                    // if (OrderStatusUtils.getEstimatedTimeToNextStatus(order.status) != null)
+                    //   Text(
+                    //     'Est. ${OrderStatusUtils.getEstimatedTimeToNextStatus(order.status)}h to next update',
+                    //     style: TextStyle(
+                    //       fontSize: 10,
+                    //       color: Colors.grey[600],
+                    //     ),
+                    //   ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'delivered':
-        return Colors.green;
-      case 'processing':
-      case 'confirmed':
-      case 'order confirmed':
-        return Colors.blue;
-      case 'shipped':
-        return Colors.orange;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  IconData _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'delivered':
-        return Icons.check_circle;
-      case 'processing':
-      case 'confirmed':
-      case 'order confirmed':
-        return Icons.access_time;
-      case 'shipped':
-        return Icons.local_shipping;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.info;
-    }
   }
 }

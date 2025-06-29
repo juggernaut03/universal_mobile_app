@@ -11,7 +11,7 @@ import 'launch_flow_provider.dart';
 class CartItem {
   final ProductModel product;
   final int quantity;
-
+ 
   CartItem({
     required this.product,
     required this.quantity,

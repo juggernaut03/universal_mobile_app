@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +26,9 @@ import '../../providers/cart_provider.dart';
 import '../../providers/popup_providers.dart';
 // APP LIFECYCLE HANDLER
 import '../../../core/handlers/app_lifecycle_handler.dart';
+// FORCE UPDATE IMPORTS
+import '../../providers/force_update_providers.dart';
+import '../../../core/widgets/force_update_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -143,6 +147,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         _hasInitializedPopup = true;
       }
     });
+  }
+
+  /// Check for force update after popup is completed
+  void _checkForceUpdate() {
+    // DEBUG: Add initial debug logs
+    debugPrint('🔍 FORCE UPDATE CHECK TRIGGERED');
+    debugPrint('📍 Current time: ${DateTime.now()}');
+    
+    // Only check if not already checked
+    final hasChecked = ref.read(forceUpdateCheckedProvider);
+    debugPrint('✅ Has already checked: $hasChecked');
+    
+    if (hasChecked) {
+      debugPrint('⚠️ Force update already checked, skipping...');
+      return;
+    }
+
+    // Mark as checked to prevent multiple calls
+    ref.read(forceUpdateCheckedProvider.notifier).state = true;
+    debugPrint('🔒 Marked force update as checked');
+
+    // DEBUG: Log the provider call
+    debugPrint('🚀 Starting force update API call...');
+
+    // Get the future directly and handle it
+    final updateFuture = ref.read(updateCheckProvider.future);
+    
+    updateFuture.then((updateInfo) {
+      debugPrint('📦 FORCE UPDATE DATA RECEIVED:');
+      debugPrint('   └─ Force Update Required: ${updateInfo.forceUpdate}');
+      debugPrint('   └─ Latest Version: ${updateInfo.latestVersion}');
+      debugPrint('   └─ Update Message: ${updateInfo.updateMessage}');
+      debugPrint('   └─ Download URL: "${updateInfo.downloadUrl}"');
+      
+      // Only show dialog if force update is required
+      if (updateInfo.forceUpdate && mounted) {
+        debugPrint('🚨 FORCE UPDATE REQUIRED - Showing blocking dialog');
+        debugPrint('   └─ Widget mounted: $mounted');
+        debugPrint('   └─ Context available: ${context != null}');
+        debugPrint('   └─ Download URL: "${updateInfo.downloadUrl}"');
+        debugPrint('   └─ URL Empty: ${updateInfo.downloadUrl.isEmpty}');
+        
+        // Show full-screen blocking dialog immediately
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          debugPrint('📱 Showing full-screen force update dialog...');
+          try {
+            showForceUpdateDialog(context, updateInfo);
+            debugPrint('✅ Force update dialog displayed successfully');
+          } catch (e) {
+            debugPrint('❌ Error showing force update dialog: $e');
+          }
+        });
+      } else {
+        debugPrint('✅ No force update required or widget not mounted');
+        debugPrint('   └─ Force Update: ${updateInfo.forceUpdate}');
+        debugPrint('   └─ Widget Mounted: $mounted');
+      }
+    }).catchError((error, stack) {
+      // Log error details
+      debugPrint('❌ FORCE UPDATE CHECK FAILED:');
+      debugPrint('   └─ Error: $error');
+      debugPrint('   └─ Stack: $stack');
+      ref.read(loggerProvider).error('Force update check failed: $error');
+    });
+
+    debugPrint('🏁 Force update check initiated');
   }
 
   // Handle outlet changes for popup reinitialization
@@ -430,6 +500,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // Watch for outlet changes and handle popup reinitialization
     final outletAsync = ref.watch(selectedOutletProvider);
     outletAsync.whenData((outlet) => _handleOutletChange(outlet));
+    
+    // Setup popup listener for force update check (must be in build method)
+    ref.listen<PopupDisplayState>(popupDisplayStateProvider, (previous, next) {
+      // DEBUG: Log popup state changes
+      debugPrint('🎯 POPUP STATE CHANGE DETECTED:');
+      debugPrint('   └─ Previous: ${previous?.isVisible ?? 'null'}');
+      debugPrint('   └─ Current: ${next.isVisible}');
+      debugPrint('   └─ Store Code: ${next.currentStoreCode ?? 'null'}');
+      debugPrint('   └─ Initialized: ${next.isInitialized}');
+      
+      // ONLY trigger force update when popup is completed (visible -> hidden)
+      if (previous?.isVisible == true && next.isVisible == false) {
+        debugPrint('🎉 POPUP COMPLETED - Triggering force update check');
+        debugPrint('   └─ This is the ONLY trigger for force update');
+        
+        // Reset the check state and immediately trigger force update
+        ref.read(forceUpdateCheckedProvider.notifier).state = false;
+        debugPrint('   └─ Reset force update check state for fresh check');
+        
+        // Popup just finished - check for force update with delay
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              debugPrint('🚀 POPUP CLOSE DELAY COMPLETE - Starting force update check');
+              _checkForceUpdate();
+            }
+          });
+        });
+      } else {
+        debugPrint('⏸️ Popup state change but not completion - NO force update trigger');
+        debugPrint('   └─ Previous visible: ${previous?.isVisible}');
+        debugPrint('   └─ Current visible: ${next.isVisible}');
+      }
+    });
     
     // Check if we should show sticky header
     final showStickyHeader = _scrollOffset > _stickyHeaderThreshold;
@@ -837,24 +941,5 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  // TESTING METHOD - Add popup testing button in debug mode (optional)
-  Widget? _buildDebugPopupButton() {
-    // Only show in debug mode
-    assert(() {
-      return true;
-    }());
-    
-    return Positioned(
-      bottom: 120,
-      right: 16,
-      child: FloatingActionButton(
-        mini: true,
-        backgroundColor: Colors.orange,
-        onPressed: () {
-          ref.read(popupDisplayStateProvider.notifier).forceShowPopup();
-        },
-        child: const Icon(Icons.announcement, color: Colors.white),
-      ),
-    );
-  }
+
 }

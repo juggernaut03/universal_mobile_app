@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
@@ -73,6 +74,7 @@ class AppDrawerWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Drawer(
+      backgroundColor: Colors.white, // Added white background color
       child: Column(
         children: [
           _buildDrawerHeader(context, ref),
@@ -261,37 +263,66 @@ class AppDrawerWidget extends ConsumerWidget {
       ),
     ];
 
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      itemCount: drawerItems.length + 1, // +1 for version info
-      separatorBuilder: (context, index) => 
-          index < drawerItems.length 
-            ? const Divider(height: 1, thickness: 0.5) 
-            : const SizedBox.shrink(),
-      itemBuilder: (context, index) {
-        if (index < drawerItems.length) {
-          final item = drawerItems[index];
-          return _DrawerItemTile(item: item);
-        } else {
-          return _buildVersionInfo();
-        }
-      },
-    );
-  }
-
-  Widget _buildVersionInfo() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Text(
-        'Version 5.2.1',
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 14,
-        ),
-        textAlign: TextAlign.center,
+    return Container(
+      color: Colors.white, // Added white background for drawer items section
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: drawerItems.length + 1, // +1 for version info
+        separatorBuilder: (context, index) => 
+            index < drawerItems.length 
+              ? const Divider(height: 1, thickness: 0.5) 
+              : const SizedBox.shrink(),
+        itemBuilder: (context, index) {
+          if (index < drawerItems.length) {
+            final item = drawerItems[index];
+            return _DrawerItemTile(item: item);
+          } else {
+            return buildVersionInfo();
+          }
+        },
       ),
     );
   }
+
+Widget buildVersionInfo() {
+  return FutureBuilder<PackageInfo>(
+    future: PackageInfo.fromPlatform(),
+    builder: (context, snapshot) {
+      if (snapshot.hasData) {
+        final packageInfo = snapshot.data!;
+        final versionText = packageInfo.buildNumber.isNotEmpty
+            ? 'Version ${packageInfo.version} (${packageInfo.buildNumber})'
+            : 'Version ${packageInfo.version}';
+        
+        return Container(
+          color: Colors.white, // Added white background for version info
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            versionText,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        );
+      }
+      
+      return Container(
+        color: Colors.white, // Added white background for loading state
+        padding: const EdgeInsets.all(16.0),
+        child: Text(
+          'Loading version...',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    },
+  );
+}
 }
 
 // Optimized drawer item tile widget
@@ -302,16 +333,19 @@ class _DrawerItemTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListTile(
-      leading: Icon(item.icon, color: AppColors.primary),
-      title: Text(
-        item.title,
-        style: const TextStyle(fontSize: 16),
+    return Container(
+      color: Colors.white, // Added white background for each list tile
+      child: ListTile(
+        leading: Icon(item.icon, color: AppColors.primary),
+        title: Text(
+          item.title,
+          style: const TextStyle(fontSize: 16),
+        ),
+        trailing: item.showCartInfo 
+          ? _buildCartTrailing(ref)
+          : const Icon(Icons.navigate_next),
+        onTap: () => _navigateFromDrawer(context, item.route),
       ),
-      trailing: item.showCartInfo 
-        ? _buildCartTrailing(ref)
-        : const Icon(Icons.navigate_next),
-      onTap: () => _navigateFromDrawer(context, item.route),
     );
   }
 

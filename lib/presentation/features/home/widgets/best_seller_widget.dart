@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:patelmart/core/constants/app_constants.dart';
 import 'package:patelmart/core/widgets/favorite_button.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
@@ -152,7 +153,6 @@ class BestSellerWidget extends ConsumerWidget {
   }
 
   @override
- @override
 Widget build(BuildContext context, WidgetRef ref) {
   // Get the banner/slider data for this best seller section
   final bannerAsync = ref.watch(bestSellerBannerProvider(bestSellerId));
@@ -240,6 +240,7 @@ Widget build(BuildContext context, WidgetRef ref) {
     ),
   );
 }
+
 Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
   final productsAsync = ref.watch(bestSellerProductsProvider(bestSellerId));
   
@@ -289,6 +290,7 @@ Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
     ),
   );
 }
+
   // Build single banner without carousel
   Widget _buildSingleBanner(BuildContext context, dynamic banner) {
     return GestureDetector(
@@ -452,35 +454,7 @@ Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
                   topLeft: Radius.circular(8),
                   topRight: Radius.circular(8),
                 ),
-                child: CachedNetworkImageWidget(
-                  imageUrl: product.pcodeImg,
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.contain,
-                  errorWidget: Container(
-                    height: 120,
-                    width: double.infinity,
-                    color: Colors.grey[100],
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.shopping_bag_outlined,
-                          color: Colors.grey[400],
-                          size: 32,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Product image',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                child: _buildProductImage(product),
               ),
             ),
             if (discountPercent > 0)
@@ -600,6 +574,109 @@ Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
     ),
   );
 }
+
+  // Updated product image widget with fallback using ApiConstants
+  Widget _buildProductImage(ProductModel product) {
+    // Check if product image URL is available and valid
+    if (product.pcodeImg.isNotEmpty && 
+        product.pcodeImg != 'null' && 
+        product.pcodeImg.toLowerCase() != 'null') {
+      
+      return Image.network(
+        product.pcodeImg,
+        height: 120,
+        width: double.infinity,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 120,
+            width: double.infinity,
+            color: Colors.grey[100],
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          // If main image fails, try fallback image
+          return _buildFallbackImage();
+        },
+      );
+    } else {
+      // If no product image URL, directly show fallback
+      return _buildFallbackImage();
+    }
+  }
+
+  // Fallback image widget using the company logo
+  Widget _buildFallbackImage() {
+    return Image.network(
+      ApiConstants.fallbackImageUrl,
+      height: 120,
+      width: double.infinity,
+      fit: BoxFit.contain,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          height: 120,
+          width: double.infinity,
+          color: Colors.grey[100],
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        // If even fallback fails, show placeholder with company branding
+        return Container(
+          height: 120,
+          width: double.infinity,
+          color: Colors.grey[100],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.shopping_bag_outlined,
+                color: AppColors.primary.withOpacity(0.6),
+                size: 32,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Patel Mart',
+                style: TextStyle(
+                  color: AppColors.primary.withOpacity(0.8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                'Product Image',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   // Manual quantity selector with improved styling to match product_item_widget
   Widget _buildManualQuantitySelector(BuildContext context, WidgetRef ref, ProductModel product, int quantity) {

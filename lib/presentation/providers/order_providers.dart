@@ -2,14 +2,20 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/services/payment_service.dart';
+import '../../data/services/webhook_payment_service.dart'; // Import the new service
 import '../../data/services/order_service.dart';
 import 'launch_flow_provider.dart';
 
-
-// Payment service provider
-final paymentServiceProvider = Provider<PaymentService>((ref) {
+// Enhanced payment service provider (replaces the old one)
+final paymentServiceProvider = Provider<EnhancedPaymentService>((ref) {
   final logger = ref.watch(loggerProvider);
-  return PaymentService(logger: logger);
+  return EnhancedPaymentService(logger: logger);
+});
+
+// Webhook payment service provider
+final webhookPaymentServiceProvider = Provider<WebhookPaymentService>((ref) {
+  final logger = ref.watch(loggerProvider);
+  return WebhookPaymentService(logger: logger);
 });
 
 // Order service provider
@@ -23,6 +29,7 @@ enum OrderProcessStatus {
   initial,
   validatingCart,
   processingPayment,
+  enhancingPaymentData, // New status for webhook enhancement
   confirmingOrder,
   completed,
   failed,

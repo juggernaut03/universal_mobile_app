@@ -384,6 +384,8 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
+        backgroundColor: Colors.white, // Set white background
+
         appBar: AppBar(
           title: const Text('Edit Address'),
           backgroundColor: AppColors.primary,

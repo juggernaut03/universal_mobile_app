@@ -4,16 +4,6 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
-/// Default [FirebaseOptions] for use with your Firebase apps.
-///
-/// Example:
-/// ```dart
-/// import 'firebase_options.dart';
-/// // ...
-/// await Firebase.initializeApp(
-///   options: DefaultFirebaseOptions.currentPlatform,
-/// );
-/// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -40,47 +30,47 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyA21R0284RVX9dsYRPog0S8_dZOlsEbjtg',
-    appId: '1:280705195901:web:da810d6530ce4af9daf614',
-    messagingSenderId: '280705195901',
-    projectId: 'pushnotificationshalvi123',
-    authDomain: 'pushnotificationshalvi123.firebaseapp.com',
-    storageBucket: 'pushnotificationshalvi123.firebasestorage.app',
+ static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyCBhGpxjXWR5jPFQGMK4ZAN_zQUd_kmNEU',
+    appId: '1:65652715036:web:YOUR_WEB_APP_ID_HERE',
+    messagingSenderId: '65652715036',
+    projectId: 'patelrmartnotifications',
+    authDomain: 'patelrmartnotifications.firebaseapp.com',
+    storageBucket: 'patelrmartnotifications.appspot.com',
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyC4qnztGc-OZkeiiX62VO8w2G3naFPSR9Y',
-    appId: '1:280705195901:android:005aa7fc1f3d66dcdaf614',
-    messagingSenderId: '280705195901',
-    projectId: 'pushnotificationshalvi123',
-    storageBucket: 'pushnotificationshalvi123.firebasestorage.app',
-  );
+ static const FirebaseOptions android = FirebaseOptions(
+  apiKey: 'AIzaSyCBhGpxjXWR5jPFQGMK4ZAN_zQUd_kmNEU',
+  appId: '1:65652715036:android:12118f78c4d70d859cb9d9',
+  messagingSenderId: '65652715036',
+  projectId: 'patelrmartnotifications',
+  storageBucket: 'patelrmartnotifications.appspot.com',
+);
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDyF4QuJ-u8xfFnxRNpuh9Xi_51O_2ts-Q',
-    appId: '1:280705195901:ios:26884bbb1ba6facddaf614',
-    messagingSenderId: '280705195901',
-    projectId: 'pushnotificationshalvi123',
-    storageBucket: 'pushnotificationshalvi123.firebasestorage.app',
-    iosBundleId: 'com.example.patelmart',
+   static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCBhGpxjXWR5jPFQGMK4ZAN_zQUd_kmNEU',
+    appId: '1:65652715036:ios:YOUR_IOS_APP_ID_HERE',
+    messagingSenderId: '65652715036',
+    projectId: 'patelrmartnotifications',
+    storageBucket: 'patelrmartnotifications.appspot.com',
+    iosBundleId: 'com.patelrmart.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDyF4QuJ-u8xfFnxRNpuh9Xi_51O_2ts-Q',
-    appId: '1:280705195901:ios:26884bbb1ba6facddaf614',
-    messagingSenderId: '280705195901',
-    projectId: 'pushnotificationshalvi123',
-    storageBucket: 'pushnotificationshalvi123.firebasestorage.app',
-    iosBundleId: 'com.example.patelmart',
+    apiKey: 'AIzaSyCBhGpxjXWR5jPFQGMK4ZAN_zQUd_kmNEU',
+    appId: '1:65652715036:ios:YOUR_IOS_APP_ID_HERE',
+    messagingSenderId: '65652715036',
+    projectId: 'patelrmartnotifications',
+    storageBucket: 'patelrmartnotifications.appspot.com',
+    iosBundleId: 'com.patelrmart.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyA21R0284RVX9dsYRPog0S8_dZOlsEbjtg',
-    appId: '1:280705195901:web:24b8c270a14990fadaf614',
-    messagingSenderId: '280705195901',
-    projectId: 'pushnotificationshalvi123',
-    authDomain: 'pushnotificationshalvi123.firebaseapp.com',
-    storageBucket: 'pushnotificationshalvi123.firebasestorage.app',
+    apiKey: 'AIzaSyCBhGpxjXWR5jPFQGMK4ZAN_zQUd_kmNEU',
+    appId: '1:65652715036:web:YOUR_WEB_APP_ID_HERE',
+    messagingSenderId: '65652715036',
+    projectId: 'patelrmartnotifications',
+    authDomain: 'patelrmartnotifications.firebaseapp.com',
+    storageBucket: 'patelrmartnotifications.appspot.com',
   );
 }

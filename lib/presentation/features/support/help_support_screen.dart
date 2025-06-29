@@ -140,6 +140,7 @@ class HelpSupportScreen extends ConsumerWidget {
       child: WillPopScope(
         onWillPop: () => _handleBackPress(context, ref),
         child: Scaffold(
+          backgroundColor: Colors.white, // Added white background color
           appBar: AppBar(
             title: const Text('Help & Support'),
             leading: IconButton(
@@ -228,9 +229,11 @@ class HelpSupportScreen extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Card(
+                        color: Colors.white,
                         elevation: 4,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
+                          
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(20.0),
@@ -455,6 +458,7 @@ class HelpSupportScreen extends ConsumerWidget {
     required VoidCallback onTap,
   }) {
     return Card(
+      color: Colors.white, // Added white background color for contact cards
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),

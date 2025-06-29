@@ -173,15 +173,15 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
                   Positioned.fill(
                     child: GestureDetector(
                       onTap: _closePopup,
-                      onPanDown: (_) => _preventInteraction(),
-                      onPanStart: (_) => _preventInteraction(),
-                      onPanUpdate: (_) => _preventInteraction(),
-                      onPanEnd: (_) => _preventInteraction(),
-                      onLongPress: _preventInteraction,
-                      onLongPressStart: (_) => _preventInteraction,
-                      onDoubleTap: _preventInteraction,
-                      onTapDown: (_) => _preventInteraction(),
-                      onTapUp: (_) => _preventInteraction(),
+                      onPanDown: (_) => _closePopup(),
+                      onPanStart: (_) => _closePopup(),
+                      onPanUpdate: (_) => _closePopup(),
+                      onPanEnd: (_) => _closePopup(),
+                      onLongPress: _closePopup,
+                      onLongPressStart: (_) => _closePopup(),
+                      onDoubleTap: _closePopup,
+                      onTapDown: (_) => _closePopup(),
+                      onTapUp: (_) => _closePopup(),
                       behavior: HitTestBehavior.opaque,
                       child: Container(
                         color: Colors.transparent,
@@ -190,11 +190,18 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
                       ),
                     ),
                   ),
-                  // Popup content
+                  // Popup content - wrapped in GestureDetector to handle taps on the popup itself
                   Center(
                     child: Transform.scale(
                       scale: _scaleAnimation.value,
-                      child: _buildPopupContent(popupData),
+                      child: GestureDetector(
+                        onTap: _closePopup,
+                        onPanDown: (_) => _closePopup(),
+                        onDoubleTap: _closePopup,
+                        onLongPress: _closePopup,
+                        behavior: HitTestBehavior.opaque,
+                        child: _buildPopupContent(popupData),
+                      ),
                     ),
                   ),
                 ],
@@ -204,11 +211,6 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
         },
       ),
     );
-  }
-
-  void _preventInteraction() {
-    // Add haptic feedback to indicate interaction is blocked
-    HapticFeedback.lightImpact();
   }
 
   Widget _buildPopupContent(PopupResponse popupData) {
@@ -235,9 +237,15 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            // Popup Image
+            // Popup Image - wrapped in GestureDetector for tap to close
             Positioned.fill(
-              child: _buildEnhancedImage(popupData.offerImageUrl),
+              child: GestureDetector(
+                onTap: _closePopup,
+                onDoubleTap: _closePopup,
+                onLongPress: _closePopup,
+                behavior: HitTestBehavior.opaque,
+                child: _buildEnhancedImage(popupData.offerImageUrl),
+              ),
             ),
             // Close Button with enhanced visibility and larger tap area
             Positioned(
@@ -249,18 +257,17 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.9),
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: Colors.white,
                       width: 2,
                     ),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
+                      // BoxShadow(
+                      //   color: Colors.black.withOpacity(0.5),
+                      //   blurRadius: 12,
+                      //   offset: const Offset(0, 4),
+                      // ),
                     ],
                   ),
                   child: const Icon(

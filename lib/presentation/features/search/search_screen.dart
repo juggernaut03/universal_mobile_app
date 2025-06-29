@@ -727,17 +727,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
   
   Widget _buildProductCard(dynamic result, int index) {
-    // Extract product data from API response
+    // FIXED: Use ProductModel's parsing methods for proper decimal handling
     final productName = result['product_name'] ?? 'Unknown Product';
     final productImage = result['pcode_img'] ?? '';
     final pCode = result['p_code'] ?? '';
-    final productMrp = double.tryParse(result['product_mrp']?.toString() ?? '0') ?? 0.0;
-    final ourPrice = double.tryParse(result['our_price']?.toString() ?? '0') ?? 0.0;
-    final packageSize = double.tryParse(result['package_size']?.toString() ?? '0') ?? 0.0;
+    
+    // Use ProductModel's sophisticated parsing instead of basic double.tryParse
+    final productMrp = ProductModel.parseDecimal128OrNumber(result['product_mrp']);
+    final ourPrice = ProductModel.parseDecimal128OrNumber(result['our_price']);
+    final packageSize = ProductModel.parseDecimal128OrNumber(result['package_size']);
+    
     final packageUnit = result['package_unit'] ?? '';
     final brandName = result['brand_name'] ?? '';
     
-    // Calculate savings
+    // Calculate savings with proper decimal values
     final savings = productMrp > ourPrice ? productMrp - ourPrice : 0.0;
     final savingsPercent = productMrp > 0 ? ((savings / productMrp) * 100).round() : 0;
     
@@ -911,12 +914,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       const SizedBox(height: 8),
                     ],
                     
-                    // Price Row
+                    // Price Row - FIXED: Now shows proper decimal values
                     Row(
                       children: [
-                        // Current Price
+                        // Current Price with proper decimal formatting
                         Text(
-                          '₹${ourPrice.toStringAsFixed(0)}',
+                          '₹${ourPrice.toStringAsFixed(ourPrice.truncateToDouble() == ourPrice ? 0 : 2)}',
                           style: AppTextStyles.h6.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary,
@@ -925,10 +928,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         
                         const SizedBox(width: 8),
                         
-                        // MRP (if different from our price)
+                        // MRP (if different from our price) with proper decimal formatting
                         if (productMrp > ourPrice) ...[
                           Text(
-                            '₹${productMrp.toStringAsFixed(0)}',
+                            '₹${productMrp.toStringAsFixed(productMrp.truncateToDouble() == productMrp ? 0 : 2)}',
                             style: AppTextStyles.bodySmall.copyWith(
                               decoration: TextDecoration.lineThrough,
                               color: AppColors.textSecondary,
@@ -1108,10 +1111,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       barcode: productData['barcode'] ?? '',
       productName: productData['product_name'] ?? '',
       productDescription: productData['product_description'] ?? '',
-      packageSize: double.tryParse(productData['package_size']?.toString() ?? '0') ?? 0.0,
+      packageSize: ProductModel.parseDecimal128OrNumber(productData['package_size']),
       packageUnit: productData['package_unit'] ?? '',
-      productMrp: double.tryParse(productData['product_mrp']?.toString() ?? '0') ?? 0.0,
-      ourPrice: double.tryParse(productData['our_price']?.toString() ?? '0') ?? 0.0,
+      productMrp: ProductModel.parseDecimal128OrNumber(productData['product_mrp']),
+      ourPrice: ProductModel.parseDecimal128OrNumber(productData['our_price']),
       brandName: productData['brand_name'] ?? '',
       storeCode: productData['store_code'] ?? '',
       pcodestatus: productData['pcode_status'] ?? '',

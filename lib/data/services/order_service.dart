@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:http/http.dart' as http;
+import 'package:patelmart/utils/payment_data_formatter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 import '../models/auth_models.dart';
@@ -11,6 +12,7 @@ import '../models/outlet_model.dart';
 import '../models/product_model.dart';
 import '../models/address_model.dart';
 import '../../presentation/providers/cart_provider.dart';
+import 'payment_service.dart'; // Import PaymentService for PaymentResult
 
 class OrderConfirmationResponse {
   final bool success;
@@ -39,7 +41,7 @@ class OrderService {
     _client = client ?? http.Client(),
     _logger = logger ?? Logger();
 
-  // Updated confirmOrder method with order_date_time field
+  // Updated confirmOrder method with enhanced payment data integration
   Future<OrderConfirmationResponse> confirmOrder({
     required String deviceId,
     required String cartKey,
@@ -63,9 +65,11 @@ class OrderService {
     String? specialNotes,
     String offerDetails = "No Offer",
     String mobPlatform = "Android",
+    PaymentResult? paymentResult, // Enhanced payment result data
+    PaymentDataFormat paymentFormat = PaymentDataFormat.both, // Allow format selection
   }) async {
     try {
-      _logger.log('Preparing order confirmation request with order_date_time');
+      _logger.log('Preparing order confirmation request with enhanced payment data');
       
       // Generate UNIQUE identifiers
       final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -74,6 +78,22 @@ class OrderService {
       
       // Create order_date_time in the required format (ISO 8601)
       final orderDateTime = DateTime.now().toUtc().toIso8601String();
+      
+      // Console output for order preparation
+      print('\n📋 === PREPARING ORDER CONFIRMATION === 📋');
+      print('Order ID: $uniqueTempOrderId');
+      print('Store Code: $storeCode');
+      print('Device ID: $deviceId');
+      print('Cart Items: ${cartItems.length}');
+      print('Payment Mode: $paymentMode');
+      print('Final Amount: ₹${finalPayableAmount.toStringAsFixed(2)}');
+      print('Payment Result Available: ${paymentResult != null}');
+      if (paymentResult != null) {
+        print('Payment Success: ${paymentResult.success}');
+        print('Payment ID: ${paymentResult.paymentId}');
+        print('Full Payment Data: ${paymentResult.fullPaymentData != null}');
+      }
+      print('📋 === END PREPARATION === 📋\n');
       
       // Format cart items exactly as in Postman
       final List<Map<String, dynamic>> formattedCartItems = cartItems.map((item) {
@@ -132,7 +152,7 @@ class OrderService {
         // Financial details (matching API format)
         "total_amount_mrp": totalMrp.toString(),
         "total_amount_our_price": totalOurPrice.toString(),
-        "discount": discount.toString(),
+        "discount": "0",
         "you_save": youSave.toString(),
         "delivery_charges": deliveryCharges.toString(),
         "discounted_amt": discountedAmount.toString(),
@@ -145,22 +165,160 @@ class OrderService {
         // Payment details
         "payment_mode": paymentMode,
         "payment_mode_id": _getPaymentModeId(paymentMode),
-        "payment_status": paymentMode == "online payment" 
+        "payment_status": paymentMode.toLowerCase() == "online payment" 
             ? "Payment Confirmed" 
             : "Pending",
-        "payment_status_id": paymentMode == "online payment" ? 2 : 1,
+        "payment_status_id": paymentMode.toLowerCase() == "online payment" ? 2 : 1,
         "paid_amount": paidAmount,
         "transaction_id": transactionId ?? "",
         
         "mob_platform": mobPlatform,
         "mobile_no": deliveryAddress.mobileNumber,
         
-        // NEW FIELD: Add order_date_time in UTC ISO format
+        // CRITICAL: Add order_date_time in UTC ISO format
         "order_date_time": orderDateTime,
       };
       
+      // ENHANCED: Add complete payment data using the flexible formatter
+      if (paymentResult != null) {
+        _logger.log('Adding enhanced payment data to order request using ${paymentFormat.toString()} format');
+        
+        print('\n💳 === ADDING PAYMENT DATA TO ORDER === 💳');
+        print('Payment Format: ${paymentFormat.toString()}');
+        print('Payment Success: ${paymentResult.success}');
+        print('Payment ID: ${paymentResult.paymentId}');
+        
+        // Use the PaymentDataFormatter to format the data
+        final formattedPaymentData = PaymentDataFormatter.formatPaymentData(
+          paymentResult: paymentResult,
+          format: paymentFormat,
+          arrayFieldName: "payment_gateway_data",
+          stringFieldName: "payment_data_string", 
+          razorpayArrayFieldName: "razorpay_payment_details",
+          razorpayStringFieldName: "razorpay_payment_string",
+        );
+        
+        // Add all formatted payment data to request body
+        requestBody.addAll(formattedPaymentData);
+        
+        // Also add the exact Razorpay format for compatibility
+        final exactRazorpayData = PaymentDataFormatter.getExactRazorpayFormat(paymentResult);
+        requestBody.addAll(exactRazorpayData);
+        
+        // DEBUG: Log different formats being sent
+        _logger.log('=== PAYMENT DATA BEING SENT TO API ===');
+        _logger.log('Payment Format: ${paymentFormat.toString()}');
+        _logger.log('Payment Success: ${paymentResult.success}');
+        
+        if (paymentResult.success) {
+          _logger.log('Payment ID: ${paymentResult.paymentId}');
+          _logger.log('Order ID: ${paymentResult.orderId}');
+          _logger.log('Signature: ${paymentResult.signature}');
+          _logger.log('Amount: ${paymentResult.amount}');
+          _logger.log('Currency: ${paymentResult.currency}');
+          _logger.log('Status: ${paymentResult.status}');
+          _logger.log('Method: ${paymentResult.method}');
+          _logger.log('VPA: ${paymentResult.vpa}');
+          _logger.log('Contact: ${paymentResult.contact}');
+          
+          // Log each format being sent
+          formattedPaymentData.forEach((key, value) {
+            if (value is String) {
+              _logger.log('$key (STRING): ${value.length} characters');
+            } else if (value is List) {
+              _logger.log('$key (ARRAY): ${value.length} items');
+            } else {
+              _logger.log('$key (OBJECT): ${value.runtimeType}');
+            }
+          });
+          
+          // Log the exact payment data structure
+          if (paymentResult.fullPaymentData != null) {
+            _logger.log('EXACT RAZORPAY DATA KEYS: ${paymentResult.fullPaymentData!.keys.toList()}');
+            _logger.log('EXACT RAZORPAY DATA: ${jsonEncode(paymentResult.fullPaymentData)}');
+          }
+        } else {
+          _logger.log('Payment Failed: ${paymentResult.message}');
+        }
+        _logger.log('=====================================');
+        
+        print('Payment Data Fields Added: ${formattedPaymentData.keys.toList()}');
+        print('💳 === END PAYMENT DATA ADDITION === 💳\n');
+        
+        _logger.log('Payment data added to request body in ${paymentFormat.toString()} format');
+      }
+      
       _logger.log('Sending order confirmation with order_date_time: $orderDateTime');
       _logger.log('Request body keys: ${requestBody.keys.toList()}');
+      
+      // ENHANCED CONSOLE OUTPUT FOR POSTMAN
+      print('\n🚀 === COMPLETE ORDER POST BODY FOR POSTMAN === 🚀');
+      print('URL: ${ApiConstants.baseUrl}/confirm_order');
+      print('Method: POST');
+      print('Headers: {"Content-Type": "application/json"}');
+      print('');
+      print('📄 COMPLETE JSON BODY:');
+      print('══════════════════════════════════════════════════');
+      final prettyJsonString = JsonEncoder.withIndent('  ').convert(requestBody);
+      print(prettyJsonString);
+      print('══════════════════════════════════════════════════');
+      print('');
+      
+      // Show specific payment fields if present
+      if (requestBody.containsKey('payment_gateway_data')) {
+        print('💳 PAYMENT GATEWAY DATA (Array):');
+        print('─────────────────────────────────');
+        print(JsonEncoder.withIndent('  ').convert(requestBody['payment_gateway_data']));
+        print('');
+      }
+      
+      if (requestBody.containsKey('razorpay_payment_details')) {
+        print('🏦 RAZORPAY PAYMENT DETAILS (Array):');
+        print('────────────────────────────────────');
+        print(JsonEncoder.withIndent('  ').convert(requestBody['razorpay_payment_details']));
+        print('');
+      }
+      
+      if (requestBody.containsKey('payment_data_string')) {
+        print('📝 PAYMENT DATA STRING:');
+        print('─────────────────────');
+        print(requestBody['payment_data_string']);
+        print('');
+      }
+      
+      if (requestBody.containsKey('razorpay_payment_string')) {
+        print('📝 RAZORPAY PAYMENT STRING:');
+        print('──────────────────────────');
+        print(requestBody['razorpay_payment_string']);
+        print('');
+      }
+      
+      // CURL Command
+      print('🖥️  CURL COMMAND:');
+      print('──────────────────');
+      print('curl -X POST "${ApiConstants.baseUrl}/confirm_order" \\');
+      print('  -H "Content-Type: application/json" \\');
+      print('  -d \'${jsonEncode(requestBody)}\'');
+      print('');
+      
+      // Summary
+      print('📊 REQUEST SUMMARY:');
+      print('─────────────────');
+      print('Total Fields: ${requestBody.keys.length}');
+      print('Cart Items: ${cartItems.length}');
+      print('Payment Data Included: ${paymentResult != null ? '✅' : '❌'}');
+      print('Payment Success: ${paymentResult?.success ?? false ? '✅' : '❌'}');
+      print('Order Date Time: ✅');
+      print('JSON Size: ${jsonEncode(requestBody).length} characters');
+      print('🚀 === END POSTMAN BODY === 🚀\n');
+      
+      // Legacy logging for compatibility
+      _logger.log('=== COMPLETE ORDER CONFIRMATION REQUEST BODY FOR POSTMAN ===');
+      _logger.log('URL: ${ApiConstants.baseUrl}/confirm_order');
+      _logger.log('Method: POST');
+      _logger.log('Headers: Content-Type: application/json');
+      _logger.log('POST BODY: ${jsonEncode(requestBody)}');
+      _logger.log('============================================================');
       
       // Make the API call
       final response = await _client.post(
@@ -170,6 +328,23 @@ class OrderService {
       ).timeout(const Duration(seconds: 15));
       
       _logger.log('Order confirmation response status: ${response.statusCode}');
+      _logger.log('Order confirmation response body: ${response.body}');
+      
+      // ENHANCED CONSOLE OUTPUT FOR API RESPONSE
+      print('\n📡 === API RESPONSE === 📡');
+      print('Status Code: ${response.statusCode}');
+      print('Response Headers: ${response.headers}');
+      print('');
+      print('📄 Response Body:');
+      print('─────────────────');
+      try {
+        final responseJson = jsonDecode(response.body);
+        print(JsonEncoder.withIndent('  ').convert(responseJson));
+      } catch (e) {
+        print(response.body);
+      }
+      print('─────────────────');
+      print('📡 === END API RESPONSE === 📡\n');
       
       if (response.statusCode == 200 || response.statusCode == 201) {
         Map<String, dynamic> responseData;
@@ -189,6 +364,17 @@ class OrderService {
           orderId = uniqueTempOrderId;
         }
         
+        print('\n✅ === ORDER SUCCESS === ✅');
+        print('Order ID: $orderId');
+        print('Message: ${responseData['message'] ?? 'Order placed successfully'}');
+        if (paymentResult != null && paymentResult.success) {
+          print('Payment ID: ${paymentResult.paymentId}');
+          print('Payment Status: Confirmed');
+        }
+        print('✅ === END SUCCESS === ✅\n');
+        
+        _logger.log('Order placed successfully with ID: $orderId');
+        
         return OrderConfirmationResponse(
           success: true,
           message: responseData['message'] ?? 'Order placed successfully',
@@ -196,6 +382,11 @@ class OrderService {
           data: responseData,
         );
       } else {
+        print('\n❌ === ORDER FAILED === ❌');
+        print('Status Code: ${response.statusCode}');
+        print('Error: ${response.body}');
+        print('❌ === END FAILURE === ❌\n');
+        
         _logger.error('Order confirmation failed: ${response.statusCode} - ${response.body}');
         return OrderConfirmationResponse(
           success: false,
@@ -204,6 +395,10 @@ class OrderService {
         );
       }
     } catch (e) {
+      print('\n💥 === ORDER ERROR === 💥');
+      print('Error: $e');
+      print('💥 === END ERROR === 💥\n');
+      
       _logger.error('Error during order confirmation: $e');
       return OrderConfirmationResponse(
         success: false,
@@ -266,6 +461,8 @@ class OrderService {
     String? specialNotes,
     String offerDetails = "No Offer",
     String mobPlatform = "Android",
+    PaymentResult? paymentResult, // Enhanced payment result parameter
+    PaymentDataFormat paymentFormat = PaymentDataFormat.both, // Add format parameter
   }) async {
     // Convert Map to Address model
     final address = Address.fromJson(deliveryAddressMap);
@@ -294,6 +491,8 @@ class OrderService {
       specialNotes: specialNotes,
       offerDetails: offerDetails,
       mobPlatform: mobPlatform,
+      paymentResult: paymentResult, // Pass payment result
+      paymentFormat: paymentFormat, // Pass payment format
     );
   }
 }

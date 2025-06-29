@@ -56,6 +56,8 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: Colors.white, // Set white background
+
         appBar: AppBar(
           title: const Text('Change Location'),
           leading: IconButton(
@@ -65,7 +67,9 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
         ),
         body: SafeArea(
           child: SingleChildScrollView(
+            
             child: Padding(
+              
               padding: EdgeInsets.all(isScreenSmall ? 16.0 : 24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,6 +113,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
   ) {
     return Card(
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -643,6 +648,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
   }) {
     return Card(
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
