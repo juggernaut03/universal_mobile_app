@@ -415,6 +415,8 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+              backgroundColor: Colors.white, // Set white background
+
       appBar: AppBar(
         title: const Text('Add New Address'),
         leading: IconButton(

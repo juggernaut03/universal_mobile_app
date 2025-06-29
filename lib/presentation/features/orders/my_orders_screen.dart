@@ -38,11 +38,10 @@ final ordersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
     // Fetch orders
     final allOrders = await repository.getOrderHistory();
     
-    // Filter out orders with "In Cart" status
+    // Filter out orders with "In Cart" status - keep Pending status as valid order
     final filteredOrders = allOrders
         .where((order) => 
-            order.status.toLowerCase() != 'in cart' && 
-            order.status.toLowerCase() != 'pending')
+            order.status.toLowerCase() != 'in cart')
         .toList();
     
     // Sort by latest order_date_time first (most recent order first)
@@ -89,17 +88,25 @@ final filteredOrdersProvider = Provider<List<Order>>((ref) {
       if (selectedFilter == 'All') {
         filteredList = orders;
       } else {
-        // Filter orders based on status
+        // Filter orders based on new status values
         filteredList = orders.where((order) {
+          final status = order.status.toLowerCase();
           switch (selectedFilter) {
-            case 'Delivered':
-              return order.status.toLowerCase().contains('delivered');
+            case 'Pending':
+              return status.contains('pending');
             case 'Processing':
-              return order.status.toLowerCase().contains('processing') ||
-                     order.status.toLowerCase().contains('confirmed') ||
-                     order.status.toLowerCase().contains('preparing');
+              return status.contains('accepted') || 
+                     status.contains('in packaging') ||
+                     status.contains('processing') ||
+                     status.contains('confirmed');
+            case 'Out for Delivery':
+              return status.contains('out for delivery') || 
+                     status.contains('shipped') ||
+                     status.contains('dispatched');
+            case 'Delivered':
+              return status.contains('delivered');
             case 'Cancelled':
-              return order.status.toLowerCase().contains('cancelled');
+              return status.contains('cancelled');
             default:
               return true;
           }
@@ -197,7 +204,7 @@ class MyOrdersScreen extends ConsumerWidget {
             ),
           ),
 
-          // Filter chips
+          // Filter chips with updated status values
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
@@ -207,9 +214,13 @@ class MyOrdersScreen extends ConsumerWidget {
                 children: [
                   _buildFilterChip(ref, 'All', selectedFilter),
                   const SizedBox(width: 8),
-                  _buildFilterChip(ref, 'Delivered', selectedFilter),
+                  _buildFilterChip(ref, 'Pending', selectedFilter),
                   const SizedBox(width: 8),
                   _buildFilterChip(ref, 'Processing', selectedFilter),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(ref, 'Out for Delivery', selectedFilter),
+                  const SizedBox(width: 8),
+                  _buildFilterChip(ref, 'Delivered', selectedFilter),
                   const SizedBox(width: 8),
                   _buildFilterChip(ref, 'Cancelled', selectedFilter),
                 ],

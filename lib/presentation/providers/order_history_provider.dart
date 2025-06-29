@@ -8,7 +8,6 @@ import '../../../../core/utils/logger.dart';
 import '../../../../data/models/order_model.dart';
 import '../../../../data/repositories/order_repository.dart';
 
-
 // Provider for the OrderRepository instance
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   final logger = ref.read(loggerProvider);
@@ -54,10 +53,10 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async
     logger.log('Calling repository.getOrderHistory()');
     final allOrders = await repository.getOrderHistory();
     
-    // Filter out orders with "In Cart" status
+    // Filter out orders with "In Cart" status only - keep Pending as valid orders
+    // Updated to match new status values: Pending, Accepted, In Packaging, Out for Delivery, Delivered
     final filteredOrders = allOrders.where((order) => 
-        order.status.toLowerCase() != 'in cart' && 
-        order.status.toLowerCase() != 'pending').toList();
+        order.status.toLowerCase() != 'in cart').toList();
     
     logger.log('Orders fetched successfully. Total count: ${allOrders.length}, Filtered count: ${filteredOrders.length}');
     
@@ -85,4 +84,85 @@ final reorderFunctionProvider = Provider<Future<bool> Function(String)>((ref) {
 final cancelOrderFunctionProvider = Provider<Future<bool> Function(String, String)>((ref) {
   final repository = ref.watch(orderRepositoryProvider);
   return (String orderId, String reason) => repository.cancelOrder(orderId, reason);
+});
+
+// Provider for filtering orders by status with new status values
+final orderStatusFilterProvider = StateProvider<String>((ref) => 'All');
+
+// Provider for filtered orders based on new status values
+final filteredOrdersByStatusProvider = Provider<List<Order>>((ref) {
+  final ordersAsync = ref.watch(orderHistoryProvider);
+  final selectedFilter = ref.watch(orderStatusFilterProvider);
+  
+  return ordersAsync.when(
+    data: (orders) {
+      if (selectedFilter == 'All') {
+        return orders;
+      }
+      
+      return orders.where((order) {
+        final status = order.status.toLowerCase();
+        switch (selectedFilter) {
+          case 'Pending':
+            return status.contains('pending');
+          case 'Accepted':
+            return status.contains('accepted');
+          case 'In Packaging':
+            return status.contains('in packaging') || status.contains('packaging');
+          case 'Out for Delivery':
+            return status.contains('out for delivery') || 
+                   status.contains('dispatched') || 
+                   status.contains('shipped');
+          case 'Delivered':
+            return status.contains('delivered');
+          case 'Cancelled':
+            return status.contains('cancelled');
+          default:
+            return true;
+        }
+      }).toList();
+    },
+    loading: () => <Order>[],
+    error: (_, __) => <Order>[],
+  );
+});
+
+// Provider to get order counts by status
+final orderStatusCountsProvider = Provider<Map<String, int>>((ref) {
+  final ordersAsync = ref.watch(orderHistoryProvider);
+  
+  return ordersAsync.when(
+    data: (orders) {
+      final counts = <String, int>{
+        'All': orders.length,
+        'Pending': 0,
+        'Accepted': 0,
+        'In Packaging': 0,
+        'Out for Delivery': 0,
+        'Delivered': 0,
+        'Cancelled': 0,
+      };
+      
+      for (final order in orders) {
+        final status = order.status.toLowerCase();
+        if (status.contains('pending')) {
+          counts['Pending'] = (counts['Pending'] ?? 0) + 1;
+        } else if (status.contains('accepted')) {
+          counts['Accepted'] = (counts['Accepted'] ?? 0) + 1;
+        } else if (status.contains('in packaging') || status.contains('packaging')) {
+          counts['In Packaging'] = (counts['In Packaging'] ?? 0) + 1;
+        } else if (status.contains('out for delivery') || status.contains('dispatched') || status.contains('shipped')) {
+          counts['Out for Delivery'] = (counts['Out for Delivery'] ?? 0) + 1;
+        } else if (status.contains('delivered')) {
+          counts['Delivered'] = (counts['Delivered'] ?? 0) + 1;
+        } else if (status.contains('cancelled')) {
+          counts['Cancelled'] = (counts['Cancelled'] ?? 0) + 1;
+        }
+      }
+      
+      return counts;
+    },
+    loading: () => <String, int>{},
+    error: (_, __) => <String, int>{},
+  );
 });

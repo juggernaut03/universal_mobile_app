@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "65652715036",
+    "firebase_url": "https://patelrmartnotifications.firebaseio.com",
+    "project_id": "patelrmartnotifications",
+    "storage_bucket": "patelrmartnotifications.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:65652715036:android:12118f78c4d70d859cb9d9",
+        "android_client_info": {
+          "package_name": "com.patelrmart.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "65652715036-5md8qvahiud521437knub5c7768gmmvl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBhGpxjXWR5jPFQGMK4ZAN_zQUd_kmNEU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "65652715036-5md8qvahiud521437knub5c7768gmmvl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

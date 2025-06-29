@@ -5,6 +5,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:patelmart/core/widgets/back_button_wrapper.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
@@ -70,6 +71,24 @@ class AboutUsScreen extends ConsumerWidget {
     }
   }
 
+  // Method to launch URLs
+  Future<void> _launchUrl(String url, WidgetRef ref) async {
+    final logger = ref.read(loggerProvider);
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        logger.log('Successfully launched URL: $url');
+      } else {
+        logger.error('Could not launch URL: $url');
+        throw Exception('Could not launch $url');
+      }
+    } catch (e) {
+      logger.error('Error launching URL $url: $e');
+      // Show error to user
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final aboutUsContent = ref.watch(aboutUsContentProvider);
@@ -90,6 +109,7 @@ class AboutUsScreen extends ConsumerWidget {
       child: WillPopScope(
         onWillPop: () => _handleBackPress(context, ref),
         child: Scaffold(
+          backgroundColor: Colors.white, // Added white background color
           appBar: AppBar(
             title: const Text('About Us'),
             leading: IconButton(
@@ -109,7 +129,7 @@ class AboutUsScreen extends ConsumerWidget {
               children: [
                 // Logo and tagline
                 Container(
-                  color: AppColors.neutral100,
+                  color: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Column(
                     children: [
@@ -136,8 +156,11 @@ class AboutUsScreen extends ConsumerWidget {
                 _buildSection(
                   title: 'Contact Us',
                   icon: Icons.contact_mail,
-                  content: _buildContactContent(context),
+                  content: _buildContactContent(context, ref),
                 ),
+                
+                // Developer credit section
+                _buildDeveloperCredit(ref),
                 
                 // Version info at bottom
                 Padding(
@@ -169,79 +192,81 @@ class AboutUsScreen extends ConsumerWidget {
       ),
     );
   }
+
   Widget _buildApiContent(AsyncValue<String> contentAsync) {
-  return contentAsync.when(
-    data: (content) {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Html(
-          data: content,
-          style: {
-            "p": Style(
-              fontSize: FontSize(16),
-              fontWeight: FontWeight.w400,
-              color: Colors.black87,
-              margin: Margins(bottom: Margin(16)), // Corrected: Using Margin object
-            ),
-            "h1": Style(
-              fontSize: FontSize(24),
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              margin: Margins(bottom: Margin(16), top: Margin(8)), // Corrected: Using Margin objects
-            ),
-            "h2": Style(
-              fontSize: FontSize(22),
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              margin: Margins(bottom: Margin(14), top: Margin(8)), // Corrected: Using Margin objects
-            ),
-          },
-        ),
-      );
-    },
-    loading: () => const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.0),
-        child: CircularProgressIndicator(),
-      ),
-    ),
-    error: (error, stack) => Builder(  // Added Builder to get context
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Error loading content',
-              style: AppTextStyles.h6.copyWith(
-                color: Colors.red,
+    return contentAsync.when(
+      data: (content) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Html(
+            data: content,
+            style: {
+              "p": Style(
+                fontSize: FontSize(16),
+                fontWeight: FontWeight.w400,
+                color: Colors.black87,
+                margin: Margins(bottom: Margin(16)),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error.toString(),
-              style: AppTextStyles.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                // Refresh the provider using context from Builder
-                ProviderScope.containerOf(context).refresh(aboutUsContentProvider);
-              },
-              child: const Text('Retry'),
-            ),
-          ],
+              "h1": Style(
+                fontSize: FontSize(24),
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                margin: Margins(bottom: Margin(16), top: Margin(8)),
+              ),
+              "h2": Style(
+                fontSize: FontSize(22),
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                margin: Margins(bottom: Margin(14), top: Margin(8)),
+              ),
+            },
+          ),
+        );
+      },
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: CircularProgressIndicator(),
         ),
       ),
-    ),
-  );
-}
+      error: (error, stack) => Builder(
+        builder: (context) => Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Error loading content',
+                style: AppTextStyles.h6.copyWith(
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                error.toString(),
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  // Refresh the provider using context from Builder
+                  ProviderScope.containerOf(context).refresh(aboutUsContentProvider);
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSection({
     required String title,
     required IconData icon,
@@ -270,7 +295,7 @@ class AboutUsScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryLighter.withOpacity(0.2),
+                    color: Colors.white,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -297,7 +322,7 @@ class AboutUsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildContactContent(BuildContext context) {
+  Widget _buildContactContent(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -323,7 +348,7 @@ class AboutUsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           
-          // Connect With Us section
+          // Connect With Us section - Only Facebook and Instagram
           Text(
             'Connect With Us',
             style: AppTextStyles.h6.copyWith(
@@ -332,34 +357,31 @@ class AboutUsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Facebook
               _buildSocialButton(
                 icon: Icons.facebook,
                 color: Colors.blue.shade800,
-                onPressed: () {
-                  // Open Facebook
+                label: 'Facebook',
+                onPressed: () async {
+                  await _launchUrl(
+                    'https://www.facebook.com/patelsrmart?mibextid=ZbWKwL',
+                    ref,
+                  );
                 },
               ),
+              const SizedBox(width: 32),
+              // Instagram
               _buildSocialButton(
                 icon: Icons.camera_alt,
                 color: Colors.pink.shade600,
-                onPressed: () {
-                  // Open Instagram
-                },
-              ),
-              _buildSocialButton(
-                icon: Icons.messenger_outline,
-                color: Colors.blue.shade400,
-                onPressed: () {
-                  // Open Twitter
-                },
-              ),
-              _buildSocialButton(
-                icon: Icons.play_arrow,
-                color: Colors.red.shade600,
-                onPressed: () {
-                  // Open YouTube
+                label: 'Instagram',
+                onPressed: () async {
+                  await _launchUrl(
+                    'https://www.instagram.com/patelsrmart?igsh=MWluczZnNjVzejVrYw==',
+                    ref,
+                  );
                 },
               ),
             ],
@@ -433,22 +455,94 @@ class AboutUsScreen extends ConsumerWidget {
   Widget _buildSocialButton({
     required IconData icon,
     required Color color,
+    required String label,
     required VoidCallback onPressed,
   }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(30),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          shape: BoxShape.circle,
+    return Column(
+      children: [
+        InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(30),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: color.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 28,
+            ),
+          ),
         ),
-        child: Icon(
-          icon,
-          color: color,
-          size: 24,
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildDeveloperCredit(WidgetRef ref) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Developed by',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () async {
+              await _launchUrl('https://shalviadvision.com/', ref);
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.web,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Shalvi Advision',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -841,7 +841,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
   Widget _buildTab(String title, bool isSelected) {
     return Tab(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(20),

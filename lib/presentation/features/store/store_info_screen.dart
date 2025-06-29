@@ -27,6 +27,7 @@ class StoreInfoScreen extends ConsumerWidget {
         }
       },
       child: Scaffold(
+        backgroundColor: Colors.white, // Added white background color
         appBar: AppBar(
           title: const Text('Store Information'),
           leading: IconButton(
@@ -96,6 +97,7 @@ class StoreInfoScreen extends ConsumerWidget {
         children: [
           // Store Card
           Card(
+            color: Colors.white, // Added white background color for card
             elevation: 2,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -108,7 +110,7 @@ class StoreInfoScreen extends ConsumerWidget {
                   Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: AppColors.primaryLighter,
+                        backgroundColor: Colors.white,
                         radius: 24,
                         child: Icon(
                           Icons.store,

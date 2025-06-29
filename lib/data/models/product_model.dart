@@ -48,10 +48,10 @@ class ProductModel {
       barcode: json['barcode'] ?? '',
       productName: json['product_name'] ?? '',
       productDescription: json['product_description'] ?? '',
-      packageSize: _parseDoubleOrInt(json['package_size']),
+      packageSize: parseDecimal128OrNumber(json['package_size']),
       packageUnit: json['package_unit'] ?? '',
-      productMrp: _parseDoubleOrInt(json['product_mrp']),
-      ourPrice: _parseDoubleOrInt(json['our_price']),
+      productMrp: parseDecimal128OrNumber(json['product_mrp']),
+      ourPrice: parseDecimal128OrNumber(json['our_price']),
       brandName: json['brand_name'] ?? '',
       storeCode: json['store_code'] ?? '',
       pcodestatus: json['pcode_status'] ?? '',
@@ -63,18 +63,43 @@ class ProductModel {
     );
   }
 
-  static double _parseDoubleOrInt(dynamic value) {
-    if (value == null) return 0;
+  /// Enhanced parser that handles Mongoose Decimal128 format
+  /// Made static and public for use in other parts of the app
+  static double parseDecimal128OrNumber(dynamic value) {
+    if (value == null) return 0.0;
+    
+    // Handle Mongoose Decimal128 format: {"$numberDecimal": "110.00"}
+    if (value is Map<String, dynamic> && value.containsKey('\$numberDecimal')) {
+      final decimalString = value['\$numberDecimal'];
+      if (decimalString is String) {
+        try {
+          return double.parse(decimalString);
+        } catch (e) {
+          print('Error parsing Decimal128 string: $decimalString, Error: $e');
+          return 0.0;
+        }
+      }
+    }
+    
+    // Handle regular numeric types
     if (value is int) return value.toDouble();
     if (value is double) return value;
     if (value is String) {
       try {
         return double.parse(value);
-      } catch (_) {
-        return 0;
+      } catch (e) {
+        print('Error parsing string to double: $value, Error: $e');
+        return 0.0;
       }
     }
-    return 0;
+    
+    print('Unsupported value type for numeric parsing: ${value.runtimeType}, Value: $value');
+    return 0.0;
+  }
+
+  /// Private method for internal use (kept for backward compatibility)
+  static double _parseDecimal128OrNumber(dynamic value) {
+    return parseDecimal128OrNumber(value);
   }
 
   static int _parseInt(dynamic value) {
@@ -84,7 +109,8 @@ class ProductModel {
     if (value is String) {
       try {
         return int.parse(value);
-      } catch (_) {
+      } catch (e) {
+        print('Error parsing string to int: $value, Error: $e');
         return 0;
       }
     }
@@ -114,7 +140,6 @@ class ProductModel {
     };
   }
   
-  // Added copyWith method to allow updating product properties
   ProductModel copyWith({
     String? id,
     String? pCode,
@@ -155,5 +180,10 @@ class ProductModel {
       storeQuantity: storeQuantity ?? this.storeQuantity,
       maxQuantityAllowed: maxQuantityAllowed ?? this.maxQuantityAllowed,
     );
+  }
+
+  @override
+  String toString() {
+    return 'ProductModel(id: $id, pCode: $pCode, productName: $productName, productMrp: $productMrp, ourPrice: $ourPrice)';
   }
 }

@@ -22,19 +22,34 @@ class ApiConstants {
   static const String keyOutlet = 'selected_outlet';
   static const String keyLocation = 'user_location';
   static const String keyApiInitialized = 'google_api_initialized';
+
   
   // Fallback image
-  static const String fallbackImageUrl = 'https://media.istockphoto.com/id/1396814518/vector/image-coming-soon-no-photo-no-thumbnail-image-available-vector-illustration.jpg?s=612x612&w=0&k=20&c=hnh2OZgQGhf0b46-J2z7aHbIWwq8HNlSDaNp2wn_iko=';
+  static const String fallbackImageUrl = 'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp';
   // Fallback image (multiple options for reliability)
   
   // Backup fallback images if the primary one fails
   static const List<String> backupFallbackImageUrls = [
-    'https://cdn.pixabay.com/photo/2017/01/25/17/35/picture-2008484_960_720.png',
-    'https://cdn.pixabay.com/photo/2016/01/20/13/05/icon-1151577_960_720.png',
-    'https://placehold.co/400x400/png'
+    'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp',
+    'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp',
+    'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp'
   ];
   // razorpay
   static const int apiTimeoutSeconds = 15;
-  static const String razorpayKeyId = 'rzp_test_5yy0US6kMQYbpU'; // Replace with your actual test key
-  static const String razorpayKeySecret = '7ZwGbFIgsktyJlZOEbFNj6aN'; 
+  static const String razorpayKeyId = 'rzp_live_Qq9CQRIX2I2qej'; // Replace with your actual test key
+  static const String razorpayKeySecret = 'RoKRhP1fc6sqnvwcqnLBU6cr';
+
+  static const String timeout = '390';
+  static const String version = '1.0';
+  
+  // API Endpoints
+  static const String confirmOrderEndpoint = '/confirm_order';
+  static const String paymentProcessingEndpoint = '/order_payment_processing';
+  static const String deliverySlotsEndpoint = '/get_delivery_slots';
+  static const String paymentMethodsEndpoint = '/get_payment_methods';
+  static const Map<String, String> defaultHeaders = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
 }

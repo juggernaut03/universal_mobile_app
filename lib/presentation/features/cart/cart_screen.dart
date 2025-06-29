@@ -258,7 +258,7 @@ class CartScreen extends ConsumerWidget {
               Text(
                 'Savings ₹${savings.toStringAsFixed(0)}',
                 style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.accent,
+                  color: Colors.green,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -519,7 +519,7 @@ class CartScreen extends ConsumerWidget {
               child: Text(
                 'Add items worth ₹${(minimumOrderValue - cartTotal).toStringAsFixed(0)} more to place order',
                 style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.warning,
+                  color: Colors.red,
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,

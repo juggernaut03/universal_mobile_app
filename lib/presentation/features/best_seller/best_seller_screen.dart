@@ -7,15 +7,16 @@ import 'package:patelmart/core/constants/app_constants.dart';
 import 'package:patelmart/core/widgets/empty_state_widget.dart';
 import 'package:patelmart/core/widgets/error_widgets.dart';
 import 'package:patelmart/core/widgets/favorite_button.dart';
+import 'package:patelmart/core/widgets/bottom_navigation_widget.dart';
 import 'package:patelmart/data/models/product_model.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
-import 'package:patelmart/presentation/providers/outlet_status_provider.dart'; // Added for outlet status
+import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 import '../cart/widgets/persistent_cart_widget.dart';
 
-class BestSellerScreen extends ConsumerWidget {
+class BestSellerScreen extends ConsumerStatefulWidget {
   final int bestSellerId;
   
   const BestSellerScreen({
@@ -24,19 +25,31 @@ class BestSellerScreen extends ConsumerWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Get the title based on bestSellerId
-    String screenTitle = _getBestSellerTitle(bestSellerId);
+  ConsumerState<BestSellerScreen> createState() => _BestSellerScreenState();
+}
+
+class _BestSellerScreenState extends ConsumerState<BestSellerScreen> {
+  int _currentNavIndex = 0; // Add navigation state management
+
+  @override
+  Widget build(BuildContext context) {
+    // Get the dynamic title from API instead of hardcoded values
+    final titleAsync = ref.watch(bestSellerTitleProvider(widget.bestSellerId));
     
     // Fetch products for this best seller
-    final productsAsync = ref.watch(bestSellerProductsProvider(bestSellerId));
+    final productsAsync = ref.watch(bestSellerProductsProvider(widget.bestSellerId));
     
     // Get the background color too - for consistency in the UI
-    final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(bestSellerId));
+    final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(widget.bestSellerId));
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(screenTitle),
+        // Use dynamic title from API, with fallback to default
+        title: titleAsync.when(
+          data: (title) => Text(title),
+          loading: () => Text(_getFallbackTitle(widget.bestSellerId)), // Show fallback while loading
+          error: (_, __) => Text(_getFallbackTitle(widget.bestSellerId)), // Show fallback on error
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -51,8 +64,9 @@ class BestSellerScreen extends ConsumerWidget {
             onPressed: () async {
               // Force refresh the best seller data
               ref.read(refreshBestSellerProvider.notifier).state = true;
-              await ref.refresh(bestSellerBannerProvider(bestSellerId).future);
-              await ref.refresh(bestSellerProductsProvider(bestSellerId).future);
+              await ref.refresh(bestSellerBannerProvider(widget.bestSellerId).future);
+              await ref.refresh(bestSellerProductsProvider(widget.bestSellerId).future);
+              await ref.refresh(bestSellerTitleProvider(widget.bestSellerId).future); // Also refresh title
             },
           ),
         ],
@@ -76,7 +90,7 @@ class BestSellerScreen extends ConsumerWidget {
                     left: 12,
                     right: 12,
                     top: 12,
-                    bottom: 100, // Extra padding for persistent cart widget
+                    bottom: 140, // Increased padding for persistent cart + bottom nav
                   ),
                   itemCount: products.length,
                   itemBuilder: (context, index) {
@@ -98,7 +112,7 @@ class BestSellerScreen extends ConsumerWidget {
                   child: AppErrorWidget(
                     errorType: ErrorType.generic,
                     message: 'Error loading products: $error',
-                    onRetry: () => ref.refresh(bestSellerProductsProvider(bestSellerId)),
+                    onRetry: () => ref.refresh(bestSellerProductsProvider(widget.bestSellerId)),
                   ),
                 );
               },
@@ -107,18 +121,52 @@ class BestSellerScreen extends ConsumerWidget {
           
           // Persistent cart widget at the bottom
           Positioned(
-            left: 0,
+            left: 0, 
             right: 0,
-            bottom: 30,
+            bottom: 0, // Positioned above the bottom navigation
             child: const PersistentCartWidget(),
           ),
         ],
       ),
+      // Add bottom navigation bar
+      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
   
-  // Helper to get the title based on bestSellerId
-  String _getBestSellerTitle(int id) {
+  // Add bottom navigation builder method
+  Widget _buildBottomNavigation() {
+    return BottomNavigationWidget(
+      currentIndex: _currentNavIndex,
+      onTap: (index) {
+        if (mounted) {
+          setState(() {
+            _currentNavIndex = index;
+          });
+          
+          switch (index) {
+            case 0: // Home
+              context.go('/'); // Navigate to home
+              break;
+            case 1: // Category
+              context.go('/category');
+              break;
+            case 2: // Cart/Order
+              context.go('/cart');
+              break;
+            case 3: // Reorder
+              context.go('/reorder');
+              break;
+            case 4: // Account
+              context.go('/account');
+              break;
+          }
+        }
+      },
+    );
+  }
+  
+  // Fallback title method (used while loading or on error)
+  String _getFallbackTitle(int id) {
     switch (id) {
       case 1:
         return 'Best Deals';

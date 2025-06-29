@@ -131,7 +131,7 @@ class CartItemWidget extends StatelessWidget {
                               Text(
                                 'You Save ₹${savings.toStringAsFixed(0)}',
                                 style: AppTextStyles.bodySmall.copyWith(
-                                  color: AppColors.accent,
+                                  color: Colors.green,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),

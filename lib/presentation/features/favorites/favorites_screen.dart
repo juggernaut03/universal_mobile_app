@@ -64,6 +64,8 @@ class FavoritesScreen extends ConsumerWidget {
   
   Widget _buildLoginPrompt(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white, // Set white background
+
       appBar: AppBar(
         title: const Text('My Favorites'),
         backgroundColor: AppColors.primary,
@@ -143,7 +145,9 @@ class FavoritesScreen extends ConsumerWidget {
     // Get the favorites state
     final favoritesState = ref.watch(favoritesProvider);
     
+    
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('My Favorites'),
         backgroundColor: AppColors.primary,

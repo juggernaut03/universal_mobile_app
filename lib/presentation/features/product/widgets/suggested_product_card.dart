@@ -12,6 +12,9 @@ class SuggestedProductCard extends ConsumerWidget {
   final ProductModel product;
   final VoidCallback onTap; 
 
+  // Fallback image URL
+  static const String fallbackImageUrl = 'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp';
+
   const SuggestedProductCard({
     Key? key,
     required this.product,
@@ -47,6 +50,7 @@ class SuggestedProductCard extends ConsumerWidget {
       width: cardWidth,
       margin: const EdgeInsets.symmetric(horizontal: 6),
       child: Card(
+        color: Colors.white, // Added white background color for card
         elevation: 3,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
@@ -66,7 +70,7 @@ class SuggestedProductCard extends ConsumerWidget {
                     height: cardWidth * 0.85,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: Colors.white, // Changed to white
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(12),
                         topRight: Radius.circular(12),
@@ -77,46 +81,7 @@ class SuggestedProductCard extends ConsumerWidget {
                         topLeft: Radius.circular(12),
                         topRight: Radius.circular(12),
                       ),
-                      child: Image.network(
-                        product.pcodeImg,
-                        fit: BoxFit.contain,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: Colors.grey[100],
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.shopping_bag_outlined,
-                                color: Colors.grey[400],
-                                size: 28,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Product image',
-                                style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                      child: _buildProductImage(),
                     ),
                   ),
                   
@@ -153,7 +118,8 @@ class SuggestedProductCard extends ConsumerWidget {
             
             // Product info section (not tappable)
             Expanded(
-              child: Padding(
+              child: Container(
+                color: Colors.white, // Added white background for product info section
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,6 +215,75 @@ class SuggestedProductCard extends ConsumerWidget {
     );
   }
 
+  // Build product image with fallback support
+  Widget _buildProductImage() {
+    return Image.network(
+      product.pcodeImg,
+      fit: BoxFit.contain,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
+            ),
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        // If primary image fails, try the fallback image
+        return Image.network(
+          fallbackImageUrl,
+          fit: BoxFit.contain,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.primary,
+                  ),
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, fallbackError, fallbackStackTrace) {
+            // If both primary and fallback images fail, show placeholder
+            return Container(
+              color: Colors.white, // Changed to white
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.shopping_bag_outlined,
+                    color: Colors.grey[400],
+                    size: 28,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Product image',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // Build unavailability message widget
   Widget _buildUnavailabilityMessage(dynamic status) {
     String message;
@@ -274,7 +309,7 @@ class SuggestedProductCard extends ConsumerWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
+        color: Colors.white, // Changed to white
         borderRadius: BorderRadius.circular(4),
       ),
       height: 32, // Match the height of the normal add button
@@ -336,7 +371,7 @@ class SuggestedProductCard extends ConsumerWidget {
               height: 32,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: enabled ? Colors.white : Colors.grey.shade100,
+                color: enabled ? Colors.white : Colors.white, // Changed to white
                 border: Border.symmetric(
                   horizontal: BorderSide(color: Colors.grey.shade300),
                 ),
@@ -533,6 +568,7 @@ class _ManualQuantityInputState extends State<_ManualQuantityInput> {
   @override
   Widget build(BuildContext context) {
     return Container(
+      color: Colors.white, // Added white background for input container
       // Add alignment to center the TextField both horizontally and vertically
       alignment: Alignment.center,
       child: Material(

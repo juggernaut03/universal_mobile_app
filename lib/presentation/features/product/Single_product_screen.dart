@@ -256,6 +256,95 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
       ),
     );
   }
+
+  // Updated product image widget with fallback using ApiConstants
+  Widget _buildProductImage(ProductModel product) {
+    // Check if product image URL is available and valid
+    if (product.pcodeImg.isNotEmpty && 
+        product.pcodeImg != 'null' && 
+        product.pcodeImg.toLowerCase() != 'null') {
+      
+      return Image.network(
+        product.pcodeImg,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              color: AppColors.primary,
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / 
+                    loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          // If main image fails, try fallback image
+          return _buildFallbackImage();
+        },
+      );
+    } else {
+      // If no product image URL, directly show fallback
+      return _buildFallbackImage();
+    }
+  }
+
+  // Fallback image widget using the company logo
+  Widget _buildFallbackImage() {
+    return Image.network(
+      ApiConstants.fallbackImageUrl,
+      fit: BoxFit.contain,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+            value: loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded / 
+                  loadingProgress.expectedTotalBytes!
+                : null,
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        // If even fallback fails, show branded placeholder
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.shopping_bag_outlined,
+                size: 80,
+                color: AppColors.primary.withOpacity(0.6),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Patel Mart',
+                style: TextStyle(
+                  color: AppColors.primary.withOpacity(0.8),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Product Image',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -603,7 +692,7 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product Image Section with enhanced styling
+          // Product Image Section with enhanced styling and fallback
           Container(
             color: Colors.white,
             child: Stack(
@@ -612,36 +701,7 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
                   width: double.infinity,
                   height: 350,
                   padding: const EdgeInsets.all(20),
-                  child: CachedNetworkImageWidget(
-                    imageUrl: product.pcodeImg,
-                    fit: BoxFit.contain,
-                    loadingWidget: Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    errorWidget: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.shopping_bag_outlined,
-                            size: 80,
-                            color: Colors.grey,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Image not available',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  child: _buildProductImage(product), // Use the new method
                 ),
                 
                 // Discount badge

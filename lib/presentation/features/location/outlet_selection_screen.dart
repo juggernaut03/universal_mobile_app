@@ -94,6 +94,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
     // If we're still checking for a single outlet, show loading
     if (_isLoading) {
       return Scaffold(
+        backgroundColor: Colors.white, // Set white background
         appBar: AppBar(
           title: const Text('Checking Stores'),
           leading: IconButton(
@@ -124,6 +125,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: Colors.white, // Set white background
         appBar: AppBar(
           title: const Text('Select Store'),
           leading: IconButton(
@@ -147,27 +149,30 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
                 ),
               ),
               Expanded(
-                child: outletsAsync.when(
-                  data: (outlets) {
-                    if (outlets.isEmpty) {
-                      return _buildEmptyState(context);
-                    }
-                    
-                    return ListView.builder(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isScreenSmall ? 16.0 : 24.0,
-                      ),
-                      itemCount: outlets.length,
-                      itemBuilder: (context, index) {
-                        final outlet = outlets[index];
-                        return _buildOutletCard(context, ref, outlet);
-                      },
-                    );
-                  },
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(),
+                child: Container(
+                  color: Colors.white, // Ensure container background is white
+                  child: outletsAsync.when(
+                    data: (outlets) {
+                      if (outlets.isEmpty) {
+                        return _buildEmptyState(context);
+                      }
+                      
+                      return ListView.builder(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isScreenSmall ? 16.0 : 24.0,
+                        ),
+                        itemCount: outlets.length,
+                        itemBuilder: (context, index) {
+                          final outlet = outlets[index];
+                          return _buildOutletCard(context, ref, outlet);
+                        },
+                      );
+                    },
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                    error: (error, stackTrace) => _buildErrorState(context, ref, error),
                   ),
-                  error: (error, stackTrace) => _buildErrorState(context, ref, error),
                 ),
               ),
             ],
@@ -176,9 +181,6 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
       ),
     );
   }
-
-  // Other methods remain the same as the original
-  // ...
   
   Widget _buildOutletCard(BuildContext context, WidgetRef ref, OutletModel outlet) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -193,11 +195,15 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
       width: cardWidth,
       margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: Colors.white, // Set card background to white
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.shade200, // Add subtle border for definition
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow.withOpacity(0.1),
+            color: Colors.grey.shade200, // Lighter shadow for white background
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -299,90 +305,96 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.store_mall_directory_outlined,
-              size: 72,
-              color: AppColors.neutral400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No Stores Available',
-              style: AppTextStyles.h5,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'We couldn\'t find any stores serving this pincode. Please try a different pincode.',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+    return Container(
+      color: Colors.white, // White background for empty state
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.store_mall_directory_outlined,
+                size: 72,
+                color: AppColors.neutral400,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                context.go('/pincode-selection');
-              },
-              child: const Text('Change Pincode'),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                'No Stores Available',
+                style: AppTextStyles.h5,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'We couldn\'t find any stores serving this pincode. Please try a different pincode.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  context.go('/pincode-selection');
+                },
+                child: const Text('Change Pincode'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildErrorState(BuildContext context, WidgetRef ref, Object error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 72,
-              color: AppColors.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Error Loading Stores',
-              style: AppTextStyles.h5.copyWith(
+    return Container(
+      color: Colors.white, // White background for error state
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 72,
                 color: AppColors.error,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              error.toString(),
-              style: AppTextStyles.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    ref.refresh(availableOutletsProvider(widget.pincode));
-                  },
-                  child: const Text('Retry'),
+              const SizedBox(height: 16),
+              Text(
+                'Error Loading Stores',
+                style: AppTextStyles.h5.copyWith(
+                  color: AppColors.error,
                 ),
-                const SizedBox(width: 16),
-                OutlinedButton(
-                  onPressed: () {
-                    context.go('/pincode-selection');
-                  },
-                  child: const Text('Change Pincode'),
-                ),
-              ],
-            ),
-          ],
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                error.toString(),
+                style: AppTextStyles.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      ref.refresh(availableOutletsProvider(widget.pincode));
+                    },
+                    child: const Text('Retry'),
+                  ),
+                  const SizedBox(width: 16),
+                  OutlinedButton(
+                    onPressed: () {
+                      context.go('/pincode-selection');
+                    },
+                    child: const Text('Change Pincode'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -413,7 +425,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
         
         // Navigate to store info screen
         if (context.mounted) {
-  context.go('/home');
+          context.go('/home');
         }
       } else {
         // Show error message if unable to save outlet

@@ -215,6 +215,7 @@ class _FAQScreenState extends ConsumerState<FAQScreen> {
         onWillPop: _handleBackPress,
         child: BackButtonWrapper(
           child: Scaffold(
+            backgroundColor: Colors.white, // Added white background color
             appBar: AppBar(
               title: const Text('Frequently Asked Questions'),
               backgroundColor: AppColors.primary,
@@ -312,7 +313,7 @@ class _FAQScreenState extends ConsumerState<FAQScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.pink.shade50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ExpansionTile(

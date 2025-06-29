@@ -156,6 +156,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
       child: WillPopScope(
         onWillPop: _handleBackPress,
         child: Scaffold(
+          backgroundColor: Colors.white, // Added white background color
           appBar: AppBar(
             title: const Text('Terms & Policies'),
             leading: IconButton(
@@ -258,7 +259,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
             decoration: BoxDecoration(
               color: isExpanded 
                   ? AppColors.primary.withOpacity(0.05)
-                  : Colors.transparent,
+                  : Colors.white, // Changed to white
               border: Border(
                 left: BorderSide(
                   color: isExpanded ? AppColors.primary : Colors.transparent,
@@ -310,7 +311,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
     return contentAsync.when(
       data: (content) {
         return Container(
-          color: AppColors.neutral50,
+          color: Colors.white, // Changed to white
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Html(
@@ -389,7 +390,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
         );
       },
       loading: () => Container(
-        color: AppColors.neutral50,
+        color: Colors.white, // Changed to white
         padding: const EdgeInsets.all(32.0),
         child: Column(
           children: [
@@ -409,7 +410,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
       ),
       error: (error, stack) => Builder(
         builder: (context) => Container(
-          color: AppColors.neutral50,
+          color: Colors.white, // Changed to white
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
@@ -460,7 +461,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.neutral100,
+                  color: Colors.white, // Changed to white
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.neutral300),
                 ),
@@ -513,14 +514,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withOpacity(0.1),
-            AppColors.primaryLighter.withOpacity(0.05),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white, // Changed to white
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.primary.withOpacity(0.2)),
       ),
@@ -726,7 +720,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.neutral100,
+        color: Colors.white, // Changed to white
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -741,7 +735,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '© 2024 Patel\'s Rmart. All rights reserved.',
+            '© 2025 Patel\'s Rmart. All rights reserved.',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -749,7 +743,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'These terms are governed by Indian law and subject to the jurisdiction of courts in Maharashtra, India.',
+            'These terms are governed by Indian law and subject to the jurisdiction of courts in Maharashtra, India. Developed By Shalvi Advision',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSecondary,
             ),

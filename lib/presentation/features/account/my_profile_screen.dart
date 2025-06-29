@@ -417,6 +417,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     final profileState = ref.watch(profileEditingProvider);
     
     return Scaffold(
+      backgroundColor: Colors.white, // Set white background
       appBar: AppBar(
         backgroundColor: Color(0xFF77318B), // Purple color from screenshot
         foregroundColor: Colors.white,

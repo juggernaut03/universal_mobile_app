@@ -57,6 +57,12 @@ final bestSellerProductsProvider = FutureProvider.family<List<ProductModel>, int
   return repository.getBestSellerProducts(bestSellerId);
 });
 
+// NEW: Provider for best seller title with family parameter for different section IDs
+final bestSellerTitleProvider = FutureProvider.family<String, int>((ref, bestSellerId) async {
+  final repository = ref.watch(bestSellerRepositoryProvider);
+  return repository.getBestSellerTitle(bestSellerId);
+});
+
 // Provider for background color to ensure it refreshes properly
 final bestSellerBackgroundColorProvider = Provider.family<Color, int>((ref, bestSellerId) {
   final bannersAsync = ref.watch(bestSellerBannerProvider(bestSellerId));
@@ -102,16 +108,20 @@ final bestSellerRefreshProvider = Provider<Future<void> Function()>((ref) {
     // Set the refresh flag to true to trigger cache clearing
     ref.read(refreshBestSellerProvider.notifier).state = true;
     
-    // Refresh all the best seller providers
+    // Refresh all the best seller providers (including titles)
     await Future.wait([
       ref.refresh(bestSellerBannerProvider(1).future),
       ref.refresh(bestSellerProductsProvider(1).future),
+      ref.refresh(bestSellerTitleProvider(1).future),
       ref.refresh(bestSellerBannerProvider(2).future),
       ref.refresh(bestSellerProductsProvider(2).future),
+      ref.refresh(bestSellerTitleProvider(2).future),
       ref.refresh(bestSellerBannerProvider(3).future),
       ref.refresh(bestSellerProductsProvider(3).future),
+      ref.refresh(bestSellerTitleProvider(3).future),
       ref.refresh(bestSellerBannerProvider(4).future),
       ref.refresh(bestSellerProductsProvider(4).future),
+      ref.refresh(bestSellerTitleProvider(4).future),
     ]);
   };
 });

@@ -79,6 +79,31 @@ class BestSellerBanner {
   }
 }
 
+// New model for Best Seller Products Response with title
+class BestSellerProductsResponse {
+  final String title;
+  final List<dynamic> products; // Keep as dynamic for now since ProductModel is created later
+
+  BestSellerProductsResponse({
+    required this.title,
+    required this.products,
+  });
+
+  factory BestSellerProductsResponse.fromJson(Map<String, dynamic> json) {
+    return BestSellerProductsResponse(
+      title: json['title'] ?? 'Best Seller',
+      products: json['bestseller_details'] ?? [],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'bestseller_details': products,
+    };
+  }
+}
+
 // Helper to map best seller ID to appropriate banner type ID and API endpoint
 class BestSellerConfig {
   static int getBannerTypeId(int bestSellerId) {
@@ -108,6 +133,22 @@ class BestSellerConfig {
         return 'get_active_best_seller_4';
       default:
         return 'get_active_best_seller_1';
+    }
+  }
+  
+  // Default titles as fallback (can be used if API doesn't return title)
+  static String getDefaultTitle(int bestSellerId) {
+    switch (bestSellerId) {
+      case 1:
+        return 'Best Deals';
+      case 2:
+        return 'Best Offers';
+      case 3:
+        return 'Chai Time';
+      case 4:
+        return 'Top Picks For You';
+      default:
+        return 'Featured Products';
     }
   }
 }
