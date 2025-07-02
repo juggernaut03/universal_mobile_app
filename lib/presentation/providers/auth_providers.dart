@@ -1,6 +1,8 @@
 // lib/presentation/providers/auth_providers.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
 import 'package:patelmart/presentation/providers/favorites_provider.dart';
 import '../../core/network/api_client.dart';
 import '../../data/services/auth_service.dart';
@@ -13,16 +15,30 @@ final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage();
 });
 
-// Provider for AuthService
+// Provider for HTTP Client (new - for FCM token API calls)
+final httpClientProvider = Provider<http.Client>((ref) {
+  return http.Client();
+});
+
+// Provider for Firebase Messaging (new - for FCM token functionality)
+final firebaseMessagingProvider = Provider<FirebaseMessaging>((ref) {
+  return FirebaseMessaging.instance;
+});
+
+// Enhanced AuthService provider with FCM integration
 final authServiceProvider = Provider<AuthService>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   final secureStorage = ref.watch(secureStorageProvider);
   final logger = ref.watch(loggerProvider);
+  final httpClient = ref.watch(httpClientProvider);
+  final firebaseMessaging = ref.watch(firebaseMessagingProvider);
   
   return AuthService(
     apiClient: apiClient,
     secureStorage: secureStorage,
     logger: logger,
+    httpClient: httpClient,
+    firebaseMessaging: firebaseMessaging,
   );
 });
 
@@ -87,10 +103,7 @@ final otpValidationProvider = FutureProvider.autoDispose((ref) async {
   return await repository.validateOtp(mobileNumber, otp);
 });
 
-// OTP validation notifier
-// lib/presentation/providers/auth_providers.dart
-// Find the OtpValidationNotifier class and update the _initializeFavoritesAfterLogin method
-
+// Enhanced OTP validation notifier with FCM token integration
 class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationResponse?>> {
   final Ref _ref;
   
@@ -109,6 +122,10 @@ class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationRespon
         
         // Initialize favorites after successful login
         _initializeFavoritesAfterLogin();
+        
+        // FCM token will be automatically saved by the AuthService
+        // No additional code needed here as it's handled in _saveUserCredentials
+        
       } else {
         // Set login state to failure
         _ref.read(loginStateProvider.notifier).state = LoginState.failure;
@@ -154,7 +171,6 @@ final logoutProvider = Provider((ref) {
     ref.read(loginStateProvider.notifier).state = LoginState.initial;
     
     // Clear favorites when logging out
-    // We'll import this in the actual file
     try {
       // Clear favorites state
       // ref.read(favoritesProvider.notifier).clearFavorites();
@@ -166,6 +182,105 @@ final logoutProvider = Provider((ref) {
     ref.invalidate(userProfileProvider);
     ref.invalidate(isLoggedInProvider);
   };
+});
+
+// ========== NEW FCM TOKEN PROVIDERS ==========
+
+// Provider to get FCM token status (for debugging)
+final fcmTokenStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final authService = ref.watch(authServiceProvider);
+  return await authService.getFcmTokenStatus();
+});
+
+// Provider to manually refresh FCM token
+final refreshFcmTokenProvider = Provider<Future<bool> Function()>((ref) {
+  return () async {
+    final authService = ref.read(authServiceProvider);
+    final logger = ref.read(loggerProvider);
+    
+    logger.log('Manually triggering FCM token refresh...');
+    final success = await authService.refreshFcmToken();
+    
+    if (success) {
+      logger.log('Manual FCM token refresh successful');
+    } else {
+      logger.error('Manual FCM token refresh failed');
+    }
+    
+    return success;
+  };
+});
+
+// Provider to check if FCM token needs update
+final fcmTokenNeedsUpdateProvider = FutureProvider.autoDispose<bool>((ref) async {
+  final authService = ref.watch(authServiceProvider);
+  return await authService.shouldUpdateFcmToken();
+});
+
+// Provider to get current FCM token (for debugging)
+final currentFcmTokenProvider = FutureProvider.autoDispose<String?>((ref) async {
+  final authService = ref.watch(authServiceProvider);
+  return await authService.getCurrentFcmToken();
+});
+
+// Provider for FCM token operations (direct access to auth service FCM methods)
+final fcmTokenOperationsProvider = Provider<AuthService>((ref) {
+  return ref.watch(authServiceProvider);
+});
+
+// Auto FCM token save watcher (automatically saves FCM token when user logs in)
+final fcmTokenAutoSaveWatcherProvider = Provider<void>((ref) {
+  // Watch user profile changes
+  final userProfileAsync = ref.watch(userProfileProvider);
+  final logger = ref.read(loggerProvider);
+  
+  userProfileAsync.whenData((userProfile) {
+    if (userProfile != null) {
+      // User is logged in, check if FCM token needs to be saved
+      Future.delayed(const Duration(seconds: 1), () async {
+        try {
+          final authService = ref.read(authServiceProvider);
+          final needsUpdate = await authService.shouldUpdateFcmToken();
+          
+          if (needsUpdate) {
+            logger.log('FCM token needs update, triggering save...');
+            final success = await authService.refreshFcmToken();
+            
+            if (success) {
+              logger.log('Auto FCM token save successful');
+            } else {
+              logger.warning('Auto FCM token save failed');
+            }
+          } else {
+            logger.log('FCM token is up to date');
+          }
+        } catch (e) {
+          logger.error('Error in auto FCM token save: $e');
+        }
+      });
+    }
+  });
+  
+  return;
+});
+
+// Background FCM token manager (sets up token refresh listener)
+final fcmTokenBackgroundManagerProvider = Provider<void>((ref) {
+  final userProfileAsync = ref.watch(userProfileProvider);
+  final logger = ref.read(loggerProvider);
+  
+  userProfileAsync.whenData((userProfile) {
+    if (userProfile != null) {
+      logger.log('Setting up FCM token background management for: ${userProfile.mobile}');
+      
+      // The AuthService already sets up the token refresh listener
+      // in _saveUserCredentials, so we don't need to do anything here.
+      // This provider exists mainly for monitoring and can be used
+      // for additional FCM token management logic if needed.
+    }
+  });
+  
+  return;
 });
 
 // Login state enum

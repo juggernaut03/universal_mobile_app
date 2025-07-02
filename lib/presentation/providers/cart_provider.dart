@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/product_model.dart';
 import '../../data/services/cart_storage_service.dart';
 import '../../data/services/cart_validator.dart';
+import '../../data/services/cart_session_manager.dart';
 import '../../core/utils/logger.dart';
 import 'launch_flow_provider.dart';
 
@@ -44,33 +45,55 @@ final cartStorageServiceProvider = Provider<CartStorageService>((ref) {
   return CartStorageService(prefs: prefs, logger: logger);
 });
 
-// Cart state notifier
+// Provider for cart session manager
+final cartSessionManagerProvider = Provider<CartSessionManager>((ref) {
+  final logger = ref.watch(loggerProvider);
+  return CartSessionManager(logger: logger);
+});
+
+// Cart state notifier with enhanced session management
 class CartNotifier extends StateNotifier<List<CartItem>> {
   // Store a reference to Ref for accessing other providers
   final Ref _ref;
   final CartStorageService _cartStorage;
+  late final CartSessionManager _sessionManager;
+  late final Logger _logger;
   
   CartNotifier(this._ref, this._cartStorage) : super([]) {
+    // Initialize session manager and logger
+    _sessionManager = _ref.read(cartSessionManagerProvider);
+    _logger = _ref.read(loggerProvider);
+    
     // Load cart from persistent storage on initialization
     _loadCart();
   }
 
-  // Load cart from persistent storage
+  // FIXED: Load cart with proper session initialization
   Future<void> _loadCart() async {
     try {
       final items = await _cartStorage.loadCart();
       state = items;
       
-      // Refresh the cart session timestamp each time cart is loaded
+      // FIXED: Ensure we have a valid session when cart is loaded
       if (items.isNotEmpty) {
-        await _cartStorage.refreshCartSession();
+        final sessionValid = await _sessionManager.isCartSessionValid();
+        if (!sessionValid) {
+          _logger.log('Cart loaded but session invalid - creating new session');
+          await _sessionManager.createNewOrderSession();
+        } else {
+          await _cartStorage.refreshCartSession();
+        }
+      } else {
+        // If cart is empty, ensure we have a fresh session ready
+        final sessionValid = await _sessionManager.isCartSessionValid();
+        if (!sessionValid) {
+          await _sessionManager.createNewOrderSession();
+        }
       }
       
-      final logger = _ref.read(loggerProvider);
-      logger.log('Loaded ${items.length} items from persistent cart storage');
+      _logger.log('Loaded ${items.length} items from persistent cart storage');
     } catch (e) {
-      final logger = _ref.read(loggerProvider);
-      logger.error('Error loading cart: $e');
+      _logger.error('Error loading cart: $e');
     }
   }
   
@@ -79,13 +102,15 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     try {
       await _cartStorage.saveCart(state);
     } catch (e) {
-      final logger = _ref.read(loggerProvider);
-      logger.error('Error saving cart: $e');
+      _logger.error('Error saving cart: $e');
     }
   }
 
-  // Add item to cart
+  // ENHANCED: Add item to cart with session management
   void addItem(ProductModel product) {
+    // Mark cart as modified for session management
+    _markCartAsModifiedAsync();
+    
     final index = state.indexWhere((item) => item.product.pCode == product.pCode);
     if (index >= 0) {
       // Product exists, increment quantity if below max allowed
@@ -97,16 +122,23 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         );
         state = updatedItems;
         _saveCart(); // Save cart after update
+        _logger.log('Incremented quantity for ${product.productName} to ${existingItem.quantity + 1}');
+      } else {
+        _logger.log('Cannot add more ${product.productName} - max quantity reached');
       }
     } else {
       // Product doesn't exist, add it
       state = [...state, CartItem(product: product, quantity: 1)];
       _saveCart(); // Save cart after update
+      _logger.log('Added new item to cart: ${product.productName}');
     }
   }
 
-  // Add item with specific quantity (used for cart updates)
+  // ENHANCED: Add item with specific quantity with session management
   void addItemWithQuantity(ProductModel product, int quantity) {
+    // Mark cart as modified for session management
+    _markCartAsModifiedAsync();
+    
     final index = state.indexWhere((item) => item.product.pCode == product.pCode);
     if (index >= 0) {
       // Product exists, update with new quantity (limited by max allowed)
@@ -119,10 +151,12 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         quantity: actualQuantity,
       );
       state = updatedItems;
+      _logger.log('Updated ${product.productName} quantity to $actualQuantity');
     } else {
       // Product doesn't exist, add it with the specified quantity
       final actualQuantity = quantity.clamp(1, product.maxQuantityAllowed);
       state = [...state, CartItem(product: product, quantity: actualQuantity)];
+      _logger.log('Added ${product.productName} with quantity $actualQuantity');
     }
     _saveCart(); // Save cart after update
   }
@@ -138,11 +172,15 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       );
       state = updatedItems;
       _saveCart(); // Save cart after update
+      _logger.log('Updated product info for ${newProduct.productName}');
     }
   }
 
-  // Increment quantity
+  // ENHANCED: Increment quantity with session management
   void incrementQuantity(ProductModel product) {
+    // Mark cart as modified for session management
+    _markCartAsModifiedAsync();
+    
     final index = state.indexWhere((item) => item.product.pCode == product.pCode);
     if (index >= 0) {
       final existingItem = state[index];
@@ -153,12 +191,18 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         );
         state = updatedItems;
         _saveCart(); // Save cart after update
+        _logger.log('Incremented ${product.productName} to ${existingItem.quantity + 1}');
+      } else {
+        _logger.log('Cannot increment ${product.productName} - max quantity reached');
       }
     }
   }
 
-  // Decrement quantity
+  // ENHANCED: Decrement quantity with session management
   void decrementQuantity(ProductModel product) {
+    // Mark cart as modified for session management
+    _markCartAsModifiedAsync();
+    
     final index = state.indexWhere((item) => item.product.pCode == product.pCode);
     if (index >= 0) {
       final existingItem = state[index];
@@ -169,6 +213,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         );
         state = updatedItems;
         _saveCart(); // Save cart after update
+        _logger.log('Decremented ${product.productName} to ${existingItem.quantity - 1}');
       } else {
         // Remove item if quantity becomes 0
         removeItem(product);
@@ -176,35 +221,45 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     }
   }
 
-  // Remove item from cart
+  // ENHANCED: Remove item with session management
   void removeItem(ProductModel product) {
+    // Mark cart as modified for session management
+    _markCartAsModifiedAsync();
+    
     state = state.where((item) => item.product.pCode != product.pCode).toList();
     _saveCart(); // Save cart after update
+    _logger.log('Removed ${product.productName} from cart');
   }
 
-  // Clear cart and optionally clear cart key in storage
+  // FIXED: Clear cart with proper session cleanup
   Future<void> clearCart({bool clearCartKeyInStorage = false}) async {
-    // Clear cart items in state
-    state = [];
-    
-    // Clear cart data from persistent storage
-    await _cartStorage.clearCart();
-    
-    // If requested, also clear the cart key in storage
-    if (clearCartKeyInStorage) {
-      try {
-        // Access the CartValidator through ref
-        final cartValidator = _ref.read(cartValidatorProvider);
-        await cartValidator.clearCartData();
-        
-        // Log the complete cart clearing
-        final logger = _ref.read(loggerProvider);
-        logger.log('Cart and cart key completely cleared');
-      } catch (e) {
-        // Log error but don't fail the cart clearing operation
-        final logger = _ref.read(loggerProvider);
-        logger.error('Error clearing cart key: $e');
+    try {
+      // Mark cart as modified for session management
+      await _markCartAsModified();
+      
+      // Clear cart items in state
+      state = [];
+      
+      // Clear cart data from persistent storage
+      await _cartStorage.clearCart();
+      
+      // FIXED: Always create new session after cart clear to prepare for next order
+      await _sessionManager.createNewOrderSession();
+      
+      if (clearCartKeyInStorage) {
+        try {
+          final cartValidator = _ref.read(cartValidatorProvider);
+          await cartValidator.clearCartData();
+          _logger.log('Cart and cart key completely cleared');
+        } catch (e) {
+          _logger.error('Error clearing cart key: $e');
+        }
       }
+      
+      _logger.log('Cart cleared and new session created for next order');
+      
+    } catch (e) {
+      _logger.error('Error clearing cart: $e');
     }
   }
   
@@ -221,6 +276,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       // Check if this item should be removed (out of stock)
       if (removeItems.any((product) => product.pCode == item.product.pCode)) {
         // Skip this item (effectively removing it)
+        _logger.log('Removing ${item.product.productName} due to validation');
         continue;
       }
       
@@ -234,6 +290,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
           product: updatedProduct,
           quantity: item.quantity,
         ));
+        _logger.log('Updated price for ${item.product.productName} to ₹$newPrice');
       } else {
         // No changes needed, keep as is
         updatedCart.add(item);
@@ -243,6 +300,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     // Update the state with the new cart
     state = updatedCart;
     _saveCart(); // Save cart after update
+    _logger.log('Applied validation changes to cart');
   }
   
   // Get the expiration time of the cart session in days
@@ -256,6 +314,283 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   // Refresh the cart session (extend expiration)
   Future<bool> refreshSession() async {
     return await _cartStorage.refreshCartSession();
+  }
+
+  // ENHANCED SESSION MANAGEMENT METHODS
+
+  // Mark cart as modified (handles session management)
+  Future<void> _markCartAsModified() async {
+    try {
+      await _sessionManager.updateCartModification();
+      
+      // Check if session needs to be reset
+      final isSessionValid = await _sessionManager.isCartSessionValid();
+      if (!isSessionValid) {
+        _logger.log('Cart session invalid - resetting session due to cart modification');
+        await _sessionManager.resetCartSession();
+      }
+      
+    } catch (e) {
+      _logger.error('Error marking cart as modified: $e');
+    }
+  }
+
+  // Async version for non-async methods
+  void _markCartAsModifiedAsync() {
+    // Run async operation without waiting
+    Future.microtask(() async {
+      await _markCartAsModified();
+    });
+  }
+
+  // FIXED: Mark order as processing with proper session validation
+  Future<void> markOrderAsProcessing() async {
+    try {
+      // Ensure we have valid session before marking as processing
+      final sessionValid = await _sessionManager.isCartSessionValid();
+      if (!sessionValid) {
+        _logger.warning('Session invalid when marking as processing - creating new session');
+        await _sessionManager.createNewOrderSession();
+      }
+      
+      final prefs = await SharedPreferences.getInstance();
+      final tempOrderId = prefs.getString('temp_order_id');
+      
+      if (tempOrderId != null) {
+        await _sessionManager.markOrderAsProcessing(tempOrderId);
+        _logger.log('Order marked as processing: $tempOrderId');
+      } else {
+        _logger.warning('No temp order ID found when marking as processing');
+        // Force create new session if missing temp order ID
+        await _sessionManager.createNewOrderSession();
+      }
+    } catch (e) {
+      _logger.error('Error marking order as processing: $e');
+    }
+  }
+
+  // Mark order as payment processing
+  Future<void> markOrderAsPaymentProcessing() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tempOrderId = prefs.getString('temp_order_id');
+      
+      if (tempOrderId != null) {
+        await _sessionManager.markOrderAsPaymentProcessing(tempOrderId);
+        _logger.log('Order marked as payment processing: $tempOrderId');
+      } else {
+        _logger.warning('No temp order ID found when marking as payment processing');
+      }
+    } catch (e) {
+      _logger.error('Error marking order as payment processing: $e');
+    }
+  }
+
+  // FIXED: Mark order as completed (automatically creates new session)
+  Future<void> markOrderAsCompleted() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tempOrderId = prefs.getString('temp_order_id');
+      
+      if (tempOrderId != null) {
+        await _sessionManager.markOrderAsCompleted(tempOrderId);
+        _logger.log('Order marked as completed: $tempOrderId');
+        _logger.log('New session automatically created for next order');
+      } else {
+        _logger.warning('No temp order ID found when marking as completed');
+        // Create new session anyway
+        await _sessionManager.createNewOrderSession();
+      }
+    } catch (e) {
+      _logger.error('Error marking order as completed: $e');
+    }
+  }
+
+  // FIXED: Mark order as failed (automatically creates new session)
+  Future<void> markOrderAsFailed() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tempOrderId = prefs.getString('temp_order_id');
+      
+      if (tempOrderId != null) {
+        await _sessionManager.markOrderAsFailed(tempOrderId);
+        _logger.log('Order marked as failed: $tempOrderId');
+        _logger.log('New session automatically created for retry');
+      } else {
+        _logger.warning('No temp order ID found when marking as failed');
+        // Create new session anyway
+        await _sessionManager.createNewOrderSession();
+      }
+    } catch (e) {
+      _logger.error('Error marking order as failed: $e');
+    }
+  }
+
+  // Reset cart session manually
+  Future<void> resetCartSession() async {
+    try {
+      await _sessionManager.resetCartSession();
+      _logger.log('Cart session manually reset');
+    } catch (e) {
+      _logger.error('Error resetting cart session: $e');
+    }
+  }
+
+  // Get current session state
+  Future<String> getSessionState() async {
+    try {
+      return await _sessionManager.getOrderProcessingState();
+    } catch (e) {
+      _logger.error('Error getting session state: $e');
+      return 'unknown';
+    }
+  }
+
+  // Check if session is valid
+  Future<bool> isSessionValid() async {
+    try {
+      return await _sessionManager.isCartSessionValid();
+    } catch (e) {
+      _logger.error('Error checking session validity: $e');
+      return false;
+    }
+  }
+
+  // Force refresh cart session
+  Future<void> forceRefreshSession() async {
+    try {
+      await _sessionManager.forceCleanupAndCreateNew();
+      _logger.log('Cart session force refreshed with completely new identifiers');
+    } catch (e) {
+      _logger.error('Error force refreshing session: $e');
+    }
+  }
+
+  // FIXED: Prepare cart for new order placement
+  Future<Map<String, String?>> prepareForNewOrder() async {
+    try {
+      _logger.log('=== PREPARING CART FOR NEW ORDER ===');
+      
+      // Ensure cart has items
+      if (state.isEmpty) {
+        _logger.warning('Cannot prepare for order - cart is empty');
+        return {
+          'temp_order_id': null,
+          'cart_key': null,
+          'device_id': null,
+        };
+      }
+      
+      // Create completely new session for this order
+      await _sessionManager.createNewOrderSession();
+      
+      // Get the fresh identifiers
+      final prefs = await SharedPreferences.getInstance();
+      final tempOrderId = prefs.getString('temp_order_id');
+      final cartKey = prefs.getString('cart_key');
+      final deviceId = prefs.getString('device_id');
+      
+      _logger.log('Cart prepared for new order:');
+      _logger.log('- Items: ${state.length}');
+      _logger.log('- Fresh Temp Order ID: $tempOrderId');
+      _logger.log('- Fresh Cart Key: $cartKey');
+      _logger.log('- Device ID: $deviceId');
+      
+      return {
+        'temp_order_id': tempOrderId,
+        'cart_key': cartKey,
+        'device_id': deviceId,
+      };
+    } catch (e) {
+      _logger.error('Error preparing cart for new order: $e');
+      return {
+        'temp_order_id': null,
+        'cart_key': null,
+        'device_id': null,
+      };
+    }
+  }
+
+  // Check if cart is ready for order placement
+  Future<bool> isReadyForOrderPlacement() async {
+    try {
+      // Check if cart has items
+      if (state.isEmpty) {
+        _logger.log('Cart not ready - no items');
+        return false;
+      }
+      
+      // Check if session is valid
+      final sessionValid = await _sessionManager.isCartSessionValid();
+      if (!sessionValid) {
+        _logger.log('Cart not ready - invalid session');
+        return false;
+      }
+      
+      // Check session state
+      final sessionState = await _sessionManager.getOrderProcessingState();
+      if (sessionState == CartSessionManager.stateProcessing ||
+          sessionState == CartSessionManager.statePaymentProcessing ||
+          sessionState == CartSessionManager.stateCompleted) {
+        _logger.log('Cart not ready - order already in progress ($sessionState)');
+        return false;
+      }
+      
+      _logger.log('Cart is ready for order placement');
+      return true;
+    } catch (e) {
+      _logger.error('Error checking if cart is ready: $e');
+      return false;
+    }
+  }
+
+  // FIXED: Enhanced session debug info
+  Future<Map<String, dynamic>> getSessionDebugInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionInfo = await _sessionManager.getSessionInfo();
+      
+      return {
+        ...sessionInfo,
+        'cart_items_count': state.length,
+        'cart_total': state.fold(0.0, (sum, item) => sum + item.totalPrice),
+        'cart_savings': state.fold(0.0, (sum, item) => sum + item.savings),
+        'cart_items': state.map((item) => {
+          'product_name': item.product.productName,
+          'quantity': item.quantity,
+          'price': item.product.ourPrice,
+          'total': item.totalPrice,
+        }).toList(),
+      };
+    } catch (e) {
+      _logger.error('Error getting session debug info: $e');
+      return {'error': e.toString()};
+    }
+  }
+
+  // Get cart summary for order placement
+  Map<String, dynamic> getCartSummary() {
+    final total = state.fold(0.0, (sum, item) => sum + item.totalPrice);
+    final totalMrp = state.fold(0.0, (sum, item) => sum + item.totalMrp);
+    final savings = totalMrp - total;
+    final itemCount = state.fold(0, (sum, item) => sum + item.quantity);
+    
+    return {
+      'total_items': state.length,
+      'total_quantity': itemCount,
+      'total_price': total,
+      'total_mrp': totalMrp,
+      'total_savings': savings,
+      'formatted_total': '₹${total.toStringAsFixed(2)}',
+      'formatted_savings': '₹${savings.toStringAsFixed(2)}',
+      'items': state.map((item) => {
+        'pcode': item.product.pCode,
+        'name': item.product.productName,
+        'quantity': item.quantity,
+        'price': item.product.ourPrice,
+        'total': item.totalPrice,
+      }).toList(),
+    };
   }
 }
 
@@ -271,6 +606,12 @@ final cartTotalProvider = Provider<double>((ref) {
   return cartItems.fold(0, (total, item) => total + item.totalPrice);
 });
 
+// Cart MRP total provider
+final cartMrpTotalProvider = Provider<double>((ref) {
+  final cartItems = ref.watch(cartProvider);
+  return cartItems.fold(0, (total, item) => total + item.totalMrp);
+});
+
 // Cart savings provider
 final cartSavingsProvider = Provider<double>((ref) {
   final cartItems = ref.watch(cartProvider);
@@ -283,8 +624,72 @@ final cartCountProvider = Provider<int>((ref) {
   return cartItems.length;
 });
 
+// Cart item count provider (total quantity)
+final cartItemCountProvider = Provider<int>((ref) {
+  final cartItems = ref.watch(cartProvider);
+  return cartItems.fold(0, (total, item) => total + item.quantity);
+});
+
 // Cart validator provider
 final cartValidatorProvider = Provider((ref) {
   final logger = ref.watch(loggerProvider);
   return CartValidator(logger: logger);
+});
+
+// Helper providers for cart session management
+
+// Provider to get current session state
+final cartSessionStateProvider = FutureProvider<String>((ref) async {
+  final cartNotifier = ref.watch(cartProvider.notifier);
+  return await cartNotifier.getSessionState();
+});
+
+// Provider to check if session is valid
+final cartSessionValidityProvider = FutureProvider<bool>((ref) async {
+  final cartNotifier = ref.watch(cartProvider.notifier);
+  return await cartNotifier.isSessionValid();
+});
+
+// Provider for session debug info
+final cartSessionDebugProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final cartNotifier = ref.watch(cartProvider.notifier);
+  return await cartNotifier.getSessionDebugInfo();
+});
+
+// Provider to check if cart is empty
+final isCartEmptyProvider = Provider<bool>((ref) {
+  final cartItems = ref.watch(cartProvider);
+  return cartItems.isEmpty;
+});
+
+// Provider to check if cart is ready for order placement
+final cartReadyForOrderProvider = FutureProvider<bool>((ref) async {
+  final cartNotifier = ref.watch(cartProvider.notifier);
+  return await cartNotifier.isReadyForOrderPlacement();
+});
+
+// Provider to get cart summary
+final cartSummaryProvider = Provider<Map<String, dynamic>>((ref) {
+  final cartItems = ref.watch(cartProvider);
+  final cartNotifier = ref.watch(cartProvider.notifier);
+  
+  if (cartItems.isEmpty) {
+    return {
+      'total': 0.0,
+      'savings': 0.0,
+      'count': 0,
+      'item_count': 0,
+      'is_empty': true,
+      'formatted_total': '₹0.00',
+      'formatted_savings': '₹0.00',
+    };
+  }
+  
+  return cartNotifier.getCartSummary();
+});
+
+// Provider for cart preparation for new order
+final cartOrderPreparationProvider = FutureProvider<Map<String, String?>>((ref) async {
+  final cartNotifier = ref.watch(cartProvider.notifier);
+  return await cartNotifier.prepareForNewOrder();
 });

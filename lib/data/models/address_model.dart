@@ -217,4 +217,6 @@ class Address {
       longitude: longitude ?? this.longitude,
     );
   }
+
+  static fromMap(Map<String, dynamic> deliveryAddressMap) {}
 }
