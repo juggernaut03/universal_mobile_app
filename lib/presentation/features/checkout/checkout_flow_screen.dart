@@ -2997,7 +2997,7 @@ Future<void> _placeOrder() async {
         });
         
         // Show payment failure message
-        _showErrorSnackBar('Payment failed. Order has been cancelled. Please try again.');
+        _showErrorSnackBar('Payment failed . Please try again.');
       }
       
     } else {
