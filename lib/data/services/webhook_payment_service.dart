@@ -18,17 +18,20 @@ class WebhookPaymentService {
     _client = client ?? http.Client();
 
   /// Fetch complete payment details using Razorpay Payments API
-  /// This gets the updated data that includes UPI details
+  /// This gets the updated data that includes UPI details and temp order tracking
   Future<Map<String, dynamic>?> fetchCompletePaymentDetails({
     required String paymentId,
     required String keyId,
     required String keySecret,
+    String? tempOrderId, // Track temp order ID for logging
   }) async {
     try {
       _logger.log('Fetching complete payment details for: $paymentId');
+      _logger.log('Temp Order ID: ${tempOrderId ?? "Not provided"}');
       
       print('\n🔍 === FETCHING COMPLETE PAYMENT DATA === 🔍');
       print('Payment ID: $paymentId');
+      print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
       print('Using Razorpay Payments API...');
       print('🔍 === CALLING API === 🔍\n');
 
@@ -58,6 +61,27 @@ class WebhookPaymentService {
       if (response.statusCode == 200) {
         final paymentData = jsonDecode(response.body);
         
+        // ENHANCED: Add temp order ID tracking to the payment data
+        if (tempOrderId != null) {
+          // Check if notes already exist
+          if (paymentData['notes'] == null) {
+            paymentData['notes'] = {};
+          }
+          
+          // Add temp order ID to notes if not already present
+          if (paymentData['notes']['temp_order_id'] == null) {
+            paymentData['notes']['temp_order_id'] = tempOrderId;
+          }
+          
+          // Add enhancement metadata
+          paymentData['enhancement_metadata'] = {
+            'enhanced_at': DateTime.now().toIso8601String(),
+            'temp_order_id': tempOrderId,
+            'webhook_enhancement': true,
+            'api_fetch_timestamp': DateTime.now().millisecondsSinceEpoch,
+          };
+        }
+        
         // Log what we got
         print('\n✅ === COMPLETE PAYMENT DATA RECEIVED === ✅');
         print('Payment ID: ${paymentData['id']}');
@@ -66,6 +90,7 @@ class WebhookPaymentService {
         print('VPA: ${paymentData['vpa'] ?? "null"}');
         print('Bank: ${paymentData['bank'] ?? "null"}');
         print('Wallet: ${paymentData['wallet'] ?? "null"}');
+        print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
         
         if (paymentData['acquirer_data'] != null) {
           print('Acquirer Data: ${paymentData['acquirer_data']}');
@@ -74,6 +99,12 @@ class WebhookPaymentService {
         if (paymentData['upi'] != null) {
           print('UPI Data: ${paymentData['upi']}');
         }
+        
+        // Log notes if they contain temp order ID
+        if (paymentData['notes'] != null && paymentData['notes']['temp_order_id'] != null) {
+          print('Notes Temp Order ID: ${paymentData['notes']['temp_order_id']}');
+        }
+        
         print('✅ === END COMPLETE DATA === ✅\n');
         
         return paymentData;
@@ -85,16 +116,18 @@ class WebhookPaymentService {
       _logger.error('Error fetching complete payment details: $e');
       print('\n❌ === ERROR FETCHING PAYMENT DATA === ❌');
       print('Error: $e');
+      print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
       print('❌ === END ERROR === ❌\n');
       return null;
     }
   }
 
-  /// Enhanced payment result with webhook data
+  /// Enhanced payment result with webhook data and temp order ID tracking
   Future<PaymentResult> getEnhancedPaymentResult({
     required PaymentResult originalResult,
     required String keyId,
     required String keySecret,
+    String? tempOrderId, // Track temp order ID throughout enhancement
     int maxRetries = 3,
     Duration retryDelay = const Duration(seconds: 5),
   }) async {
@@ -104,12 +137,14 @@ class WebhookPaymentService {
 
     print('\n🔄 === ENHANCING PAYMENT DATA === 🔄');
     print('Original Payment ID: ${originalResult.paymentId}');
+    print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
     print('Will retry up to $maxRetries times with ${retryDelay.inSeconds}s delay');
     print('🔄 === STARTING ENHANCEMENT === 🔄\n');
 
     // Try multiple times to get complete data (sometimes takes a few seconds)
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       print('\n🔄 === ATTEMPT $attempt/$maxRetries === 🔄');
+      print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
       
       // Wait before each attempt (except first)
       if (attempt > 1) {
@@ -121,6 +156,7 @@ class WebhookPaymentService {
         paymentId: originalResult.paymentId!,
         keyId: keyId,
         keySecret: keySecret,
+        tempOrderId: tempOrderId,
       );
 
       if (completePaymentData != null) {
@@ -138,6 +174,8 @@ class WebhookPaymentService {
         // If we have meaningful enhanced data OR this is our last attempt, use what we have
         if ((hasVpa || hasAcquirerData || hasUpiData) || attempt == maxRetries) {
           print('\n🎉 === PAYMENT DATA ENHANCED === 🎉');
+          print('Payment ID: ${originalResult.paymentId}');
+          print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
           print('VPA: ${completePaymentData['vpa'] ?? "Not available"}');
           print('Method: ${completePaymentData['method'] ?? "Unknown"}');
           print('Bank: ${completePaymentData['bank'] ?? "Not available"}');
@@ -150,9 +188,36 @@ class WebhookPaymentService {
           if (hasUpiData) {
             print('UPI Data Keys: ${(completePaymentData['upi'] as Map).keys.toList()}');
           }
+          
+          // Check if temp order ID is preserved
+          final enhancedTempOrderId = completePaymentData['notes']?['temp_order_id'] ?? 
+                                     completePaymentData['enhancement_metadata']?['temp_order_id'];
+          print('Enhanced Temp Order ID: ${enhancedTempOrderId ?? "Not found"}');
+          
           print('🎉 === END ENHANCEMENT === 🎉\n');
 
-          // Create enhanced PaymentResult
+          // ENHANCED: Create enhanced PaymentResult with temp order ID preserved
+          final enhancedFullPaymentData = Map<String, dynamic>.from(completePaymentData);
+          
+          // Ensure temp order ID is in the enhanced data
+          if (tempOrderId != null) {
+            enhancedFullPaymentData['temp_order_id_reference'] = tempOrderId;
+            enhancedFullPaymentData['database_reference'] = tempOrderId;
+            
+            // Also add to notes if not already there
+            if (enhancedFullPaymentData['notes'] != null) {
+              (enhancedFullPaymentData['notes'] as Map<String, dynamic>)['temp_order_id'] = tempOrderId;
+            }
+            
+            // Add to app context
+            if (enhancedFullPaymentData['app_context'] == null) {
+              enhancedFullPaymentData['app_context'] = {};
+            }
+            (enhancedFullPaymentData['app_context'] as Map<String, dynamic>)['temp_order_id'] = tempOrderId;
+            (enhancedFullPaymentData['app_context'] as Map<String, dynamic>)['database_reference'] = tempOrderId;
+            (enhancedFullPaymentData['app_context'] as Map<String, dynamic>)['enhanced_with_webhook'] = true;
+          }
+
           return PaymentResult(
             success: originalResult.success,
             paymentId: originalResult.paymentId,
@@ -161,8 +226,8 @@ class WebhookPaymentService {
             message: originalResult.message,
             error: originalResult.error,
             
-            // Enhanced data from API
-            fullPaymentData: completePaymentData,
+            // Enhanced data from API with temp order ID preserved
+            fullPaymentData: enhancedFullPaymentData,
             razorpayOrderId: completePaymentData['order_id'],
             amount: completePaymentData['amount'] != null 
                 ? (completePaymentData['amount'] as int) / 100.0 
@@ -187,14 +252,46 @@ class WebhookPaymentService {
 
     print('\n⚠️ === NO ENHANCED DATA AVAILABLE === ⚠️');
     print('Returning original payment result');
+    print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
     print('⚠️ === END ENHANCEMENT === ⚠️\n');
 
-    // Return original result if no enhancement possible
+    // Return original result if no enhancement possible, but ensure temp order ID is preserved
+    if (tempOrderId != null && originalResult.fullPaymentData != null) {
+      final enhancedOriginalData = Map<String, dynamic>.from(originalResult.fullPaymentData!);
+      enhancedOriginalData['temp_order_id_reference'] = tempOrderId;
+      enhancedOriginalData['database_reference'] = tempOrderId;
+      enhancedOriginalData['webhook_enhancement_attempted'] = true;
+      enhancedOriginalData['webhook_enhancement_successful'] = false;
+      
+      return PaymentResult(
+        success: originalResult.success,
+        paymentId: originalResult.paymentId,
+        orderId: originalResult.orderId,
+        signature: originalResult.signature,
+        message: originalResult.message,
+        error: originalResult.error,
+        fullPaymentData: enhancedOriginalData,
+        razorpayOrderId: originalResult.razorpayOrderId,
+        amount: originalResult.amount,
+        currency: originalResult.currency,
+        status: originalResult.status,
+        method: originalResult.method,
+        captured: originalResult.captured,
+        vpa: originalResult.vpa,
+        email: originalResult.email,
+        contact: originalResult.contact,
+        acquirerData: originalResult.acquirerData,
+        upiData: originalResult.upiData,
+        createdAt: originalResult.createdAt,
+        capturedAt: originalResult.capturedAt,
+      );
+    }
+
     return originalResult;
   }
 }
 
-// Updated payment service with webhook enhancement
+// Updated enhanced payment service with temp order ID support
 class EnhancedPaymentService extends PaymentService {
   final WebhookPaymentService _webhookService;
 
@@ -204,6 +301,7 @@ class EnhancedPaymentService extends PaymentService {
     _webhookService = WebhookPaymentService(logger: logger),
     super(logger: logger);
 
+  /// UPDATED: Enhanced startPayment with temp order ID tracking
   @override
   Future<PaymentResult> startPayment({
     required double amount, 
@@ -212,9 +310,10 @@ class EnhancedPaymentService extends PaymentService {
     String? customerEmail,
     String? customerPhone,
     String? customOrderId,
-    bool enhanceWithWebhookData = true, // New parameter
+    String? tempOrderId, // ADDED: Explicit temp order ID parameter
+    bool enhanceWithWebhookData = true, // Enhancement parameter
   }) async {
-    // Get the initial payment result
+    // Get the initial payment result with temp order ID
     final initialResult = await super.startPayment(
       amount: amount,
       description: description,
@@ -222,6 +321,7 @@ class EnhancedPaymentService extends PaymentService {
       customerEmail: customerEmail,
       customerPhone: customerPhone,
       customOrderId: customOrderId,
+      tempOrderId: tempOrderId, // Pass temp order ID to base service
     );
 
     // If payment failed or enhancement disabled, return as-is
@@ -231,25 +331,77 @@ class EnhancedPaymentService extends PaymentService {
 
     print('\n🚀 === STARTING PAYMENT ENHANCEMENT === 🚀');
     print('Initial payment successful, fetching complete details...');
+    print('Payment ID: ${initialResult.paymentId}');
+    print('Temp Order ID: ${tempOrderId ?? customOrderId ?? "Not provided"}');
     print('🚀 === ENHANCEMENT IN PROGRESS === 🚀\n');
 
-    // Enhance with webhook/API data
+    // Extract temp order ID for tracking
+    final tempOrderIdToUse = tempOrderId ?? customOrderId ?? getCurrentTempOrderId();
+
+    // Enhance with webhook/API data, passing temp order ID
     final enhancedResult = await _webhookService.getEnhancedPaymentResult(
       originalResult: initialResult,
       keyId: PaymentService.keyId,
       keySecret: PaymentService.keySecret,
+      tempOrderId: tempOrderIdToUse, // Pass temp order ID for tracking
       maxRetries: 3,
       retryDelay: const Duration(seconds: 5),
     );
 
     print('\n📊 === FINAL PAYMENT COMPARISON === 📊');
+    print('Payment ID: ${initialResult.paymentId}');
+    print('Temp Order ID: ${tempOrderIdToUse ?? "Not available"}');
     print('Original VPA: ${initialResult.vpa ?? "null"}');
     print('Enhanced VPA: ${enhancedResult.vpa ?? "null"}');
     print('Original Method: ${initialResult.method ?? "unknown"}');
     print('Enhanced Method: ${enhancedResult.method ?? "unknown"}');
     print('Original Acquirer Data: ${initialResult.acquirerData != null ? "Available" : "null"}');
     print('Enhanced Acquirer Data: ${enhancedResult.acquirerData != null ? "Available" : "null"}');
+    
+    // Check if temp order ID is preserved in enhanced result
+    final enhancedTempOrderId = enhancedResult.fullPaymentData?['temp_order_id_reference'] ?? 
+                               enhancedResult.fullPaymentData?['database_reference'];
+    print('Enhanced Data Temp Order ID: ${enhancedTempOrderId ?? "Not found"}');
     print('📊 === END COMPARISON === 📊\n');
+
+    return enhancedResult;
+  }
+
+  /// Get enhanced payment result from existing payment ID
+  /// Useful for manual enhancement of payment data
+  Future<PaymentResult> enhanceExistingPayment({
+    required String paymentId,
+    String? tempOrderId,
+    int maxRetries = 3,
+    Duration retryDelay = const Duration(seconds: 5),
+  }) async {
+    print('\n🔄 === MANUAL PAYMENT ENHANCEMENT === 🔄');
+    print('Payment ID: $paymentId');
+    print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
+    print('🔄 === STARTING === 🔄\n');
+
+    // Create a minimal PaymentResult for enhancement
+    final minimalResult = PaymentResult(
+      success: true,
+      paymentId: paymentId,
+    );
+
+    // Enhance it with webhook data
+    final enhancedResult = await _webhookService.getEnhancedPaymentResult(
+      originalResult: minimalResult,
+      keyId: PaymentService.keyId,
+      keySecret: PaymentService.keySecret,
+      tempOrderId: tempOrderId,
+      maxRetries: maxRetries,
+      retryDelay: retryDelay,
+    );
+
+    print('\n✅ === MANUAL ENHANCEMENT COMPLETE === ✅');
+    print('Payment ID: $paymentId');
+    print('Enhanced: ${enhancedResult.fullPaymentData != null ? "Yes" : "No"}');
+    print('VPA: ${enhancedResult.vpa ?? "Not available"}');
+    print('Method: ${enhancedResult.method ?? "Unknown"}');
+    print('✅ === END MANUAL ENHANCEMENT === ✅\n');
 
     return enhancedResult;
   }

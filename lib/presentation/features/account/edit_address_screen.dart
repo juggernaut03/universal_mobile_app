@@ -285,7 +285,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         "full_name": _fullNameController.text.trim(),
         "access_key": accessKey,
         "mobile_number": mobileNumber.trim(),
-        "email_id": _address.emailId.isEmpty ? "test@example.com" : _address.emailId.trim(),
+        "email_id": _address.emailId.isEmpty ? "" : _address.emailId.trim(),
         "delivery_addr_line_1": _wingFloorController.text.trim(),
         "delivery_addr_line_2": _localityController.text.trim(),
         "delivery_addr_city": _cityController.text.trim(),

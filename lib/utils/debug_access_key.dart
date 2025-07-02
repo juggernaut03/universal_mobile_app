@@ -303,7 +303,7 @@ class _AccessKeyDebugScreenState extends ConsumerState<AccessKeyDebugScreen> {
                     'Add Address', 
                     'POST', 
                     'https://newtech.shalviadvision.com/api/add_address', 
-                    '{\n  "idaddress_book": "12",\n  "project_code": "RET5890",\n  "full_name": "Test User",\n  "access_key": "$_accessKey",\n  "mobile_number": "9876543210",\n  "email_id": "test@example.com",\n  "delivery_addr_line_1": "Address Line 1",\n  "delivery_addr_line_2": "Address Line 2",\n  "delivery_addr_city": "Mumbai",\n  "delivery_addr_pincode": "400001",\n  "is_default": "No",\n  "latitude": "",\n  "longitude": "",\n  "area_id": "1"\n}'
+                    '{\n  "idaddress_book": "12",\n  "project_code": "RET5890",\n  "full_name": "Test User",\n  "access_key": "$_accessKey",\n  "mobile_number": "9876543210",\n  "email_id": " ",\n  "delivery_addr_line_1": "Address Line 1",\n  "delivery_addr_line_2": "Address Line 2",\n  "delivery_addr_city": "Mumbai",\n  "delivery_addr_pincode": "400001",\n  "is_default": "No",\n  "latitude": "",\n  "longitude": "",\n  "area_id": "1"\n}'
                   ),
                 ],
               ),

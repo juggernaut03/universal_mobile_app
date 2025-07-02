@@ -1,8 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:patelmart/data/models/auth_models.dart';
 import 'package:patelmart/firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
@@ -15,6 +17,8 @@ import 'core/handlers/app_lifecycle_handler.dart';
 import 'presentation/providers/popup_providers.dart';
 // NOTIFICATION IMPORTS
 import 'data/services/firebase_notification_service.dart';
+// FCM TOKEN IMPORTS
+import 'presentation/providers/auth_providers.dart';
 
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -143,6 +147,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
   AppLifecycleState? _lastLifecycleState;
   bool _hasInitializedPopupSystem = false;
   bool _hasInitializedNotifications = false;
+  bool _hasInitializedFcmTokenSystem = false;
   bool _appFullyInitialized = false;
 
   @override
@@ -164,7 +169,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
     super.dispose();
   }
 
-  /// Initialize both popup and notification systems
+  /// Initialize all app systems including FCM token management
   Future<void> _initializeAppSystems() async {
     try {
       final logger = ref.read(loggerProvider);
@@ -176,6 +181,9 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
       // STEP 2: Initialize app launch flow
       await _initializeAppLaunchFlow();
       
+      // STEP 3: Initialize FCM token system
+      _initializeFcmTokenSystem();
+      
       // Mark app as ready
       if (mounted) {
         setState(() {
@@ -183,7 +191,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
         });
       }
       
-      // STEP 3: Initialize notifications AFTER app is stable (separate)
+      // STEP 4: Initialize notifications AFTER app is stable (separate)
       _initializeNotificationsWhenSafe();
       
       logger.log('✅ App systems initialization completed');
@@ -221,6 +229,29 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
       // Add any launch flow initialization here if needed
     } catch (e) {
       ref.read(loggerProvider).error('Launch flow initialization error: $e');
+    }
+  }
+
+  /// Initialize FCM token management system
+  void _initializeFcmTokenSystem() {
+    if (!_hasInitializedFcmTokenSystem) {
+      try {
+        final logger = ref.read(loggerProvider);
+        logger.log('🔐 Starting FCM token system initialization...');
+        
+        // Initialize FCM token auto-save watcher
+        ref.read(fcmTokenAutoSaveWatcherProvider);
+        
+        // Initialize FCM token background manager
+        ref.read(fcmTokenBackgroundManagerProvider);
+        
+        _hasInitializedFcmTokenSystem = true;
+        logger.log('✅ FCM token system initialized successfully');
+        
+      } catch (e) {
+        ref.read(loggerProvider).error('❌ Failed to initialize FCM token system: $e');
+        // Don't crash - FCM is not critical for app function
+      }
     }
   }
 
@@ -275,6 +306,9 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
             ref.read(popupDisplayStateProvider.notifier).resetForNewSession();
           }
         });
+
+        // Handle FCM token check on app resume
+        _handleFcmTokenOnAppResume();
       }
       
       // App starting fresh
@@ -286,6 +320,9 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
           if (mounted && !_hasInitializedPopupSystem) {
             _initializePopupSystem();
           }
+          if (mounted && !_hasInitializedFcmTokenSystem) {
+            _initializeFcmTokenSystem();
+          }
         });
       }
       
@@ -294,6 +331,48 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
     }
     
     _lastLifecycleState = state;
+  }
+
+  /// Handle FCM token check when app resumes from background
+  void _handleFcmTokenOnAppResume() {
+    try {
+      final logger = ref.read(loggerProvider);
+      logger.log('🔐 Checking FCM token on app resume...');
+      
+      // Check if user is logged in and FCM token needs update
+      Future.delayed(const Duration(seconds: 2), () async {
+        if (!mounted) return;
+        
+        try {
+          final userProfileAsync = ref.read(userProfileProvider);
+          final userProfile = await userProfileAsync.future;
+           
+          if (userProfile != null) {
+            logger.log('User is logged in, checking FCM token status...');
+            
+            final authService = ref.read(authServiceProvider);
+            final needsUpdate = await authService.shouldUpdateFcmToken();
+            
+            if (needsUpdate) {
+              logger.log('FCM token needs update on app resume, refreshing...');
+              final success = await authService.refreshFcmToken();
+              
+              if (success) {
+                logger.log('FCM token refreshed successfully on app resume');
+              } else {
+                logger.warning('FCM token refresh failed on app resume');
+              }
+            } else {
+              logger.log('FCM token is up to date on app resume');
+            }
+          }
+        } catch (e) {
+          logger.error('Error checking FCM token on app resume: $e');
+        }
+      });
+    } catch (e) {
+      ref.read(loggerProvider).error('Error in FCM token app resume handler: $e');
+    }
   }
 
   @override
@@ -324,6 +403,17 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                
+                SizedBox(height: 8),
+                
+                // Initialization status
+                Text(
+                  'Initializing systems...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
               ],
             ),
           ),
@@ -332,7 +422,47 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
       );
     }
 
-    // App is ready - show the main app
+    // App is ready - show the main app wrapped with FCM token initializer
+    return const FcmTokenAwareMyApp();
+  }
+}
+
+extension on AsyncValue<UserProfile?> {
+  get future => null;
+}
+
+/// Wrapper for MyApp that ensures FCM token management is active
+class FcmTokenAwareMyApp extends ConsumerWidget {
+  const FcmTokenAwareMyApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch FCM token providers to keep them active
+    ref.watch(fcmTokenAutoSaveWatcherProvider);
+    ref.watch(fcmTokenBackgroundManagerProvider);
+    
+    // Optional: Watch user profile changes for FCM token management
+    final userProfileAsync = ref.watch(userProfileProvider);
+    
+    // Log FCM token status changes in debug mode
+    if (kDebugMode) {
+      userProfileAsync.whenData((userProfile) {
+        if (userProfile != null) {
+          final logger = ref.read(loggerProvider);
+          logger.log('FCM: User profile available for ${userProfile.mobile}');
+          
+          // Check FCM token status
+          ref.read(fcmTokenStatusProvider).whenData((status) {
+            if (status['tokens_match'] != true) {
+              logger.log('FCM: Token status - needs attention');
+            } else {
+              logger.log('FCM: Token status - up to date');
+            }
+          });
+        }
+      });
+    }
+    
     return const MyApp();
   }
 }

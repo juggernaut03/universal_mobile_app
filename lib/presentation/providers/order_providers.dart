@@ -2,14 +2,15 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/services/payment_service.dart';
-import '../../data/services/webhook_payment_service.dart'; // Import the new service
+import '../../data/services/webhook_payment_service.dart';
 import '../../data/services/order_service.dart';
+import '../../data/services/order_payment_processing_service.dart';
 import 'launch_flow_provider.dart';
 
-// Enhanced payment service provider (replaces the old one)
-final paymentServiceProvider = Provider<EnhancedPaymentService>((ref) {
+// Enhanced payment service provider
+final paymentServiceProvider = Provider<PaymentService>((ref) {
   final logger = ref.watch(loggerProvider);
-  return EnhancedPaymentService(logger: logger);
+  return PaymentService(logger: logger);
 });
 
 // Webhook payment service provider
@@ -24,12 +25,19 @@ final orderServiceProvider = Provider<OrderService>((ref) {
   return OrderService(logger: logger);
 });
 
-// Enum to track the current status of the order process
+// Order payment processing service provider
+final orderPaymentProcessingServiceProvider = Provider<OrderPaymentProcessingService>((ref) {
+  final logger = ref.watch(loggerProvider);
+  return OrderPaymentProcessingService(logger: logger);
+});
+
+// Updated enum to track the current status of the order process
 enum OrderProcessStatus {
   initial,
   validatingCart,
+  markingPaymentProcessing, // Status for marking order as payment processing
   processingPayment,
-  enhancingPaymentData, // New status for webhook enhancement
+  enhancingPaymentData,
   confirmingOrder,
   completed,
   failed,
@@ -55,6 +63,11 @@ final orderConfirmationResultProvider = StateProvider<OrderConfirmationResponse?
   return null;
 });
 
+// Provider to store payment processing result
+final orderPaymentProcessingResultProvider = StateProvider<OrderPaymentProcessingResponse?>((ref) {
+  return null;
+});
+
 // Provider to check if the order was successfully placed
 final isOrderSuccessfulProvider = Provider<bool>((ref) {
   final orderStatus = ref.watch(orderProcessStatusProvider);
@@ -72,5 +85,6 @@ final resetOrderStateProvider = Provider<void Function()>((ref) {
     ref.read(orderErrorMessageProvider.notifier).state = null;
     ref.read(paymentResultProvider.notifier).state = null;
     ref.read(orderConfirmationResultProvider.notifier).state = null;
+    ref.read(orderPaymentProcessingResultProvider.notifier).state = null;
   };
 });

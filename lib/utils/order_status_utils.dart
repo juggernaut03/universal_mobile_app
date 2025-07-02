@@ -3,11 +3,11 @@
 import 'package:flutter/material.dart';
 
 /// Utility class for handling order status mapping, colors, and icons
-/// Supports the new status flow: Pending → Accepted → In Packaging → Out for Delivery → Delivered
+/// Supports the new status flow: Pending → Proocessing → In Packaging → Out for Delivery → Delivered
 class OrderStatusUtils {
   // Define the new order status constants
   static const String pending = 'Pending';
-  static const String accepted = 'Accepted';
+  static const String Proocessing = 'Proocessing';
   static const String inPackaging = 'In Packaging';
   static const String outForDelivery = 'Out for Delivery';
   static const String delivered = 'Delivered';
@@ -16,7 +16,7 @@ class OrderStatusUtils {
   // Order status flow for tracking progression
   static const List<String> statusFlow = [
     pending,
-    accepted,
+    Proocessing,
     inPackaging,
     outForDelivery,
     delivered,
@@ -28,8 +28,8 @@ class OrderStatusUtils {
     
     if (statusLower.contains('pending')) {
       return pending;
-    } else if (statusLower.contains('accepted')) {
-      return accepted;
+    } else if (statusLower.contains('Proocessing')) {
+      return Proocessing;
     } else if (statusLower.contains('packaging') || statusLower.contains('packing')) {
       return inPackaging;
     } else if (statusLower.contains('out for delivery') || 
@@ -43,7 +43,7 @@ class OrderStatusUtils {
     } else {
       // Handle legacy statuses
       if (statusLower.contains('confirmed') || statusLower.contains('processing')) {
-        return accepted; // Map legacy statuses to Accepted
+        return Proocessing; // Map legacy statuses to Proocessing
       }
       return apiStatus; // Return original if no mapping found
     }
@@ -56,7 +56,7 @@ class OrderStatusUtils {
     switch (normalizedStatus) {
       case pending:
         return Colors.orange;
-      case accepted:
+      case Proocessing:
         return Colors.blue;
       case inPackaging:
         return Colors.purple;
@@ -78,7 +78,7 @@ class OrderStatusUtils {
     switch (normalizedStatus) {
       case pending:
         return Icons.schedule;
-      case accepted:
+      case Proocessing:
         return Icons.check_circle_outline;
       case inPackaging:
         return Icons.inventory_2;
@@ -100,8 +100,8 @@ class OrderStatusUtils {
     switch (normalizedStatus) {
       case pending:
         return 'Your order is pending confirmation';
-      case accepted:
-        return 'Your order has been accepted and is being prepared';
+      case Proocessing:
+        return 'Your order has been Proocessing and is being prepared';
       case inPackaging:
         return 'Your order is being packaged for delivery';
       case outForDelivery:
@@ -130,8 +130,8 @@ class OrderStatusUtils {
   /// Check if order can be cancelled
   static bool canCancelOrder(String status) {
     final normalizedStatus = normalizeStatus(status);
-    // Can cancel if pending or accepted, but not once in packaging or later
-    return normalizedStatus == pending || normalizedStatus == accepted;
+    // Can cancel if pending or Proocessing, but not once in packaging or later
+    return normalizedStatus == pending || normalizedStatus == Proocessing;
   }
 
   /// Check if order can be reordered
@@ -180,7 +180,7 @@ class OrderStatusUtils {
     switch (normalizedStatus) {
       case pending:
         return 2; // 2 hours to accept
-      case accepted:
+      case Proocessing:
         return 4; // 4 hours to package
       case inPackaging:
         return 2; // 2 hours to dispatch
@@ -212,7 +212,7 @@ class OrderStatusUtils {
         case 'Pending':
           return normalizedStatus == pending;
         case 'Processing':
-          return normalizedStatus == accepted || normalizedStatus == inPackaging;
+          return normalizedStatus == Proocessing || normalizedStatus == inPackaging;
         case 'Out for Delivery':
           return normalizedStatus == outForDelivery;
         case 'Delivered':

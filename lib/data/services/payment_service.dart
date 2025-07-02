@@ -91,6 +91,7 @@ class PaymentService {
   String? _currentCustomerName;
   String? _currentDescription;
   String? _currentRazorpayOrderId; // Store the created order ID
+  String? _currentTempOrderId; // Store the temp order ID for tracking
 
   // Razorpay API credentials - LIVE KEYS
   static const String keyId = 'rzp_live_Qq9CQRIX2I2qej';
@@ -112,25 +113,37 @@ class PaymentService {
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
-  /// Create a Razorpay order using their Orders API
+  /// Create a Razorpay order using their Orders API with temp order ID tracking
   Future<Map<String, dynamic>?> _createRazorpayOrder({
     required double amount,
     required String currency,
     String? receipt,
+    String? tempOrderId,
   }) async {
     try {
       _logger.log('Creating Razorpay order for amount: ${amount.toStringAsFixed(2)} $currency');
+      _logger.log('Temp Order ID: ${tempOrderId ?? "Not provided"}');
       
       final orderData = {
         'amount': (amount * 100).toInt(), // Amount in paise
         'currency': currency,
-        'receipt': receipt ?? 'order_${DateTime.now().millisecondsSinceEpoch}',
+        'receipt': receipt ?? tempOrderId ?? 'order_${DateTime.now().millisecondsSinceEpoch}',
         'notes': {
           'customer_name': _currentCustomerName,
           'customer_email': _currentCustomerEmail,
           'customer_phone': _currentCustomerPhone,
           'description': _currentDescription,
           'app_platform': 'flutter',
+          
+          // CRITICAL: Include temp order ID for tracking
+          'temp_order_id': tempOrderId ?? 'unknown',
+         
+          'flutter_timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
+          
+          // Additional tracking info
+          'payment_initiated_at': DateTime.now().toIso8601String(),
+          'app_version': 'flutter_live',
+          'environment': 'live',
         }
       };
 
@@ -139,6 +152,7 @@ class PaymentService {
       print('Currency: $currency');
       print('Receipt: ${orderData['receipt']}');
       print('Customer: $_currentCustomerName');
+      print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
       print('🏦 === CALLING RAZORPAY API === 🏦\n');
 
       // Make API call to Razorpay Orders API
@@ -164,10 +178,12 @@ class PaymentService {
         _currentRazorpayOrderId = orderResponse['id'];
         
         print('\n✅ === ORDER CREATED SUCCESSFULLY === ✅');
-        print('Order ID: ${orderResponse['id']}');
+        print('Razorpay Order ID: ${orderResponse['id']}');
         print('Amount: ${orderResponse['amount']} paise');
         print('Currency: ${orderResponse['currency']}');
         print('Status: ${orderResponse['status']}');
+        print('Receipt: ${orderResponse['receipt']}');
+        print('Temp Order ID in Notes: ${tempOrderId ?? "Not provided"}');
         print('✅ === END SUCCESS === ✅\n');
         
         return orderResponse;
@@ -197,12 +213,12 @@ class PaymentService {
     print('Signature: ${response.signature}');
     print('💳 === PROCESSING SUCCESS === 💳\n');
     
-    // Enhanced payment data with real Razorpay response
+    // Enhanced payment data with real Razorpay response + temp order ID
     final now = DateTime.now();
     final currentTimestamp = now.millisecondsSinceEpoch ~/ 1000;
     final amountInPaise = _currentPaymentAmount != null ? (_currentPaymentAmount! * 100).toInt() : null;
     
-    // Create enhanced payment data structure with actual Razorpay data
+    // Create enhanced payment data structure with actual Razorpay data + temp order ID
     final enhancedPaymentData = {
       "id": response.paymentId,
       "entity": "payment",
@@ -229,6 +245,9 @@ class PaymentService {
         "app_platform": "flutter",
         "transaction_source": "mobile_app",
         "razorpay_order_id": _currentRazorpayOrderId,
+        "temp_order_id": _currentTempOrderId , // INCLUDE: Temp order ID
+        "database_status": "payment_processing", // Status before payment
+        "payment_flow_stage": "payment_completed",
       },
       "fee": 0,
       "tax": 0,
@@ -253,13 +272,14 @@ class PaymentService {
       "captured_at": currentTimestamp,
       "late_authorized": false,
       
-      // Additional metadata
+      // Additional metadata with temp order ID
       "flutter_sdk_response": {
         "payment_id": response.paymentId,
         "order_id": response.orderId,
         "signature": response.signature,
         "success_timestamp": now.millisecondsSinceEpoch,
         "created_razorpay_order_id": _currentRazorpayOrderId,
+        "temp_order_id": _currentTempOrderId ?? "unknown", // INCLUDE: Temp order ID
       },
       "app_context": {
         "platform": "flutter",
@@ -271,6 +291,8 @@ class PaymentService {
         "test_mode": false, // Since using live keys
         "sdk_version": "razorpay_flutter",
         "environment": "live", // Correct environment
+        "temp_order_id": _currentTempOrderId ?? "unknown", // INCLUDE: Temp order ID
+        "database_reference": _currentTempOrderId,
       }
     };
     
@@ -282,7 +304,9 @@ class PaymentService {
     print('Customer: $_currentCustomerName ($_currentCustomerPhone)');
     print('Email: $_currentCustomerEmail');
     print('Created Razorpay Order ID: $_currentRazorpayOrderId');
-            print('Environment: LIVE');
+    print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
+    print('Environment: LIVE');
+    print('Status: Payment Successful → Ready for Database Update');
     print('📊 === END PAYMENT DATA === 📊\n');
     
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
@@ -315,6 +339,7 @@ class PaymentService {
     print('\n❌ === PAYMENT ERROR === ❌');
     print('Error Code: ${response.code}');
     print('Error Message: ${response.message}');
+    print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
     print('❌ === END ERROR === ❌\n');
     
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
@@ -333,6 +358,9 @@ class PaymentService {
             'phone': _currentCustomerPhone,
           },
           'environment': 'live',
+          'temp_order_id': _currentTempOrderId ?? 'unknown', // INCLUDE: Temp order ID
+          'database_status': 'payment_processing', // Status before payment failure
+          'payment_flow_stage': 'payment_failed',
         },
       ));
     }
@@ -343,6 +371,7 @@ class PaymentService {
     
     print('\n🔄 === EXTERNAL WALLET === 🔄');
     print('Wallet: ${response.walletName}');
+    print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
     print('🔄 === END WALLET === 🔄\n');
     
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
@@ -359,29 +388,39 @@ class PaymentService {
             'phone': _currentCustomerPhone,
           },
           'environment': 'live',
+          'temp_order_id': _currentTempOrderId ?? 'unknown',
+          'database_status': 'payment_processing',
+          'payment_flow_stage': 'external_wallet_selected',
         },
       ));
     }
   }
 
-  /// Start a payment process with Razorpay (with order creation)
+  /// Start a payment process with Razorpay (with order creation and temp order ID tracking)
+  /// UPDATED: Include tempOrderId parameter and pass it throughout the flow
   Future<PaymentResult> startPayment({
     required double amount, 
     required String description,
     required String customerName,
     String? customerEmail,
     String? customerPhone,
-    String? customOrderId, // Optional custom order ID
+    String? customOrderId, // Optional custom order ID (can be temp order ID)
+    String? tempOrderId, // EXPLICIT: Add temp order ID parameter
   }) async {
     try {
-      _logger.log('Starting Razorpay payment for amount: ${amount.toStringAsFixed(2)}');
+      // Use tempOrderId if provided, otherwise fall back to customOrderId
+      final orderIdToUse = tempOrderId ?? customOrderId;
       
-      // Store payment context
+      _logger.log('Starting Razorpay payment for amount: ${amount.toStringAsFixed(2)}');
+      _logger.log('Temp Order ID: ${orderIdToUse ?? "Not provided"}');
+      
+      // Store payment context including temp order ID
       _currentPaymentAmount = amount;
       _currentCustomerEmail = customerEmail;
       _currentCustomerPhone = customerPhone;
       _currentCustomerName = customerName;
       _currentDescription = description;
+      _currentTempOrderId = orderIdToUse; // STORE: Temp order ID for tracking
       
       print('\n🚀 === STARTING PAYMENT PROCESS === 🚀');
       print('Amount: ₹${amount.toStringAsFixed(2)}');
@@ -389,17 +428,19 @@ class PaymentService {
       print('Phone: ${customerPhone ?? "Not provided"}');
       print('Email: ${customerEmail ?? "Not provided"}');
       print('Description: $description');
+      print('Temp Order ID: ${orderIdToUse ?? "Not provided"}');
       print('Environment: LIVE');
       print('🚀 === STEP 1: CREATE ORDER === 🚀\n');
       
       // Create a new completer for this payment attempt
       _paymentCompleter = Completer<PaymentResult>();
       
-      // STEP 1: Create Razorpay order first
+      // STEP 1: Create Razorpay order first - PASS THE TEMP ORDER ID
       final razorpayOrder = await _createRazorpayOrder(
         amount: amount,
         currency: 'INR',
-        receipt: customOrderId ?? 'order_${DateTime.now().millisecondsSinceEpoch}',
+        receipt: orderIdToUse ?? 'order_${DateTime.now().millisecondsSinceEpoch}',
+        tempOrderId: orderIdToUse, // CRITICAL: Pass temp order ID
       );
       
       if (razorpayOrder == null) {
@@ -413,6 +454,7 @@ class PaymentService {
               'order_creation_failed': true,
               'failure_timestamp': DateTime.now().millisecondsSinceEpoch,
               'payment_amount': _currentPaymentAmount,
+              'temp_order_id': orderIdToUse,
               'environment': 'live',
             },
           ));
@@ -427,6 +469,7 @@ class PaymentService {
       
       print('\n🚀 === STEP 2: OPEN CHECKOUT === 🚀');
       print('Razorpay Order ID: ${razorpayOrder['id']}');
+      print('Temp Order ID: ${orderIdToUse ?? "Not provided"}');
       print('Opening payment gateway...');
       print('🚀 === CHECKOUT OPENING === 🚀\n');
       
@@ -453,10 +496,13 @@ class PaymentService {
           'customer_name': customerName,
           'app_platform': 'flutter',
           'environment': 'live',
+          'temp_order_id': orderIdToUse ?? 'unknown', // INCLUDE: Temp order ID in checkout notes
+          'database_status': 'payment_processing',
         }
       };
       
       _logger.log('Opening Razorpay checkout with order ID: ${razorpayOrder['id']}');
+      _logger.log('Temp Order ID in checkout: ${orderIdToUse}');
       _logger.log('Payment options: ${jsonEncode(options)}');
       
       // STEP 3: Open the Razorpay checkout
@@ -466,6 +512,7 @@ class PaymentService {
       final paymentResult = await _paymentCompleter!.future;
       
       _logger.log('Payment process completed. Success: ${paymentResult.success}');
+      _logger.log('Temp Order ID: ${orderIdToUse}');
       
       return paymentResult;
     } catch (e) {
@@ -473,6 +520,7 @@ class PaymentService {
       
       print('\n❌ === PAYMENT PROCESS ERROR === ❌');
       print('Error: $e');
+      print('Temp Order ID: ${tempOrderId ?? customOrderId}');
       print('❌ === END ERROR === ❌\n');
       
       if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
@@ -484,6 +532,7 @@ class PaymentService {
             'init_error': e.toString(),
             'init_error_timestamp': DateTime.now().millisecondsSinceEpoch,
             'payment_amount': _currentPaymentAmount,
+            'temp_order_id': tempOrderId ?? customOrderId,
             'environment': 'live',
           },
         ));
@@ -497,6 +546,38 @@ class PaymentService {
     }
   }
 
+  /// Get the current temp order ID being processed
+  String? getCurrentTempOrderId() {
+    return _currentTempOrderId;
+  }
+
+  /// Clear the current payment context (useful for cleanup)
+  void clearPaymentContext() {
+    _currentPaymentAmount = null;
+    _currentCustomerEmail = null;
+    _currentCustomerPhone = null;
+    _currentCustomerName = null;
+    _currentDescription = null;
+    _currentRazorpayOrderId = null;
+    _currentTempOrderId = null;
+    
+    _logger.log('Payment context cleared');
+  }
+
+  /// Get current payment context for debugging
+  Map<String, dynamic> getCurrentPaymentContext() {
+    return {
+      'payment_amount': _currentPaymentAmount,
+      'customer_email': _currentCustomerEmail,
+      'customer_phone': _currentCustomerPhone,
+      'customer_name': _currentCustomerName,
+      'description': _currentDescription,
+      'razorpay_order_id': _currentRazorpayOrderId,
+      'temp_order_id': _currentTempOrderId,
+      'environment': 'live',
+    };
+  }
+
   void dispose() {
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
       _paymentCompleter!.complete(PaymentResult(
@@ -506,9 +587,13 @@ class PaymentService {
           'disposal_reason': 'Service disposed',
           'disposal_timestamp': DateTime.now().millisecondsSinceEpoch,
           'environment': 'live',
+          'temp_order_id': _currentTempOrderId,
         },
       ));
     }
+    
+    // Clear payment context on disposal
+    clearPaymentContext();
     
     _razorpay.clear();
     _logger.log('Razorpay instance disposed');

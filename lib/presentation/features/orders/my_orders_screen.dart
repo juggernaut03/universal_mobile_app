@@ -95,7 +95,7 @@ final filteredOrdersProvider = Provider<List<Order>>((ref) {
             case 'Pending':
               return status.contains('pending');
             case 'Processing':
-              return status.contains('accepted') || 
+              return status.contains('Proocessing') || 
                      status.contains('in packaging') ||
                      status.contains('processing') ||
                      status.contains('confirmed');

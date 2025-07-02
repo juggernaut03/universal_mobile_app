@@ -7,6 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/data/models/delivery_slot_model.dart';
 import 'package:patelmart/data/models/payment_method_model.dart';
+import 'package:patelmart/data/models/product_model.dart';
+import 'package:patelmart/data/services/payment_service.dart';
+import 'package:patelmart/presentation/features/checkout/enhanced_payment_flow.dart';
 import 'package:patelmart/presentation/features/outlet_status/outlet_status_banner.dart';
 import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart';
@@ -19,6 +22,7 @@ import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 import 'package:patelmart/presentation/providers/payment_method_provider.dart';
 import 'package:patelmart/presentation/providers/reorder_provider.dart';
+import 'package:patelmart/utils/payment_data_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -26,8 +30,6 @@ import '../../../core/utils/responsive_utils.dart';
 import '../../../data/models/outlet_model.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
-import '../account/address_book_screen.dart';
-import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
 import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address;
 
 // Checkout step enum to track progress
@@ -2548,9 +2550,16 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
     );
   }
 
- // Update the _placeOrder method in your PaymentStep class
 
-// Updated _placeOrder function with order_date_time support
+
+
+
+// Complete _placeOrder method for PaymentStep class in checkout_flow_screen.dart
+// This works with the updated OrderService that handles payment failures
+// Replace your existing _placeOrder method entirely with this one
+
+// Complete _placeOrder method for PaymentStep class in checkout_flow_screen.dart
+// Replace your existing _placeOrder method with this version that uses your current implementation
 
 Future<void> _placeOrder() async {
   // Save instructions
@@ -2572,37 +2581,37 @@ Future<void> _placeOrder() async {
     // Access logger through provider
     final logger = ref.read(loggerProvider);
     
-    // Update order process status
-    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.validatingCart;
+    logger.log('🚀 === COMPLETE PAYMENT FLOW WITH FAILURE HANDLING STARTED === 🚀');
+    logger.log('Payment Method: ${_selectedPaymentMethod!.paymentModeName}');
+    logger.log('Delivery Method: ${widget.checkoutData.deliveryMethod}');
     
-    // Get required data
-    final cartItems = ref.read(cartProvider);
-    final selectedOutlet = ref.read(selectedOutletProvider).value!;
-    final cartValidator = ref.read(validator.cartValidatorProvider);
-
-    // Get the current cart key, device ID, and temp order ID before proceeding
-    final currentCartKey = await cartValidator.getCurrentCartKey();
-    final currentDeviceId = await cartValidator.getCurrentDeviceId();
-    final currentTempOrderId = await cartValidator.getCurrentTempOrderId();
+    // STEP 0: Prepare fresh session and identifiers for new order
+    logger.log('=== STEP 0: PREPARING FRESH SESSION FOR NEW ORDER ===');
     
-    // Get the user profile to access the access key
-    final authRepository = ref.read(authRepositoryProvider);
-    final userProfile = await authRepository.getUserProfile();
-    String? accessKey;
+    final enhancedCartValidator = ref.read(enhancedCartValidatorProvider);
     
-    if (userProfile != null) {
-      accessKey = userProfile.accessKey;
-      logger.log('Using access key from user profile: ${accessKey != null ? "Found" : "Not found"}');
-    } else {
-      logger.warning('User profile not available, proceeding without access key');
+    // Ensure we have a fresh session ready for this new order
+    final sessionReady = await enhancedCartValidator.ensureSessionReadyForOrder();
+    if (!sessionReady) {
+      setState(() {
+        _isPlacingOrder = false;
+      });
+      _showErrorSnackBar("Failed to prepare order session. Please try again.");
+      return;
     }
     
-    // If any required values are missing, show error
+    // Prepare completely fresh identifiers for this new order using your existing implementation
+    final cartNotifier = ref.read(cartProvider.notifier);
+    final freshIdentifiers = await cartNotifier.prepareForNewOrder();
+    final currentCartKey = freshIdentifiers['cart_key'];
+    final currentDeviceId = freshIdentifiers['device_id'];
+    final currentTempOrderId = freshIdentifiers['temp_order_id'];
+    
     if (currentCartKey == null || currentDeviceId == null || currentTempOrderId == null) {
       setState(() {
         _isPlacingOrder = false;
       });
-      _showErrorSnackBar("Cart information is missing. Please try again.");
+      _showErrorSnackBar("Failed to generate order identifiers. Please try again.");
       return;
     }
     
@@ -2610,151 +2619,109 @@ Future<void> _placeOrder() async {
     String cartKey = currentCartKey;
     String tempOrderId = currentTempOrderId;
     
-    logger.log('Using existing cart identifiers for reference: cartKey=$cartKey, deviceId=$deviceId, tempOrderId=$tempOrderId');
+    logger.log('Fresh identifiers generated:');
+    logger.log('- Fresh Temp Order ID: $tempOrderId');
+    logger.log('- Fresh Cart Key: $cartKey');
+    logger.log('- Device ID: $deviceId');
     
-    // Prepare delivery address with proper pincode handling
+    // Get required data
+    final cartItems = ref.read(cartProvider);
+    final selectedOutlet = ref.read(selectedOutletProvider).value!;
+    
+    // Get the user profile to access the access key and mobile number
+    final authRepository = ref.read(authRepositoryProvider);
+    final userProfile = await authRepository.getUserProfile();
+    String? accessKey;
+    String? mobileNo;
+    
+    if (userProfile != null) {
+      accessKey = userProfile.accessKey;
+      mobileNo = userProfile.mobile;
+    }
+    
+    // Prepare delivery address
     Address deliveryAddress;
     
     if (widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery) {
-      // For home delivery, use the selected address
       deliveryAddress = widget.checkoutData.selectedAddress!;
-      
-      // Ensure pincode is present - get from selected pincode provider if needed
-      if (deliveryAddress.deliveryAddrPincode.isEmpty) {
-        final selectedPincode = ref.read(selectedPincodeProvider);
-        if (selectedPincode != null && selectedPincode.isNotEmpty) {
-          deliveryAddress = deliveryAddress.copyWith(
-            deliveryAddrPincode: selectedPincode,
-          );
-          logger.log('Added missing pincode to delivery address: $selectedPincode');
-        } else {
-          throw Exception('Delivery pincode is required for home delivery');
-        }
-      }
     } else {
-      // For self-pickup, create a basic address with store information
-      final selectedPincode = ref.read(selectedPincodeProvider);
+      // For self pickup, create address from outlet info
       deliveryAddress = Address(
-        id: 'self_pickup',
-        fullName: userProfile?.mobile ?? 'Self Pickup Customer',
+        id: 'pickup_address',
+        fullName: userProfile?.mobile ?? 'Customer',
         mobileNumber: userProfile?.mobile ?? '',
-        emailId: '',
-        deliveryAddrLine1: selectedOutlet.address,
-        deliveryAddrLine2: 'Self Pickup',
+        emailId: userProfile?.mobile ?? '',
+        deliveryAddrLine1: selectedOutlet.name,
+        deliveryAddrLine2: selectedOutlet.address,
         deliveryAddrCity: 'Store Location',
-        deliveryAddrPincode: selectedPincode ?? '', // Ensure pincode is included
-        isDefault: 'No',
-        areaId: '1',
-        landmark: selectedOutlet.name,
+        deliveryAddrPincode: ref.read(selectedPincodeProvider) ?? '',
         state: '',
+        landmark: selectedOutlet.name,
+        areaId: selectedOutlet.storeCode,
+        isDefault: 'No',
+        latitude: selectedOutlet.latitude,
+        longitude: selectedOutlet.longitude,
       );
-      logger.log('Created self-pickup address with pincode: ${deliveryAddress.deliveryAddrPincode}');
     }
     
-    // Debug the final address that will be sent
-    logger.log('=== FINAL DELIVERY ADDRESS ===');
-    logger.log('Full Name: ${deliveryAddress.fullName}');
-    logger.log('Mobile: ${deliveryAddress.mobileNumber}');
-    logger.log('Email: ${deliveryAddress.emailId}');
-    logger.log('Address Line 1: ${deliveryAddress.deliveryAddrLine1}');
-    logger.log('Address Line 2: ${deliveryAddress.deliveryAddrLine2}');
-    logger.log('City: ${deliveryAddress.deliveryAddrCity}');
-    logger.log('Pincode: ${deliveryAddress.deliveryAddrPincode}'); // THIS IS KEY!
-    logger.log('State: ${deliveryAddress.state}');
-    logger.log('Landmark: ${deliveryAddress.landmark}');
-    logger.log('Area ID: ${deliveryAddress.areaId}');
-    logger.log('Is Default: ${deliveryAddress.isDefault}');
-    logger.log('==============================');
+    // Get delivery slot and date
+    final deliverySlot = widget.checkoutData.deliveryTimeSlot ?? "9:00 AM - 10:00 PM";
+    final deliveryDate = widget.checkoutData.deliveryDate?.toIso8601String().split('T')[0] ?? 
+                        DateTime.now().add(Duration(days: 1)).toIso8601String().split('T')[0];
     
-    // Verify pincode is not empty
-    if (deliveryAddress.deliveryAddrPincode.isEmpty) {
-      throw Exception('Delivery pincode cannot be empty');
+    // Calculate cart totals
+    double cartTotal = 0;
+    double cartSavings = 0;
+    
+    for (final item in cartItems) {
+      cartTotal += item.totalPrice;
+      cartSavings += item.savings;
     }
     
-    // Calculate order amounts
-    final cartTotal = ref.read(cartTotalProvider);
-    final cartSavings = ref.read(cartSavingsProvider);
-    final deliveryCharge = ref.read(deliveryChargesProvider).deliveryCharge;
+    // Get delivery charges
+    final deliveryChargesState = ref.read(deliveryChargesProvider);
+    final deliveryCharge = deliveryChargesState.deliveryCharge;
+    
+    // Calculate final amount
     final finalAmount = cartTotal + deliveryCharge;
     
-    // Determine delivery mode
-    final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery
+    // Get delivery mode and payment mode
+    final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery 
         ? "Home Delivery"
         : "Self Pickup";
     
-    // Use the API payment method name directly
     final paymentMode = _selectedPaymentMethod!.paymentModeName;
     
-    String? transactionId;
+    logger.log('=== ORDER DETAILS ===');
+    logger.log('Delivery Mode: $deliveryMode');
+    logger.log('Payment Mode: $paymentMode');
+    logger.log('Cart Total: ₹${cartTotal.toStringAsFixed(2)}');
+    logger.log('Delivery Charge: ₹${deliveryCharge.toStringAsFixed(2)}');
+    logger.log('Final Amount: ₹${finalAmount.toStringAsFixed(2)}');
+    logger.log('Customer: ${deliveryAddress.fullName}');
     
-    // Handle online payment if selected
-    if (paymentMode.toLowerCase() == "online payment") {
-      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.processingPayment;
-      
-      // Initialize payment service
-      final paymentService = ref.read(paymentServiceProvider);
-      
-      // Start Razorpay payment
-      final paymentResult = await paymentService.startPayment(
-        amount: finalAmount,
-        description: 'Order Payment',
-        customerName: deliveryAddress.fullName,
-        customerEmail: deliveryAddress.emailId,
-        customerPhone: deliveryAddress.mobileNumber,
-      );
-      
-      // Store payment result
-      ref.read(paymentResultProvider.notifier).state = paymentResult;
-      
-      if (!paymentResult.success) {
-        // Payment failed or was cancelled
-        ref.read(orderErrorMessageProvider.notifier).state = 
-            paymentResult.message ?? 'Payment failed. Please try again.';
-        ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
-        
-        if (mounted) {
-          setState(() {
-            _isPlacingOrder = false;
-          });
-          _showErrorSnackBar(paymentResult.message ?? 'Payment failed. Please try again.');
-        }
-        return;
-      }
-      
-      // Set transaction ID from payment
-      transactionId = paymentResult.paymentId;
-      logger.log('Payment successful with transaction ID: $transactionId');
-    }
+    // STEP 1: Mark order as "Payment Processing" - CREATE DATABASE ENTRY
+    logger.log('=== STEP 1: CREATING DATABASE ENTRY WITH PAYMENT PROCESSING STATUS ===');
+    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.markingPaymentProcessing;
     
-    // Continue with order confirmation
-    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.confirmingOrder;
+    await enhancedCartValidator.markOrderAsPaymentProcessing(tempOrderId);
     
-    // Get delivery date and time slot
-    final String deliveryDate = widget.checkoutData.deliveryDate != null
-        ? '${widget.checkoutData.deliveryDate!.year}-${widget.checkoutData.deliveryDate!.month.toString().padLeft(2, '0')}-${widget.checkoutData.deliveryDate!.day.toString().padLeft(2, '0')}'
-        : DateTime.now().add(Duration(days: 1)).toString().split(' ')[0];
+    print('\n🔄 === STEP 1: CREATING DATABASE ENTRY === 🔄');
+    print('Temp Order ID: $tempOrderId');
+    print('Payment Mode: $paymentMode');
+    print('Amount: ₹${finalAmount.toStringAsFixed(2)}');
+    print('Customer: ${deliveryAddress.fullName}');
+    print('Database Status: Payment Processing');
+    print('🔄 === CALLING PAYMENT PROCESSING API === 🔄\n');
     
-    final String deliverySlot = widget.checkoutData.deliveryTimeSlot ?? "Standard Delivery";
-    
-    // Log order details before sending
-    logger.log('Sending order confirmation with identifiers: deviceId=$deviceId, tempOrderId=$tempOrderId');
-    logger.log('Order details: ${cartItems.length} items, $deliveryMode, $paymentMode');
-    logger.log('Delivery address pincode: ${deliveryAddress.deliveryAddrPincode}');
-    logger.log('Order will include order_date_time field automatically');
-    if (accessKey != null) {
-      logger.log('Including access key for authentication with API');
-    }
-    
-    // Call order service to confirm order with Address model (not Map)
-    // The OrderService now automatically includes order_date_time field
-    final orderService = ref.read(orderServiceProvider);
-    final orderResult = await orderService.confirmOrder(
+    // Call the order payment processing API to create database entry
+    final paymentProcessingService = ref.read(orderPaymentProcessingServiceProvider);
+    final paymentProcessingResult = await paymentProcessingService.markOrderAsPaymentProcessing(
       deviceId: deviceId,
-      cartKey: cartKey,
       tempOrderId: tempOrderId,
       storeCode: selectedOutlet.storeCode,
       cartItems: cartItems,
-      deliveryAddress: deliveryAddress, // Pass Address model directly
+      deliveryAddress: deliveryAddress,
       deliverySlot: deliverySlot,
       deliveryDate: deliveryDate,
       deliveryMode: deliveryMode,
@@ -2765,146 +2732,539 @@ Future<void> _placeOrder() async {
       deliveryCharges: deliveryCharge,
       discountedAmount: cartTotal,
       finalPayableAmount: finalAmount,
-      paidAmount: paymentMode.toLowerCase() == "online payment" ? finalAmount.toString() : "0",
+      accessKey: accessKey,
+      mobileNo: mobileNo,
+      specialNotes: _instructionsController.text,
+    );
+    
+    // Store payment processing result
+    ref.read(orderPaymentProcessingResultProvider.notifier).state = paymentProcessingResult;
+    
+    // Check if payment processing API call was successful
+    if (!paymentProcessingResult.success) {
+      setState(() {
+        _isPlacingOrder = false;
+      });
+      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
+      ref.read(orderErrorMessageProvider.notifier).state = 
+        'Failed to create order entry: ${paymentProcessingResult.message}';
+      
+      // Mark order as failed - this will create a new session automatically
+      await enhancedCartValidator.markOrderAsFailed(tempOrderId);
+      
+      _showErrorSnackBar('Failed to create order entry. Please try again.');
+      return;
+    }
+    
+    logger.log('✅ DATABASE ENTRY CREATED SUCCESSFULLY');
+    logger.log('Order ID: ${paymentProcessingResult.orderId ?? "Generated"}');
+    logger.log('Database Status: Payment Processing');
+    
+    print('\n✅ === STEP 1 COMPLETED: DATABASE ENTRY CREATED === ✅');
+    print('Order ID: ${paymentProcessingResult.orderId ?? "Generated"}');
+    print('Database Status: Payment Processing');
+    print('✅ === PROCEEDING TO PAYMENT === ✅\n');
+    
+    String? transactionId;
+    PaymentResult? paymentResult;
+    
+    // STEP 2: Process payment (handle both success and failure)
+    if (paymentMode.toLowerCase() == "online payment") {
+      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.processingPayment;
+      
+      logger.log('=== STEP 2: PROCESSING ONLINE PAYMENT ===');
+      logger.log('Payment Method: ${_selectedPaymentMethod!.displayName}');
+      logger.log('Final Amount: ₹${finalAmount.toStringAsFixed(2)}');
+      
+      print('\n💳 === STEP 2: INITIATING ONLINE PAYMENT === 💳');
+      print('Amount: ₹${finalAmount.toStringAsFixed(2)}');
+      print('Customer: ${deliveryAddress.fullName}');
+      print('Phone: ${deliveryAddress.mobileNumber}');
+      print('Email: ${deliveryAddress.emailId}');
+      print('💳 === OPENING RAZORPAY CHECKOUT === 💳\n');
+      
+      // Initialize payment service
+      final paymentService = ref.read(paymentServiceProvider);
+      
+      // Start Razorpay payment
+      paymentResult = await paymentService.startPayment(
+        amount: finalAmount,
+        description: 'Order Payment - PatelMart',
+        customerName: deliveryAddress.fullName,
+        customerEmail: deliveryAddress.emailId,
+        customerPhone: deliveryAddress.mobileNumber,
+        customOrderId: tempOrderId, // Pass temp order ID as custom order ID
+      );
+      
+      // Store payment result in provider
+      ref.read(paymentResultProvider.notifier).state = paymentResult;
+      
+      logger.log('=== STEP 2 COMPLETED: PAYMENT RESULT ===');
+      logger.log('Payment Success: ${paymentResult.success}');
+      logger.log('Payment ID: ${paymentResult.paymentId ?? "None"}');
+      logger.log('Status: ${paymentResult.status ?? "Unknown"}');
+      logger.log('Method: ${paymentResult.method ?? "Unknown"}');
+      logger.log('Error Message: ${paymentResult.message ?? "None"}');
+      
+      if (paymentResult.success) {
+        transactionId = paymentResult.paymentId;
+        
+        print('\n💳 === STEP 2: PAYMENT SUCCESSFUL === 💳');
+        print('Payment ID: ${paymentResult.paymentId}');
+        print('Status: ${paymentResult.status}');
+        print('Method: ${paymentResult.method}');
+        print('💳 === PROCEEDING TO ORDER CONFIRMATION === 💳\n');
+      } else {
+        // Payment failed - but continue to Step 3 to update database with failure
+        logger.log('❌ PAYMENT FAILED - CONTINUING TO UPDATE DATABASE WITH FAILURE STATUS');
+        logger.log('Payment Error: ${paymentResult.message}');
+        logger.log('Will update order status to "Payment Failed"');
+        
+        print('\n❌ === STEP 2: PAYMENT FAILED === ❌');
+        print('Payment Error: ${paymentResult.message}');
+        print('Error Code: ${paymentResult.error}');
+        print('Still proceeding to update database with failure status');
+        print('Database will be updated: Payment Processing → Payment Failed');
+        print('❌ === CONTINUING TO ORDER UPDATE === ❌\n');
+        
+        // Continue to Step 3 with failed payment result
+        // transactionId remains null for failed payments
+      }
+    } else {
+      // For COD, create a successful mock payment result
+      paymentResult = PaymentResult(
+        success: true,
+        paymentId: 'COD_${DateTime.now().millisecondsSinceEpoch}',
+        message: 'Cash on Delivery',
+        fullPaymentData: {
+          'payment_method': 'Cash on Delivery',
+          'amount': finalAmount,
+          'status': 'pending',
+          'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        },
+      );
+      
+      print('\n💰 === STEP 2: CASH ON DELIVERY === 💰');
+      print('Payment Method: Cash on Delivery');
+      print('No online payment required');
+      print('Database will be updated: Payment Processing → Order Confirmed');
+      print('💰 === PROCEEDING TO ORDER CONFIRMATION === 💰\n');
+    }
+    
+    // STEP 3: Update order with proper status based on payment result (ALWAYS CALLED)
+    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.confirmingOrder;
+    
+    logger.log('=== STEP 3: UPDATING DATABASE WITH FINAL STATUS ===');
+    logger.log('Using Temp Order ID: $tempOrderId');
+    logger.log('Payment Success: ${paymentResult?.success ?? false}');
+    logger.log('Transaction ID: ${transactionId ?? "None"}');
+    
+    // Determine what the final status should be
+    String expectedOrderStatus;
+    String expectedPaymentStatus;
+    
+    if (paymentMode.toLowerCase() == "online payment") {
+      if (paymentResult != null && paymentResult.success) {
+        expectedOrderStatus = "Order Confirmed";
+        expectedPaymentStatus = "Payment Confirmed";
+      } else {
+        expectedOrderStatus = "Payment Failed";
+        expectedPaymentStatus = "Payment Failed";
+      }
+    } else {
+      expectedOrderStatus = "Order Confirmed";
+      expectedPaymentStatus = "Pending";
+    }
+    
+    print('\n📋 === STEP 3: UPDATING ORDER WITH FINAL STATUS === 📋');
+    print('Temp Order ID: $tempOrderId');
+    print('Payment Success: ${paymentResult?.success ?? false}');
+    print('Expected Order Status: $expectedOrderStatus');
+    print('Expected Payment Status: $expectedPaymentStatus');
+    print('Transaction ID: ${transactionId ?? "None"}');
+    print('Status Update: Payment Processing → $expectedOrderStatus');
+    print('📋 === CALLING ORDER CONFIRMATION API === 📋\n');
+    
+    // CRITICAL: Call order confirmation API with the payment result (success or failure)
+    // The updated OrderService will automatically handle the status based on paymentResult
+    final orderService = ref.read(orderServiceProvider);
+    final orderResult = await orderService.confirmOrder(
+      deviceId: deviceId,
+      cartKey: cartKey,
+      tempOrderId: tempOrderId, // Same temp order ID to update existing record
+      storeCode: selectedOutlet.storeCode,
+      cartItems: cartItems,
+      deliveryAddress: deliveryAddress,
+      deliverySlot: deliverySlot,
+      deliveryDate: deliveryDate,
+      deliveryMode: deliveryMode,
+      paymentMode: paymentMode,
+      totalMrp: cartTotal + cartSavings,
+      totalOurPrice: cartTotal,
+      discount: cartSavings,
+      deliveryCharges: deliveryCharge,
+      discountedAmount: cartTotal,
+      finalPayableAmount: finalAmount,
+      paidAmount: (paymentResult?.success == true) ? finalAmount.toString() : "0",
       accessKey: accessKey,
       transactionId: transactionId,
       specialNotes: _instructionsController.text,
+      paymentResult: paymentResult, // Pass the actual payment result (success or failure)
+      paymentFormat: PaymentDataFormat.both,
     );
     
     // Store order result
     ref.read(orderConfirmationResultProvider.notifier).state = orderResult;
     
-    if (orderResult.success) {
-      // Order confirmed successfully
-      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
-      
-      logger.log('Order placed successfully with pincode: ${deliveryAddress.deliveryAddrPincode}');
-      logger.log('Order includes order_date_time field automatically');
-      
-      // Clear cart after successful order
-      ref.read(cartProvider.notifier).clearCart(clearCartKeyInStorage: true);
-      
-      // Clear checkout data
-      await CheckoutData.clearFromPrefs();
-      
-      // Create local order record
-      final createOrder = ref.read(createOrderFromCartProvider);
-      final orderRecord = await createOrder(
-        paymentMode, 
-        deliveryMode,
-        deliverySlot,
-        '${deliveryAddress.deliveryAddrLine1}, ${deliveryAddress.deliveryAddrLine2}, ${deliveryAddress.deliveryAddrCity} - ${deliveryAddress.deliveryAddrPincode}',
-      );
-
-      if (orderRecord == null) {
-        logger.error('Failed to save order to local history');
-      }
-
-      if (mounted) {
-        setState(() {
-          _isPlacingOrder = false;
-          _showSuccessDialog = true;
-        });
-        _showOrderSuccessDialog();
-      }
-    } else {
-      // Order confirmation failed
-      ref.read(orderErrorMessageProvider.notifier).state = orderResult.message;
-      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
-      
-      logger.error('Order confirmation failed: ${orderResult.message}');
-      
-      if (mounted) {
-        setState(() {
-          _isPlacingOrder = false;
-        });
-        _showErrorSnackBar(orderResult.message);
-      }
-    }
-  } catch (e) {
-    // Handle unexpected errors
-    final logger = ref.read(loggerProvider);
-    logger.error('Error placing order: $e');
-    ref.read(orderErrorMessageProvider.notifier).state = e.toString();
-    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
+    logger.log('=== STEP 3 COMPLETED: ORDER UPDATE RESULT ===');
+    logger.log('Order API Success: ${orderResult.success}');
+    logger.log('Order ID: ${orderResult.orderId ?? "None"}');
+    logger.log('Expected Status: $expectedOrderStatus');
+    logger.log('API Message: ${orderResult.message}');
     
-    if (mounted) {
+    if (orderResult.success) {
+      // API call successful - determine the outcome based on the message or payment result
+      if (paymentResult != null && paymentResult.success && paymentMode.toLowerCase() == "online payment") {
+        // Successful online payment
+        ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
+        await enhancedCartValidator.markOrderAsCompleted(tempOrderId);
+        
+        logger.log('✅ ORDER SUCCESSFULLY PLACED AND CONFIRMED');
+        logger.log('Order ID: ${orderResult.orderId}');
+        logger.log('Database Status: Order Confirmed');
+        logger.log('Payment Status: Payment Confirmed');
+        
+        print('\n🎉 === ORDER SUCCESSFULLY COMPLETED === 🎉');
+        print('Order ID: ${orderResult.orderId}');
+        print('Database Status: Order Confirmed');
+        print('Payment Status: Payment Confirmed');
+        print('Transaction ID: $transactionId');
+        print('Payment Processing → Order Confirmed ✅');
+        print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
+        
+        // Clear cart and show success
+        await ref.read(cartProvider.notifier).clearCart();
+        setState(() {
+          _isPlacingOrder = false;
+        });
+        _showOrderSuccessDialog(orderResult.orderId ?? tempOrderId);
+        
+      } else if (paymentMode.toLowerCase() != "online payment") {
+        // Cash on Delivery
+        ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
+        await enhancedCartValidator.markOrderAsCompleted(tempOrderId);
+        
+        logger.log('✅ COD ORDER SUCCESSFULLY PLACED');
+        logger.log('Order ID: ${orderResult.orderId}');
+        logger.log('Database Status: Order Confirmed');
+        logger.log('Payment Status: Pending');
+        
+        print('\n🎉 === COD ORDER SUCCESSFULLY COMPLETED === 🎉');
+        print('Order ID: ${orderResult.orderId}');
+        print('Database Status: Order Confirmed');
+        print('Payment Status: Pending');
+        print('Payment Processing → Order Confirmed ✅');
+        print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
+        
+        // Clear cart and show success
+        await ref.read(cartProvider.notifier).clearCart();
+        setState(() {
+          _isPlacingOrder = false;
+        });
+        _showOrderSuccessDialog(orderResult.orderId ?? tempOrderId);
+        
+      } else {
+        // Payment failed but database was updated with failure status
+        ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
+        ref.read(orderErrorMessageProvider.notifier).state = 'Payment failed';
+        await enhancedCartValidator.markOrderAsFailed(tempOrderId);
+        
+        logger.log('✅ DATABASE UPDATED WITH PAYMENT FAILURE STATUS');
+        logger.log('Order ID: ${orderResult.orderId}');
+        logger.log('Database Status: Payment Failed');
+        logger.log('Payment Status: Payment Failed');
+        
+        print('\n❌ === PAYMENT FAILED BUT DATABASE UPDATED === ❌');
+        print('Order ID: ${orderResult.orderId}');
+        print('Database Status: Payment Failed');
+        print('Payment Status: Payment Failed');
+        print('Payment Processing → Payment Failed ✅');
+        print('Database Updated: ✅');
+        print('❌ === ORDER MARKED AS FAILED === ❌\n');
+        
+        setState(() {
+          _isPlacingOrder = false;
+        });
+        
+        // Show payment failure message
+        _showErrorSnackBar('Payment failed. Order has been cancelled. Please try again.');
+      }
+      
+    } else {
+      // API call itself failed
       setState(() {
         _isPlacingOrder = false;
       });
-      _showErrorSnackBar('An unexpected error occurred: ${e.toString()}');
+      ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
+      ref.read(orderErrorMessageProvider.notifier).state = orderResult.message;
+      await enhancedCartValidator.markOrderAsFailed(tempOrderId);
+      
+      logger.error('❌ Order confirmation API call failed: ${orderResult.message}');
+      print('\n❌ === ORDER CONFIRMATION API FAILED === ❌');
+      print('Error: ${orderResult.message}');
+      print('Database Status: Payment Processing (may be unchanged)');
+      print('❌ === ORDER FLOW FAILED === ❌\n');
+      
+      _showErrorSnackBar('Order confirmation failed: ${orderResult.message}');
     }
+    
+  } catch (e) {
+    setState(() {
+      _isPlacingOrder = false;
+    });
+    ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
+    ref.read(orderErrorMessageProvider.notifier).state = 'Unexpected error: $e';
+    
+    // Mark order as failed - this will create a new session automatically
+    final enhancedCartValidator = ref.read(enhancedCartValidatorProvider);
+    final prefs = await SharedPreferences.getInstance();
+    final tempOrderId = prefs.getString('temp_order_id');
+    if (tempOrderId != null) {
+      await enhancedCartValidator.markOrderAsFailed(tempOrderId);
+    }
+    
+    final logger = ref.read(loggerProvider);
+    logger.error('Unexpected error during order placement: $e');
+    
+    print('\n💥 === UNEXPECTED ERROR === 💥');
+    print('Error: $e');
+    print('💥 === ORDER FLOW FAILED === 💥\n');
+    
+    _showErrorSnackBar('An unexpected error occurred. Please try again.');
   }
 }
-
-void _showOrderSuccessDialog() {
+// Enhanced order success dialog
+void _showOrderSuccessDialog(String orderId) {
+  final paymentResult = ref.read(paymentResultProvider);
+  final orderResult = ref.read(orderConfirmationResultProvider);
+  final paymentProcessingResult = ref.read(orderPaymentProcessingResultProvider);
+  
   showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (context) => WillPopScope(
-      onWillPop: () async => false,
-      child: Dialog(
+    builder: (BuildContext context) {
+      return AlertDialog(
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.check_circle,
+        title: Row(
+          children: [
+            Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 32,
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Order Placed Successfully!',
+              style: AppTextStyles.bodySmall.copyWith(
                 color: Colors.green,
-                size: 64,
+                fontWeight: FontWeight.bold,
               ),
-              
-              const SizedBox(height: 16),
-              
-              Text(
-                'Order Placed Successfully!',
-                style: AppTextStyles.h5,
-                textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your order has been successfully placed and is being processed.',
+              style: AppTextStyles.bodyMedium,
+            ),
+            SizedBox(height: 12),
+            
+            // Order ID
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withOpacity(0.3)),
               ),
-              
-              const SizedBox(height: 8),
-              
-              Text(
-                widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup
-                    ? 'Your order has been placed successfully with order date and time recorded. You can collect it from our store.'
-                    : 'Your order has been placed successfully with order date and time recorded. You can track your order in the Orders section.',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              
-              const SizedBox(height: 24),
-              
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    context.go('/home');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Order ID: $orderId',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
                     ),
                   ),
-                  child: const Text('CONTINUE SHOPPING'),
+                  
+                  // Payment information
+                  if (paymentResult != null && paymentResult.success) ...[
+                    SizedBox(height: 8),
+                    Text(
+                      'Payment ID: ${paymentResult.paymentId}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.green[700],
+                      ),
+                    ),
+                    Text(
+                      'Payment Status: Confirmed',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ] else if (widget.checkoutData.paymentMethod?.toLowerCase().contains('cod') == true ||
+                            widget.checkoutData.paymentMethod?.toLowerCase().contains('pod') == true) ...[
+                    SizedBox(height: 8),
+                    Text(
+                      'Payment: Cash on Delivery',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.orange[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                  
+                  // Database status confirmation
+                  SizedBox(height: 8),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.favorite,
+                          size: 14,
+                          color: Colors.green[700],
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'Order Status: Confirmed',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            SizedBox(height: 16),
+            Text(
+              'You will receive a confirmation message shortly.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            
+            // Show delivery information
+            if (widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery) ...[
+              SizedBox(height: 12),
+              Text(
+                'Delivery Details:',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+              SizedBox(height: 4),
+              Text(
+                'Date: ${widget.checkoutData.deliveryDate != null ? _formatDate(widget.checkoutData.deliveryDate!) : "Tomorrow"}',
+                style: AppTextStyles.bodySmall,
+              ),
+              Text(
+                'Time: ${widget.checkoutData.deliveryTimeSlot ?? "9:00 AM - 10:00 PM"}',
+                style: AppTextStyles.bodySmall,
+              ),
+            ] else ...[
+              SizedBox(height: 12),
+              Text(
+                'Pickup Details:',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Ready for pickup within 2-4 hours',
+                style: AppTextStyles.bodySmall,
+              ),
+              Text(
+                'Store will call when ready',
+                style: AppTextStyles.bodySmall,
+              ),
             ],
-          ),
+          ],
         ),
-      ),
-    ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              context.go('/'); // Navigate to home
+            },
+            child: Text(
+              'Continue Shopping',
+              style: TextStyle(color: AppColors.primary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              context.go('/my-orders'); // Navigate to orders page
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('View Orders'),
+          ),
+        ],
+      );
+    },
   );
 }
 
+// Helper method to format date for display
+String _formatDate(DateTime date) {
+  final now = DateTime.now();
+  
+  if (date.year == now.year && date.month == now.month && date.day == now.day) {
+    return 'Today';
+  }
+  
+  if (date.year == now.year && date.month == now.month && date.day == now.day + 1) {
+    return 'Tomorrow';
+  }
+  
+  // Format as "Jan 15, 2025"
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  
+  return '${months[date.month - 1]} ${date.day}, ${date.year}';
+}
+
+// Enhanced error display method
+// Enhanced order success dialog
+
+// Helper method to format date for display
+
+// Enhanced error display method
+
+// Helper method for CartItem conversion (add this if you need it)
   IconData _getPaymentMethodIcon(PaymentMethod method) {
     switch (method.paymentModeName.toLowerCase()) {
       case 'pod':
@@ -3936,5 +4296,7 @@ void _showOrderSuccessDialog() {
         ],
       );
     },
+    
   );
+  
   }

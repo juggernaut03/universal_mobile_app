@@ -300,7 +300,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
         "full_name": _fullNameController.text.trim(),
         "access_key": accessKey,
         "mobile_number": mobileNumber.trim(),
-        "email_id": "test@example.com", // Hardcoded for reliability
+        "email_id": "", // Hardcoded for reliability
         "delivery_addr_line_1": _wingFloorController.text.trim(),
         "delivery_addr_line_2": _localityController.text.trim(),
         "delivery_addr_city": _cityController.text.trim(),

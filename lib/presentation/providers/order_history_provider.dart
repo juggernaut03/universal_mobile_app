@@ -54,7 +54,7 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async
     final allOrders = await repository.getOrderHistory();
     
     // Filter out orders with "In Cart" status only - keep Pending as valid orders
-    // Updated to match new status values: Pending, Accepted, In Packaging, Out for Delivery, Delivered
+    // Updated to match new status values: Pending, Proocessing, In Packaging, Out for Delivery, Delivered
     final filteredOrders = allOrders.where((order) => 
         order.status.toLowerCase() != 'in cart').toList();
     
@@ -105,8 +105,8 @@ final filteredOrdersByStatusProvider = Provider<List<Order>>((ref) {
         switch (selectedFilter) {
           case 'Pending':
             return status.contains('pending');
-          case 'Accepted':
-            return status.contains('accepted');
+          case 'Proocessing':
+            return status.contains('Proocessing');
           case 'In Packaging':
             return status.contains('in packaging') || status.contains('packaging');
           case 'Out for Delivery':
@@ -136,7 +136,7 @@ final orderStatusCountsProvider = Provider<Map<String, int>>((ref) {
       final counts = <String, int>{
         'All': orders.length,
         'Pending': 0,
-        'Accepted': 0,
+        'Proocessing': 0,
         'In Packaging': 0,
         'Out for Delivery': 0,
         'Delivered': 0,
@@ -147,8 +147,8 @@ final orderStatusCountsProvider = Provider<Map<String, int>>((ref) {
         final status = order.status.toLowerCase();
         if (status.contains('pending')) {
           counts['Pending'] = (counts['Pending'] ?? 0) + 1;
-        } else if (status.contains('accepted')) {
-          counts['Accepted'] = (counts['Accepted'] ?? 0) + 1;
+        } else if (status.contains('Proocessing')) {
+          counts['Processing'] = (counts['Processing'] ?? 0) + 1;
         } else if (status.contains('in packaging') || status.contains('packaging')) {
           counts['In Packaging'] = (counts['In Packaging'] ?? 0) + 1;
         } else if (status.contains('out for delivery') || status.contains('dispatched') || status.contains('shipped')) {
