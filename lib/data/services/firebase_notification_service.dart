@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -43,14 +44,14 @@ class FirebaseNotificationService {
       // Step 1: Initialize local notifications first (safer)
       await _initializeLocalNotificationsSafely();
       
-      // Step 2: Request permissions carefully
+      // Step 2: Request permissions carefully with iOS-specific handling
       await _requestPermissionsSafely();
       
       // Step 3: Setup message handlers
       await _setupMessageHandlers();
       
-      // Step 4: Get FCM token
-      await _setupFCMTokenSafely();
+      // Step 4: Get FCM token with iOS APNS token handling
+      await _setupFCMTokenSafelyWithIOSSupport();
       
       _isInitialized = true;
       debugPrint('NotificationService: ✅ Safe initialization completed');
@@ -69,10 +70,11 @@ class FirebaseNotificationService {
     try {
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       
+      // iOS settings with proper configuration for iOS 10+
       const iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
       );
       
       const initSettings = InitializationSettings(
@@ -83,12 +85,13 @@ class FirebaseNotificationService {
       final initialized = await _localNotifications.initialize(
         initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
+        onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationTapped,
       );
       
       debugPrint('NotificationService: Local notifications initialized: $initialized');
       
       // Create notification channel for Android
-      if (defaultTargetPlatform == TargetPlatform.android) {
+      if (Platform.isAndroid) {
         final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
         if (androidPlugin != null) {
@@ -102,7 +105,7 @@ class FirebaseNotificationService {
     }
   }
   
-  /// Request permissions with maximum safety and error handling
+  /// Request permissions with maximum safety and iOS-specific handling
   Future<void> _requestPermissionsSafely() async {
     try {
       debugPrint('NotificationService: Requesting permissions safely...');
@@ -110,19 +113,42 @@ class FirebaseNotificationService {
       // Add extra delay before permission request
       await Future.delayed(const Duration(seconds: 1));
       
-      // Use a simpler permission request without timeout complications
       NotificationSettings? settings;
       
       try {
-        settings = await _firebaseMessaging.requestPermission(
-          alert: true,
-          announcement: false,
-          badge: true,
-          carPlay: false,
-          criticalAlert: false,
-          provisional: false,
-          sound: true,
-        );
+        if (Platform.isIOS) {
+          // iOS-specific permission handling
+          debugPrint('NotificationService: Requesting iOS permissions...');
+          
+          settings = await _firebaseMessaging.requestPermission(
+            alert: true,
+            announcement: false,
+            badge: true,
+            carPlay: false,
+            criticalAlert: false,
+            provisional: false,
+            sound: true,
+          );
+          
+          // Configure foreground notification presentation for iOS
+          await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+          
+        } else {
+          // Android permission handling
+          settings = await _firebaseMessaging.requestPermission(
+            alert: true,
+            announcement: false,
+            badge: true,
+            carPlay: false,
+            criticalAlert: false,
+            provisional: false,
+            sound: true,
+          );
+        }
         
         debugPrint('NotificationService: Permission status: ${settings.authorizationStatus}');
         
@@ -148,9 +174,9 @@ class FirebaseNotificationService {
       }
       
       // Additional platform-specific permissions
-      if (defaultTargetPlatform == TargetPlatform.android) {
+      if (Platform.isAndroid) {
         await _requestAndroidPermissions();
-      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      } else if (Platform.isIOS) {
         await _requestIOSPermissions();
       }
       
@@ -197,13 +223,6 @@ class FirebaseNotificationService {
   /// Setup message handlers safely
   Future<void> _setupMessageHandlers() async {
     try {
-      // Configure foreground notification presentation
-      await _firebaseMessaging.setForegroundNotificationPresentationOptions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      
       // Handle foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         try {
@@ -244,29 +263,17 @@ class FirebaseNotificationService {
     }
   }
   
-  /// Setup FCM token safely with retries
-  Future<void> _setupFCMTokenSafely() async {
+  /// Setup FCM token safely with iOS APNS token handling
+  Future<void> _setupFCMTokenSafelyWithIOSSupport() async {
     try {
       String? token;
       
-      // Try to get token with retries
-      for (int i = 0; i < 3; i++) {
-        try {
-          token = await _firebaseMessaging.getToken();
-          
-          if (token != null) {
-            debugPrint('NotificationService: FCM Token obtained: ${token.substring(0, 20)}...');
-            break;
-          }
-          
-          // Wait before retry
-          if (i < 2) {
-            await Future.delayed(Duration(seconds: (i + 1) * 2));
-          }
-        } catch (e) {
-          debugPrint('NotificationService: Token attempt ${i + 1} failed: $e');
-          if (i == 2) return; // Give up after 3 attempts
-        }
+      if (Platform.isIOS) {
+        // iOS-specific token handling with APNS check
+        token = await _getIOSTokenWithAPNSCheck();
+      } else {
+        // Android token handling
+        token = await _getAndroidTokenSafely();
       }
       
       if (token != null) {
@@ -302,6 +309,94 @@ class FirebaseNotificationService {
     }
   }
   
+  /// Get iOS token with APNS check and retry mechanism
+  Future<String?> _getIOSTokenWithAPNSCheck() async {
+    debugPrint('NotificationService: Getting iOS FCM token with APNS check...');
+    
+    // First, ensure APNS token is available
+    await _ensureAPNSTokenAvailable();
+    
+    // Try to get FCM token with retries
+    for (int i = 0; i < 5; i++) {
+      try {
+        debugPrint('NotificationService: iOS Token attempt ${i + 1}');
+        
+        // Check if APNS token is available before requesting FCM token
+        final apnsToken = await _firebaseMessaging.getAPNSToken();
+        if (apnsToken != null) {
+          debugPrint('NotificationService: ✅ APNS token available');
+          
+          final fcmToken = await _firebaseMessaging.getToken();
+          if (fcmToken != null) {
+            debugPrint('NotificationService: ✅ iOS FCM Token obtained: ${fcmToken.substring(0, 20)}...');
+            return fcmToken;
+          }
+        } else {
+          debugPrint('NotificationService: ⚠️ APNS token not available, attempt ${i + 1}');
+        }
+        
+        // Wait before retry
+        if (i < 4) {
+          await Future.delayed(Duration(seconds: (i + 1) * 2));
+        }
+      } catch (e) {
+        debugPrint('NotificationService: iOS Token attempt ${i + 1} failed: $e');
+        if (i == 4) break; // Give up after 5 attempts
+        await Future.delayed(Duration(seconds: (i + 1) * 2));
+      }
+    }
+    
+    debugPrint('NotificationService: ❌ Failed to get iOS FCM token after 5 attempts');
+    return null;
+  }
+  
+  /// Ensure APNS token is available for iOS
+  Future<void> _ensureAPNSTokenAvailable() async {
+    try {
+      debugPrint('NotificationService: Ensuring APNS token availability...');
+      
+      // Wait for APNS token to become available
+      for (int i = 0; i < 10; i++) {
+        final apnsToken = await _firebaseMessaging.getAPNSToken();
+        if (apnsToken != null) {
+          debugPrint('NotificationService: ✅ APNS token confirmed available');
+          return;
+        }
+        
+        debugPrint('NotificationService: Waiting for APNS token... attempt ${i + 1}');
+        await Future.delayed(const Duration(seconds: 1));
+      }
+      
+      debugPrint('NotificationService: ⚠️ APNS token not available after 10 seconds');
+    } catch (e) {
+      debugPrint('NotificationService: Error checking APNS token: $e');
+    }
+  }
+  
+  /// Get Android token safely
+  Future<String?> _getAndroidTokenSafely() async {
+    // Try to get token with retries for Android
+    for (int i = 0; i < 3; i++) {
+      try {
+        final token = await _firebaseMessaging.getToken();
+        if (token != null) {
+          debugPrint('NotificationService: ✅ Android FCM Token obtained: ${token.substring(0, 20)}...');
+          return token;
+        }
+        
+        // Wait before retry
+        if (i < 2) {
+          await Future.delayed(Duration(seconds: (i + 1) * 2));
+        }
+      } catch (e) {
+        debugPrint('NotificationService: Android Token attempt ${i + 1} failed: $e');
+        if (i == 2) break; // Give up after 3 attempts
+      }
+    }
+    
+    return null;
+  }
+  
   /// Show local notification
   void _showLocalNotification(RemoteMessage message) {
     try {
@@ -323,6 +418,7 @@ class FirebaseNotificationService {
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
+        categoryIdentifier: 'default',
       );
       
       const details = NotificationDetails(
@@ -393,6 +489,16 @@ class FirebaseNotificationService {
     }
   }
   
+  /// Handle background notification tap
+  void _onBackgroundNotificationTapped(NotificationResponse response) {
+    try {
+      debugPrint('NotificationService: Background notification tapped');
+      _onNotificationTapped(response);
+    } catch (e) {
+      debugPrint('NotificationService: Background tap handler error: $e');
+    }
+  }
+  
   /// Handle background messages
   static Future<void> handleBackgroundMessage(RemoteMessage message) async {
     try {
@@ -417,9 +523,37 @@ class FirebaseNotificationService {
   /// Get current token
   Future<String?> getCurrentToken() async {
     try {
+      if (Platform.isIOS) {
+        // For iOS, ensure APNS token is available first
+        await _ensureAPNSTokenAvailable();
+      }
       return await _firebaseMessaging.getToken();
     } catch (e) {
       debugPrint('NotificationService: Get token error: $e');
+      return null;
+    }
+  }
+  
+  /// Check if notifications are enabled
+  Future<bool> areNotificationsEnabled() async {
+    try {
+      final settings = await _firebaseMessaging.getNotificationSettings();
+      return settings.authorizationStatus == AuthorizationStatus.authorized;
+    } catch (e) {
+      debugPrint('NotificationService: Error checking notification settings: $e');
+      return false;
+    }
+  }
+  
+  /// Get APNS token (iOS only)
+  Future<String?> getAPNSToken() async {
+    try {
+      if (Platform.isIOS) {
+        return await _firebaseMessaging.getAPNSToken();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('NotificationService: Error getting APNS token: $e');
       return null;
     }
   }

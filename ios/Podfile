@@ -1,7 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '14.0'
-
-
+platform :ios, '12.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -31,15 +29,31 @@ flutter_ios_podfile_setup
 
 target 'Runner' do
   use_frameworks!
+  use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-  target 'RunnerTests' do
-    inherit! :search_paths
-  end
+  
+  # Firebase specific configurations
+  pod 'Firebase/Messaging'
+  pod 'Firebase/Analytics'
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    
+    # Ensure deployment target is set correctly for all pods
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      
+      # Fix for Xcode 14+ warnings
+      config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+      
+      # Enable bitcode if needed
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+      
+      # Set the correct Swift version
+      config.build_settings['SWIFT_VERSION'] = '5.0'
+    end
   end
 end

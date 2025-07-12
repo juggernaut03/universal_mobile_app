@@ -47,14 +47,16 @@ class DefaultFirebaseOptions {
   storageBucket: 'patelrmartnotifications.appspot.com',
 );
 
-static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCBhGpxjXWR5jPFQGMK4ZAN_zQUd_kmNEU',
-    appId: '1:65652715036:ios:3e9aa50a18bd787e9cb9d9',
-    messagingSenderId: '65652715036',
-    projectId: 'patelrmartnotifications',
-    storageBucket: 'patelrmartnotifications.appspot.com',
-    iosBundleId: 'com.patelrmart.iosapp',
+ static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyC4ATmVhgyg3JZYKDYlIBJUqr3AEQXPmC8',    // From your plist
+    appId: '1:65652715036:ios:3e9aa50a18bd787e9cb9d9',     // From your plist  
+    messagingSenderId: '65652715036',                       // From your plist
+    projectId: 'patelrmartnotifications',                   // From your plist
+    storageBucket: 'patelrmartnotifications.appspot.com',   // From your plist
+    iosBundleId: 'com.patelrmart.iosapp',                  // Your actual bundle ID
+    databaseURL: 'https://patelrmartnotifications.firebaseio.com', // From your plist
   );
+
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCBhGpxjXWR5jPFQGMK4ZAN_zQUd_kmNEU',
