@@ -1,3 +1,5 @@
+// lib/presentation/providers/delivery_charges_provider.dart
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../../core/utils/logger.dart';
@@ -92,21 +94,78 @@ class DeliveryChargesNotifier extends StateNotifier<DeliveryChargesState> {
         store: selectedOutlet,
       );
       
-      logger.log('Calculated distance: $distance km');
+      logger.log('Calculated distance: $distance km (exact value preserved)');
       
-      // Fetch delivery charges from the API
+      // Fetch delivery charges from the API using exact distance
+      final deliveryCharge = await _deliveryChargesService.getDeliveryCharges(
+        distance: distance, // Use exact distance, not rounded
+        storeCode: selectedOutlet.storeCode,
+        orderAmount: calculatedOrderAmount,
+      );
+      
+      logger.log('Delivery charge for distance $distance km: ₹$deliveryCharge');
+      
+      // Check if free delivery is eligible (if delivery charge is 0)
+      final isFreeDelivery = deliveryCharge <= 0;
+      
+      // Update state with the calculated values
+      state = state.copyWith(
+        isLoading: false,
+        deliveryCharge: deliveryCharge,
+        freeDeliveryEligible: isFreeDelivery,
+        distance: distance,
+      );
+      
+      logger.log('Delivery charges updated - Distance: ${distance}km, Charge: ₹${deliveryCharge}, Free: $isFreeDelivery');
+    } catch (e) {
+      logger.error('Error calculating delivery charges: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to calculate delivery charges: $e',
+      );
+    }
+  }
+
+  // Method to recalculate with different rounding strategy if needed
+  Future<void> calculateDeliveryChargesWithRounding({
+    required Address userAddress,
+    double? orderAmount,
+    bool roundDistance = false,
+  }) async {
+    final logger = _ref.read(loggerProvider);
+    
+    state = state.copyWith(isLoading: true, error: null);
+    
+    try {
+      final selectedOutletAsync = _ref.read(selectedOutletProvider);
+      final selectedOutlet = selectedOutletAsync.valueOrNull;
+      if (selectedOutlet == null) {
+        throw Exception('No outlet selected');
+      }
+      
+      final double calculatedOrderAmount = orderAmount ?? _ref.read(cartTotalProvider);
+      
+      // Calculate distance
+      var distance = await _deliveryChargesService.calculateDistance(
+        userAddress: userAddress,
+        store: selectedOutlet,
+      );
+      
+      // Apply rounding if requested
+      if (roundDistance) {
+        distance = distance.roundToDouble();
+        logger.log('Distance rounded from original to: $distance km');
+      }
+      
+      // Fetch delivery charges
       final deliveryCharge = await _deliveryChargesService.getDeliveryCharges(
         distance: distance,
         storeCode: selectedOutlet.storeCode,
         orderAmount: calculatedOrderAmount,
       );
       
-      logger.log('Delivery charge: $deliveryCharge');
-      
-      // Check if free delivery is eligible (if delivery charge is 0)
       final isFreeDelivery = deliveryCharge <= 0;
       
-      // Update state with the calculated values
       state = state.copyWith(
         isLoading: false,
         deliveryCharge: deliveryCharge,
@@ -144,4 +203,3 @@ final deliveryChargesCalculatorProvider = Provider.family<Future<void>, Address>
   final notifier = ref.read(deliveryChargesProvider.notifier);
   return notifier.calculateDeliveryCharges(userAddress: address);
 });
-

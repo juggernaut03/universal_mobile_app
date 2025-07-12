@@ -8,13 +8,25 @@
             "fileOutput": "android/app/google-services.json"
           }
         },
-        "ios": {
+     "ios": {
           "default": {
             "projectId": "patelrmartnotifications",
-            "appId": "1:65652715036:ios:YOUR_IOS_APP_ID",
+            "appId": "1:65652715036:ios:3e9aa50a18bd787e9cb9d9",
             "uploadDebugSymbols": false,
             "fileOutput": "ios/Runner/GoogleService-Info.plist"
           }
+        },
+        "dart": {
+          "lib/firebase_options.dart": {
+            "projectId": "patelrmartnotifications",
+            "configurations": {
+              "android": "1:65652715036:android:12118f78c4d70d859cb9d9",
+              "ios": "1:65652715036:ios:3e9aa50a18bd787e9cb9d9",
+              "web": "1:65652715036:web:YOUR_WEB_APP_ID"
+            }
+          }
+        }
+
         },
         "dart": {
           "lib/firebase_options.dart": {
@@ -28,4 +40,4 @@
         }
       }
     }
-  }
+  
