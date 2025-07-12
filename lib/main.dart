@@ -23,17 +23,29 @@ import 'presentation/providers/auth_providers.dart';
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-// Background message handler - MUST be top-level function
+// Background message handler - MUST be top-level function with enhanced iOS support
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
+    print('🔔 Background message handler started');
+    print('   Message ID: ${message.messageId}');
+    print('   Title: ${message.notification?.title}');
+    print('   Body: ${message.notification?.body}');
+    print('   Data: ${message.data}');
+    
     // ONLY initialize Firebase if not already initialized
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      print('🔥 Firebase initialized in background handler');
     }
-    print('Background message received: ${message.messageId}');
-  } catch (e) {
-    print('Background handler error: $e');
+    
+    // Handle the background message using the service
+    await FirebaseNotificationService.handleBackgroundMessage(message);
+    print('✅ Background message handled successfully');
+    
+  } catch (e, stackTrace) {
+    print('❌ Background handler error: $e');
+    print('Stack trace: $stackTrace');
     // Don't rethrow - let app continue
   }
 }
@@ -41,12 +53,14 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
+    print('🚀 App starting - Flutter binding initialized');
     
     // Lock orientation FIRST (this is safe)
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
+    print('📱 Orientation locked to portrait');
     
     // Initialize SharedPreferences EARLY (this is safe)
     final sharedPreferences = await SharedPreferences.getInstance();
@@ -54,20 +68,35 @@ void main() async {
     
     logger.log('Starting app initialization...');
     
-    // Initialize Firebase with error handling
+    // Initialize Firebase with enhanced error handling and iOS support
     try {
+      print('🔥 Initializing Firebase...');
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-      logger.log('Firebase initialized successfully');
+      logger.log('✅ Firebase initialized successfully');
       
       // Set background message handler ONLY after Firebase is initialized
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-      logger.log('Background message handler set');
-    } catch (e) {
-      logger.error('Firebase initialization failed: $e');
-      // Don't stop app - continue without Firebase
+      logger.log('📱 Background message handler set');
+      
+      // Enable Firebase Messaging auto initialization for better iOS support
+      await FirebaseMessaging.instance.setAutoInitEnabled(true);
+      logger.log('🔄 Firebase Messaging auto-init enabled');
+      
+      // Log current Firebase project for debugging
+      if (kDebugMode) {
+        final app = Firebase.app();
+        logger.log('📊 Firebase project: ${app.options.projectId}');
+        logger.log('📊 iOS bundle ID: ${app.options.iosBundleId}');
+      }
+      
+    } catch (e, stackTrace) {
+      logger.error('❌ Firebase initialization failed: $e');
+      logger.error('Stack trace: $stackTrace');
+      // Don't stop app - continue without Firebase but log the issue
+      print('⚠️ Continuing without Firebase - some features may be limited');
     }
     
-    logger.log('Application starting...');
+    logger.log('🎯 Application starting...');
     
     runApp(
       ProviderScope(
@@ -81,12 +110,13 @@ void main() async {
     );
     
   } catch (e, stackTrace) {
-    print('CRITICAL ERROR in main(): $e');
+    print('❌ CRITICAL ERROR in main(): $e');
     print('Stack trace: $stackTrace');
     
     // Ensure we always show SOMETHING to the user
     runApp(
       MaterialApp(
+        title: 'PatelMart',
         home: Scaffold(
           backgroundColor: Colors.white,
           body: SafeArea(
@@ -128,6 +158,7 @@ void main() async {
             ),
           ),
         ),
+        debugShowCheckedModeBanner: false,
       ),
     );
   }
@@ -153,6 +184,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
   @override
   void initState() {
     super.initState();
+    print('🎯 App lifecycle handler initializing...');
     
     // Add lifecycle observer
     WidgetsBinding.instance.addObserver(this);
@@ -165,6 +197,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
 
   @override
   void dispose() {
+    print('🔄 App lifecycle handler disposing...');
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -189,15 +222,17 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
         setState(() {
           _appFullyInitialized = true;
         });
+        logger.log('✅ App marked as fully initialized');
       }
       
-      // STEP 4: Initialize notifications AFTER app is stable (separate)
+      // STEP 4: Initialize notifications AFTER app is stable (separate) with iOS support
       _initializeNotificationsWhenSafe();
       
       logger.log('✅ App systems initialization completed');
       
-    } catch (e) {
+    } catch (e, stackTrace) {
       ref.read(loggerProvider).error('❌ App systems initialization failed: $e');
+      ref.read(loggerProvider).error('Stack trace: $stackTrace');
       // Don't crash - just mark as initialized
       if (mounted) {
         setState(() {
@@ -225,10 +260,10 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
     try {
       // Initialize launch flow if needed
       final launchState = ref.read(launchFlowProvider);
-      ref.read(loggerProvider).log('Launch state: $launchState');
+      ref.read(loggerProvider).log('🚀 Launch state: $launchState');
       // Add any launch flow initialization here if needed
     } catch (e) {
-      ref.read(loggerProvider).error('Launch flow initialization error: $e');
+      ref.read(loggerProvider).error('❌ Launch flow initialization error: $e');
     }
   }
 
@@ -255,33 +290,79 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
     }
   }
 
-  /// Initialize notifications AFTER app is completely stable
+  /// Initialize notifications AFTER app is completely stable with enhanced iOS support
   Future<void> _initializeNotificationsWhenSafe() async {
-    if (_hasInitializedNotifications) return;
+    if (_hasInitializedNotifications) {
+      ref.read(loggerProvider).log('📱 Notifications already initialized, skipping');
+      return;
+    }
     
     try {
       final logger = ref.read(loggerProvider);
       logger.log('🔔 Starting notification initialization...');
       
-      // Wait for app to be completely stable
-      await Future.delayed(const Duration(seconds: 3));
+      // Wait for app to be completely stable - longer delay for iOS
+      await Future.delayed(const Duration(seconds: 4));
       
       // Check if we're still mounted and app is ready
       if (!mounted || !_appFullyInitialized) {
-        logger.log('⚠️ App not ready for notifications, skipping');
+        logger.log('⚠️ App not ready for notifications, skipping initialization');
         return;
       }
       
-      // Initialize the notification service
+      logger.log('📱 App is stable, initializing notification service...');
+      
+      // Initialize the notification service with enhanced error handling
       final notificationService = ref.read(firebaseNotificationServiceProvider);
       await notificationService.initializeWhenReady();
       
       _hasInitializedNotifications = true;
       logger.log('✅ Notifications initialized successfully');
       
-    } catch (e) {
+      // Additional iOS-specific checks in debug mode
+      if (kDebugMode && defaultTargetPlatform == TargetPlatform.iOS) {
+        _performIOSNotificationDebugChecks(notificationService, logger);
+      }
+      
+    } catch (e, stackTrace) {
       ref.read(loggerProvider).error('⚠️ Notification initialization failed: $e');
+      ref.read(loggerProvider).error('Stack trace: $stackTrace');
       // Don't crash the app - just continue without notifications
+    }
+  }
+
+  /// Perform iOS-specific debug checks for notifications
+  void _performIOSNotificationDebugChecks(FirebaseNotificationService service, Logger logger) async {
+    try {
+      logger.log('🍎 Performing iOS notification debug checks...');
+      
+      // Check notification permissions
+      final enabled = await service.areNotificationsEnabled();
+      logger.log('📱 iOS Notifications enabled: $enabled');
+      
+      // Check FCM token availability
+      final fcmToken = await service.getCurrentToken();
+      logger.log('🔑 FCM Token available: ${fcmToken != null}');
+      if (fcmToken != null) {
+        logger.log('🔑 FCM Token preview: ${fcmToken.substring(0, 20)}...');
+      }
+      
+      // Check APNS token availability (iOS specific)
+      final apnsToken = await service.getAPNSToken();
+      logger.log('🍎 APNS Token available: ${apnsToken != null}');
+      if (apnsToken != null) {
+        logger.log('🍎 APNS Token preview: ${apnsToken.substring(0, 20)}...');
+      }
+      
+      // Log Firebase project info for verification
+      if (Firebase.apps.isNotEmpty) {
+        final app = Firebase.app();
+        logger.log('🔥 Firebase project: ${app.options.projectId}');
+        logger.log('📱 Bundle ID: ${app.options.iosBundleId}');
+      }
+      
+    } catch (e) {
+      logger.error('❌ iOS debug checks failed: $e');
     }
   }
 
@@ -290,7 +371,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
     super.didChangeAppLifecycleState(state);
     
     final logger = ref.read(loggerProvider);
-    logger.log('App lifecycle changed: ${state.name}');
+    logger.log('📱 App lifecycle changed: ${state.name}');
     
     // Handle popup behavior based on app lifecycle
     try {
@@ -309,6 +390,11 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
 
         // Handle FCM token check on app resume
         _handleFcmTokenOnAppResume();
+        
+        // Check notification status on app resume (iOS specific)
+        if (defaultTargetPlatform == TargetPlatform.iOS && _hasInitializedNotifications) {
+          _checkNotificationStatusOnResume();
+        }
       }
       
       // App starting fresh
@@ -327,10 +413,37 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
       }
       
     } catch (e) {
-      logger.error('Error handling app lifecycle change: $e');
+      logger.error('❌ Error handling app lifecycle change: $e');
     }
     
     _lastLifecycleState = state;
+  }
+
+  /// Check notification status when app resumes (iOS specific)
+  void _checkNotificationStatusOnResume() {
+    try {
+      final logger = ref.read(loggerProvider);
+      logger.log('🔔 Checking notification status on app resume...');
+      
+      Future.delayed(const Duration(seconds: 1), () async {
+        if (!mounted) return;
+        
+        try {
+          final service = ref.read(firebaseNotificationServiceProvider);
+          final enabled = await service.areNotificationsEnabled();
+          
+          if (!enabled) {
+            logger.warning('⚠️ Notifications are disabled - user may have changed settings');
+          } else {
+            logger.log('✅ Notifications are still enabled');
+          }
+        } catch (e) {
+          logger.error('❌ Error checking notification status: $e');
+        }
+      });
+    } catch (e) {
+      ref.read(loggerProvider).error('❌ Error in notification status check: $e');
+    }
   }
 
   /// Handle FCM token check when app resumes from background
@@ -348,30 +461,30 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
           final userProfile = await userProfileAsync.future;
            
           if (userProfile != null) {
-            logger.log('User is logged in, checking FCM token status...');
+            logger.log('👤 User is logged in, checking FCM token status...');
             
             final authService = ref.read(authServiceProvider);
             final needsUpdate = await authService.shouldUpdateFcmToken();
             
             if (needsUpdate) {
-              logger.log('FCM token needs update on app resume, refreshing...');
+              logger.log('🔄 FCM token needs update on app resume, refreshing...');
               final success = await authService.refreshFcmToken();
               
               if (success) {
-                logger.log('FCM token refreshed successfully on app resume');
+                logger.log('✅ FCM token refreshed successfully on app resume');
               } else {
-                logger.warning('FCM token refresh failed on app resume');
+                logger.warning('⚠️ FCM token refresh failed on app resume');
               }
             } else {
-              logger.log('FCM token is up to date on app resume');
+              logger.log('✅ FCM token is up to date on app resume');
             }
           }
         } catch (e) {
-          logger.error('Error checking FCM token on app resume: $e');
+          logger.error('❌ Error checking FCM token on app resume: $e');
         }
       });
     } catch (e) {
-      ref.read(loggerProvider).error('Error in FCM token app resume handler: $e');
+      ref.read(loggerProvider).error('❌ Error in FCM token app resume handler: $e');
     }
   }
 
@@ -449,14 +562,14 @@ class FcmTokenAwareMyApp extends ConsumerWidget {
       userProfileAsync.whenData((userProfile) {
         if (userProfile != null) {
           final logger = ref.read(loggerProvider);
-          logger.log('FCM: User profile available for ${userProfile.mobile}');
+          logger.log('🔐 FCM: User profile available for ${userProfile.mobile}');
           
           // Check FCM token status
           ref.read(fcmTokenStatusProvider).whenData((status) {
             if (status['tokens_match'] != true) {
-              logger.log('FCM: Token status - needs attention');
+              logger.log('⚠️ FCM: Token status - needs attention');
             } else {
-              logger.log('FCM: Token status - up to date');
+              logger.log('✅ FCM: Token status - up to date');
             }
           });
         }

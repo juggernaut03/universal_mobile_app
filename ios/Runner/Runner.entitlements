@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Push Notifications Capability -->
+    <key>aps-environment</key>
+    <string>development</string>
+    
+    <!-- Background App Refresh -->
+    <key>com.apple.developer.background-modes</key>
+    <array>
+        <string>background-fetch</string>
+        <string>remote-notification</string>
+    </array>
+    
+    <!-- Additional capabilities that might be needed -->
+    <key>com.apple.developer.networking.wifi-info</key>
+    <true/>
+    
+    <!-- For location services if needed -->
+    <key>com.apple.developer.location.push</key>
+    <true/>
+</dict>
+</plist>

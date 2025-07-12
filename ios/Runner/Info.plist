@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.patelrmart.ios</string>
+	<string>com.patelrmart.iosapp</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -51,15 +51,26 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs location access to show nearby stores and delivery options.</string>
 	
-	<!-- Firebase notifications -->
+	<!-- Push notification background modes -->
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>fetch</string>
+		<string>background-fetch</string>
 		<string>remote-notification</string>
 	</array>
 	
-	<!-- Push notification entitlements -->
-	<key>aps-environment</key>
-	<string>development</string>
+	<!-- Firebase configuration -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
+	
+	<!-- Notification settings -->
+	<key>NSUserNotificationAlertStyle</key>
+	<string>alert</string>
+	
+	<!-- Allow arbitrary loads for development (remove in production) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

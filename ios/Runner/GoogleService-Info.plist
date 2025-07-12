@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDyF4QuJ-u8xfFnxRNpuh9Xi_51O_2ts-Q</string>
+	<string>AIzaSyC4ATmVhgyg3JZYKDYlIBJUqr3AEQXPmC8</string>
 	<key>GCM_SENDER_ID</key>
-	<string>280705195901</string>
+	<string>65652715036</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.patelrmart.app</string>
+	<string>com.patelrmart.iosapp</string>
 	<key>PROJECT_ID</key>
-	<string>pushnotificationshalvi123</string>
+	<string>patelrmartnotifications</string>
 	<key>STORAGE_BUCKET</key>
-	<string>pushnotificationshalvi123.firebasestorage.app</string>
+	<string>patelrmartnotifications.appspot.com</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:280705195901:ios:26884bbb1ba6facddaf614</string>
+	<string>1:65652715036:ios:3e9aa50a18bd787e9cb9d9</string>
+	<key>DATABASE_URL</key>
+	<string>https://patelrmartnotifications.firebaseio.com</string>
 </dict>
 </plist>
