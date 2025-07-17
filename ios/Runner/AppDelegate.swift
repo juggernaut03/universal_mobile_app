@@ -225,25 +225,11 @@ extension AppDelegate: MessagingDelegate {
         }
     }
     
-    // Handle token refresh
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?, completion: @escaping (Error?) -> Void) {
-        print("🔄 Firebase registration token refreshed:")
-        print("🔑 New FCM Token: \(fcmToken?.prefix(20) ?? "nil")...")
-        
-        if let token = fcmToken {
-            // Update stored token
-            UserDefaults.standard.set(token, forKey: "FCMToken")
-            UserDefaults.standard.synchronize()
-            print("✅ Refreshed FCM token saved")
-        }
-        
-        completion(nil)
-    }
+    // REMOVED: The problematic method that used MessagingRemoteMessage
+    // The MessagingDelegate protocol in modern Firebase SDK doesn't include
+    // didReceive remoteMessage method with MessagingRemoteMessage parameter
     
-    // Handle incoming messages while app is in foreground
-    func messaging(_ messaging: Messaging, didReceive remoteMessage: MessagingRemoteMessage) {
-        print("🔥 Firebase message received via MessagingDelegate:")
-        print("   Message ID: \(remoteMessage.messageID ?? "unknown")")
-        print("   App data: \(remoteMessage.appData)")
-    }
+    // If you need to handle incoming FCM messages, use the notification
+    // delegate methods above (userNotificationCenter methods) which are
+    // the proper way to handle notifications in modern iOS
 }
