@@ -8,15 +8,16 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:patelmart/core/auth/centralized_auth_manager.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
-import 'package:patelmart/core/constants/app_constants.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
-import 'package:patelmart/data/models/address_model.dart';
+import 'package:patelmart/presentation/features/account/address_book_screen.dart';
 import 'package:patelmart/presentation/providers/address_provider.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
+import 'package:patelmart/utils/access_key_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class AddAddressScreen extends ConsumerStatefulWidget {
   final bool returnToCheckout;
@@ -210,7 +211,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
     }
   }
   
-  // Updated save method using your existing direct implementation but with provider integration
+  // Updated save method using centralized access key management
   Future<void> _saveAddress() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -230,54 +231,9 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
         await _getCoordinatesFromAddress();
       }
       
-      // Get access key directly - same as in direct test
-      String? accessKey;
-      
-      try {
-        // Try from user profile first
-        final userProfile = await ref.read(userProfileProvider.future);
-        accessKey = userProfile?.accessKey;
-        logger.log('Access key from userProfile: $accessKey');
-        
-        // If not found, try from SharedPreferences
-        if (accessKey == null || accessKey.isEmpty) {
-          final prefs = await SharedPreferences.getInstance();
-          
-          // Try user_profile format
-          final authProfileStr = prefs.getString('user_profile');
-          if (authProfileStr != null) {
-            try {
-              final authProfile = jsonDecode(authProfileStr);
-              accessKey = authProfile['accessKey'];
-              logger.log('Access key from SharedPreferences user_profile: $accessKey');
-            } catch (e) {
-              logger.error('Error parsing user_profile: $e');
-            }
-          }
-          
-          // Try otp_validation_response format
-          if (accessKey == null || accessKey.isEmpty) {
-            final otpResponseStr = prefs.getString('otp_validation_response');
-            if (otpResponseStr != null) {
-              try {
-                final otpResponse = jsonDecode(otpResponseStr);
-                accessKey = otpResponse['access_key'];
-                logger.log('Access key from otp_validation_response: $accessKey');
-              } catch (e) {
-                logger.error('Error parsing otp_validation_response: $e');
-              }
-            }
-          }
-          
-          // Try direct storage format
-          if (accessKey == null || accessKey.isEmpty) {
-            accessKey = prefs.getString('user_access_key');
-            logger.log('Access key from user_access_key: $accessKey');
-          }
-        }
-      } catch (e) {
-        logger.error('Error retrieving access key: $e');
-      }
+      // Get access key using centralized manager
+      final accessKeyManager = ref.read(accessKeyManagerProvider);
+      final accessKey = await accessKeyManager.getAccessKey();
       
       if (accessKey == null || accessKey.isEmpty) {
         setState(() {
@@ -317,7 +273,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
       final client = http.Client();
       try {
         final response = await client.post(
-          Uri.parse('https://newtech.shalviadvision.com/api/add_address'),
+          Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/add_address'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(requestBody),
         );
@@ -340,14 +296,22 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
             // **** CRITICAL FIX: Trigger address refresh ****
             // This is what was missing - we need to refresh the address providers
             try {
-              // 1. Trigger refresh counter increment
-              ref.read(addressRefreshProvider.notifier).state++;
+              // 1. Trigger refresh counter increment (if exists)
+              try {
+                ref.read(addressRefreshProvider.notifier).state++;
+              } catch (e) {
+                logger.warning('addressRefreshProvider not found, skipping: $e');
+              }
               
-              // 2. Refresh the direct address provider
-              ref.refresh(directAddressListProvider);
+              // 2. Refresh the address list provider
+              ref.refresh(addressListProvider);
               
-              // 3. Refresh the main address provider
-              ref.refresh(addressesProvider);
+              // 3. Refresh the main address provider (if exists)
+              try {
+                ref.refresh(addressesProvider);
+              } catch (e) {
+                logger.warning('addressesProvider not found, skipping: $e');
+              }
               
               logger.log('Address providers refreshed successfully');
             } catch (e) {
@@ -415,8 +379,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-              backgroundColor: Colors.white, // Set white background
-
+      backgroundColor: Colors.white, // Set white background
       appBar: AppBar(
         title: const Text('Add New Address'),
         leading: IconButton(

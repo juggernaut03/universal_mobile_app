@@ -7,13 +7,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:patelmart/core/auth/centralized_auth_manager.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/data/models/address_model.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
+import 'package:patelmart/presentation/features/account/address_book_screen.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
+import 'package:patelmart/utils/access_key_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 class EditAddressScreen extends ConsumerStatefulWidget {
   final bool returnToCheckout;
@@ -195,7 +198,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     }
   }
   
-  // Direct implementation to update address
+  // Updated implementation using centralized access key management
   Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -215,54 +218,9 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         await _getCoordinatesFromAddress();
       }
       
-      // Get access key
-      String? accessKey;
-      
-      // Try from user profile first
-      try {
-        final userProfile = await ref.read(userProfileProvider.future);
-        accessKey = userProfile?.accessKey;
-        logger.log('Access key from userProfile: $accessKey');
-      } catch (e) {
-        logger.error('Error getting access key from userProfile: $e');
-      }
-      
-      // If not found, try from SharedPreferences
-      if (accessKey == null || accessKey.isEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        
-        // Try user_profile format
-        final authProfileStr = prefs.getString('user_profile');
-        if (authProfileStr != null) {
-          try {
-            final authProfile = jsonDecode(authProfileStr);
-            accessKey = authProfile['accessKey'];
-            logger.log('Access key from SharedPreferences user_profile: $accessKey');
-          } catch (e) {
-            logger.error('Error parsing user_profile: $e');
-          }
-        }
-        
-        // Try otp_validation_response format
-        if (accessKey == null || accessKey.isEmpty) {
-          final otpResponseStr = prefs.getString('otp_validation_response');
-          if (otpResponseStr != null) {
-            try {
-              final otpResponse = jsonDecode(otpResponseStr);
-              accessKey = otpResponse['access_key'];
-              logger.log('Access key from otp_validation_response: $accessKey');
-            } catch (e) {
-              logger.error('Error parsing otp_validation_response: $e');
-            }
-          }
-        }
-        
-        // Try direct storage format
-        if (accessKey == null || accessKey.isEmpty) {
-          accessKey = prefs.getString('user_access_key');
-          logger.log('Access key from user_access_key: $accessKey');
-        }
-      }
+      // Get access key using centralized manager
+      final accessKeyManager = ref.read(accessKeyManagerProvider);
+      final accessKey = await accessKeyManager.getAccessKey();
       
       if (accessKey == null || accessKey.isEmpty) {
         setState(() {
@@ -306,7 +264,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         // First try the update_address/{id} endpoint
         logger.log('Trying update_address endpoint');
         var response = await client.post(
-          Uri.parse('https://newtech.shalviadvision.com/api/update_address/${_address.id}'),
+          Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/update_address/${_address.id}'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(requestBody),
         );
@@ -327,7 +285,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         if (!success) {
           logger.log('First update attempt failed, trying add_address endpoint');
           response = await client.post(
-            Uri.parse('https://newtech.shalviadvision.com/api/add_address'),
+            Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/add_address'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(requestBody),
           );
@@ -346,6 +304,17 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         }
       } finally {
         client.close();
+      }
+      
+      // Refresh address list if successful
+      if (success) {
+        try {
+          // Import the updated address list provider from address_book_screen
+          ref.refresh(addressListProvider);
+          logger.log('Address list provider refreshed');
+        } catch (e) {
+          logger.warning('Could not refresh address list provider: $e');
+        }
       }
       
       // Show success/failure message and navigate
@@ -385,7 +354,6 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Colors.white, // Set white background
-
         appBar: AppBar(
           title: const Text('Edit Address'),
           backgroundColor: AppColors.primary,
@@ -399,6 +367,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     
     if (_errorMessage.isNotEmpty && _isLoading == false) {
       return Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
           title: const Text('Edit Address'),
           backgroundColor: AppColors.primary,
@@ -442,6 +411,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Edit Address'),
         leading: IconButton(

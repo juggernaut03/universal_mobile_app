@@ -7,18 +7,18 @@
     <string>development</string>
     
     <!-- Background App Refresh -->
-    <key>com.apple.developer.background-modes</key>
+    <!-- <key>com.apple.developer.background-modes</key>
     <array>
         <string>background-fetch</string>
         <string>remote-notification</string>
-    </array>
+    </array> -->
     
     <!-- Additional capabilities that might be needed -->
-    <key>com.apple.developer.networking.wifi-info</key>
-    <true/>
+    <!-- <key>com.apple.developer.networking.wifi-info</key>
+    <true/> -->
     
     <!-- For location services if needed -->
-    <key>com.apple.developer.location.push</key>
-    <true/>
+    <!-- <key>com.apple.developer.location.push</key>
+    <true/> -->
 </dict>
 </plist>

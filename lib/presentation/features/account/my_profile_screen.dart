@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:patelmart/utils/access_key_manager.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/logger.dart';
 import '../../../core/widgets/back_button_wrapper.dart';
@@ -162,6 +163,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       // If we're still here, user is logged in
       logger.log('User is logged in, proceeding to load profile');
       
+      // Use centralized access key manager to get access key
+      final accessKeyManager = ref.read(accessKeyManagerProvider);
+      _accessKey = await accessKeyManager.getAccessKey();
+      
+      if (_accessKey == null || _accessKey!.isEmpty) {
+        logger.error('No valid access key found for profile loading');
+        
+        ref.read(profileEditingProvider.notifier).state = ProfileEditState(
+          isLoading: false,
+          isAuthenticated: true, // Keep as true since they are logged in
+          errorMessage: 'Access key not available, try logging in again',
+        );
+        return;
+      }
+      
       // Get the current user profile from auth provider
       final userProfile = await ref.read(userProfileProvider.future);
       
@@ -181,8 +197,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       // We have a valid profile, proceed
       logger.log('User profile retrieved: ${userProfile.mobile}');
       
-      // Store access key and mobile for API calls
-      _accessKey = userProfile.accessKey;
+      // Store mobile for API calls
       _mobileNumber = userProfile.mobile;
       
       // Initial update to form with mobile number
@@ -257,12 +272,15 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       return;
     }
 
-    // Check if we have access key and mobile
-    if (_accessKey == null || _mobileNumber == null) {
+    // Check if we have access key and mobile using centralized manager
+    final accessKeyManager = ref.read(accessKeyManagerProvider);
+    final currentAccessKey = await accessKeyManager.getAccessKey();
+    
+    if (currentAccessKey == null || _mobileNumber == null) {
       logger.error('Missing authentication details for profile save');
       ref.read(profileEditingProvider.notifier).state = 
           ref.read(profileEditingProvider).copyWith(
-            errorMessage: 'Missing authentication details',
+            errorMessage: 'Missing authentication details. Please login again.',
           );
       return;
     }
@@ -282,7 +300,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       
       // Call API to update profile
       final success = await profileRepository.updateUserProfile(
-        accessKey: _accessKey!,
+        accessKey: currentAccessKey,
         mobileNumber: _mobileNumber!,
         firstName: _firstNameController.text,
         lastName: _lastNameController.text,
@@ -378,6 +396,10 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       // For demo, simulate network delay
       await Future.delayed(const Duration(seconds: 1));
       
+      // Clear access key cache before logout
+      final accessKeyManager = ref.read(accessKeyManagerProvider);
+      accessKeyManager.clearCache();
+      
       // Logout the user
       await ref.read(logoutProvider)();
       
@@ -419,7 +441,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     return Scaffold(
       backgroundColor: Colors.white, // Set white background
       appBar: AppBar(
-        backgroundColor: Color(0xFF77318B), // Purple color from screenshot
+        backgroundColor: AppColors.primary, // Purple color from screenshot
         foregroundColor: Colors.white,
         title: const Text('My Profile'),
         leading: IconButton(
@@ -521,15 +543,15 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.done,
                           validator: (value) {
-                            if (value != null && value.isNotEmpty) {
-                              // Simple email validation
-                              final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                              if (!emailRegex.hasMatch(value)) {
-                                return 'Please enter a valid email address';
-                              }
-                            }
-                            return null;
-                          },
+  if (value != null && value.isNotEmpty) {
+    // Simple email validation
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Please enter a valid email address';
+    }
+  }
+  return null;
+},
                         ),
                         
                         const SizedBox(height: 40),
@@ -541,7 +563,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           child: ElevatedButton(
                             onPressed: profileState.isLoading ? null : _saveProfile,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF77318B), // Purple color from screenshot
+                              backgroundColor: AppColors.primary, // Purple color from screenshot
                               foregroundColor: Colors.white,
                               textStyle: const TextStyle(
                                 fontSize: 16,
