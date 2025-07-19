@@ -565,7 +565,7 @@ class FirebaseNotificationService {
       
       final token = await _firebaseMessaging.getToken();
       if (token != null && kDebugMode) {
-        debugPrint('NotificationService: Current token: ${token.substring(0, 20)}...');
+        debugPrint('NotificationService: Current token: ${token.substring(0, 140)}...');
       }
       return token;
     } catch (e) {

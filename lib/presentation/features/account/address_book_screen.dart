@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:patelmart/utils/access_key_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -16,64 +17,23 @@ import '../../providers/auth_providers.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/location_provider.dart';
 
-// Address list provider using direct API call approach
-final directAddressListProvider = FutureProvider<List<Address>>((ref) async {
+// Updated address list provider using centralized access key management
+final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) async {
   final logger = ref.read(loggerProvider);
-  logger.log('Fetching addresses using direct implementation...');
+  final accessKeyManager = ref.read(accessKeyManagerProvider);
+  
+  logger.log('Fetching addresses with centralized access key management...');
   
   try {
-    // Get access key using the same approach that worked for saving
-    String? accessKey;
-    
-    // Try from user profile first
-    try {
-      final userProfile = await ref.read(userProfileProvider.future);
-      accessKey = userProfile?.accessKey;
-      logger.log('Access key from userProfileProvider: $accessKey');
-    } catch (e) {
-      logger.error('Error getting access key from userProfileProvider: $e');
-    }
-    
-    // If not found, try from SharedPreferences
-    if (accessKey == null || accessKey.isEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      
-      // Try user_profile format
-      final authProfileStr = prefs.getString('user_profile');
-      if (authProfileStr != null) {
-        try {
-          final authProfile = jsonDecode(authProfileStr);
-          accessKey = authProfile['accessKey'];
-          logger.log('Access key from SharedPreferences user_profile: $accessKey');
-        } catch (e) {
-          logger.error('Error parsing user_profile: $e');
-        }
-      }
-      
-      // Try otp_validation_response format
-      if (accessKey == null || accessKey.isEmpty) {
-        final otpResponseStr = prefs.getString('otp_validation_response');
-        if (otpResponseStr != null) {
-          try {
-            final otpResponse = jsonDecode(otpResponseStr);
-            accessKey = otpResponse['access_key'];
-            logger.log('Access key from otp_validation_response: $accessKey');
-          } catch (e) {
-            logger.error('Error parsing otp_validation_response: $e');
-          }
-        }
-      }
-      
-      // Try direct storage format
-      if (accessKey == null || accessKey.isEmpty) {
-        accessKey = prefs.getString('user_access_key');
-        logger.log('Access key from user_access_key: $accessKey');
-      }
-    }
+    // Get access key using centralized manager
+    final accessKey = await accessKeyManager.getAccessKey();
     
     if (accessKey == null || accessKey.isEmpty) {
+      logger.error('No valid access key found for address fetching');
       throw Exception('Access key not found. Please log in again.');
     }
+    
+    logger.log('Access key retrieved successfully: ${accessKey.substring(0, 8)}...');
     
     // Create request body exactly as in Postman
     final requestBody = {
@@ -87,7 +47,7 @@ final directAddressListProvider = FutureProvider<List<Address>>((ref) async {
     final client = http.Client();
     try {
       final response = await client.post(
-        Uri.parse('https://newtech.shalviadvision.com/api/get_address_list'),
+        Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/get_address_list'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
       );
@@ -99,20 +59,28 @@ final directAddressListProvider = FutureProvider<List<Address>>((ref) async {
         // Try to parse the response as a list first
         try {
           List<dynamic> addressesJson = jsonDecode(response.body);
-          return addressesJson.map((json) => Address.fromJson(json)).toList();
+          final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
+          logger.log('Successfully fetched ${addresses.length} addresses');
+          return addresses;
         } catch (e) {
           // If list parsing fails, try to parse as a map with a data/addresses field
           final Map<String, dynamic> responseMap = jsonDecode(response.body);
           
           if (responseMap.containsKey('data') && responseMap['data'] is List) {
             List<dynamic> addressesJson = responseMap['data'];
-            return addressesJson.map((json) => Address.fromJson(json)).toList();
+            final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
+            logger.log('Successfully fetched ${addresses.length} addresses from data field');
+            return addresses;
           } else if (responseMap.containsKey('addresses') && responseMap['addresses'] is List) {
             List<dynamic> addressesJson = responseMap['addresses'];
-            return addressesJson.map((json) => Address.fromJson(json)).toList();
+            final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
+            logger.log('Successfully fetched ${addresses.length} addresses from addresses field');
+            return addresses;
           } else if (responseMap.containsKey('insertedItems') && responseMap['insertedItems'] is List) {
             List<dynamic> addressesJson = responseMap['insertedItems'];
-            return addressesJson.map((json) => Address.fromJson(json)).toList();
+            final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
+            logger.log('Successfully fetched ${addresses.length} addresses from insertedItems field');
+            return addresses;
           }
           
           logger.error('Unexpected response format: $responseMap');
@@ -127,8 +95,65 @@ final directAddressListProvider = FutureProvider<List<Address>>((ref) async {
     }
   } catch (e) {
     logger.error('Error fetching addresses: $e');
-    throw e;
+    
+    // If access key issue, try force refresh
+    if (e.toString().contains('access_key') || e.toString().contains('Access key')) {
+      logger.log('Attempting to force refresh access key...');
+      
+      try {
+        final refreshedKey = await accessKeyManager.forceRefreshAccessKey();
+        if (refreshedKey != null && refreshedKey.isNotEmpty) {
+          logger.log('Access key refreshed, retrying address fetch...');
+          
+          // Retry the request with refreshed key
+          final requestBody = {
+            "access_key": refreshedKey,
+            "project_code": "RET5890"
+          };
+          
+          final client = http.Client();
+          try {
+            final response = await client.post(
+              Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/get_address_list'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode(requestBody),
+            );
+            
+            if (response.statusCode == 200) {
+              try {
+                List<dynamic> addressesJson = jsonDecode(response.body);
+                final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
+                logger.log('Successfully fetched ${addresses.length} addresses after refresh');
+                return addresses;
+              } catch (e) {
+                final Map<String, dynamic> responseMap = jsonDecode(response.body);
+                if (responseMap.containsKey('data') && responseMap['data'] is List) {
+                  List<dynamic> addressesJson = responseMap['data'];
+                  final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
+                  return addresses;
+                }
+                return [];
+              }
+            }
+          } finally {
+            client.close();
+          }
+        }
+      } catch (refreshError) {
+        logger.error('Failed to refresh access key: $refreshError');
+      }
+    }
+    
+    rethrow;
   }
+});
+
+// Provider to refresh addresses when needed
+final refreshAddressListProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    ref.invalidate(addressListProvider);
+    await ref.read(addressListProvider.future);
+  };
 });
 
 // Main Address Book Screen
@@ -158,8 +183,8 @@ class AddressBookScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Use the direct address list provider instead of the repository-based one
-    final addressesAsyncValue = ref.watch(directAddressListProvider);
+    // Use the updated address list provider with centralized access key management
+    final addressesAsyncValue = ref.watch(addressListProvider);
     final logger = ref.read(loggerProvider);
     
     return PopScope(
@@ -206,7 +231,7 @@ class AddressBookScreen extends ConsumerWidget {
                   return AppErrorWidget(
                     errorType: ErrorType.network,
                     message: 'Failed to load addresses: $error',
-                    onRetry: () => ref.refresh(directAddressListProvider),
+                    onRetry: () => ref.refresh(addressListProvider),
                   );
                 },
               ),
@@ -380,7 +405,7 @@ class AddressBookScreen extends ConsumerWidget {
                       _setAsDefault(context, ref, address, logger);
                     },
                     icon: const Icon(Icons.check_circle_outline, size: 16),
-                    label: const Text('Set Default'), // Fixed typo
+                    label: const Text('Set Default'),
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.green,
                     ),
@@ -467,7 +492,7 @@ class AddressBookScreen extends ConsumerWidget {
     }
   }
 
-  // Direct API implementation for setting address as default
+  // Updated implementation using centralized access key management
   void _setAsDefault(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Setting address as default: ${address.id}');
     
@@ -479,54 +504,9 @@ class AddressBookScreen extends ConsumerWidget {
     );
     
     try {
-      // Get access key
-      String? accessKey;
-      
-      // Try from user profile first
-      try {
-        final userProfile = await ref.read(userProfileProvider.future);
-        accessKey = userProfile?.accessKey;
-        logger.log('Access key from userProfileProvider: $accessKey');
-      } catch (e) {
-        logger.error('Error getting access key from userProfileProvider: $e');
-      }
-      
-      // If not found, try from SharedPreferences
-      if (accessKey == null || accessKey.isEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        
-        // Try user_profile format
-        final authProfileStr = prefs.getString('user_profile');
-        if (authProfileStr != null) {
-          try {
-            final authProfile = jsonDecode(authProfileStr);
-            accessKey = authProfile['accessKey'];
-            logger.log('Access key from SharedPreferences user_profile: $accessKey');
-          } catch (e) {
-            logger.error('Error parsing user_profile: $e');
-          }
-        }
-        
-        // Try otp_validation_response format
-        if (accessKey == null || accessKey.isEmpty) {
-          final otpResponseStr = prefs.getString('otp_validation_response');
-          if (otpResponseStr != null) {
-            try {
-              final otpResponse = jsonDecode(otpResponseStr);
-              accessKey = otpResponse['access_key'];
-              logger.log('Access key from otp_validation_response: $accessKey');
-            } catch (e) {
-              logger.error('Error parsing otp_validation_response: $e');
-            }
-          }
-        }
-        
-        // Try direct storage format
-        if (accessKey == null || accessKey.isEmpty) {
-          accessKey = prefs.getString('user_access_key');
-          logger.log('Access key from user_access_key: $accessKey');
-        }
-      }
+      // Get access key using centralized manager
+      final accessKeyManager = ref.read(accessKeyManagerProvider);
+      final accessKey = await accessKeyManager.getAccessKey();
       
       if (accessKey == null || accessKey.isEmpty) {
         throw Exception('Access key not found. Please log in again.');
@@ -585,17 +565,17 @@ class AddressBookScreen extends ConsumerWidget {
       
       // Make direct HTTP request
       final client = http.Client();
+      bool success = false;
+      
       try {
         final response = await client.post(
-          Uri.parse('https://newtech.shalviadvision.com/api/update_address/${address.id}'),
+          Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/update_address/${address.id}'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(requestBody),
         );
         
         logger.log('Update address response status: ${response.statusCode}');
         logger.log('Update address response body: ${response.body}');
-        
-        bool success = false;
         
         if (response.statusCode == 200 || response.statusCode == 201) {
           final responseData = jsonDecode(response.body);
@@ -610,7 +590,7 @@ class AddressBookScreen extends ConsumerWidget {
         if (!success) {
           logger.log('First update attempt failed, trying add_address endpoint');
           final addResponse = await client.post(
-            Uri.parse('https://newtech.shalviadvision.com/api/add_address'),
+            Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/add_address'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(requestBody),
           );
@@ -646,7 +626,7 @@ class AddressBookScreen extends ConsumerWidget {
           
           // Refresh addresses
           if (success) {
-            ref.refresh(directAddressListProvider);
+            ref.refresh(addressListProvider);
           }
         }
       } finally {
@@ -698,7 +678,7 @@ class AddressBookScreen extends ConsumerWidget {
     );
   }
 
-  // Direct API implementation for deleting address
+  // Updated implementation using centralized access key management
   void _deleteAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Deleting address: ${address.id}');
     
@@ -710,54 +690,9 @@ class AddressBookScreen extends ConsumerWidget {
     );
     
     try {
-      // Get access key
-      String? accessKey;
-      
-      // Try from user profile first
-      try {
-        final userProfile = await ref.read(userProfileProvider.future);
-        accessKey = userProfile?.accessKey;
-        logger.log('Access key from userProfileProvider: $accessKey');
-      } catch (e) {
-        logger.error('Error getting access key from userProfileProvider: $e');
-      }
-      
-      // If not found, try from SharedPreferences
-      if (accessKey == null || accessKey.isEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        
-        // Try user_profile format
-        final authProfileStr = prefs.getString('user_profile');
-        if (authProfileStr != null) {
-          try {
-            final authProfile = jsonDecode(authProfileStr);
-            accessKey = authProfile['accessKey'];
-            logger.log('Access key from SharedPreferences user_profile: $accessKey');
-          } catch (e) {
-            logger.error('Error parsing user_profile: $e');
-          }
-        }
-        
-        // Try otp_validation_response format
-        if (accessKey == null || accessKey.isEmpty) {
-          final otpResponseStr = prefs.getString('otp_validation_response');
-          if (otpResponseStr != null) {
-            try {
-              final otpResponse = jsonDecode(otpResponseStr);
-              accessKey = otpResponse['access_key'];
-              logger.log('Access key from otp_validation_response: $accessKey');
-            } catch (e) {
-              logger.error('Error parsing otp_validation_response: $e');
-            }
-          }
-        }
-        
-        // Try direct storage format
-        if (accessKey == null || accessKey.isEmpty) {
-          accessKey = prefs.getString('user_access_key');
-          logger.log('Access key from user_access_key: $accessKey');
-        }
-      }
+      // Get access key using centralized manager
+      final accessKeyManager = ref.read(accessKeyManagerProvider);
+      final accessKey = await accessKeyManager.getAccessKey();
       
       if (accessKey == null || accessKey.isEmpty) {
         throw Exception('Access key not found. Please log in again.');
@@ -775,7 +710,7 @@ class AddressBookScreen extends ConsumerWidget {
       final client = http.Client();
       try {
         final response = await client.post(
-          Uri.parse('https://newtech.shalviadvision.com/api/delete_address/${address.id}'),
+          Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/delete_address/${address.id}'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(requestBody),
         );
@@ -812,7 +747,7 @@ class AddressBookScreen extends ConsumerWidget {
           
           // Refresh addresses list if successful
           if (success) {
-            ref.refresh(directAddressListProvider);
+            ref.refresh(addressListProvider);
           }
         }
       } finally {

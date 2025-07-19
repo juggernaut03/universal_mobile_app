@@ -325,7 +325,7 @@ class IOSNotificationService {
   /// Save and process the obtained token
   Future<void> _saveAndProcessToken(String token) async {
     try {
-      _logger.log('💾 Saving FCM token: ${token.substring(0, 20)}...');
+      _logger.log('💾 Saving FCM token: ${token.substring(0, 300)}...');
       
       // Save to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
