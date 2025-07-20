@@ -103,6 +103,19 @@ class _ForceUpdateDialogState extends ConsumerState<ForceUpdateDialog> {
                     textAlign: TextAlign.center,
                   ),
                   
+                  // Platform-specific download info
+                  const SizedBox(height: 4),
+                  Text(
+                    Platform.isAndroid 
+                        ? 'Available on Google Play Store'
+                        : 'Available on App Store',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  
                   const SizedBox(height: 24),
                   
                   // Buttons
@@ -152,7 +165,7 @@ class _ForceUpdateDialogState extends ConsumerState<ForceUpdateDialog> {
                                   ),
                                 )
                               : Text(
-                                  'Update Now',
+                                  Platform.isAndroid ? 'Update on Play Store' : 'Update on App Store',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
@@ -177,15 +190,21 @@ class _ForceUpdateDialogState extends ConsumerState<ForceUpdateDialog> {
     });
 
     try {
-      debugPrint('🔗 Attempting to open URL: "${widget.updateInfo.downloadUrl}"');
+      final downloadUrl = widget.updateInfo.downloadUrl;
+      debugPrint('🔗 Attempting to open platform-specific URL: "$downloadUrl"');
+      debugPrint('📱 Platform: ${Platform.isAndroid ? "Android" : "iOS"}');
       
       // Check if URL is empty
-      if (widget.updateInfo.downloadUrl.isEmpty) {
+      if (downloadUrl.isEmpty) {
         debugPrint('⚠️ Download URL is empty, showing manual update message');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Please update manually from the App Store'),
+              content: Text(
+                Platform.isAndroid 
+                    ? 'Please update manually from Google Play Store'
+                    : 'Please update manually from App Store'
+              ),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 4),
             ),
@@ -195,14 +214,18 @@ class _ForceUpdateDialogState extends ConsumerState<ForceUpdateDialog> {
       }
       
       final service = ref.read(forceUpdateServiceProvider);
-      final success = await service.openUpdateUrl(widget.updateInfo.downloadUrl);
+      final success = await service.openUpdateUrl(downloadUrl);
       
       debugPrint('🔗 URL open result: $success');
       
       if (!success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not open store. Please update manually.'),
+            content: Text(
+              Platform.isAndroid
+                  ? 'Could not open Play Store. Please update manually.'
+                  : 'Could not open App Store. Please update manually.'
+            ),
             backgroundColor: Colors.orange,
           ),
         );
@@ -240,8 +263,11 @@ class _ForceUpdateDialogState extends ConsumerState<ForceUpdateDialog> {
 void showForceUpdateDialog(BuildContext context, UpdateCheckResponse updateInfo) {
   debugPrint('🎬 SHOW FORCE UPDATE DIALOG CALLED:');
   debugPrint('   └─ Context: ${context != null}');
-  debugPrint('   └─ Update Info: ${updateInfo.forceUpdate}');
-  debugPrint('   └─ Download URL: ${updateInfo.downloadUrl}');
+  debugPrint('   └─ Force Update: ${updateInfo.forceUpdate}');
+  debugPrint('   └─ Platform: ${Platform.isAndroid ? "Android" : "iOS"}');
+  debugPrint('   └─ Android URL: ${updateInfo.androidDownloadUrl}');
+  debugPrint('   └─ iOS URL: ${updateInfo.iosDownloadUrl}');
+  debugPrint('   └─ Selected URL: ${updateInfo.downloadUrl}');
   
   try {
     // Show as a full-screen route that can't be dismissed
