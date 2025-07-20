@@ -62,7 +62,9 @@ class ForceUpdateService {
         debugPrint('📱 Latest Version: ${updateResponse.latestVersion}');
         debugPrint('⚠️ Minimum Version: ${updateResponse.minimumSupportedVersion}');
         debugPrint('💬 Update Message: ${updateResponse.updateMessage}');
-        debugPrint('🔗 Download URL: ${updateResponse.downloadUrl}');
+        debugPrint('🔗 Android Download URL: ${updateResponse.androidDownloadUrl}');
+        debugPrint('🔗 iOS Download URL: ${updateResponse.iosDownloadUrl}');
+        debugPrint('🔗 Selected Download URL: ${updateResponse.downloadUrl}');
         debugPrint('=' * 50);
         
         return updateResponse;
@@ -85,13 +87,24 @@ class ForceUpdateService {
   /// Open store URL for app update
   Future<bool> openUpdateUrl(String url) async {
     try {
+      debugPrint('🔗 Attempting to open URL: $url');
+      
+      if (url.isEmpty) {
+        debugPrint('❌ Empty URL provided');
+        return false;
+      }
+      
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
-        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+        final result = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        debugPrint('🔗 URL launch result: $result');
+        return result;
+      } else {
+        debugPrint('❌ Cannot launch URL: $url');
+        return false;
       }
-      return false;
     } catch (e) {
-      debugPrint('Error opening update URL: $e');
+      debugPrint('❌ Error opening update URL: $e');
       return false;
     }
   }
@@ -139,6 +152,7 @@ class UpdateCheckResponse {
     );
   }
 
+  /// Get platform-specific download URL
   String get downloadUrl {
     final url = Platform.isAndroid ? androidDownloadUrl : iosDownloadUrl;
     debugPrint('🔗 Download URL Selection:');

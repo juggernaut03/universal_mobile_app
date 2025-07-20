@@ -1,3 +1,4 @@
+// lib/presentation/providers/force_update_providers.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,6 +16,10 @@ final updateCheckProvider = FutureProvider<UpdateCheckResponse>((ref) async {
     final service = ref.read(forceUpdateServiceProvider);
     final result = await service.checkForUpdate();
     debugPrint('🎯 UPDATE CHECK PROVIDER SUCCESS');
+    debugPrint('🎯 Platform-specific URLs retrieved:');
+    debugPrint('   └─ Android: ${result.androidDownloadUrl}');
+    debugPrint('   └─ iOS: ${result.iosDownloadUrl}');
+    debugPrint('   └─ Selected: ${result.downloadUrl}');
     return result;
   } catch (e) {
     debugPrint('🎯 UPDATE CHECK PROVIDER ERROR: $e');
