@@ -94,8 +94,8 @@ class PaymentService {
   String? _currentTempOrderId; // Store the temp order ID for tracking
 
   // Razorpay API credentials - LIVE KEYS
-  static const String keyId = 'rzp_live_Qq9CQRIX2I2qej';
-  static const String keySecret = 'RoKRhP1fc6sqnvwcqnLBU6cr';
+  static const String keyId = 'rzp_test_5yy0US6kMQYbpU';
+  static const String keySecret = '7ZwGbFIgsktyJlZOEbFNj6aN';
 
   PaymentService({Logger? logger}) : _logger = logger ?? Logger() {
     _initializeRazorpay();

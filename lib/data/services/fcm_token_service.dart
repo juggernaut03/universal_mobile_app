@@ -1,33 +1,46 @@
 // lib/data/services/fcm_token_service.dart
 
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/constants/app_constants.dart';
+import '../../core/auth/centralized_auth_manager.dart';
+import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
-import '../models/auth_models.dart';
+import '../../presentation/providers/launch_flow_provider.dart';
+import '../../presentation/providers/auth_providers.dart';
 
 class FcmTokenService {
-  final http.Client _client;
+  final CentralizedAuthManager _authManager;
+  final ApiClient _apiClient;
   final Logger _logger;
   final FirebaseMessaging _firebaseMessaging;
   
   FcmTokenService({
-    required http.Client client,
+    required CentralizedAuthManager authManager,
+    required ApiClient apiClient,
     required Logger logger,
     FirebaseMessaging? firebaseMessaging,
-  }) : _client = client,
+  }) : _authManager = authManager,
+       _apiClient = apiClient,
        _logger = logger,
        _firebaseMessaging = firebaseMessaging ?? FirebaseMessaging.instance;
 
-  /// Save FCM token to server
-  Future<bool> saveFcmToken({
-    required String mobileNumber,
-    required String accessKey,
-    String? fcmToken,
-  }) async {
+  /// Save FCM token to server using centralized auth management
+  Future<bool> saveFcmToken({String? fcmToken}) async {
     try {
+      // Check if user is logged in
+      if (!await _authManager.isLoggedIn()) {
+        _logger.error('Cannot save FCM token: user not logged in');
+        return false;
+      }
+
+      // Get user credentials from centralized auth
+      final mobile = await _authManager.getUserMobile();
+      if (mobile == null || mobile.isEmpty) {
+        _logger.error('Cannot save FCM token: no mobile number found');
+        return false;
+      }
+
       // Get FCM token if not provided
       String? tokenToSave = fcmToken;
       if (tokenToSave == null || tokenToSave.isEmpty) {
@@ -38,36 +51,23 @@ class FcmTokenService {
         }
       }
 
-      _logger.log('Saving FCM token for mobile: $mobileNumber');
+      _logger.log('Saving FCM token for mobile: $mobile');
       
-      // Prepare request body exactly as specified
-      final requestBody = {
-        "mobile_no": mobileNumber,
-        "access_key": accessKey,
-        "fcm_token": tokenToSave,
-      };
-      
-      _logger.log('FCM token save request: ${jsonEncode(requestBody)}');
-      
-      // Make API call
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/save_fcm_token'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
+      // Use centralized API client with auth
+      final response = await _apiClient.postWithAuth(
+        'https://newtech.shalviadvision.com/api/save_fcm_token',
+        body: {
+          "mobile_no": mobile,
+          "fcm_token": tokenToSave,
         },
-        body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
+      );
       
-      _logger.log('FCM token save response status: ${response.statusCode}');
-      _logger.log('FCM token save response body: ${response.body}');
+      _logger.log('FCM token save response: $response');
       
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
-        
+      if (response is Map<String, dynamic>) {
         // Check for success message
-        if (responseData.containsKey('message') && 
-            responseData['message'].toString().contains('Successfully')) {
+        if (response.containsKey('message') && 
+            response['message'].toString().contains('Successfully')) {
           _logger.log('FCM token saved successfully');
           
           // Store the token locally for future reference
@@ -76,7 +76,7 @@ class FcmTokenService {
         }
       }
       
-      _logger.error('Failed to save FCM token: ${response.statusCode} - ${response.body}');
+      _logger.error('Failed to save FCM token: $response');
       return false;
     } catch (e) {
       _logger.error('Error saving FCM token: $e');
@@ -166,36 +166,92 @@ class FcmTokenService {
     }
   }
 
-  /// Auto-save FCM token for logged-in user
-  Future<bool> autoSaveFcmTokenForUser(UserProfile userProfile) async {
+  /// Manually trigger FCM token save (for debugging or manual refresh)
+  Future<bool> refreshFcmToken() async {
     try {
-      _logger.log('Auto-saving FCM token for user: ${userProfile.mobile}');
+      if (!await _authManager.isLoggedIn()) {
+        _logger.error('Cannot refresh FCM token: user not logged in');
+        return false;
+      }
       
-      return await saveFcmToken(
-        mobileNumber: userProfile.mobile,
-        accessKey: userProfile.accessKey,
-      );
+      final mobile = await _authManager.getUserMobile();
+      _logger.log('Manually refreshing FCM token for user: $mobile');
+      
+      return await saveFcmToken();
     } catch (e) {
-      _logger.error('Error auto-saving FCM token: $e');
+      _logger.error('Error manually refreshing FCM token: $e');
       return false;
     }
   }
 
-  /// Listen for FCM token refresh and auto-update
-  void listenForTokenRefresh(UserProfile userProfile) {
+  /// Get current FCM token (public method for external use)
+  Future<String?> getCurrentFcmToken() async {
+    return await _getCurrentFcmToken();
+  }
+
+  /// Check FCM token status for debugging
+  Future<Map<String, dynamic>> getFcmTokenStatus() async {
     try {
+      final currentToken = await _getCurrentFcmToken();
+      final prefs = await SharedPreferences.getInstance();
+      final storedToken = prefs.getString('fcm_token');
+      final lastSaved = prefs.getString('fcm_token_last_saved');
+      
+      return {
+        'current_token': currentToken?.substring(0, 20) ?? 'null',
+        'stored_token': storedToken?.substring(0, 20) ?? 'null',
+        'tokens_match': currentToken == storedToken,
+        'last_saved': lastSaved ?? 'never',
+        'needs_update': await shouldUpdateFcmToken(),
+        'user_logged_in': await _authManager.isLoggedIn(),
+      };
+    } catch (e) {
+      _logger.error('Error getting FCM token status: $e');
+      return {'error': e.toString()};
+    }
+  }
+
+  /// Set up FCM token refresh listener for automatic updates
+  void setupFcmTokenRefreshListener() async {
+    try {
+      if (!await _authManager.isLoggedIn()) {
+        _logger.log('User not logged in, skipping FCM token refresh listener setup');
+        return;
+      }
+
+      final mobile = await _authManager.getUserMobile();
+      _logger.log('Setting up FCM token refresh listener for: $mobile');
+      
       _firebaseMessaging.onTokenRefresh.listen((newToken) async {
-        _logger.log('FCM token refreshed');
-        
-        // Auto-save the new token
-        await saveFcmToken(
-          mobileNumber: userProfile.mobile,
-          accessKey: userProfile.accessKey,
-          fcmToken: newToken,
-        );
+        try {
+          _logger.log('FCM token refreshed, saving new token...');
+          
+          final success = await saveFcmToken(fcmToken: newToken);
+          
+          if (success) {
+            _logger.log('New FCM token saved successfully');
+          } else {
+            _logger.warning('Failed to save new FCM token');
+          }
+        } catch (e) {
+          _logger.error('Error handling FCM token refresh: $e');
+        }
       });
     } catch (e) {
       _logger.error('Error setting up FCM token refresh listener: $e');
     }
   }
 }
+
+/// Provider for FcmTokenService using centralized dependencies
+final fcmTokenServiceProvider = Provider<FcmTokenService>((ref) {
+  final authManager = ref.watch(centralizedAuthManagerProvider);
+  final apiClient = ref.watch(apiClientProvider);
+  final logger = ref.watch(loggerProvider);
+  
+  return FcmTokenService(
+    authManager: authManager,
+    apiClient: apiClient,
+    logger: logger,
+  );
+});

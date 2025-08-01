@@ -20,6 +20,7 @@ import 'presentation/providers/popup_providers.dart';
 import 'data/services/firebase_notification_service.dart';
 // FCM TOKEN IMPORTS
 import 'presentation/providers/auth_providers.dart';
+import 'presentation/providers/favorites_provider.dart';
 
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -744,6 +745,15 @@ class FcmTokenAwareMyApp extends ConsumerWidget {
       // Providers don't exist - that's okay
       if (kDebugMode) {
         print('ℹ️ Some FCM token providers not available: $e');
+      }
+    }
+    
+    // Initialize favorites watcher for proper authentication handling
+    try {
+      ref.watch(favoritesInitializationWatcherProvider);
+    } catch (e) {
+      if (kDebugMode) {
+        print('ℹ️ Favorites initialization watcher not available: $e');
       }
     }
     

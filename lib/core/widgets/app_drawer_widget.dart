@@ -3,24 +3,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import '../../data/repositories/profile_repository.dart';
 import '../constants/app_colors.dart';
 
-// Provider for the profile repository
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return ProfileRepository(
-    client: http.Client(),
-    logger: logger,
-  );
-});
+// Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
 
 // Optimized user display name provider with caching
 final userDisplayNameProvider = FutureProvider.autoDispose<String>((ref) async {
@@ -35,10 +26,7 @@ final userDisplayNameProvider = FutureProvider.autoDispose<String>((ref) async {
   // If not available, fetch from API
   final profileRepository = ref.read(profileRepositoryProvider);
   try {
-    final profileData = await profileRepository.getUserProfile(
-      userProfile.mobile,
-      userProfile.accessKey,
-    );
+    final profileData = await profileRepository.getUserProfile();
     
     // Extract and format display name
     final firstName = profileData['first_name']?.toString().trim() ?? '';

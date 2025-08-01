@@ -15,18 +15,10 @@ class FcmTokenRepository {
   }) : _fcmTokenService = fcmTokenService,
        _logger = logger ?? Logger();
 
-  /// Save FCM token to server
-  Future<bool> saveFcmToken({
-    required String mobileNumber,
-    required String accessKey,
-    String? fcmToken,
-  }) async {
+  /// Save FCM token to server using centralized auth
+  Future<bool> saveFcmToken({String? fcmToken}) async {
     try {
-      return await _fcmTokenService.saveFcmToken(
-        mobileNumber: mobileNumber,
-        accessKey: accessKey,
-        fcmToken: fcmToken,
-      );
+      return await _fcmTokenService.saveFcmToken(fcmToken: fcmToken);
     } catch (e) {
       _logger.error('Error in repository saving FCM token: $e');
       return false;
@@ -38,7 +30,7 @@ class FcmTokenRepository {
     try {
       _logger.log('Saving FCM token for current user: ${userProfile.mobile}');
       
-      return await _fcmTokenService.autoSaveFcmTokenForUser(userProfile);
+      return await _fcmTokenService.saveFcmToken();
     } catch (e) {
       _logger.error('Error saving FCM token for current user: $e');
       return false;
@@ -59,7 +51,7 @@ class FcmTokenRepository {
   void setupTokenRefreshListener(UserProfile userProfile) {
     try {
       _logger.log('Setting up FCM token refresh listener for: ${userProfile.mobile}');
-      _fcmTokenService.listenForTokenRefresh(userProfile);
+      _fcmTokenService.setupFcmTokenRefreshListener();
     } catch (e) {
       _logger.error('Error setting up FCM token refresh listener: $e');
     }

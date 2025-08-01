@@ -1,0 +1,2392 @@
+{
+	"info": {
+		"_postman_id": "3339976e-29e8-4ea2-a7bb-800d8d8e1226",
+		"name": "Patel Development NodeJS Server API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "43732785",
+		"_collection_link": "https://shalvi-advision.postman.co/workspace/Shalvi-Advision-Workspace~15ff1b26-5d23-4fb8-8d02-0268490d65af/collection/7431456-3339976e-29e8-4ea2-a7bb-800d8d8e1226?action=share&source=collection_link&creator=43732785"
+	},
+	"item": [
+		{
+			"name": "Pincode Store API",
+			"item": [
+				{
+					"name": "Check Pincode Exist",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"pincode\": {{test_pincode}},\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/check_if_pincode_exists",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"check_if_pincode_exists"
+							]
+						},
+						"description": "This api used to check if we are currently servicing this pincode"
+					},
+					"response": [
+						{
+							"name": "Check Pincode Exist",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"pincode\": \"421002\",\r\n    \"project_code\":\"\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "https://newtech.shalviadvision.com/api/check_if_pincode_exists",
+									"protocol": "https",
+									"host": [
+										"newtech",
+										"shalviadvision",
+										"com"
+									],
+									"path": [
+										"api",
+										"check_if_pincode_exists"
+									]
+								}
+							},
+							"_postman_previewlanguage": null,
+							"header": null,
+							"cookie": [],
+							"body": null
+						}
+					]
+				},
+				{
+					"name": "Check New Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/check_if_new_order_received",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"check_if_new_order_received"
+							]
+						},
+						"description": "This api used to check if we are currently servicing this pincode"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pincode wise Outlet",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"pincode\": {{test_pincode}},\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_pincodewise_outlet",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_pincodewise_outlet"
+							]
+						},
+						"description": "This api used to check if we are currently servicing this pincode"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Store Details",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_store_details",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_store_details"
+							]
+						},
+						"description": "This api used to check if we are currently servicing this pincode"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pincode List",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_pincode_list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_pincode_list"
+							]
+						},
+						"description": "Giving list of all servicing pincodes"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Banner API",
+			"item": [
+				{
+					"name": "Get Home Slider 1",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 1,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Popup Screen",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_popup_screen",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_popup_screen"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Home Slider 2",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 2,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bestseller 1 Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 3,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Bestseller 2 Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 4,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Best seller 3 Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 11,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Best seller 4 Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 12,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Loyalty card Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 5,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Table Booking Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 7,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product List Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 8,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Banquet Booking Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 9,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Seasonal Pick Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 10,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Offers Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 13,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Department Slider / Banner",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"banner_type_id\": 14,\r\n    \"platform\": \"Android\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_banner",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_banner"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Department Category API",
+			"item": [
+				{
+					"name": "Popular / Additional Category",
+					"item": [
+						{
+							"name": "Get Active Additional Offers",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"department_id\": 2,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/get_additional_offers",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"get_additional_offers"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Popular Category 1",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"department_id\": 2,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/get_popular_category_list_1",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"get_popular_category_list_1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Popular Category 2",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"department_id\": 2,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/get_popular_category_list_2",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"get_popular_category_list_2"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Popular Category 3",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"department_id\": 2,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/get_popular_category_list_3",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"get_popular_category_list_3"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Popular Category 4",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"department_id\": 2,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/get_popular_category_list_4",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"get_popular_category_list_4"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Popular Category 5",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"department_id\": 2,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/get_popular_category_list_5",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"get_popular_category_list_5"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Get Active Department List",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_active_department_list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_active_department_list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Category List",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"department_id\": 11,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_active_categories_list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_active_categories_list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Seasonal Picks List",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_seasonal_picks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_seasonal_picks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Sub Category List",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"category_id\": 3,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_sub_categories_list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_sub_categories_list"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Product Api",
+			"item": [
+				{
+					"name": "Get ACtive Product List",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"dept_id\": 7,\r\n    \"category_id\": 68,\r\n    \"sub_category_id\": 204,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_active_products_list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_active_products_list"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Search Auto Complete Product list",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"product_name\": \"coconut\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_search_autocomplete_results",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_search_autocomplete_results"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Best Seller 1",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Your test name\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.value).to.eql(100);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_active_best_seller_1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_active_best_seller_1"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Best Seller 2",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_active_best_seller_2",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_active_best_seller_2"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Best Seller 3",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_active_best_seller_3",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_active_best_seller_3"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Best Seller 4",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_active_best_seller_4",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_active_best_seller_4"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Products Details",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"p_code\": 4143,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/getpcodeproducts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"getpcodeproducts"
+							]
+						},
+						"description": "Get All Product related details"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "SMS API",
+			"item": [
+				{
+					"name": "Get OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mobileNo\": 9890354858,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_otp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_otp"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Validate OTP",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mobileNo\": 9890354858,\r\n    \"otp\": 9232,\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/validate_otp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"validate_otp"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Shopping Cart",
+			"item": [
+				{
+					"name": "Save / Update Cart",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\",\r\n    \"temp_order_id\": \"AND002\",\r\n    \"device_id\": \"ASDF\",\r\n    \"cart_items\": [\r\n        {\r\n            \"pcode\": \"123\",\r\n            \"product_name\": \"Product Name New\",\r\n            \"product_mrp\": 3200,\r\n            \"selling_price\": 270,\r\n            \"package_size\": 1,\r\n            \"package_unit\": \"KG\",\r\n            \"stock_message\": \"Yes\",\r\n            \"price_alert_message\": \"Yes\",\r\n            \"quantity\": 5,\r\n            \"product_image_link\": \"Yes\"\r\n        },\r\n        {\r\n            \"pcode\": \"123\",\r\n            \"product_name\": \"Product Name 2\",\r\n            \"product_mrp\": 3210,\r\n            \"selling_price\": 270,\r\n            \"package_size\": 1,\r\n            \"package_unit\": \"KG\",\r\n            \"stock_message\": \"Yes\",\r\n            \"price_alert_message\": \"Yes\",\r\n            \"quantity\": 5,\r\n            \"product_image_link\": \"Yes\"\r\n        },\r\n        {\r\n            \"pcode\": \"123\",\r\n            \"product_name\": \"Product Name 3\",\r\n            \"product_mrp\": 3210,\r\n            \"selling_price\": 270,\r\n            \"package_size\": 1,\r\n            \"package_unit\": \"KG\",\r\n            \"stock_message\": \"Yes\",\r\n            \"price_alert_message\": \"Yes\",\r\n            \"quantity\": 5,\r\n            \"product_image_link\": \"Yes\"\r\n        }\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/save_cart",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"save_cart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Orders History",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_orders_history",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_orders_history"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Delivery Charges",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"distance\": \"5\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\",\r\n    \"order_amount\":0\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_delivery_charges",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_delivery_charges"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Discount Amount",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"distance\": \"5\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\",\r\n    \"order_amount\":0\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_discount_amount",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_discount_amount"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Handling Charges",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\",\r\n    \"order_amount\": 0\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_handling_charges",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_handling_charges"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Delivery Slots",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_delivery_slot",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_delivery_slot"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"_id\": {\r\n        \"$oid\": \"684fedf7dc1797c9e50b05dd\"\r\n    },\r\n    \"temp_order_id\": \"ORDER_TEMP_1750068726624_2240\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\",\r\n    \"access_key\": \"TnpZMk5qUTNOVFUxTkg1K2ZuNHhORE16\",\r\n    \"mobile_no\": \"7666475554\",\r\n    \"device_id\": \"DEVICE_1750067200355\",\r\n    \"cart_items\": [\r\n        {\r\n            \"pcode\": \"674\",\r\n            \"product_name\": \"Chings Swt Corn Veg Soup 13gm\",\r\n            \"product_mrp\": 10,\r\n            \"selling_price\": 9,\r\n            \"package_size\": 13,\r\n            \"package_unit\": \"GM\",\r\n            \"stock_message\": \"Yes\",\r\n            \"price_alert_message\": \"Yes\",\r\n            \"quantity\": 1,\r\n            \"product_image_link\": \"https://patelrmart.com/mgmt_panel/product_images/patel_webp/674_1.webp\"\r\n        }\r\n    ],\r\n    \"delivery_address\": [\r\n        {\r\n            \"full_name\": \"vishal\",\r\n            \"mobile_number\": \"7666475554\",\r\n            \"email_id\": \"test@example.com\",\r\n            \"delivery_addr_line_1\": \"202\",\r\n            \"delivery_addr_line_2\": \"4\",\r\n            \"delivery_addr_city\": \"Kalyan\",\r\n            \"delivery_addr_pincode\": \"421301\",\r\n            \"state\": \"\",\r\n            \"landmark\": \"\",\r\n            \"area_id\": \"Chikan Ghar\",\r\n            \"is_default\": \"Yes\",\r\n            \"latitude\": \"19.2496673\",\r\n            \"longitude\": \"73.1418154\"\r\n        }\r\n    ],\r\n    \"delivery_slot\": \"9:00 AM - 10:00 PM\",\r\n    \"delivery_slot_id\": 1,\r\n    \"order_status\": \"Pending\",\r\n    \"special_note\": \"\",\r\n    \"total_amount_mrp\": \"10.0\",\r\n    \"total_amount_our_price\": \"9.0\",\r\n    \"discount\": \"0\",\r\n    \"handling_charges\": \"0\",\r\n    \"you_save\": \"1.0\",\r\n    \"delivery_charges\": \"0.0\",\r\n    \"discounted_amt\": \"9.0\",\r\n    \"final_payable_amt\": \"9.0\",\r\n    \"delivery_date\": \"2025-06-16\",\r\n    \"offer_applicable_details\": \"No Offer\",\r\n    \"delivery_mode\": \"Home Delivery\",\r\n    \"payment_mode\": \"Online Payment\",\r\n    \"payment_mode_id\": 2,\r\n    \"payment_status\": \"Payment Confirmed\",\r\n    \"payment_status_id\": 2,\r\n    \"paid_amount\": \"9.0\",\r\n    \"transaction_id\": \"pay_QhpV4ubprzQtkh\",\r\n    \"mob_platform\": \"Android\",\r\n    \"order_date_time\": {\r\n        \"$date\": \"2025-06-16T10:15:00.000Z\"\r\n    },\r\n    \"payment_gateway_data\": [\r\n        {\r\n            \"gateway\": \"razorpay\",\r\n            \"environment\": \"live\",\r\n            \"payment_id\": \"pay_QhpV4ubprzQtkh\",\r\n            \"order_id\": \"order_QhpUbgY9OXKXSY\",\r\n            \"signature\": \"611c73b5cf086a306fd74ce7935477e097accb9233e9677d850ad78a0bcbb076\",\r\n            \"amount\": 9,\r\n            \"currency\": \"INR\",\r\n            \"status\": \"captured\",\r\n            \"method\": \"netbanking\",\r\n            \"captured\": true,\r\n            \"vpa\": null,\r\n            \"email\": \"shalviadvision@gmail.com\",\r\n            \"contact\": \"+917666475554\",\r\n            \"created_at\": 1750068643,\r\n            \"captured_at\": 1750068724,\r\n            \"acquirer_data\": {\r\n                \"bank_transaction_id\": \"0230982539\"\r\n            },\r\n            \"upi_data\": null,\r\n            \"full_payment_response\": {\r\n                \"id\": \"pay_QhpV4ubprzQtkh\",\r\n                \"entity\": \"payment\",\r\n                \"amount\": 900,\r\n                \"currency\": \"INR\",\r\n                \"status\": \"captured\",\r\n                \"order_id\": \"order_QhpUbgY9OXKXSY\",\r\n                \"invoice_id\": null,\r\n                \"international\": false,\r\n                \"method\": \"netbanking\",\r\n                \"amount_refunded\": 0,\r\n                \"refund_status\": null,\r\n                \"captured\": true,\r\n                \"description\": \"Order Payment - PatelMart\",\r\n                \"card_id\": null,\r\n                \"bank\": \"KKBK\",\r\n                \"wallet\": null,\r\n                \"vpa\": null,\r\n                \"email\": \"shalviadvision@gmail.com\",\r\n                \"contact\": \"+917666475554\",\r\n                \"notes\": {\r\n                    \"description\": \"Order Payment - PatelMart\",\r\n                    \"app_platform\": \"flutter\",\r\n                    \"customer_name\": \"vishal\",\r\n                    \"customer_email\": \"test@example.com\",\r\n                    \"customer_phone\": \"7666475554\",\r\n                    \"environment\": \"live\"\r\n                },\r\n                \"fee\": 18,\r\n                \"tax\": 2,\r\n                \"error_code\": null,\r\n                \"error_description\": null,\r\n                \"error_source\": null,\r\n                \"error_step\": null,\r\n                \"error_reason\": null,\r\n                \"acquirer_data\": {\r\n                    \"bank_transaction_id\": \"0230982539\"\r\n                },\r\n                \"created_at\": 1750068643,\r\n                \"authorized_at\": 1750068723,\r\n                \"auto_captured\": true,\r\n                \"captured_at\": 1750068724,\r\n                \"late_authorized\": false\r\n            },\r\n            \"gateway_timestamp\": 1750068726625,\r\n            \"sdk_source\": \"flutter\"\r\n        }\r\n    ],\r\n    \"__v\": 0,\r\n    \"actual_order_id\": 1003\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/confirm_order",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"confirm_order"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Cart",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"temp_order_id\": \"AND002\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\",\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"device_id\": \"ASDF\",\r\n    \"cart_items\": [\r\n        {\r\n            \"pcode\": \"123\",\r\n            \"product_name\": \"Product Name New\",\r\n            \"product_mrp\": 3200,\r\n            \"selling_price\": 270,\r\n            \"package_size\": 1,\r\n            \"package_unit\": \"KG\",\r\n            \"stock_message\": \"Yes\",\r\n            \"price_alert_message\": \"Yes\",\r\n            \"quantity\": 5,\r\n            \"product_image_link\": \"Yes\"\r\n        },\r\n        {\r\n            \"pcode\": \"123\",\r\n            \"product_name\": \"Product Name 2\",\r\n            \"product_mrp\": 3210,\r\n            \"selling_price\": 270,\r\n            \"package_size\": 1,\r\n            \"package_unit\": \"KG\",\r\n            \"stock_message\": \"Yes\",\r\n            \"price_alert_message\": \"Yes\",\r\n            \"quantity\": 5,\r\n            \"product_image_link\": \"Yes\"\r\n        },\r\n        {\r\n            \"pcode\": \"123\",\r\n            \"product_name\": \"Product Name 3\",\r\n            \"product_mrp\": 3210,\r\n            \"selling_price\": 270,\r\n            \"package_size\": 1,\r\n            \"package_unit\": \"KG\",\r\n            \"stock_message\": \"Yes\",\r\n            \"price_alert_message\": \"Yes\",\r\n            \"quantity\": 5,\r\n            \"product_image_link\": \"Yes\"\r\n        }\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/validate_cart",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"validate_cart"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Address Book",
+			"item": [
+				{
+					"name": "Add Address",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"idaddress_book\": \"12\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\",\r\n    \"full_name\": \"Jivan Patil 2\",\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_number\": \"9890354858\",\r\n    \"email_id\": \"pranitapatil@gmail.com  \",\r\n    \"delivery_addr_line_1\": \"Address 1\",\r\n    \"delivery_addr_line_2\": \"Address 2\",\r\n    \"delivery_addr_city\": \"Jalgaon\",\r\n    \"delivery_addr_pincode\": \"425001\",\r\n    \"is_default\": \"No\",\r\n    \"latitude\": \"\",\r\n    \"longitude\": \"\",\r\n    \"area_id\": \"1\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/add_address",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"add_address"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Google API Key",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_google_api_key",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_google_api_key"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Address",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    \"idaddress_book\": \"164\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\",\r\n    \"full_name\": \"Jivan Patil\",\r\n    \"mobile_number\": \"9890354858\",\r\n    \"email_id\": \"pranitapatil@gmail.com  \",\r\n    \"delivery_addr_line_1\": \"Address 1\",\r\n    \"delivery_addr_line_2\": \"Address 2\",\r\n    \"delivery_addr_city\": \"Jalgaon\",\r\n    \"delivery_addr_pincode\": \"425001\",\r\n    \"is_default\": \"Yes\",\r\n    \"latitude\": \"\",\r\n    \"longitude\": \"\",\r\n    \"area_id\": \"1\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/update_address/681f2db2b9ac7a9eb6fc4fd5",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"update_address",
+								"681f2db2b9ac7a9eb6fc4fd5"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Address List",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_address_list",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_address_list"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Update Customer Profile",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"first_name\": \"Jivan\",\r\n    \"last_name\": \"Patil\",\r\n    \"mobile_number\": \"9890354858\",\r\n    \"email_id\" : \"patiljivan@gmail.com\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/add_update_customer_profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"add_update_customer_profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Customer Profile",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_number\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_customer_profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_customer_profile"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Customer API",
+			"item": [
+				{
+					"name": "Save FCM Token",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mobile_no\": \"9890354857\",\r\n    \"access_key\": \"55555\",\r\n    \"fcm_token\":\"4747\"\r\n   \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/save_fcm_token",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"save_fcm_token"
+							]
+						},
+						"description": "Add Customer Device Details for notification and Shopping Cart Maintain"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Favorites Product Api",
+			"item": [
+				{
+					"name": "Add Remove To Favorites",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"p_code\": \"1628\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n} ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/add_remove_to_favorites",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"add_remove_to_favorites"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Favorite Items",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"access_key\": \"T0RFd09EQTFNek0zTW41K2ZuNDNNamMx\",\r\n    \"mobile_no\": \"8108053372\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_favorite_items",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_favorite_items"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment API",
+			"item": [
+				{
+					"name": "Get Payment Mode",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"p_code\": \"1628\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n} ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_payment_mode",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_payment_mode"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment Status",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_payment_status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_payment_status"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment Gateway Details",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_pay_gateway_details",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_pay_gateway_details"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Razorpay Orderid",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"temp_order_id\": \"123\",\r\n    \"amount\": 100\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/get_razorpay_order_id",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"get_razorpay_order_id"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Payment Signature",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"paymentId\": \"pay_Qh2RNre8eq2laD\",\r\n    \"orderId\": \"order_Qh4ia8Dgl6p59P\",\r\n    \"signature\": \"sjdjfsodkflskfl\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/verify_payment",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"verify_payment"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Migration API",
+			"item": [
+				{
+					"name": "Node JS Data Point",
+					"item": [
+						{
+							"name": "Migration Product Master",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_products",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_products"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Department Master",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_department",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_department"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Category Master",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_categories",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_categories"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Sub Category Master",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_sub_categories",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_sub_categories"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Banner Master",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_banners",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_banners"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Pincode Store Master",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_pincode_store",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_pincode_store"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Pincodes",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"access_key\": \"T1RnNU1ETTFORGcxT0g1K2ZuNDVNak15\",\r\n    \"mobile_no\": \"9890354858\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_pincodes",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_pincodes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Payment Mode",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_payment_modes",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_payment_modes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Payment Status",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{base_url}}/migrate_payment_status",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"migrate_payment_status"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "MGMT Data Point",
+					"item": [
+						{
+							"name": "Migration Department Master",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{migrate_from_url}}/mg_depts",
+									"host": [
+										"{{migrate_from_url}}"
+									],
+									"path": [
+										"mg_depts"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Category Master",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{migrate_from_url}}/mg_categories",
+									"host": [
+										"{{migrate_from_url}}"
+									],
+									"path": [
+										"mg_categories"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Sub Category Master",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{migrate_from_url}}/mg_subcategories",
+									"host": [
+										"{{migrate_from_url}}"
+									],
+									"path": [
+										"mg_subcategories"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Banner Master",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{migrate_from_url}}/mg_storewise_banner",
+									"host": [
+										"{{migrate_from_url}}"
+									],
+									"path": [
+										"mg_storewise_banner"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Pincode Store Master",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{migrate_from_url}}/mg_pincodewise_outlet",
+									"host": [
+										"{{migrate_from_url}}"
+									],
+									"path": [
+										"mg_pincodewise_outlet"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Migration Pincodes",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{migrate_from_url}}/mg_pincodes",
+									"host": [
+										"{{migrate_from_url}}"
+									],
+									"path": [
+										"mg_pincodes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Change Order Status",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n   \"actual_order_id\":1010,\r\n   \"order_status\":\"Accepted\"\r\n   \r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "https://newtech.shalviadvision.com/api/update_order_status",
+									"protocol": "https",
+									"host": [
+										"newtech",
+										"shalviadvision",
+										"com"
+									],
+									"path": [
+										"api",
+										"update_order_status"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Online Payment Detials",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"payment_id\": \"pay_QgeVqJ6hef3Bnr\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "https://patelrmart.com/mgmt_panel/get_online_payment_details",
+									"protocol": "https",
+									"host": [
+										"patelrmart",
+										"com"
+									],
+									"path": [
+										"mgmt_panel",
+										"get_online_payment_details"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Online Order Settlement",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"temp_order_id\":\"ORD_20250701_115716_000303\",\r\n    \"payment_details\":[\"{\\\"id\\\":\\\"pay_Qnhi8iCoaXkXKO\\\",\\\"entity\\\":\\\"payment\\\",\\\"amount\\\":900,\\\"amount_captured\\\":null,\\\"currency\\\":\\\"INR\\\",\\\"status\\\":\\\"captured\\\",\\\"order_id\\\":\\\"order_Qnhhv7J6Kmv2gv\\\",\\\"invoice_id\\\":null,\\\"international\\\":false,\\\"method\\\":\\\"upi\\\",\\\"amount_refunded\\\":0,\\\"refund_status\\\":null,\\\"captured\\\":true,\\\"description\\\":\\\"Order Payment - PatelMart\\\",\\\"card_id\\\":null,\\\"bank\\\":null,\\\"wallet\\\":null,\\\"vpa\\\":\\\"gauravpawar904@okicici\\\",\\\"email\\\":\\\"test@example.com\\\",\\\"contact\\\":\\\"+918108053372\\\",\\\"notes\\\":{\\\"app_platform\\\":\\\"flutter\\\",\\\"app_version\\\":\\\"flutter_live\\\",\\\"customer_email\\\":\\\"test@example.com\\\",\\\"customer_name\\\":\\\"test\\\",\\\"customer_phone\\\":\\\"8108053372\\\",\\\"database_status\\\":\\\"payment_processing\\\",\\\"description\\\":\\\"Order Payment - PatelMart\\\",\\\"environment\\\":\\\"live\\\",\\\"flutter_timestamp\\\":\\\"1751351238236\\\",\\\"order_flow_stage\\\":\\\"payment_processing\\\",\\\"payment_initiated_at\\\":\\\"2025-07-01T11:57:18.236306\\\",\\\"temp_order_id\\\":\\\"ORD_20250701_115716_000303\\\"},\\\"fee\\\":0,\\\"tax\\\":0,\\\"error_code\\\":null,\\\"error_description\\\":null,\\\"error_source\\\":null,\\\"error_step\\\":null,\\\"error_reason\\\":null,\\\"acquirer_data\\\":{\\\"rrn\\\":\\\"554866459298\\\",\\\"upi_transaction_id\\\":\\\"138048144016\\\"},\\\"created_at\\\":1751351252,\\\"provider\\\":null,\\\"upi\\\":{\\\"payer_account_type\\\":\\\"bank_account\\\",\\\"vpa\\\":\\\"gauravpawar904@okicici\\\"},\\\"reward\\\":null,\\\"authorized_at\\\":1751351291,\\\"auto_captured\\\":true,\\\"captured_at\\\":1751351291,\\\"late_authorized\\\":false}\"]\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/settle_order_payment",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"settle_order_payment"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "New Request",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Static Pages",
+			"item": [
+				{
+					"name": "Get About Us",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/about_us_screen",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"about_us_screen"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Refund Policy",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/refund_policy",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"refund_policy"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Privacy Policy",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/privacy_policy",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"privacy_policy"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Terms and condition",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\":\"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/terms_and_conditions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"terms_and_conditions"
+							]
+						},
+						"description": "Get All Products List Related to Department Category And Sub Category"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "App Ver Check",
+			"item": [
+				{
+					"name": "Check App Version",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"mobile_platform\": \"Android\",\r\n    \"current_ver\": \"1.0.2\",\r\n    \"store_code\": \"{{test_store_code}}\",\r\n    \"project_code\": \"{{test_project_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/check_app_version",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"check_app_version"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Decrypt Access Key",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"access_key\": \"T1RnNE1UQXlOemN6T0g1K2ZuNDVNemcz\",\r\n    \"store_code\": \"PGB\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://appdemo.viabletechsystem.com/mgmt_panel/decrypt_access_key",
+					"protocol": "https",
+					"host": [
+						"appdemo",
+						"viabletechsystem",
+						"com"
+					],
+					"path": [
+						"mgmt_panel",
+						"decrypt_access_key"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Check outlet status",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"store_code\": \"KLK\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/check_outlet_status",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"check_outlet_status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Check Server",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}",
+					"host": [
+						"{{base_url}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://testserver.retailmagic.in/devpatelapi",
+			"type": "string"
+		},
+		{
+			"key": "test_store_code",
+			"value": "KLK",
+			"type": "string"
+		},
+		{
+			"key": "test_project_id",
+			"value": "RET5890",
+			"type": "string"
+		},
+		{
+			"key": "migrate_from_url",
+			"value": "https://appdemo.viabletechsystem.com/mgmt_panel",
+			"type": "string"
+		},
+		{
+			"key": "test_pincode",
+			"value": "400016",
+			"type": "string"
+		}
+	]
+}

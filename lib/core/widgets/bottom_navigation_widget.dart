@@ -1,4 +1,5 @@
 // lib/presentation/widgets/bottom_navigation_widget.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 
@@ -16,6 +17,9 @@ class BottomNavigationWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 60, // Fixed height
+      padding: EdgeInsets.only(
+        bottom: Platform.isIOS ? 15 : 0, // Additional 10px padding for iOS
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [

@@ -9,15 +9,8 @@ import '../../data/repositories/fcm_token_repository.dart';
 import 'auth_providers.dart';
 import 'launch_flow_provider.dart';
 
-// Provider for FcmTokenService
-final fcmTokenServiceProvider = Provider<FcmTokenService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return FcmTokenService(
-    client: http.Client(),
-    logger: logger,
-    firebaseMessaging: FirebaseMessaging.instance,
-  );
-});
+// Import the service provider from the service file
+// (The fcmTokenServiceProvider is now defined in fcm_token_service.dart)
 
 // Provider for FcmTokenRepository
 final fcmTokenRepositoryProvider = Provider<FcmTokenRepository>((ref) {

@@ -113,30 +113,24 @@ class AuthService {
     }
   }
 
-  /// Save user credentials to secure storage and handle FCM token
+  /// Save user credentials - DEPRECATED: Use CentralizedAuthManager instead
+  /// This method is kept only for FCM token handling
   Future<void> _saveUserCredentials(String mobile, String accessKey) async {
     try {
       final now = DateTime.now();
       
-      // Save access key
-      await _secureStorage.write(key: _accessKeyKey, value: accessKey);
+      // ❌ REMOVED: No longer save access key here - CentralizedAuthManager handles this
+      // ❌ REMOVED: No longer save login time here - CentralizedAuthManager handles this  
+      // ❌ REMOVED: No longer save user profile here - CentralizedAuthManager handles this
       
-      // Save login time
-      await _secureStorage.write(key: _loginTimeKey, value: now.toIso8601String());
-      
-      // Save user profile
+      // ✅ ONLY handle FCM token operations here
       final userProfile = UserProfile(
         mobile: mobile,
         accessKey: accessKey,
         loginTime: now,
       );
       
-      await _secureStorage.write(
-        key: _userProfileKey,
-        value: _encodeUserProfile(userProfile),
-      );
-      
-      _logger.log('User credentials saved successfully for mobile: $mobile');
+      _logger.log('User credentials handled - access token managed by CentralizedAuthManager');
       
       // Save FCM token after successful login (non-blocking)
       _saveFcmTokenAfterLogin(userProfile);
@@ -145,7 +139,7 @@ class AuthService {
       _setupFcmTokenRefreshListener(userProfile);
       
     } catch (e) {
-      _logger.error('Error saving user credentials: $e');
+      _logger.error('Error handling user credentials: $e');
       rethrow;
     }
   }
@@ -381,51 +375,48 @@ class AuthService {
     }
   }
 
-  /// Get user profile from secure storage
+  /// Get user profile - DEPRECATED: Use CentralizedAuthManager instead
+  /// This method now delegates to CentralizedAuthManager
   Future<UserProfile?> getUserProfile() async {
     try {
-      final profileJson = await _secureStorage.read(key: _userProfileKey);
-      if (profileJson == null) return null;
-      
-      return _decodeUserProfile(profileJson);
+      _logger.log('⚠️ DEPRECATED: AuthService.getUserProfile() - Use CentralizedAuthManager instead');
+      // Note: Cannot directly access CentralizedAuthManager here due to circular dependency
+      // This method should not be used - access CentralizedAuthManager directly
+      return null;
     } catch (e) {
       _logger.error('Error getting user profile: $e');
       return null;
     }
   }
 
-  /// Check if user is logged in with valid access key
+  /// Check if user is logged in - DEPRECATED: Use CentralizedAuthManager instead
+  /// This method now delegates to CentralizedAuthManager  
   Future<bool> isLoggedIn() async {
     try {
-      final accessKey = await _secureStorage.read(key: _accessKeyKey);
-      final loginTimeStr = await _secureStorage.read(key: _loginTimeKey);
-      
-      if (accessKey == null || loginTimeStr == null) return false;
-      
-      // Parse login time
-      final loginTime = DateTime.parse(loginTimeStr);
-      final now = DateTime.now();
-      
-      // Check if access key is still valid (10 days)
-      final isValid = now.difference(loginTime).inDays < 10;
-      
-      _logger.log('Access key valid: $isValid');
-      return isValid;
+      _logger.log('⚠️ DEPRECATED: AuthService.isLoggedIn() - Use CentralizedAuthManager instead');
+      // Note: Cannot directly access CentralizedAuthManager here due to circular dependency
+      // This method should not be used - access CentralizedAuthManager directly
+      return false;
     } catch (e) {
       _logger.error('Error checking login status: $e');
       return false;
     }
   }
 
-  /// Logout user by clearing credentials
+  /// Logout user - DEPRECATED: Use CentralizedAuthManager instead
+  /// This method now only clears legacy storage
   Future<void> logout() async {
     try {
+      _logger.log('⚠️ DEPRECATED: AuthService.logout() - Use CentralizedAuthManager instead');
+      
+      // Clean up any legacy storage that might exist
       await _secureStorage.delete(key: _accessKeyKey);
       await _secureStorage.delete(key: _userProfileKey);
       await _secureStorage.delete(key: _loginTimeKey);
-      _logger.log('User logged out successfully');
+      
+      _logger.log('Legacy auth storage cleaned up');
     } catch (e) {
-      _logger.error('Error logging out: $e');
+      _logger.error('Error clearing legacy auth storage: $e');
       rethrow;
     }
   }

@@ -17,49 +17,35 @@ class FavoritesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Check if the user is logged in
+    // Check if the user is logged in using reactive provider for immediate updates
+    final isLoggedIn = ref.watch(isLoggedInReactiveProvider);
+    
+    // Debug: Also check the async provider to compare
     final isLoggedInAsync = ref.watch(isLoggedInProvider);
     
-    return isLoggedInAsync.when(
-      data: (isLoggedIn) {
-        if (!isLoggedIn) {
-          // If not logged in, show login prompt
-          return _buildLoginPrompt(context);
-        }
-        
-        // If logged in, ensure favorites are initialized
-        // This helps if the user navigates directly to this screen
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final favoritesState = ref.read(favoritesProvider);
-          if (!favoritesState.isInitialized) {
-            ref.read(favoritesProvider.notifier).initializeFavorites();
-          }
-        });
-        
-        // If logged in, show favorites
-        return _buildFavoritesContent(context, ref);
-      },
-      loading: () => Scaffold(
-        appBar: AppBar(
-          title: const Text('My Favorites'),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-        ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      error: (error, stackTrace) => Scaffold(
-        appBar: AppBar(
-          title: const Text('My Favorites'),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-        ),
-        body: Center(
-          child: Text('Error: $error'),
-        ),
-      ),
-    );
+    // Debug logging (remove this in production)
+    ref.listen(loginStatusStreamProvider, (previous, next) {
+      print('🔐 Login status stream changed: ${next.valueOrNull}');
+    });
+    
+    print('🔐 Favorites Screen - Reactive: $isLoggedIn, Async: ${isLoggedInAsync.valueOrNull}');
+    
+    if (!isLoggedIn) {
+      // If not logged in, show login prompt
+      return _buildLoginPrompt(context);
+    }
+    
+    // If logged in, ensure favorites are initialized
+    // This helps if the user navigates directly to this screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final favoritesState = ref.read(favoritesProvider);
+      if (!favoritesState.isInitialized) {
+        ref.read(favoritesProvider.notifier).initializeFavorites();
+      }
+    });
+    
+    // If logged in, show favorites
+    return _buildFavoritesContent(context, ref);
   }
   
   Widget _buildLoginPrompt(BuildContext context) {

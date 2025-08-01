@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
 import 'package:patelmart/presentation/providers/reorder_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -13,16 +12,8 @@ import '../../../core/utils/logger.dart';
 import '../../../data/models/order_model.dart';
 import '../../../data/repositories/profile_repository.dart';
 import '../../providers/auth_providers.dart';
-import '../../providers/launch_flow_provider.dart';
 
-// Provider for the profile repository (add this if not already present)
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return ProfileRepository(
-    client: http.Client(),
-    logger: logger,
-  );
-});
+// Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
 
 // Provider to fetch user profile details from API
 final userProfileDetailsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -35,10 +26,7 @@ final userProfileDetailsProvider = FutureProvider.autoDispose<Map<String, dynami
   
   final profileRepository = ref.read(profileRepositoryProvider);
   try {
-    final profileData = await profileRepository.getUserProfile(
-      userProfile.mobile,
-      userProfile.accessKey,
-    );
+    final profileData = await profileRepository.getUserProfile();
     return profileData;
   } catch (e) {
     // Return basic info if API call fails
@@ -131,7 +119,7 @@ class SavingsStats {
 }
 
 class SavingsScreen extends ConsumerWidget {
-  const SavingsScreen({Key? key}) : super(key: key);
+  const SavingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

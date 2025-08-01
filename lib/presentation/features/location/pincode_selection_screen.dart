@@ -7,7 +7,6 @@ import 'package:patelmart/core/network/api_client.dart';
 import 'package:patelmart/core/utils/location_utils.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/utils/responsive_utils.dart';
 import '../../../core/widgets/error_widgets.dart';
 import '../../../core/widgets/back_button_wrapper.dart';
 import '../../../data/services/location_service.dart';
@@ -446,6 +445,9 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
         // Update the launch flow state
         ref.read(launchFlowProvider.notifier).pincodeSelected();
         
+        // Add small delay to ensure provider state is fully updated
+        await Future.delayed(const Duration(milliseconds: 100));
+        
         // Navigate to outlet selection screen
         if (mounted && !_isDisposed && !_isNavigating) {
           _safeSetState(() {
@@ -528,38 +530,21 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
         // Save the pincode
         await ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
         
-        // Check if there are multiple outlets
+        // Check if there are outlets available
         final outlets = await ref.read(availableOutletsProvider(pincode).future);
         
         if (outlets.isEmpty) {
           _showErrorSnackBar('No stores available in your area. Please select another pincode.');
-        } else if (outlets.length == 1) {
-          // If only one outlet, select it automatically
-          logger.log('Single outlet found, auto-selecting');
-          await ref.read(selectedOutletProvider.notifier).selectOutlet(outlets[0]);
-          
-          // Update launch flow state
-          ref.read(launchFlowProvider.notifier).outletSelected();
-          
-          // Navigate to store info
-          if (mounted && !_isDisposed && !_isNavigating) {
-            // Show success message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Store "${outlets[0].name}" selected automatically'),
-                backgroundColor: AppColors.success,
-              ),
-            );
-            
-            // Go to store info
-            _safeSetState(() {
-              _isNavigating = true;
-            });
-            context.go('/store-info');
-          }
         } else {
+          // Always show outlet selection screen, even for single outlets
+          // This ensures users can see the store details and make an informed choice
+          logger.log('Found ${outlets.length} outlet(s), navigating to outlet selection');
+          
           // Update launch flow state
           ref.read(launchFlowProvider.notifier).pincodeSelected();
+          
+          // Add small delay to ensure provider state is fully updated
+          await Future.delayed(const Duration(milliseconds: 100));
           
           // Navigate to outlet selection
           if (mounted && !_isDisposed && !_isNavigating) {
