@@ -25,9 +25,49 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
   bool _isNavigating = false;
   
   @override
+  void initState() {
+    super.initState();
+    // Refresh outlet data when screen is loaded to ensure latest store information
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_isDisposed) {
+        _refreshStoreInformation();
+        _checkForStoreUpdateSuccess();
+      }
+    });
+  }
+  
+  @override
   void dispose() {
     _isDisposed = true;
     super.dispose();
+  }
+  
+  void _refreshStoreInformation() {
+    try {
+      // Refresh the selected outlet provider to get latest store information
+      ref.invalidate(selectedOutletProvider);
+      
+      // Also refresh pincode-related data
+      final currentPincode = ref.read(selectedPincodeProvider);
+      if (currentPincode != null) {
+        ref.invalidate(availableOutletsProvider(currentPincode));
+      }
+    } catch (e) {
+      // Handle error silently as this is not critical
+      final logger = ref.read(loggerProvider);
+      logger.error('Error refreshing store information: $e');
+    }
+  }
+  
+  void _checkForStoreUpdateSuccess() {
+    // This method can be used to detect if the user just returned from outlet selection
+    // and show appropriate feedback. For now, we'll let the reactive UI handle the updates.
+    final launchState = ref.read(launchFlowProvider);
+    if (launchState == AppLaunchState.subsequentLaunch) {
+      // User is in the app and may have just updated their store selection
+      final logger = ref.read(loggerProvider);
+      logger.log('Location change screen loaded - checking for store updates');
+    }
   }
 
   void _safeSetState(VoidCallback callback) {
@@ -239,6 +279,15 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
           description: 'Select a different store in your area',
           onTap: () => _handleChangeStore(context, ref, logger),
         ),
+        const SizedBox(height: 16),
+        
+        _buildOptionCard(
+          context,
+          icon: Icons.list_alt,
+          title: 'Browse All Pincodes',
+          description: 'View and select from all available pincodes',
+          onTap: () => _handleBrowseAllPincodes(context, ref, logger),
+        ),
       ],
     );
   }
@@ -338,29 +387,21 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
     dynamic logger,
     List<dynamic> outlets,
   ) async {
+    if (_isDisposed || !mounted) return;
+    
     if (outlets.isEmpty) {
       _showErrorSnackBar(
         context,
         'No stores available for this location. Please try another location.'
       );
-    } else if (outlets.length == 1) {
-      logger.log('Single outlet found, auto-selecting');
-      await ref.read(selectedOutletProvider.notifier).selectOutlet(outlets[0]);
-      
-      ref.read(launchFlowProvider.notifier).outletSelected();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Store "${outlets[0].name}" selected automatically'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        
-        _safeNavigateToHome();
-      }
     } else {
+      // Always navigate to outlet selection screen regardless of number of outlets
+      logger.log('Navigating to outlet selection with ${outlets.length} available outlet(s)');
+      
       ref.read(launchFlowProvider.notifier).pincodeSelected();
+      
+      // Add small delay to ensure provider state is fully updated
+      await Future.delayed(const Duration(milliseconds: 100));
       
       if (mounted && !_isNavigating) {
         _safeSetState(() {
@@ -384,6 +425,17 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
         'Error detecting location: ${error.toString()}',
       );
     }
+  }
+
+  Future<void> _handleBrowseAllPincodes(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic logger,
+  ) async {
+    if (_isDisposed || !mounted) return;
+    
+    logger.log('Browse All Pincodes tapped');
+    _showServiceablePincodesDialog(context, ref);
   }
 
   Future<void> _handleChangeStore(
@@ -413,10 +465,14 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
             context,
             'No stores available for your pincode. Please try a different pincode.',
           );
-        } else if (outlets.length == 1) {
-          _showSingleOutletDialog(context, ref, selectedPincode);
         } else {
-          logger.log('Navigating to outlet-selection');
+          // Always show outlet selection screen, even for single outlets
+          // This ensures users can see all available store options and details
+          logger.log('Found ${outlets.length} outlet(s), navigating to outlet-selection');
+          
+          // Add small delay to ensure provider state is fully updated
+          await Future.delayed(const Duration(milliseconds: 100));
+          
           if (!_isNavigating) {
             _safeSetState(() {
               _isNavigating = true;
@@ -438,76 +494,30 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
   }
 
   void _showLoadingDialog(BuildContext context) {
-    if (!mounted || _isDisposed) return;
+    if (_isDisposed || !mounted) return;
     
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => PopScope(
-        canPop: false,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Column(
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 CircularProgressIndicator(),
                 SizedBox(height: 16),
-                Text('Loading...'),
+                Text('Processing...'),
               ],
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  void _showSingleOutletDialog(BuildContext context, WidgetRef ref, String selectedPincode) {
-    if (!mounted || _isDisposed) return;
-    
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              Icons.info_outline,
-              color: AppColors.info,
-              size: 24,
-            ),
-            const SizedBox(width: 8),
-            const Text('Single Outlet'),
-          ],
-        ),
-        content: Text(
-          'Your selected pincode ($selectedPincode) has only one store available. '
-          'Please change your pincode to try different stores.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _showServiceablePincodesDialog(context, ref);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
-            child: const Text('Change Pincode'),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   void _showLocationServicesDialog(BuildContext context) {
     if (!mounted || _isDisposed) return;
@@ -722,6 +732,12 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
               if (mounted && !_isDisposed) {
                 await ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
                 
+                // Show feedback that pincode has been selected
+                _showSuccessSnackBar(context, 'Pincode $pincode selected. Please choose your store.');
+                
+                // Add small delay to ensure provider state is fully updated
+                await Future.delayed(const Duration(milliseconds: 100));
+                
                 // Navigate to outlet selection
                 if (mounted && !_isNavigating) {
                   _safeSetState(() {
@@ -753,6 +769,26 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
           ),
         ),
         backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+  
+  void _showSuccessSnackBar(BuildContext context, String message) {
+    if (!mounted || _isDisposed) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.white,
+          ),
+        ),
+        backgroundColor: AppColors.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),

@@ -50,11 +50,138 @@ class CentralizedAuthManager {
   /// Initialize the manager and load cached data
   Future<void> _initializeManager() async {
     try {
+      await _migrateLegacyStorage();
       await _loadCachedProfile();
       _startPeriodicValidation();
       _logger.log('CentralizedAuthManager initialized');
     } catch (e) {
       _logger.error('Error initializing auth manager: $e');
+    }
+  }
+
+  /// Migrate legacy storage to centralized format
+  Future<void> _migrateLegacyStorage() async {
+    try {
+      _logger.log('Checking for legacy storage to migrate...');
+      
+      // Check if new format already exists
+      final existingProfile = await _secureStorage.read(key: _userProfileKey);
+      if (existingProfile != null) {
+        _logger.log('New format already exists, skipping migration');
+        return;
+      }
+      
+      // Try to migrate from legacy AuthService format
+      String? legacyAccessKey;
+      String? legacyLoginTime;
+      String? legacyUserProfile;
+      
+      try {
+        legacyAccessKey = await _secureStorage.read(key: 'user_access_key');
+        legacyLoginTime = await _secureStorage.read(key: 'login_time');
+        legacyUserProfile = await _secureStorage.read(key: 'user_profile');
+      } catch (e) {
+        _logger.warning('Error reading legacy secure storage: $e');
+      }
+      
+      // Try to migrate from SharedPreferences
+      String? mobile;
+      String? accessKey = legacyAccessKey;
+      DateTime? loginTime;
+      
+      if (legacyLoginTime != null) {
+        try {
+          loginTime = DateTime.parse(legacyLoginTime);
+        } catch (e) {
+          _logger.warning('Error parsing legacy login time: $e');
+        }
+      }
+      
+      // Try to extract from legacy user profile
+      if (legacyUserProfile != null) {
+        try {
+          final parts = legacyUserProfile.split(':');
+          if (parts.length >= 3) {
+            mobile = parts[0];
+            accessKey = parts[1];
+            loginTime = DateTime.parse(parts[2]);
+          }
+        } catch (e) {
+          _logger.warning('Error parsing legacy user profile: $e');
+        }
+      }
+      
+      // Try SharedPreferences as fallback
+      if (accessKey == null || mobile == null) {
+        try {
+          final userProfileStr = _prefs.getString('user_profile');
+          if (userProfileStr != null) {
+            final userProfileData = jsonDecode(userProfileStr);
+            if (userProfileData is Map) {
+              mobile ??= userProfileData['mobile']?.toString();
+              accessKey ??= userProfileData['accessKey']?.toString();
+            }
+          }
+          
+          // Try OTP validation response
+          if (accessKey == null) {
+            final otpResponseStr = _prefs.getString('otp_validation_response');
+            if (otpResponseStr != null) {
+              final otpResponseData = jsonDecode(otpResponseStr);
+              if (otpResponseData is Map) {
+                accessKey = otpResponseData['access_key']?.toString();
+              }
+            }
+          }
+          
+          // Try direct access key
+          accessKey ??= _prefs.getString('user_access_key');
+        } catch (e) {
+          _logger.warning('Error reading legacy SharedPreferences: $e');
+        }
+      }
+      
+      // If we have enough data, migrate to new format
+      if (mobile != null && accessKey != null && mobile.isNotEmpty && accessKey.isNotEmpty) {
+        final profile = UserProfile(
+          mobile: mobile,
+          accessKey: accessKey,
+          loginTime: loginTime ?? DateTime.now(),
+        );
+        
+        await saveUserProfile(profile);
+        
+        _logger.log('Successfully migrated legacy storage for mobile: $mobile');
+        
+        // Clean up legacy storage
+        await _cleanupLegacyStorage();
+      } else {
+        _logger.log('No valid legacy data found to migrate');
+      }
+      
+    } catch (e) {
+      _logger.error('Error migrating legacy storage: $e');
+    }
+  }
+
+  /// Clean up legacy storage keys
+  Future<void> _cleanupLegacyStorage() async {
+    try {
+      _logger.log('Cleaning up legacy storage...');
+      
+      // Clean up legacy secure storage
+      await _secureStorage.delete(key: 'user_access_key');
+      await _secureStorage.delete(key: 'login_time');
+      await _secureStorage.delete(key: 'user_profile');
+      
+      // Clean up legacy SharedPreferences
+      await _prefs.remove('user_profile');
+      await _prefs.remove('otp_validation_response');
+      await _prefs.remove('user_access_key');
+      
+      _logger.log('Legacy storage cleanup completed');
+    } catch (e) {
+      _logger.error('Error cleaning up legacy storage: $e');
     }
   }
 
@@ -101,11 +228,14 @@ class CentralizedAuthManager {
       _cachedProfile = profile;
       _lastValidation = DateTime.now();
       
-      // Notify listeners
+      // Notify listeners immediately - this ensures reactive UI updates
       _notifyProfileChanged(profile);
       _notifyLoginStatusChanged(true);
       
-      _logger.log('User profile saved: ${profile.mobile}');
+      // Force a small delay to ensure all listeners are updated
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      _logger.log('User profile saved and streams updated: ${profile.mobile}');
     } catch (e) {
       _logger.error('Error saving user profile: $e');
       rethrow;

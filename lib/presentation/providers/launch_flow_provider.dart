@@ -239,8 +239,10 @@ class LaunchFlowNotifier extends StateNotifier<AppLaunchState> {
           pincode = await locationService.getPincodeFromCurrentLocation();
         }
         
-        if (pincode == null) {
+        if (pincode == null || pincode.isEmpty) {
           _logger.log('Could not determine pincode, setting state to needPincodeSelection');
+          _ref.read(locationInfoProvider.notifier).state = 
+              LocationInfo(locationError: 'pincode_not_found');
           state = AppLaunchState.needPincodeSelection;
           return;
         }
@@ -248,13 +250,34 @@ class LaunchFlowNotifier extends StateNotifier<AppLaunchState> {
         _logger.log('Pincode detected: $pincode, checking if serviceable');
         
         // Check if the pincode is serviceable
-        final isServiceable = await _ref.read(isPincodeServiceableProvider(pincode).future);
+        final locationRepository = _ref.read(locationRepositoryProvider);
+        final isServiceable = await locationRepository.isPincodeServiceable(pincode);
         
         if (isServiceable) {
           _logger.log('Pincode is serviceable, saving and moving to outlet selection');
-          // Save the pincode and move to outlet selection
-          await _ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
-          state = AppLaunchState.needOutletSelection;
+          
+          // Save the pincode 
+          final result = await _ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
+          
+          if (result) {
+            // Check for available outlets for this pincode
+            final outletRepository = _ref.read(outletRepositoryProvider);
+            final outlets = await outletRepository.getOutletsForPincode(pincode);
+            
+            if (outlets.isEmpty) {
+              _logger.log('No outlets found for serviceable pincode: $pincode');
+              _ref.read(locationInfoProvider.notifier).state = 
+                  LocationInfo(locationError: 'no_outlets');
+              state = AppLaunchState.needPincodeSelection;
+            } else {
+              // Always navigate to outlet selection regardless of the number of outlets
+              _logger.log('Found ${outlets.length} outlet(s) for pincode: $pincode, user needs to select');
+              state = AppLaunchState.needOutletSelection;
+            }
+          } else {
+            _logger.error('Failed to save pincode $pincode');
+            state = AppLaunchState.needPincodeSelection;
+          }
         } else {
           _logger.log('Pincode is not serviceable, setting state to needPincodeSelection');
           // Store the non-serviceable pincode for display

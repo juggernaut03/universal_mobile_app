@@ -2,11 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
+import 'package:patelmart/presentation/providers/auth_providers.dart' as auth_providers;
 import 'package:patelmart/presentation/providers/favorites_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../data/models/product_model.dart';
+import '../../core/auth/centralized_auth_manager.dart' hide isLoggedInProvider, userProfileProvider;
 
 class FavoriteButton extends ConsumerWidget {
   final ProductModel product;
@@ -26,84 +27,178 @@ class FavoriteButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the favorites state
-    final favoritesState = ref.watch(favoritesProvider);
-    final isFavorite = favoritesState.isProductFavorite(product.pCode);
-    
-    // If there's an error, show a snackbar
-    if (favoritesState.error != null && showSnackbarMessages) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(favoritesState.error!),
-            backgroundColor: favoritesState.error!.contains('log in') 
-                ? Colors.orange 
-                : Colors.red,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
-        
-        // Clear the error after showing it
-        ref.read(favoritesProvider.notifier).clearError();
-      });
-    }
+    try {
+      // Watch the favorites state with error handling
+      final favoritesState = ref.watch(favoritesProvider);
+      final isFavorite = favoritesState.isProductFavorite(product.pCode);
+      
+      // Watch both reactive and future login providers with error handling
+      bool isLoggedInReactive = false;
+      bool isLoggedInAsync = false;
+      
+      try {
+        isLoggedInReactive = ref.watch(auth_providers.isLoggedInReactiveProvider);
+      } catch (e) {
+        // Fallback if reactive provider fails
+        debugPrint('Failed to watch isLoggedInReactiveProvider: $e');
+      }
+      
+      try {
+        final asyncValue = ref.watch(auth_providers.isLoggedInProvider);
+        isLoggedInAsync = asyncValue.valueOrNull ?? false;
+      } catch (e) {
+        // Fallback if async provider fails
+        debugPrint('Failed to watch isLoggedInProvider: $e');
+      }
+      
+      // Use the most reliable login state - prefer reactive if available, fallback to async
+      final isActuallyLoggedIn = isLoggedInReactive || isLoggedInAsync;
+      
+      // If there's an error, show a snackbar
+      if (favoritesState.error != null && showSnackbarMessages) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(favoritesState.error!),
+                backgroundColor: favoritesState.error!.contains('log in') 
+                    ? Colors.orange 
+                    : Colors.red,
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            );
+            
+            // Clear the error after showing it
+            try {
+              ref.read(favoritesProvider.notifier).clearError();
+            } catch (e) {
+              debugPrint('Failed to clear error: $e');
+            }
+          }
+        });
+      }
 
-    return InkWell(
-      onTap: () async {
-        // Check if user is logged in first
-        final isLoggedIn = await ref.read(isLoggedInProvider.future);
-        
-        if (!isLoggedIn) {
-          // Show login modal prompt
-          _showLoginPromptModal(context);
-          return;
-        }
-        
-        // Toggle favorite status without waiting for loading state
-        ref.read(favoritesProvider.notifier).toggleFavorite(product);
-        
-        // Show success message if enabled
-        if (showSnackbarMessages) {
-          // Use the current state to determine the message
-          // Since we're toggling, the message should be opposite of current state
-          final willBeFavorite = !isFavorite;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                willBeFavorite 
-                    ? 'Added to favorites'
-                    : 'Removed from favorites'
-              ),
-              backgroundColor: AppColors.primary,
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+      return InkWell(
+        onTap: () async {
+          try {
+            // Check if user is logged in using the enhanced login check
+            if (!isActuallyLoggedIn) {
+              // Double check with a fresh auth status call
+              try {
+                final authManager = ref.read(centralizedAuthManagerProvider);
+                final freshLoginStatus = await authManager.isLoggedIn();
+                
+                if (!freshLoginStatus) {
+                  // Show login modal prompt
+                  _showLoginPromptModal(context);
+                  return;
+                }
+                
+                // If fresh check shows logged in, refresh the providers
+                try {
+                  ref.invalidate(auth_providers.isLoggedInProvider);
+                  ref.invalidate(auth_providers.userProfileProvider);
+                } catch (e) {
+                  debugPrint('Failed to invalidate providers: $e');
+                }
+                
+                // Wait a moment for providers to update
+                await Future.delayed(const Duration(milliseconds: 100));
+              } catch (e) {
+                debugPrint('Failed to check login status: $e');
+                _showLoginPromptModal(context);
+                return;
+              }
+            }
+            
+            // Toggle favorite status without waiting for loading state
+            try {
+              debugPrint('🔥 Attempting to toggle favorite for product: ${product.pCode}');
+              ref.read(favoritesProvider.notifier).toggleFavorite(product);
+              debugPrint('🔥 Toggle favorite call completed');
+            } catch (e) {
+              debugPrint('Failed to toggle favorite: $e');
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to update favorite: $e'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+              return;
+            }
+            
+            // Show success message if enabled
+            if (showSnackbarMessages && context.mounted) {
+              // Use the current state to determine the message
+              // Since we're toggling, the message should be opposite of current state
+              final willBeFavorite = !isFavorite;
+              debugPrint('🔥 Showing success message: willBeFavorite=$willBeFavorite');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    willBeFavorite 
+                        ? 'Added to favorites'
+                        : 'Removed from favorites'
+                  ),
+                  backgroundColor: AppColors.primary,
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              );
+            }
+          } catch (e) {
+            debugPrint('Error in favorite button onTap: $e');
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('An error occurred: $e'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        },
+        borderRadius: BorderRadius.circular(size / 2),
+        child: Container(
+          padding: const EdgeInsets.all(4.0),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              key: ValueKey(isFavorite),
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite
+                  ? activeColor ?? Colors.red
+                  : inactiveColor ?? Colors.grey,
+              size: size,
             ),
-          );
-        }
-      },
-      borderRadius: BorderRadius.circular(size / 2),
-      child: Container(
-        padding: const EdgeInsets.all(4.0),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: Icon(
-            key: ValueKey(isFavorite),
-            isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: isFavorite
-                ? activeColor ?? Colors.red
-                : inactiveColor ?? Colors.grey,
-            size: size,
           ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      // If everything fails, return a basic heart icon
+      debugPrint('FavoriteButton build error: $e');
+      return Container(
+        padding: const EdgeInsets.all(4.0),
+        child: Icon(
+          Icons.favorite_border,
+          color: inactiveColor ?? Colors.grey,
+          size: size,
+        ),
+      );
+    }
   }
 
   // Show login prompt modal

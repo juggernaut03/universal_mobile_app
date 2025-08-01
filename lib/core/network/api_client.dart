@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../utils/logger.dart';
 import '../widgets/error_widgets.dart';
 import '../constants/app_constants.dart';
+import '../auth/centralized_auth_manager.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -26,10 +27,15 @@ class ApiException implements Exception {
 class ApiClient {
   final http.Client _client;
   final Logger _logger;
+  final CentralizedAuthManager? _authManager;
 
-  ApiClient({http.Client? client, Logger? logger})
-      : _client = client ?? http.Client(),
-        _logger = logger ?? Logger();
+  ApiClient({
+    http.Client? client, 
+    Logger? logger,
+    CentralizedAuthManager? authManager,
+  }) : _client = client ?? http.Client(),
+       _logger = logger ?? Logger(),
+       _authManager = authManager;
 
   Future<dynamic> get(String url) async {
     try {
@@ -86,6 +92,112 @@ class ApiClient {
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(requestBody),
+      ).timeout(const Duration(seconds: 15));
+      
+      return _handleResponse(response);
+    } on SocketException {
+      throw ApiException(
+        message: 'No Internet connection',
+        type: ErrorType.network
+      );
+    } on http.ClientException {
+      throw ApiException(
+        message: 'Failed to connect to server',
+        type: ErrorType.network
+      );
+    } on TimeoutException {
+      throw ApiException(
+        message: 'Connection timed out',
+        type: ErrorType.network
+      );
+    } catch (e) {
+      throw ApiException(
+        message: 'Unexpected error: ${e.toString()}',
+        type: ErrorType.generic
+      );
+    }
+  }
+
+  /// POST request with automatic access token inclusion
+  Future<dynamic> postWithAuth(String url, {Map<String, dynamic>? body}) async {
+    try {
+      // Get access token from auth manager
+      String? accessKey;
+      if (_authManager != null) {
+        accessKey = await _authManager.getValidAccessKey();
+      }
+
+      // Create request body with project code and access key
+      final Map<String, dynamic> requestBody = {
+        'project_code': ApiConstants.projectCode,
+        ...body ?? {},
+      };
+
+      // Add access key if available
+      if (accessKey != null && accessKey.isNotEmpty) {
+        requestBody['access_key'] = accessKey;
+      }
+      
+      _logger.log('POST with auth request to: $url');
+      
+      final response = await _client.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      ).timeout(const Duration(seconds: 15));
+      
+      return _handleResponse(response);
+    } on SocketException {
+      throw ApiException(
+        message: 'No Internet connection',
+        type: ErrorType.network
+      );
+    } on http.ClientException {
+      throw ApiException(
+        message: 'Failed to connect to server',
+        type: ErrorType.network
+      );
+    } on TimeoutException {
+      throw ApiException(
+        message: 'Connection timed out',
+        type: ErrorType.network
+      );
+    } catch (e) {
+      throw ApiException(
+        message: 'Unexpected error: ${e.toString()}',
+        type: ErrorType.generic
+      );
+    }
+  }
+
+  /// GET request with automatic access token inclusion
+  Future<dynamic> getWithAuth(String url, {Map<String, String>? additionalParams}) async {
+    try {
+      // Get access token from auth manager
+      String? accessKey;
+      if (_authManager != null) {
+        accessKey = await _authManager.getValidAccessKey();
+      }
+
+      // Build query parameters
+      final Map<String, String> queryParams = {
+        'project_code': ApiConstants.projectCode,
+        ...Uri.parse(url).queryParameters,
+        ...additionalParams ?? {},
+      };
+
+      // Add access key if available
+      if (accessKey != null && accessKey.isNotEmpty) {
+        queryParams['access_key'] = accessKey;
+      }
+
+      final Uri uri = Uri.parse(url).replace(queryParameters: queryParams);
+      
+      _logger.log('GET with auth request to: $uri');
+      
+      final response = await _client.get(
+        uri,
+        headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 15));
       
       return _handleResponse(response);

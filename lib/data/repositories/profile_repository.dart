@@ -1,113 +1,123 @@
 // lib/data/repositories/profile_repository.dart
 
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
+import 'base_repository.dart';
 
-class ProfileRepository {
-  final http.Client _client;
-  final Logger _logger;
+class ProfileRepository extends BaseRepository {
 
   ProfileRepository({
-    required http.Client client,
-    required Logger logger,
-  }) : 
-    _client = client,
-    _logger = logger;
+    required super.authManager,
+    required super.apiClient,
+    required super.logger,
+  });
   
-  // Get user profile details
-  Future<Map<String, dynamic>> getUserProfile(String mobileNumber, String accessKey) async {
-    try {
-      final uri = Uri.parse('${ApiConstants.baseUrl}/get_customer_profile');
-      
-      // Create request body
-      final requestBody = {
-        'project_code': ApiConstants.projectCode,
-        'mobile_number': mobileNumber,
-        'access_key': accessKey,
-      };
-      
-      _logger.log('Fetching user profile for mobile: $mobileNumber');
-      
-      final response = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
-      
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        if (jsonData is List && jsonData.isNotEmpty) {
-          return jsonData[0];
-        } else {
-          _logger.error('Unexpected response format: ${response.body}');
+  // Get user profile details using centralized auth
+  Future<Map<String, dynamic>> getUserProfile() async {
+    return await makeAuthenticatedRequest<Map<String, dynamic>>(
+      () async {
+        logActivity('Fetching user profile');
+
+        final mobile = await getUserMobile();
+        if (mobile == null) {
+          logActivity('No mobile number found');
           return {};
         }
-      } else {
-        _logger.error('Failed to fetch profile: ${response.statusCode} - ${response.body}');
-        throw Exception('Failed to fetch profile');
-      }
-    } catch (e) {
-      _logger.error('Error fetching profile: $e');
-      rethrow;
-    }
+        
+        final response = await postWithAuth(
+          '${ApiConstants.baseUrl}/get_customer_profile',
+          body: {
+            'mobile_number': mobile,
+          },
+        );
+        
+        if (response is List && response.isNotEmpty) {
+          logActivity('Successfully fetched user profile');
+          return response[0] as Map<String, dynamic>;
+        } else if (response is Map<String, dynamic>) {
+          logActivity('Successfully fetched user profile');
+          return response;
+        } else {
+          logActivity('Unexpected response format for user profile');
+          return {};
+        }
+      },
+      onAuthError: () => <String, dynamic>{},
+    ) ?? <String, dynamic>{};
   }
   
-  // Update user profile details
+  // Update user profile details using centralized auth
   Future<bool> updateUserProfile({
-    required String accessKey,
-    required String mobileNumber,
     required String firstName,
     required String lastName,
     String? emailId,
   }) async {
-    try {
-      final uri = Uri.parse('${ApiConstants.baseUrl}/add_update_customer_profile');
-      
-      // Create request body matching the format in the screenshot
-      final requestBody = {
-        'access_key': accessKey,
-        'mobile_number': mobileNumber,
-        'first_name': firstName,
-        'last_name': lastName,
-      };
+    return await makeAuthenticatedRequest<bool>(
+      () async {
+        logActivity('Updating user profile');
 
-      // Add email if provided
-      if (emailId != null && emailId.isNotEmpty) {
-        requestBody['email_id'] = emailId;
-      }
-      
-      _logger.log('Updating profile for mobile: $mobileNumber');
-      _logger.log('Request body: $requestBody');
-      
-      final response = await _client.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
-      
-      _logger.log('Update profile response status: ${response.statusCode}');
-      _logger.log('Update profile response body: ${response.body}');
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // Directly check if response body contains success message
-        final responseBody = response.body.toString().toLowerCase();
-        if (responseBody.contains("successfully") || 
-            responseBody.contains("success")) {
-          _logger.log('Profile updated successfully');
-          return true;
-        } else {
-          _logger.error('Unexpected response content: ${response.body}');
+        final mobile = await getUserMobile();
+        if (mobile == null) {
+          logActivity('No mobile number found');
           return false;
         }
-      } else {
-        _logger.error('Failed to update profile: ${response.statusCode} - ${response.body}');
+        
+        // Create request body
+        final requestBody = {
+          'mobile_number': mobile,
+          'first_name': firstName,
+          'last_name': lastName,
+        };
+
+        // Add email if provided
+        if (emailId != null && emailId.isNotEmpty) {
+          requestBody['email_id'] = emailId;
+        }
+        
+        logActivity('Update profile request: $requestBody');
+        
+        final response = await postWithAuth(
+          '${ApiConstants.baseUrl}/add_update_customer_profile',
+          body: requestBody,
+        );
+        
+        logActivity('Update profile response: $response');
+        
+        if (response is Map<String, dynamic>) {
+          final message = response['message']?.toString() ?? '';
+          if (message.toLowerCase().contains('successfully') || 
+              message.toLowerCase().contains('success')) {
+            logActivity('Profile updated successfully');
+            return true;
+          }
+        } else if (response is String) {
+          // Handle plain text responses
+          final responseStr = response.toLowerCase();
+          if (responseStr.contains('successfully') || 
+              responseStr.contains('success')) {
+            logActivity('Profile updated successfully');
+            return true;
+          }
+        }
+        
+        logActivity('Failed to update profile - unexpected response');
         return false;
-      }
-    } catch (e) {
-      _logger.error('Error updating profile: $e');
-      return false;
-    }
+      },
+      onAuthError: () => false,
+    ) ?? false;
   }
 }
+
+/// Provider for ProfileRepository using centralized dependencies
+final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
+  final dependencies = ref.watch(baseRepositoryDependenciesProvider);
+  
+  return ProfileRepository(
+    authManager: dependencies.authManager,
+    apiClient: dependencies.apiClient,
+    logger: dependencies.logger,
+  );
+});

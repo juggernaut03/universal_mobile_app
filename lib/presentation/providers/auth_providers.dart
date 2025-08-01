@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
-import 'package:patelmart/presentation/providers/favorites_provider.dart';
 import '../../core/network/api_client.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/models/auth_models.dart';
+import '../../core/auth/centralized_auth_manager.dart' as auth;
 import 'launch_flow_provider.dart';
 
 // Provider for FlutterSecureStorage
@@ -51,24 +51,43 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 // Provider for AuthRepository
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final authService = ref.watch(authServiceProvider);
+  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
   final logger = ref.watch(loggerProvider);
   
   return AuthRepository(
     authService: authService,
+    authManager: authManager,
     logger: logger,
   );
 });
 
-// Provider to check if user is logged in
+// Provider to check if user is logged in using centralized auth
 final isLoggedInProvider = FutureProvider<bool>((ref) async {
-  final repository = ref.watch(authRepositoryProvider);
-  return await repository.isLoggedIn();
+  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  return await authManager.isLoggedIn();
 });
 
-// Provider for user profile
+// Provider for user profile using centralized auth
 final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
-  final repository = ref.watch(authRepositoryProvider);
-  return await repository.getUserProfile();
+  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  return await authManager.getCurrentUserProfile();
+});
+
+// Reactive stream providers for immediate UI updates
+final userProfileStreamProvider = StreamProvider<UserProfile?>((ref) {
+  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  return authManager.profileStream;
+});
+
+final loginStatusStreamProvider = StreamProvider<bool>((ref) {
+  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  return authManager.loginStatusStream;
+});
+
+// Provider that reactively checks login status from streams
+final isLoggedInReactiveProvider = Provider<bool>((ref) {
+  final loginStatusAsync = ref.watch(loginStatusStreamProvider);
+  return loginStatusAsync.valueOrNull ?? false;
 });
 
 // State providers for login process
@@ -117,14 +136,24 @@ class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationRespon
       final response = await repository.validateOtp(mobileNumber, otp);
       
       if (response.authentication == 1) {
+        // Save to centralized auth manager as well
+        final authManager = _ref.read(auth.centralizedAuthManagerProvider);
+        final userProfile = UserProfile(
+          mobile: mobileNumber,
+          accessKey: response.accessKey,
+          loginTime: DateTime.now(),
+        );
+        await authManager.saveUserProfile(userProfile);
+        
         // Set login state to success
         _ref.read(loginStateProvider.notifier).state = LoginState.success;
         
-        // Initialize favorites after successful login
-        _initializeFavoritesAfterLogin();
+        // Invalidate providers to force refresh - do this immediately after auth manager update
+        _ref.invalidate(isLoggedInProvider);
+        _ref.invalidate(userProfileProvider);
         
-        // FCM token will be automatically saved by the AuthService
-        // No additional code needed here as it's handled in _saveUserCredentials
+        // Wait a bit more to ensure all reactive providers are updated
+        await Future.delayed(const Duration(milliseconds: 200));
         
       } else {
         // Set login state to failure
@@ -138,22 +167,7 @@ class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationRespon
     }
   }
   
-  void _initializeFavoritesAfterLogin() {
-    // Delay initialization to ensure user profile is saved
-    Future.delayed(const Duration(milliseconds: 500), () {
-      try {
-        final favoritesNotifier = _ref.read(favoritesProvider.notifier);
-        favoritesNotifier.initializeFavorites();
-        
-        final logger = _ref.read(loggerProvider);
-        logger.log('Initializing favorites after login');
-      } catch (e) {
-        // Handle error silently as this is not critical
-        final logger = _ref.read(loggerProvider);
-        logger.error('Error initializing favorites after login: $e');
-      }
-    });
-  }
+
 }
 
 // OTP validation notifier provider
@@ -167,16 +181,12 @@ final logoutProvider = Provider((ref) {
     final repository = ref.read(authRepositoryProvider);
     await repository.logout();
     
+    // Clear centralized auth manager as well
+    final authManager = ref.read(auth.centralizedAuthManagerProvider);
+    await authManager.logout();
+    
     // Clear login state
     ref.read(loginStateProvider.notifier).state = LoginState.initial;
-    
-    // Clear favorites when logging out
-    try {
-      // Clear favorites state
-      // ref.read(favoritesProvider.notifier).clearFavorites();
-    } catch (e) {
-      // Handle error silently
-    }
     
     // Invalidate user profile and login status
     ref.invalidate(userProfileProvider);

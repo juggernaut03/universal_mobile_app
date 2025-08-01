@@ -14,7 +14,7 @@ import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/presentation/features/account/address_book_screen.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
-import 'package:patelmart/utils/access_key_manager.dart';
+import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -219,8 +219,8 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
       }
       
       // Get access key using centralized manager
-      final accessKeyManager = ref.read(accessKeyManagerProvider);
-      final accessKey = await accessKeyManager.getAccessKey();
+      final authManager = ref.read(auth.centralizedAuthManagerProvider);
+      final accessKey = await authManager.getValidAccessKey();
       
       if (accessKey == null || accessKey.isEmpty) {
         setState(() {

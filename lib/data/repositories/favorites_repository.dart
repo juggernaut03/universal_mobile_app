@@ -1,290 +1,255 @@
 // lib/data/repositories/favorites_repository.dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/utils/logger.dart';
 import '../models/product_model.dart';
+import 'base_repository.dart';
 
-class FavoritesRepository {
-  final http.Client _client;
-  final Logger _logger;
+class FavoritesRepository extends BaseRepository {
   
-  static const String _getFavoriteItemsUrl = '${ApiConstants.baseUrl}/get_favorite_items';
-  static const String _addRemoveFavoritesUrl = '${ApiConstants.baseUrl}/add_remove_to_favorites';
-  static const String _cachedFavoritesKey = 'cached_favorites';
-
   FavoritesRepository({
-    http.Client? client,
-    Logger? logger,
-  }) : 
-    _client = client ?? http.Client(),
-    _logger = logger ?? Logger();
+    required super.authManager,
+    required super.apiClient,
+    required super.logger,
+  });
 
-  /// Get all favorite items for a user with robust error handling and retries
+  /// Get all favorite items for the current user using centralized auth
   Future<List<ProductModel>> getFavoriteItems({
-    required String accessKey,
-    required String mobileNo,
     required String storeCode,
   }) async {
-    try {
-      _logger.log('Fetching favorite items for user: $mobileNo');
-      
-      // Try up to 3 times with exponential backoff
-      for (int attempt = 0; attempt < 3; attempt++) {
-        try {
-          // Updated API request format
-          final response = await _client.post(
-            Uri.parse(_getFavoriteItemsUrl),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'access_key': accessKey,
-              'mobile_no': mobileNo,
-              'store_code': storeCode,
-              'project_code': ApiConstants.projectCode,
-            }),
-          ).timeout(const Duration(seconds: 15));
-          
-          _logger.log('Get favorite items response status: ${response.statusCode}');
-          
-          if (response.statusCode == 200 || response.statusCode == 201) {
-            final responseData = jsonDecode(response.body);
-            
-            // Handle the response format which is a direct array of products
-            List<dynamic> favoriteItemsData = [];
-            
-            if (responseData is List) {
-              favoriteItemsData = responseData;
-            } else if (responseData is Map && responseData.containsKey('favorite_items')) {
-              favoriteItemsData = responseData['favorite_items'] as List? ?? [];
-            } else if (responseData is Map && responseData.containsKey('data')) {
-              favoriteItemsData = responseData['data'] as List? ?? [];
-            }
-            
-            // Convert to ProductModel objects
-            final List<ProductModel> favoriteProducts = [];
-            for (final item in favoriteItemsData) {
-              try {
-                final productModel = ProductModel.fromJson(item);
-                favoriteProducts.add(productModel);
-              } catch (e) {
-                _logger.error('Error parsing favorite item: $e');
-              }
-            }
-            
-            // Cache the favorites locally
-            await _cacheFavorites(favoriteProducts);
-            
-            _logger.log('Successfully fetched ${favoriteProducts.length} favorite items');
-            return favoriteProducts;
-          } else {
-            // On failure, wait and retry
-            if (attempt < 2) {
-              await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-              continue;
-            }
-            _logger.error('Failed to fetch favorite items: ${response.statusCode} - ${response.body}');
-          }
-        } catch (e) {
-          if (attempt < 2) {
-            await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
-            continue;
-          }
-          _logger.error('Error in attempt $attempt: $e');
+    return await makeAuthenticatedRequest<List<ProductModel>>(
+      () async {
+        logActivity('Fetching favorite items');
+
+        final mobile = await getUserMobile();
+        if (mobile == null) {
+          logActivity('No mobile number found');
+          return <ProductModel>[];
         }
-      }
-      
-      // If all attempts fail, try to load from local cache
-      final cachedFavorites = await _loadCachedFavorites();
-      if (cachedFavorites.isNotEmpty) {
-        _logger.log('Returning ${cachedFavorites.length} favorites from local cache');
-        return cachedFavorites;
-      }
-      
-      return [];
-    } catch (e) {
-      _logger.error('Error fetching favorite items: $e');
-      
-      // Try to load from local cache on error
-      final cachedFavorites = await _loadCachedFavorites();
-      if (cachedFavorites.isNotEmpty) {
-        _logger.log('Returning ${cachedFavorites.length} favorites from local cache after error');
-        return cachedFavorites;
-      }
-      
-      return [];
-    }
-  }
-
-  /// Get list of favorite product codes only (for quick checks)
-  Future<List<String>> getFavoriteProductCodes({
-    required String accessKey,
-    required String mobileNo,
-    required String storeCode,
-  }) async {
-    try {
-      final favoriteProducts = await getFavoriteItems(
-        accessKey: accessKey,
-        mobileNo: mobileNo,
-        storeCode: storeCode,
-      );
-      
-      return favoriteProducts.map((product) => product.pCode).toList();
-    } catch (e) {
-      _logger.error('Error getting favorite product codes: $e');
-      return [];
-    }
-  }
-
-  /// Add a product to favorites
-  Future<bool> addToFavorites({
-    required String accessKey,
-    required String pCode,
-    required String mobileNo,
-    required String storeCode,
-  }) async {
-    try {
-      _logger.log('Adding product $pCode to favorites');
-      
-      final response = await _client.post(
-        Uri.parse(_addRemoveFavoritesUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'access_key': accessKey,
-          'p_code': pCode,
-          'mobile_no': mobileNo,
-          'store_code': storeCode,
-          'project_code': ApiConstants.projectCode,
-        }),
-      ).timeout(const Duration(seconds: 15));
-      
-      _logger.log('Add to favorites response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
         
-        if (responseData['message'] != null && 
-            responseData['message'].toString().contains('Added to favorite')) {
-          _logger.log('Product successfully added to favorites');
+        // The postWithAuth method automatically adds access_key and project_code
+        final response = await postWithAuth(
+          '${ApiConstants.baseUrl}/get_favorite_items',
+          body: {
+            'mobile_no': mobile,
+            'store_code': storeCode,
+          },
+        );
+        
+        logActivity('🔥 Get favorites API response: $response');
+        
+        // Handle different response formats
+        if (response is List) {
+          // Response is directly an array of favorite items
+          final favoriteItems = response.cast<Map<String, dynamic>>();
+          final products = favoriteItems
+              .map((item) {
+                try {
+                  return ProductModel.fromJson(item);
+                } catch (e) {
+                  logActivity('Error parsing favorite item: $e');
+                  return null;
+                }
+              })
+              .where((product) => product != null)
+              .cast<ProductModel>()
+              .toList();
           
-          // Update the cached favorites (add the new product)
-          await _updateCachedFavoritesForToggle(pCode, true);
-          
-          return true;
-        } else {
-          _logger.error('Unexpected response format: ${response.body}');
+          logActivity('Successfully fetched ${products.length} favorite items from array');
+          return products;
+        } else if (response is Map<String, dynamic>) {
+          // Check if response contains favoriteItems key
+          if (response.containsKey('favoriteItems')) {
+            final favoriteItems = response['favoriteItems'] as List<dynamic>;
+            final products = favoriteItems
+                .map((item) {
+                  try {
+                    return ProductModel.fromJson(item as Map<String, dynamic>);
+                  } catch (e) {
+                    logActivity('Error parsing favorite item: $e');
+                    return null;
+                  }
+                })
+                .where((product) => product != null)
+                .cast<ProductModel>()
+                .toList();
+            
+            logActivity('Successfully fetched ${products.length} favorite items from object');
+            return products;
+          }
+          // Check if response contains items directly at root level
+          else if (response.containsKey('items') || response.containsKey('data')) {
+            final itemsKey = response.containsKey('items') ? 'items' : 'data';
+            final favoriteItems = response[itemsKey] as List<dynamic>;
+            final products = favoriteItems
+                .map((item) {
+                  try {
+                    return ProductModel.fromJson(item as Map<String, dynamic>);
+                  } catch (e) {
+                    logActivity('Error parsing favorite item: $e');
+                    return null;
+                  }
+                })
+                .where((product) => product != null)
+                .cast<ProductModel>()
+                .toList();
+            
+            logActivity('Successfully fetched ${products.length} favorite items from $itemsKey');
+            return products;
+          }
+          // Response might be an error message object
+          else {
+            final message = response['message']?.toString() ?? 'Unknown error';
+            logActivity('API response contains message: $message');
+            return <ProductModel>[];
+          }
+        }
+        
+        logActivity('Unexpected response format: ${response.runtimeType}');
+        logActivity('Response content: $response');
+        return <ProductModel>[];
+      },
+      onAuthError: () => <ProductModel>[],
+    ) ?? <ProductModel>[];
+  }
+
+  /// Add or remove item from favorites using centralized auth
+  Future<bool> toggleFavorite({
+    required String productId,
+    required String storeCode,
+    required bool addToFavorites,
+  }) async {
+    return await makeAuthenticatedRequest<bool>(
+      () async {
+        final action = addToFavorites ? 'Adding to favorites' : 'Removing from favorites';
+        logActivity('🔥 $action - Product: $productId, Store: $storeCode');
+
+        final mobile = await getUserMobile();
+        if (mobile == null) {
+          logActivity('❌ No mobile number found');
           return false;
         }
-      } else {
-        _logger.error('Failed to add to favorites: ${response.statusCode} - ${response.body}');
-        return false;
-      }
-    } catch (e) {
-      _logger.error('Error adding to favorites: $e');
-      return false;
-    }
-  }
-
-  /// Remove a product from favorites
-  Future<bool> removeFromFavorites({
-    required String accessKey,
-    required String pCode,
-    required String mobileNo,
-    required String storeCode,
-  }) async {
-    try {
-      _logger.log('Removing product $pCode from favorites');
-      
-      final response = await _client.post(
-        Uri.parse(_addRemoveFavoritesUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'access_key': accessKey,
-          'p_code': pCode,
-          'mobile_no': mobileNo,
-          'store_code': storeCode,
-          'project_code': ApiConstants.projectCode,
-        }),
-      ).timeout(const Duration(seconds: 15));
-      
-      _logger.log('Remove from favorites response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
         
-        if (responseData['message'] != null && 
-            responseData['message'].toString().contains('Removed from favorite')) {
-          _logger.log('Product successfully removed from favorites');
+        logActivity('📱 Mobile number: $mobile');
+        
+        // The postWithAuth method automatically adds access_key and project_code
+        final requestBody = {
+          'mobile_no': mobile,
+          'p_code': productId,
+          'store_code': storeCode,
+        };
+        
+        logActivity('🔥 Making favorites API call with body: $requestBody');
+        
+        final response = await postWithAuth(
+          '${ApiConstants.baseUrl}/add_remove_to_favorites',
+          body: requestBody,
+        );
+        
+        logActivity('🔥 Favorites API response: $response');
+        
+        if (response is Map<String, dynamic>) {
+          final message = response['message']?.toString() ?? '';
+          logActivity('📋 Response message: "$message"');
           
-          // Update the cached favorites (remove the product)
-          await _updateCachedFavoritesForToggle(pCode, false);
+          // Check for both success patterns and specific favorite messages
+          if (message.toLowerCase().contains('success') ||
+              message.toLowerCase().contains('added to favorite') ||
+              message.toLowerCase().contains('removed from favorite') ||
+              message.contains('Added to favorite') ||
+              message.contains('Removed from favorite')) {
+            logActivity('✅ Successfully toggled favorite status: $message');
+            return true;
+          }
           
-          return true;
+          // Check for error messages
+          if (message.toLowerCase().contains('error') || 
+              message.toLowerCase().contains('failed') ||
+              message.toLowerCase().contains('invalid')) {
+            logActivity('❌ API returned error message: $message');
+            return false;
+          }
+          
+          // If message exists but doesn't match known patterns, consider it successful
+          if (message.isNotEmpty) {
+            logActivity('⚠️ Unknown message format but assuming success: $message');
+            return true;
+          }
+          
+          logActivity('❌ Empty or missing message in response');
+          return false;
         } else {
-          _logger.error('Unexpected response format: ${response.body}');
+          logActivity('❌ Unexpected response type: ${response.runtimeType}');
+          logActivity('🔍 Response content: $response');
           return false;
         }
-      } else {
-        _logger.error('Failed to remove from favorites: ${response.statusCode} - ${response.body}');
+      },
+      onAuthError: () {
+        logActivity('❌ Authentication error in toggleFavorite');
         return false;
-      }
-    } catch (e) {
-      _logger.error('Error removing from favorites: $e');
-      return false;
-    }
+      },
+    ) ?? false;
   }
 
-  // Local cache methods
-  
-  Future<void> _cacheFavorites(List<ProductModel> favorites) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final encodedFavorites = favorites.map((product) => jsonEncode(product.toJson())).toList();
-      await prefs.setStringList(_cachedFavoritesKey, encodedFavorites);
-      _logger.log('Cached ${favorites.length} favorites locally');
-    } catch (e) {
-      _logger.error('Error caching favorites: $e');
-    }
+  /// Check if a product is in favorites using centralized auth
+  Future<bool> isProductFavorite({
+    required String productId,
+    required String storeCode,
+  }) async {
+    return await makeAuthenticatedRequest<bool>(
+      () async {
+        logActivity('Checking favorite status for product: $productId');
+
+        final favorites = await getFavoriteItems(storeCode: storeCode);
+        final isFavorite = favorites.any((product) => product.pCode == productId);
+        
+        logActivity('Product $productId favorite status: $isFavorite');
+        return isFavorite;
+      },
+      onAuthError: () => false,
+    ) ?? false;
   }
 
-  Future<List<ProductModel>> _loadCachedFavorites() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final encodedFavorites = prefs.getStringList(_cachedFavoritesKey) ?? [];
-      
-      final favorites = encodedFavorites.map((encoded) {
-        try {
-          final json = jsonDecode(encoded);
-          return ProductModel.fromJson(json);
-        } catch (e) {
-          _logger.error('Error parsing cached favorite: $e');
-          return null;
-        }
-      }).whereType<ProductModel>().toList();
-      
-      _logger.log('Loaded ${favorites.length} favorites from cache');
-      return favorites;
-    } catch (e) {
-      _logger.error('Error loading cached favorites: $e');
-      return [];
-    }
+  /// Get favorite products count using centralized auth
+  Future<int> getFavoriteCount({required String storeCode}) async {
+    return await makeAuthenticatedRequest<int>(
+      () async {
+        logActivity('Getting favorite count');
+
+        final favorites = await getFavoriteItems(storeCode: storeCode);
+        final count = favorites.length;
+        
+        logActivity('Favorite count: $count');
+        return count;
+      },
+      onAuthError: () => 0,
+    ) ?? 0;
   }
-  
-  Future<void> _updateCachedFavoritesForToggle(String pCode, bool isAdding) async {
-    try {
-      final favorites = await _loadCachedFavorites();
-      
-      if (isAdding) {
-        // If we're adding and don't have product details, don't modify cache
-        // The next getFavoriteItems call will update the cache with full product details
-        return;
-      } else {
-        // If we're removing, filter out the product
-        final updatedFavorites = favorites.where((p) => p.pCode != pCode).toList();
-        await _cacheFavorites(updatedFavorites);
-      }
-    } catch (e) {
-      _logger.error('Error updating cached favorites for toggle: $e');
-    }
+
+  /// Get list of favorite product codes (for quick lookup)
+  Future<Set<String>> getFavoriteProductCodes({required String storeCode}) async {
+    return await makeAuthenticatedRequest<Set<String>>(
+      () async {
+        logActivity('Getting favorite product codes');
+
+        final favorites = await getFavoriteItems(storeCode: storeCode);
+        final productCodes = favorites.map((product) => product.pCode).toSet();
+        
+        logActivity('Found ${productCodes.length} favorite product codes');
+        return productCodes;
+      },
+      onAuthError: () => <String>{},
+    ) ?? <String>{};
   }
 }
+
+/// Provider for FavoritesRepository using centralized dependencies
+final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
+  final dependencies = ref.watch(baseRepositoryDependenciesProvider);
+  
+  return FavoritesRepository(
+    authManager: dependencies.authManager,
+    apiClient: dependencies.apiClient,
+    logger: dependencies.logger,
+  );
+});

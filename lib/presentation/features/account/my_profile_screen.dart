@@ -3,8 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:patelmart/utils/access_key_manager.dart';
+import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/logger.dart';
 import '../../../core/widgets/back_button_wrapper.dart';
@@ -13,14 +12,7 @@ import '../../../data/repositories/profile_repository.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/launch_flow_provider.dart';
 
-// Provider for the profile repository
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return ProfileRepository(
-    client: http.Client(),
-    logger: logger,
-  );
-});
+// Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
 
 // State class for profile editing form
 class ProfileEditState {
@@ -84,7 +76,7 @@ final profileEditingProvider = StateProvider.autoDispose<ProfileEditState>((ref)
 });
 
 class MyProfileScreen extends ConsumerStatefulWidget {
-  const MyProfileScreen({Key? key}) : super(key: key);
+  const MyProfileScreen({super.key});
 
   @override
   ConsumerState<MyProfileScreen> createState() => _MyProfileScreenState();
@@ -163,9 +155,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       // If we're still here, user is logged in
       logger.log('User is logged in, proceeding to load profile');
       
-      // Use centralized access key manager to get access key
-      final accessKeyManager = ref.read(accessKeyManagerProvider);
-      _accessKey = await accessKeyManager.getAccessKey();
+      // Use centralized auth manager to get access key
+      final authManager = ref.read(auth.centralizedAuthManagerProvider);
+      _accessKey = await authManager.getValidAccessKey();
       
       if (_accessKey == null || _accessKey!.isEmpty) {
         logger.error('No valid access key found for profile loading');
@@ -216,10 +208,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           final profileRepository = ref.read(profileRepositoryProvider);
           logger.log('Fetching profile from API...');
           
-          final profileData = await profileRepository.getUserProfile(
-            _mobileNumber!,
-            _accessKey!,
-          );
+          final profileData = await profileRepository.getUserProfile();
           
           logger.log('Profile data received: $profileData');
           
@@ -273,8 +262,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
 
     // Check if we have access key and mobile using centralized manager
-    final accessKeyManager = ref.read(accessKeyManagerProvider);
-    final currentAccessKey = await accessKeyManager.getAccessKey();
+    final authManager = ref.read(auth.centralizedAuthManagerProvider);
+    final currentAccessKey = await authManager.getValidAccessKey();
     
     if (currentAccessKey == null || _mobileNumber == null) {
       logger.error('Missing authentication details for profile save');
@@ -300,8 +289,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       
       // Call API to update profile
       final success = await profileRepository.updateUserProfile(
-        accessKey: currentAccessKey,
-        mobileNumber: _mobileNumber!,
         firstName: _firstNameController.text,
         lastName: _lastNameController.text,
         emailId: _emailController.text.isNotEmpty ? _emailController.text : null,
@@ -396,9 +383,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       // For demo, simulate network delay
       await Future.delayed(const Duration(seconds: 1));
       
-      // Clear access key cache before logout
-      final accessKeyManager = ref.read(accessKeyManagerProvider);
-      accessKeyManager.clearCache();
+      // Note: CentralizedAuthManager clears cache automatically on logout
+      // No manual cache clearing needed
       
       // Logout the user
       await ref.read(logoutProvider)();

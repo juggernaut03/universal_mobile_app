@@ -34,44 +34,30 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
     final logger = ref.read(loggerProvider);
     
     try {
-      // Get all outlets for the pincode
-      final outlets = await ref.read(availableOutletsProvider(widget.pincode).future);
-      
-      if (outlets.length == 1) {
-        logger.log('Single outlet found for pincode ${widget.pincode}, auto-selecting');
-        
-        // Auto-select the outlet
-        await ref.read(selectedOutletProvider.notifier).selectOutlet(outlets[0]);
-        
-        // Update launch flow state
-        ref.read(launchFlowProvider.notifier).outletSelected();
-        
-        // Navigate to store info
-        if (mounted) {
-          // Show a snackbar to inform the user
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Store "${outlets[0].name}" selected automatically'),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          
-          // Add a small delay to show the snackbar
-          Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted) {
-              context.go('/store-info');
-            }
-          });
-        }
-      } else {
-        // More than one outlet, let the user choose
+      // Validate pincode is not empty
+      if (widget.pincode.isEmpty) {
+        logger.error('Empty pincode provided to outlet selection');
         setState(() {
           _isLoading = false;
         });
+        return;
       }
+      
+      logger.log('Loading outlets for pincode: ${widget.pincode}');
+      
+      // Get all outlets for the pincode
+      final outlets = await ref.read(availableOutletsProvider(widget.pincode).future);
+      
+      logger.log('Found ${outlets.length} outlets for pincode: ${widget.pincode}');
+      
+      // Don't auto-select single outlets - always show the selection screen
+      // This ensures users can see store details and make an informed choice
+      setState(() {
+        _isLoading = false;
+      });
+      
     } catch (e) {
-      logger.error('Error checking for single outlet: $e');
+      logger.error('Error checking for outlets: $e');
       setState(() {
         _isLoading = false;
       });
@@ -127,7 +113,18 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
       child: Scaffold(
         backgroundColor: Colors.white, // Set white background
         appBar: AppBar(
-          title: const Text('Select Store'),
+          title: Consumer(
+            builder: (context, ref, _) {
+              final outletsAsync = ref.watch(availableOutletsProvider(widget.pincode));
+              return outletsAsync.when(
+                data: (outlets) => Text(
+                  outlets.length == 1 ? 'Confirm Store' : 'Select Store',
+                ),
+                loading: () => const Text('Loading Stores'),
+                error: (_, __) => const Text('Select Store'),
+              );
+            },
+          ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
@@ -138,15 +135,95 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              Padding(
+              Consumer(
+                builder: (context, ref, _) {
+                  final outletsAsync = ref.watch(availableOutletsProvider(widget.pincode));
+                  
+                  return Padding(
                 padding: EdgeInsets.all(isScreenSmall ? 16.0 : 24.0),
-                child: Text(
+                    child: outletsAsync.when(
+                      data: (outlets) {
+                        if (outlets.isEmpty) {
+                          return Column(
+                            children: [
+                              Text(
+                                'No Stores Available',
+                                style: AppTextStyles.h5.copyWith(
+                                  color: AppColors.error,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Unfortunately, we don\'t have any stores serving pincode ${widget.pincode} at the moment.',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        } else if (outlets.length == 1) {
+                          return Column(
+                            children: [
+                              Text(
+                                'Store Available in ${widget.pincode}',
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Please review the store details below and tap to confirm your selection',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        } else {
+                          return Column(
+                            children: [
+                              Text(
+                                '${outlets.length} Stores Available in ${widget.pincode}',
+                                style: AppTextStyles.bodyLarge.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Please select your preferred store for delivery',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          );
+                        }
+                      },
+                      loading: () => Text(
+                        'Loading available stores in ${widget.pincode}...',
+                        style: AppTextStyles.bodyLarge.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      error: (_, __) => Text(
                   'Please select your preferred store for delivery in ${widget.pincode}',
                   style: AppTextStyles.bodyLarge.copyWith(
                     color: AppColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
+                    ),
+                  );
+                },
               ),
               Expanded(
                 child: Container(
@@ -164,7 +241,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
                         itemCount: outlets.length,
                         itemBuilder: (context, index) {
                           final outlet = outlets[index];
-                          return _buildOutletCard(context, ref, outlet);
+                          return _buildOutletCard(context, ref, outlet, isSingleOutlet: outlets.length == 1);
                         },
                       );
                     },
@@ -182,7 +259,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
     );
   }
   
-  Widget _buildOutletCard(BuildContext context, WidgetRef ref, OutletModel outlet) {
+  Widget _buildOutletCard(BuildContext context, WidgetRef ref, OutletModel outlet, {bool isSingleOutlet = false}) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = ResponsiveUtils.getResponsiveValue(
       context: context,
@@ -198,13 +275,13 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
         color: Colors.white, // Set card background to white
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey.shade200, // Add subtle border for definition
-          width: 1,
+          color: isSingleOutlet ? AppColors.primary.withOpacity(0.3) : Colors.grey.shade200, // Highlight border for single outlet
+          width: isSingleOutlet ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade200, // Lighter shadow for white background
-            blurRadius: 8,
+            color: isSingleOutlet ? AppColors.primary.withOpacity(0.1) : Colors.grey.shade200, // Enhanced shadow for single outlet
+            blurRadius: isSingleOutlet ? 12 : 8,
             offset: const Offset(0, 2),
           ),
         ],
@@ -219,6 +296,37 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (isSingleOutlet)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.success.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.store,
+                          size: 14,
+                          color: AppColors.success,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Available Store',
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -401,6 +509,9 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
   }
 
   void _selectOutlet(BuildContext context, WidgetRef ref, OutletModel outlet) async {
+    // Track if we're already processing the selection
+    bool isProcessing = false;
+    
     // Show loading indicator
     showDialog(
       context: context,
@@ -411,21 +522,58 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
     );
 
     try {
-      // Save the selected outlet - Fixed to use ref.read instead of context.read
+      if (isProcessing) return; // Prevent double-selection
+      isProcessing = true;
+      
+      // Save the selected outlet
       final result = await ref.read(selectedOutletProvider.notifier).selectOutlet(outlet);
       
-      // Dismiss loading indicator
+      // Dismiss loading indicator if context is still mounted
       if (context.mounted) {
         Navigator.pop(context);
       }
       
       if (result) {
-        // Update the launch flow state - Fixed to use ref.read
+        // Update the launch flow state
         ref.read(launchFlowProvider.notifier).outletSelected();
         
-        // Navigate to store info screen
+        // Determine where to navigate based on user flow
         if (context.mounted) {
-          context.go('/home');
+          // Check if user came from location change (subsequentLaunch means they were already using the app)
+          final launchState = ref.read(launchFlowProvider);
+          final isFromLocationChange = launchState == AppLaunchState.readyToLaunch || 
+                                      launchState == AppLaunchState.subsequentLaunch;
+          
+          // Show a success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isFromLocationChange 
+                  ? '✓ ${outlet.name} confirmed! Returning to location settings...'
+                  : '✓ ${outlet.name} confirmed for delivery',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.white,
+                ),
+              ),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: isFromLocationChange ? 3 : 2),
+            ),
+          );
+          
+          // Add a small delay to ensure the UI updates properly
+          await Future.delayed(const Duration(milliseconds: 100));
+          
+          if (isFromLocationChange) {
+            // User came from location change screen, return there to show updated info
+            // Show a brief delay to allow the success message to be seen
+            await Future.delayed(const Duration(milliseconds: 1500));
+            if (context.mounted) {
+              context.go('/location-change');
+            }
+          } else {
+            // User is in initial setup flow, go to home
+            context.go('/home');
+          }
         }
       } else {
         // Show error message if unable to save outlet
@@ -444,9 +592,11 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
         }
       }
     } catch (e) {
-      // Dismiss loading indicator
+      // Dismiss loading indicator if context is still mounted
       if (context.mounted) {
-        Navigator.pop(context);
+        try {
+          Navigator.pop(context);
+        } catch (_) {}
         
         // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -461,6 +611,8 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
           ),
         );
       }
+    } finally {
+      isProcessing = false;
     }
   }
 }

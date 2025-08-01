@@ -9,14 +9,8 @@ import '../../data/models/address_model.dart';
 import '../../data/repositories/address_repository.dart';
 import 'launch_flow_provider.dart';
 
-// Provider for the AddressRepository
-final addressRepositoryProvider = Provider<AddressRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return AddressRepository(
-    client: http.Client(),
-    logger: logger,
-  );
-});
+// Import the repository provider from the repository file
+// (The addressRepositoryProvider is now defined in address_repository.dart)
 
 // Provider for tracking refresh state
 final addressRefreshProvider = StateProvider<int>((ref) => 0);

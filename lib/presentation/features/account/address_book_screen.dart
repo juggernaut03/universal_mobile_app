@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:patelmart/utils/access_key_manager.dart';
+import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -20,13 +20,13 @@ import '../../providers/location_provider.dart';
 // Updated address list provider using centralized access key management
 final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) async {
   final logger = ref.read(loggerProvider);
-  final accessKeyManager = ref.read(accessKeyManagerProvider);
+  final accessKeyManager = ref.read(auth.centralizedAuthManagerProvider);
   
   logger.log('Fetching addresses with centralized access key management...');
   
   try {
     // Get access key using centralized manager
-    final accessKey = await accessKeyManager.getAccessKey();
+    final accessKey = await accessKeyManager.getValidAccessKey();
     
     if (accessKey == null || accessKey.isEmpty) {
       logger.error('No valid access key found for address fetching');
@@ -101,7 +101,8 @@ final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) asyn
       logger.log('Attempting to force refresh access key...');
       
       try {
-        final refreshedKey = await accessKeyManager.forceRefreshAccessKey();
+        await accessKeyManager.refreshValidation();
+        final refreshedKey = await accessKeyManager.getValidAccessKey();
         if (refreshedKey != null && refreshedKey.isNotEmpty) {
           logger.log('Access key refreshed, retrying address fetch...');
           
@@ -505,8 +506,8 @@ class AddressBookScreen extends ConsumerWidget {
     
     try {
       // Get access key using centralized manager
-      final accessKeyManager = ref.read(accessKeyManagerProvider);
-      final accessKey = await accessKeyManager.getAccessKey();
+      final accessKeyManager = ref.read(auth.centralizedAuthManagerProvider);
+      final accessKey = await accessKeyManager.getValidAccessKey();
       
       if (accessKey == null || accessKey.isEmpty) {
         throw Exception('Access key not found. Please log in again.');
@@ -691,8 +692,8 @@ class AddressBookScreen extends ConsumerWidget {
     
     try {
       // Get access key using centralized manager
-      final accessKeyManager = ref.read(accessKeyManagerProvider);
-      final accessKey = await accessKeyManager.getAccessKey();
+      final accessKeyManager = ref.read(auth.centralizedAuthManagerProvider);
+      final accessKey = await accessKeyManager.getValidAccessKey();
       
       if (accessKey == null || accessKey.isEmpty) {
         throw Exception('Access key not found. Please log in again.');

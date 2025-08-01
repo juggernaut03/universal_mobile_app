@@ -11,7 +11,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../core/widgets/back_button_wrapper.dart';
+import '../../../core/auth/centralized_auth_manager.dart';
 import '../../providers/auth_providers.dart';
+import 'package:patelmart/data/models/auth_models.dart';
 
 class OtpValidationScreen extends ConsumerStatefulWidget {
   final String mobileNumber;
@@ -135,6 +137,15 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
       if (validationResponse.isSuccessful()) {
         // Update login state to success
         ref.read(loginStateProvider.notifier).state = LoginState.success;
+        
+        // Save user profile to centralized auth manager
+        final authManager = ref.read(centralizedAuthManagerProvider);
+        final userProfile = UserProfile(
+          mobile: validationResponse.mobileNumber.toString(),
+          accessKey: validationResponse.accessKey,
+          loginTime: DateTime.now(),
+        );
+        await authManager.saveUserProfile(userProfile);
         
         // Log success information
         ref.read(loggerProvider).log('OTP validation successful: ${validationResponse.message}');
