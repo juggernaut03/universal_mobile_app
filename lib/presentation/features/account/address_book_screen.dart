@@ -47,7 +47,7 @@ final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) asyn
     final client = http.Client();
     try {
       final response = await client.post(
-        Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/get_address_list'),
+        Uri.parse('https://newtech.shalviadvision.com/api/get_address_list'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
       );
@@ -115,7 +115,7 @@ final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) asyn
           final client = http.Client();
           try {
             final response = await client.post(
-              Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/get_address_list'),
+              Uri.parse('https://newtech.shalviadvision.com/api/get_address_list'),
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode(requestBody),
             );
@@ -570,7 +570,7 @@ class AddressBookScreen extends ConsumerWidget {
       
       try {
         final response = await client.post(
-          Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/update_address/${address.id}'),
+          Uri.parse('https://newtech.shalviadvision.com/api/update_address/${address.id}'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(requestBody),
         );
@@ -591,7 +591,7 @@ class AddressBookScreen extends ConsumerWidget {
         if (!success) {
           logger.log('First update attempt failed, trying add_address endpoint');
           final addResponse = await client.post(
-            Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/add_address'),
+            Uri.parse('https://newtech.shalviadvision.com/api/add_address'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(requestBody),
           );
@@ -711,7 +711,7 @@ class AddressBookScreen extends ConsumerWidget {
       final client = http.Client();
       try {
         final response = await client.post(
-          Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/delete_address/${address.id}'),
+          Uri.parse('https://newtech.shalviadvision.com/api/delete_address/${address.id}'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(requestBody),
         );
