@@ -1,0 +1,2 @@
+key alias: idlibykilo
+store password: idlibykilo

@@ -618,7 +618,19 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: false, // Prevent default pop behavior
+      onPopInvoked: (bool didPop) async {
+        if (!didPop) {
+          final shouldPop = await _handleBackNavigation();
+          if (shouldPop && context.mounted) {
+            context.pop();
+          }
+        }
+      },
+      child: WillPopScope(
+        onWillPop: _handleBackNavigation,
+        child: Scaffold(
       appBar: AppBar(
         title: Text(
           _getAppBarTitle(),
@@ -626,21 +638,10 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            if (_currentStep == CheckoutStep.delivery) {
+          onPressed: () async {
+            final shouldPop = await _handleBackNavigation();
+            if (shouldPop && context.mounted) {
               context.pop();
-            } else {
-              // Handle back navigation for self-pickup case
-              if (_checkoutData.deliveryMethod == DeliveryMethod.selfPickup && 
-                  _currentStep == CheckoutStep.payment) {
-                setState(() {
-                  _currentStep = CheckoutStep.delivery;
-                });
-              } else {
-                setState(() {
-                  _currentStep = CheckoutStep.values[_currentStep.index - 1];
-                });
-              }
             }
           },
         ),
@@ -660,7 +661,30 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
           ),
         ],
       ),
+        ),
+      ),
     );
+  }
+
+  // Handle back navigation for iOS and Android
+  Future<bool> _handleBackNavigation() async {
+    if (_currentStep == CheckoutStep.delivery) {
+      // Exit checkout entirely
+      return true; // Allow default back navigation
+    } else {
+      // Navigate to previous step
+      if (_checkoutData.deliveryMethod == DeliveryMethod.selfPickup && 
+          _currentStep == CheckoutStep.payment) {
+        setState(() {
+          _currentStep = CheckoutStep.delivery;
+        });
+      } else {
+        setState(() {
+          _currentStep = CheckoutStep.values[_currentStep.index - 1];
+        });
+      }
+      return false; // Prevent default back navigation
+    }
   }
 
   // Helper to get appropriate app bar title based on current step
