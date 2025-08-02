@@ -249,6 +249,12 @@ class AppDrawerWidget extends ConsumerWidget {
         title: 'Change Location',
         route: '/location-change',
       ),
+      _DrawerItem(
+        icon: Icons.delete_outline,
+        title: 'Delete Account',
+        route: '/delete-account',
+        isDeleteAccount: true,
+      ),
     ];
 
     return Container(
@@ -332,7 +338,9 @@ class _DrawerItemTile extends ConsumerWidget {
         trailing: item.showCartInfo 
           ? _buildCartTrailing(ref)
           : const Icon(Icons.navigate_next),
-        onTap: () => _navigateFromDrawer(context, item.route),
+        onTap: () => item.isDeleteAccount 
+          ? _handleDeleteAccount(context, ref)
+          : _navigateFromDrawer(context, item.route),
       ),
     );
   }
@@ -366,6 +374,44 @@ class _DrawerItemTile extends ConsumerWidget {
       : const Icon(Icons.navigate_next);
   }
 
+  void _handleDeleteAccount(BuildContext context, WidgetRef ref) {
+    Navigator.pop(context); // Close drawer first
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text('Are you sure you want to delete your account? This action cannot be undone and you will be signed out.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // Perform sign out logic (same as account screen)
+              await ref.read(logoutProvider)();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('You have been signed out'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                // After logout, navigate to home screen
+                context.pushReplacement('/home');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Delete Account', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _navigateFromDrawer(BuildContext context, String route) {
     Navigator.pop(context);
     if (context.mounted) {
@@ -380,11 +426,13 @@ class _DrawerItem {
   final String title;
   final String route;
   final bool showCartInfo;
+  final bool isDeleteAccount;
 
   const _DrawerItem({
     required this.icon,
     required this.title,
     required this.route,
     this.showCartInfo = false,
+    this.isDeleteAccount = false,
   });
 }
