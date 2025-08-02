@@ -1,22 +1,18 @@
 // lib/presentation/features/account/add_address_screen.dart
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:patelmart/core/auth/centralized_auth_manager.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
-import 'package:patelmart/presentation/features/account/address_book_screen.dart';
+import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address_book;
+import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/presentation/providers/address_provider.dart';
+import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
-import 'package:patelmart/core/auth/centralized_auth_manager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 
 class AddAddressScreen extends ConsumerStatefulWidget {
@@ -231,141 +227,96 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
         await _getCoordinatesFromAddress();
       }
       
-      // Get access key using centralized manager
-      final authManager = ref.read(centralizedAuthManagerProvider);
-      final accessKey = await authManager.getValidAccessKey();
-      
-      if (accessKey == null || accessKey.isEmpty) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Access key not found. Please log in again.';
-        });
-        return;
-      }
-      
       // Format mobile number (remove prefix if present)
       String mobileNumber = _contactNumberController.text;
       if (mobileNumber.startsWith('+91 | ')) {
         mobileNumber = mobileNumber.replaceAll('+91 | ', '');
       }
       
-      // Create request body EXACTLY as in successful direct test
-      final requestBody = {
-        "idaddress_book": "12", // Hardcoded ID for new addresses
-        "project_code": "RET5890", // Hardcoded project code to match exactly what works
-        "full_name": _fullNameController.text.trim(),
-        "access_key": accessKey,
-        "mobile_number": mobileNumber.trim(),
-        "email_id": "", // Hardcoded for reliability
-        "delivery_addr_line_1": _wingFloorController.text.trim(),
-        "delivery_addr_line_2": _localityController.text.trim(),
-        "delivery_addr_city": _cityController.text.trim(),
-        "delivery_addr_pincode": _pincodeController.text.trim(),
-        "is_default": _isDefault ? "Yes" : "No",
-        "latitude": _latitude, // Now using the geocoded latitude
-        "longitude": _longitude, // Now using the geocoded longitude
-        "area_id": _areaController.text.isEmpty ? "1" : _areaController.text.trim(),
-      };
+      // Create address model
+      final newAddress = Address(
+        id: '', // Will be set by backend
+        fullName: _fullNameController.text.trim(),
+        mobileNumber: mobileNumber.trim(),
+        emailId: '', // Using empty email as per existing pattern
+        deliveryAddrLine1: _wingFloorController.text.trim(),
+        deliveryAddrLine2: _localityController.text.trim(),
+        deliveryAddrCity: _cityController.text.trim(),
+        deliveryAddrPincode: _pincodeController.text.trim(),
+        isDefault: _isDefault ? "Yes" : "No",
+        latitude: _latitude.isNotEmpty ? _latitude : null,
+        longitude: _longitude.isNotEmpty ? _longitude : null,
+        areaId: _areaController.text.isEmpty ? "1" : _areaController.text.trim(),
+      );
       
-      logger.log('Request body: ${jsonEncode(requestBody)}');
+      logger.log('Saving address: ${newAddress.toString()}');
       
-      // Make direct HTTP request - exactly like the successful test
-      final client = http.Client();
-      try {
-        final response = await client.post(
-          Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/add_address'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(requestBody),
-        );
+      // Use the repository to add the address
+      final addressOperations = ref.read(addressOperationsProvider);
+      final success = await addressOperations.addAddress(newAddress);
+      
+      if (success) {
+        // Address saved successfully
+        logger.log('Address added successfully');
         
-        logger.log('Address save response status: ${response.statusCode}');
-        logger.log('Address save response body: ${response.body}');
-        
-        // Handle response
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          // Parse response body
-          final responseData = jsonDecode(response.body);
-          
-          // Check for success message or inserted items
-          if (responseData.containsKey('message') && 
-              responseData['message'].toString().contains("Address Inserted Successfully")) {
-            
-            // Address saved successfully
-            logger.log('Address added successfully');
-            
-            // **** CRITICAL FIX: Trigger address refresh ****
-            // This is what was missing - we need to refresh the address providers
-            try {
-              // 1. Trigger refresh counter increment (if exists)
-              try {
-                ref.read(addressRefreshProvider.notifier).state++;
-              } catch (e) {
-                logger.warning('addressRefreshProvider not found, skipping: $e');
-              }
-              
-              // 2. Refresh the address list provider
-              ref.refresh(addressListProvider);
-              
-              // 3. Refresh the main address provider (if exists)
-              try {
-                ref.refresh(addressesProvider);
-              } catch (e) {
-                logger.warning('addressesProvider not found, skipping: $e');
-              }
-              
-              logger.log('Address providers refreshed successfully');
-            } catch (e) {
-              logger.error('Error refreshing address providers: $e');
-              // Continue even if refresh fails
-            }
-            
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-              });
-              
-              // Show success message
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Address added successfully'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-              
-              // Small delay to ensure providers are refreshed before navigation
-              await Future.delayed(const Duration(milliseconds: 300));
-              
-              // Navigate based on where we came from
-              if (widget.returnToCheckout) {
-                logger.log('Navigating back to checkout flow');
-                context.go('/checkout-flow');
-              } else {
-                logger.log('Navigating back to address book');
-                context.go('/address-book');
-              }
-            }
-          } else {
-            // Response OK but unexpected response format
-            setState(() {
-              _isLoading = false;
-              _errorMessage = 'Unexpected response format: ${response.body}';
-            });
+        // **** CRITICAL FIX: Trigger address refresh ****
+        // This ensures the checkout flow sees the new address immediately
+        try {
+          // 1. Trigger refresh counter increment (if exists)
+          try {
+            ref.read(addressRefreshProvider.notifier).state++;
+          } catch (e) {
+            logger.warning('addressRefreshProvider not found, skipping: $e');
           }
-        } else {
-          // Error response
+          
+          // 2. Refresh the address list provider (used by checkout flow)
+          ref.refresh(address_book.addressListProvider);
+          
+          // 3. Refresh the main address providers
+          try {
+            ref.refresh(addressesProvider);
+            ref.refresh(directAddressListProvider);
+          } catch (e) {
+            logger.warning('Some address providers not found, skipping: $e');
+          }
+          
+          logger.log('Address providers refreshed successfully');
+        } catch (e) {
+          logger.error('Error refreshing address providers: $e');
+          // Continue even if refresh fails
+        }
+        
+        if (mounted) {
           setState(() {
             _isLoading = false;
-            _errorMessage = 'Failed to add address: ${response.statusCode} - ${response.body}';
           });
+          
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Address added successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          
+          // Small delay to ensure providers are refreshed before navigation
+          await Future.delayed(const Duration(milliseconds: 300));
+          
+          // Navigate based on where we came from
+          if (widget.returnToCheckout) {
+            logger.log('Navigating back to checkout flow');
+            context.go('/checkout-flow');
+          } else {
+            logger.log('Navigating back to address book');
+            context.go('/address-book');
+          }
         }
-      } catch (e) {
-        logger.error('HTTP request error: $e');
+      } else {
+        // Failed to add address
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Network error: $e';
+          _errorMessage = 'Failed to add address. Please try again.';
         });
-      } finally {
-        client.close();
       }
     } catch (e) {
       logger.error('Error in save address: $e');

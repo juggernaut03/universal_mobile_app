@@ -264,7 +264,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         // First try the update_address/{id} endpoint
         logger.log('Trying update_address endpoint');
         var response = await client.post(
-          Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/update_address/${_address.id}'),
+          Uri.parse('https://newtech.shalviadvision.com/api/update_address/${_address.id}'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(requestBody),
         );
@@ -285,7 +285,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         if (!success) {
           logger.log('First update attempt failed, trying add_address endpoint');
           response = await client.post(
-            Uri.parse('https://grahakpethnewtech.shalviadvision.com/grahakapi/add_address'),
+            Uri.parse('https://newtech.shalviadvision.com/api/add_address'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(requestBody),
           );
