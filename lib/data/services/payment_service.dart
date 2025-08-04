@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:http/http.dart' as http;
 import '../../core/utils/logger.dart';
+import '../../core/constants/app_constants.dart';
 
 class PaymentResult {
   final bool success;
@@ -94,8 +95,8 @@ class PaymentService {
   String? _currentTempOrderId; // Store the temp order ID for tracking
 
   // Razorpay API credentials - LIVE KEYS
-  static const String keyId = 'rzp_live_Qq9CQRIX2I2qej';
-  static const String keySecret = 'RoKRhP1fc6sqnvwcqnLBU6cr';
+  static const String keyId = ApiConstants.razorpayKeyId;
+  static const String keySecret = ApiConstants.razorpayKeySecret;
 
   PaymentService({Logger? logger}) : _logger = logger ?? Logger() {
     _initializeRazorpay();
