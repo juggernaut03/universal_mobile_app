@@ -36,7 +36,7 @@ class ApiConstants {
   ];
   // razorpay
   static const int apiTimeoutSeconds = 15;
-  static const String razorpayKeyId = 'rzp_live_Qq9CQRIX2I2qej'; // Replace with your actual test key
+  static const String razorpayKeyId = 'rzp_live_Qq9CQRIX2I2qej'; 
   static const String razorpayKeySecret = 'RoKRhP1fc6sqnvwcqnLBU6cr';
 
   static const String timeout = '390';
