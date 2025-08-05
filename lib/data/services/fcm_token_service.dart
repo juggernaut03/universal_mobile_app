@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/auth/centralized_auth_manager.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
+import '../../core/constants/app_constants.dart';
 import '../../presentation/providers/launch_flow_provider.dart';
 import '../../presentation/providers/auth_providers.dart';
 
@@ -55,7 +56,7 @@ class FcmTokenService {
       
       // Use centralized API client with auth
       final response = await _apiClient.postWithAuth(
-        'https://newtech.shalviadvision.com/api/save_fcm_token',
+        '${ApiConstants.baseUrl}/save_fcm_token',
         body: {
           "mobile_no": mobile,
           "fcm_token": tokenToSave,

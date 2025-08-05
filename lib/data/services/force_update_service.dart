@@ -6,9 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/constants/app_constants.dart';
 
 class ForceUpdateService {
-  static const String _baseUrl = 'https://newtech.shalviadvision.com/api';
   final http.Client _client;
 
   ForceUpdateService({http.Client? client}) : _client = client ?? http.Client();
@@ -29,7 +29,7 @@ class ForceUpdateService {
 
       // DEBUG: Print request details
       debugPrint('🚀 FORCE UPDATE API CALL:');
-      debugPrint('📍 URL: $_baseUrl/check_app_version');
+      debugPrint('📍 URL: ${ApiConstants.baseUrl}/check_app_version');
       debugPrint('📱 Platform: $platform');
       debugPrint('🔢 Current Version: $currentVersion');
       debugPrint('📦 Request Body: ${json.encode(requestBody)}');
@@ -37,7 +37,7 @@ class ForceUpdateService {
 
       // Make API call
       final response = await _client.post(
-        Uri.parse('$_baseUrl/check_app_version'),
+        Uri.parse('${ApiConstants.baseUrl}/check_app_version'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
