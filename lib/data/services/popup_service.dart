@@ -2,12 +2,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../core/utils/logger.dart';
+import '../../core/constants/app_constants.dart';
 import '../models/popup_model.dart';
 
 class PopupService {
   final http.Client _client;
   final Logger _logger;
-  static const String _baseUrl = 'https://newtech.shalviadvision.com/api';
 
   PopupService({
     http.Client? client,
@@ -21,7 +21,7 @@ class PopupService {
       _logger.log('Fetching popup for store: $storeCode');
       
       final response = await _client.post(
-        Uri.parse('$_baseUrl/get_popup_screen'),
+        Uri.parse('${ApiConstants.baseUrl}/get_popup_screen'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'store_code': storeCode}),
       ).timeout(const Duration(seconds: 10));

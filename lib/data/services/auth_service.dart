@@ -40,7 +40,7 @@ class AuthService {
       _logger.log('Requesting OTP for mobile: $mobileNumber');
       
       final response = await _apiClient.post(
-        'https://newtech.shalviadvision.com/api/get_otp',
+        '${ApiConstants.baseUrl}/get_otp',
         body: {
           'mobileNo': mobileNumber,
           'project_code': ApiConstants.projectCode,
@@ -74,7 +74,7 @@ class AuthService {
       _logger.log('Validating OTP for mobile: $mobileNumber, OTP: $otp');
       
       final response = await _apiClient.post(
-        'https://newtech.shalviadvision.com/api/validate_otp',
+        '${ApiConstants.baseUrl}/validate_otp',
         body: {
           'mobileNo': mobileNumber,
           'otp': otp,
@@ -230,7 +230,7 @@ class AuthService {
       
       // Make API call using the correct base URL
       final response = await _httpClient.post(
-        Uri.parse('https://newtech.shalviadvision.com/api/save_fcm_token'),
+        Uri.parse('${ApiConstants.baseUrl}/save_fcm_token'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
