@@ -14,6 +14,8 @@ import '../../../core/widgets/back_button_wrapper.dart';
 import '../../../core/auth/centralized_auth_manager.dart';
 import '../../providers/auth_providers.dart';
 import 'package:patelmart/data/models/auth_models.dart';
+// FACEBOOK PIXEL IMPORTS
+import '../../../facebook_pixel/facebook_pixel_integration.dart';
 
 class OtpValidationScreen extends ConsumerStatefulWidget {
   final String mobileNumber;
@@ -149,6 +151,14 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
         
         // Log success information
         ref.read(loggerProvider).log('OTP validation successful: ${validationResponse.message}');
+        
+        // Track successful login with Facebook Pixel
+        await FacebookPixelIntegration.trackUserAuth(
+          ref,
+          eventType: 'login',
+          userId: validationResponse.mobileNumber.toString(),
+          method: 'phone',
+        );
         
         // Navigate to redirect route or home screen
         final route = widget.redirectRoute ?? '/home';

@@ -25,12 +25,35 @@ import FirebaseMessaging
         
         // STEP 4: Register Flutter plugins
         GeneratedPluginRegistrant.register(with: self)
+        
+        // Register Facebook Pixel Plugin
+        FacebookPixelPlugin.register(with: self.registrar(forPlugin: "FacebookPixelPlugin")!)
         print("📦 Flutter plugins registered")
+        
+        // Initialize Facebook SDK
+        ApplicationDelegate.shared.application(
+            application,
+            didFinishLaunchingWithOptions: launchOptions
+        )
         
         let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
         print("✅ AppDelegate initialization completed")
         
         return result
+    }
+    
+    // Handle URL opening for Facebook SDK
+    override func application(
+        _ app: UIApplication,
+        open url: URL,
+        options: [UIApplication.OpenURLOptionsKey : Any] = [:]
+    ) -> Bool {
+        ApplicationDelegate.shared.application(
+            app,
+            open: url,
+            sourceApplication: options[UIApplication.OpenURLOptionsKey.sourceApplication] as? String,
+            annotation: options[UIApplication.OpenURLOptionsKey.annotation]
+        )
     }
     
     private func setupPushNotifications(_ application: UIApplication) {

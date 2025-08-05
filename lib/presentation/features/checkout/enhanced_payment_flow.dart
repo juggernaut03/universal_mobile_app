@@ -21,6 +21,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 // Import CheckoutData and DeliveryMethod from your existing file
 import 'checkout_flow_screen.dart' show CheckoutData, DeliveryMethod;
+// FACEBOOK PIXEL IMPORTS
+import '../../../facebook_pixel/facebook_pixel_integration.dart';
 
 /// Enhanced Payment Processing Flow that follows the exact requirements:
 /// 1. On "Place Order" click → Call payment processing API → Database entry with status "Payment Processing"
@@ -354,6 +356,9 @@ class EnhancedPaymentFlow {
           logger.log('Database Status: Order Confirmed');
           logger.log('Payment Status: Payment Confirmed');
           
+          // Track successful purchase with Facebook Pixel
+          _trackSuccessfulPurchase(ref, orderResult.orderId ?? 'unknown', cartItems, finalAmount);
+          
           print('\n🎉 === ORDER SUCCESSFULLY COMPLETED === 🎉');
           print('Order ID: ${orderResult.orderId}');
           print('Database Status: Order Confirmed');
@@ -408,6 +413,30 @@ class EnhancedPaymentFlow {
         // API call itself failed
         logger.error('❌ ORDER CONFIRMATION API CALL FAILED');
         logger.error('Error: ${orderResult.message}');
+        
+  // Track successful purchase with Facebook Pixel
+  void _trackSuccessfulPurchase(
+    WidgetRef ref,
+    String? orderId,
+    List<CartItem> cartItems,
+    double totalAmount,
+  ) {
+    try {
+      final productIds = cartItems.map((item) => item.product.pCode).toList();
+      
+      FacebookPixelIntegration.trackCheckoutEvent(
+        ref,
+        eventType: 'purchase',
+        productIds: productIds,
+        totalValue: totalAmount,
+        numItems: cartItems.length,
+        orderId: orderId ?? 'unknown',
+        currency: 'INR',
+      );
+    } catch (e) {
+      ref.read(loggerProvider).error('Failed to track purchase event: $e');
+    }
+  }
         
         // Mark order as failed
         final enhancedCartValidator = ref.read(enhancedCartValidatorProvider);
@@ -642,6 +671,30 @@ class EnhancedPaymentFlow {
       }
       
       return false;
+    }
+  }
+  
+  // Track successful purchase with Facebook Pixel
+  static void _trackSuccessfulPurchase(
+    WidgetRef ref,
+    String orderId,
+    List<CartItem> cartItems,
+    double totalAmount,
+  ) {
+    try {
+      final productIds = cartItems.map((item) => item.product.pCode).toList();
+      
+      FacebookPixelIntegration.trackCheckoutEvent(
+        ref,
+        eventType: 'purchase',
+        productIds: productIds,
+        totalValue: totalAmount,
+        numItems: cartItems.length,
+        orderId: orderId,
+        currency: 'INR',
+      );
+    } catch (e) {
+      ref.read(loggerProvider).error('Failed to track purchase event: $e');
     }
   }
 }

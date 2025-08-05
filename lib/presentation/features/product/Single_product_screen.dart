@@ -15,6 +15,8 @@ import '../../providers/cart_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/outlet_status_provider.dart'; // Add this import for outlet status
 import 'widgets/suggested_product_card.dart';
+// FACEBOOK PIXEL IMPORTS
+import '../../../facebook_pixel/facebook_pixel_integration.dart';
 
 class SingleProductScreen extends ConsumerStatefulWidget {
   final String pCode;
@@ -84,6 +86,18 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
             _isLoading = false;
           });
           logger.log('Successfully loaded product: ${_product?.productName}');
+          
+                      // Track product view with Facebook Pixel
+            if (_product != null) {
+              await FacebookPixelIntegration.trackProductEvent(
+                ref,
+                eventType: 'view',
+                productId: _product!.pCode,
+                productName: _product!.productName,
+                price: _product!.ourPrice,
+                category: _product!.categoryId,
+              );
+            }
           
           // After successfully loading the product, fetch suggested products
           if (_product != null) {

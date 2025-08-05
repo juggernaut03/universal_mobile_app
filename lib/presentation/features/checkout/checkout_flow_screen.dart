@@ -31,6 +31,8 @@ import '../../../data/models/outlet_model.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
 import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address;
+// FACEBOOK PIXEL IMPORTS
+import '../../../facebook_pixel/facebook_pixel_integration.dart';
 
 // Checkout step enum to track progress
 enum CheckoutStep {
@@ -139,6 +141,29 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
     super.initState();
     _currentStep = widget.initialStep;
     _loadCheckoutData();
+    
+    // Track checkout initiation with Facebook Pixel
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _trackCheckoutInitiation();
+    });
+  }
+  
+  void _trackCheckoutInitiation() {
+    try {
+      final cartItems = ref.read(cartProvider);
+      final cartTotal = ref.read(cartTotalProvider);
+      final productIds = cartItems.map((item) => item.product.pCode).toList();
+      
+      FacebookPixelIntegration.trackCheckoutEvent(
+        ref,
+        eventType: 'initiate',
+        productIds: productIds,
+        totalValue: cartTotal,
+        numItems: cartItems.length,
+      );
+    } catch (e) {
+      ref.read(loggerProvider).error('Failed to track checkout initiation: $e');
+    }
   }
 
   Future<void> _loadCheckoutData() async {
