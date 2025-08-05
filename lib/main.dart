@@ -21,6 +21,8 @@ import 'data/services/firebase_notification_service.dart';
 // FCM TOKEN IMPORTS
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/favorites_provider.dart';
+// FACEBOOK PIXEL IMPORTS
+import 'facebook_pixel/facebook_pixel_integration.dart';
 
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -150,7 +152,16 @@ void main() async {
           loggerProvider.overrideWithValue(logger),
           backButtonHandlerProvider.overrideWithValue(BackButtonHandler(logger: logger)),
         ],
-        child: const AppWithLifecycleAndNotificationHandler(),
+        child: Consumer(
+          builder: (context, ref, child) {
+            // Initialize Facebook Pixel after Firebase
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              FacebookPixelIntegration.initialize(ref);
+            });
+            
+            return const AppWithLifecycleAndNotificationHandler();
+          },
+        ),
       ),
     );
     

@@ -75,6 +75,10 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     // Multidex support for large apps
     implementation("androidx.multidex:multidex:2.0.1")
+    
+    // Facebook SDK for Android
+    implementation("com.facebook.android:facebook-android-sdk:latest.release")
+    implementation("com.facebook.android:facebook-marketing:latest.release")
 }
    
 flutter {

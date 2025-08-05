@@ -7,6 +7,9 @@ import '../../data/services/cart_validator.dart';
 import '../../data/services/cart_session_manager.dart';
 import '../../core/utils/logger.dart';
 import 'launch_flow_provider.dart';
+// FACEBOOK PIXEL IMPORTS
+import '../../facebook_pixel/facebook_pixel_integration.dart';
+import '../../facebook_pixel/facebook_pixel_provider.dart';
 
 // Cart item model
 class CartItem {
@@ -131,6 +134,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       state = [...state, CartItem(product: product, quantity: 1)];
       _saveCart(); // Save cart after update
       _logger.log('Added new item to cart: ${product.productName}');
+      
+      // Track add to cart with Facebook Pixel
+      _trackAddToCart(product, 1);
     }
   }
 
@@ -157,6 +163,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       final actualQuantity = quantity.clamp(1, product.maxQuantityAllowed);
       state = [...state, CartItem(product: product, quantity: actualQuantity)];
       _logger.log('Added ${product.productName} with quantity $actualQuantity');
+      
+      // Track add to cart with Facebook Pixel
+      _trackAddToCart(product, actualQuantity);
     }
     _saveCart(); // Save cart after update
   }
@@ -206,6 +215,23 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     final index = state.indexWhere((item) => item.product.pCode == product.pCode);
     if (index >= 0) {
       final existingItem = state[index];
+      
+  // Track add to cart events with Facebook Pixel
+  void _trackAddToCart(ProductModel product, int quantity) {
+    try {
+      // Use the Facebook Pixel service directly since we don't have WidgetRef here
+      final facebookPixel = _ref.read(facebookPixelProvider);
+      facebookPixel.trackAddToCart(
+        productId: product.pCode,
+        productName: product.productName,
+        quantity: quantity,
+        price: product.ourPrice,
+        category: product.categoryId,
+      );
+    } catch (e) {
+      _logger.error('Failed to track add to cart event: $e');
+    }
+  }
       if (existingItem.quantity > 1) {
         final updatedItems = [...state];
         updatedItems[index] = existingItem.copyWith(
@@ -591,6 +617,23 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         'total': item.totalPrice,
       }).toList(),
     };
+  }
+  
+  // Track add to cart events with Facebook Pixel
+  void _trackAddToCart(ProductModel product, int quantity) {
+    try {
+      // Use the Facebook Pixel service directly since we don't have WidgetRef here
+      final facebookPixel = _ref.read(facebookPixelProvider);
+      facebookPixel.trackAddToCart(
+        productId: product.pCode,
+        productName: product.productName,
+        quantity: quantity,
+        price: product.ourPrice,
+        category: product.categoryId,
+      );
+    } catch (e) {
+      _logger.error('Failed to track add to cart event: $e');
+    }
   }
 }
 

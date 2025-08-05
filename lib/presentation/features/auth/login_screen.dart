@@ -9,6 +9,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../providers/auth_providers.dart';
+// FACEBOOK PIXEL IMPORTS
+import '../../../facebook_pixel/facebook_pixel_integration.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String? redirectRoute;
@@ -95,6 +97,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       
       // Log success details
       ref.read(loggerProvider).log('OTP requested successfully. Status: ${otpResponse.status}, Mobile: ${otpResponse.mobile}');
+      
+      // Track login attempt with Facebook Pixel
+      await FacebookPixelIntegration.trackUserAuth(
+        ref,
+        eventType: 'login',
+        userId: mobileNumber,
+        method: 'phone',
+      );
       
       // Update the login state
       ref.read(loginStateProvider.notifier).state = LoginState.otpRequested;
