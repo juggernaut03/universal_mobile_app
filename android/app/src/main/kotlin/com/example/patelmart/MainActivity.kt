@@ -1,4 +1,4 @@
-package com.patelrmart.app
+package com.example.patelmart
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

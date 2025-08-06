@@ -130,15 +130,15 @@ class FacebookPixelPlugin: FlutterPlugin, MethodCallHandler {
                 }
 
                 // Add standard parameters if not already present
-                if (value != null && !bundle.containsKey(AppEventsConstants.EVENT_PARAM_VALUE)) {
-                    bundle.putDouble(AppEventsConstants.EVENT_PARAM_VALUE, value)
+                if (value != null && !bundle.containsKey("value")) {
+                    bundle.putDouble("value", value)
                 }
-                if (currency != null && !bundle.containsKey(AppEventsConstants.EVENT_PARAM_CURRENCY)) {
-                    bundle.putString(AppEventsConstants.EVENT_PARAM_CURRENCY, currency)
+                if (currency != null && !bundle.containsKey("currency")) {
+                    bundle.putString("currency", currency)
                 }
 
                 // Log the event using Facebook SDK standard method
-                logger.logEvent(eventName, value, bundle)
+                logger.logEvent(eventName, value ?: 0.0, bundle)
                 
                 Log.d("FacebookPixel", "📊 Event logged: $eventName")
                 Log.d("FacebookPixel", "📊 Value: $value")
