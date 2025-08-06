@@ -343,7 +343,7 @@ class IOSNotificationService {
   /// Initialize local notifications
   Future<void> _initializeLocalNotifications() async {
     try {
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
       
       // iOS settings optimized for iOS 10+
       const iosSettings = DarwinInitializationSettings(
@@ -418,7 +418,7 @@ class IOSNotificationService {
             'High Importance Notifications',
             importance: Importance.high,
             priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
+            icon: '@drawable/ic_notification',
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,

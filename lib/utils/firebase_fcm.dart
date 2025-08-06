@@ -75,7 +75,7 @@ class FirebaseApi {
             androidChannel.id,
             androidChannel.name,
             channelDescription: androidChannel.description,
-            icon: 'main_logo',
+            icon: '@drawable/ic_notification',
           ),
           iOS: const DarwinNotificationDetails(
             // Add iOS notification details if needed
@@ -92,7 +92,7 @@ class FirebaseApi {
   Future<void> initLocalNotifications() async {
     await _localNotifications.initialize(
       const InitializationSettings(
-        android: AndroidInitializationSettings('main_logo.jpeg'),
+        android: AndroidInitializationSettings('@drawable/ic_notification'),
         iOS: DarwinInitializationSettings(
           // Add iOS settings
           requestAlertPermission: true,
