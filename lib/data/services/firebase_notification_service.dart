@@ -72,7 +72,7 @@ class FirebaseNotificationService {
     try {
       debugPrint('NotificationService: Initializing local notifications...');
       
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings('@drawable/ic_notification');
       
       // iOS settings optimized for better compatibility
       const iosSettings = DarwinInitializationSettings(
@@ -439,7 +439,7 @@ class FirebaseNotificationService {
         channelDescription: 'Default notification channel',
         importance: Importance.high,
         priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
+        icon: '@drawable/ic_notification',
         showWhen: true,
         enableVibration: true,
       );
@@ -607,7 +607,7 @@ class FirebaseNotificationService {
         channelDescription: 'Channel for testing notifications',
         importance: Importance.max,
         priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
+        icon: '@drawable/ic_notification',
       );
       
       const iosDetails = DarwinNotificationDetails(
