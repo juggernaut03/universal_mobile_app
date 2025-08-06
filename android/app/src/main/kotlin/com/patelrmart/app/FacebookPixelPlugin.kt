@@ -1,4 +1,4 @@
-package com.example.patelmart
+package com.patelrmart.app
 
 import android.content.Context
 import android.os.Bundle
