@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import Firebase
 import FirebaseMessaging
+import FacebookCore
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -25,9 +26,6 @@ import FirebaseMessaging
         
         // STEP 4: Register Flutter plugins
         GeneratedPluginRegistrant.register(with: self)
-        
-        // Register Facebook Pixel Plugin
-        FacebookPixelPlugin.register(with: self.registrar(forPlugin: "FacebookPixelPlugin")!)
         print("📦 Flutter plugins registered")
         
         // Initialize Facebook SDK

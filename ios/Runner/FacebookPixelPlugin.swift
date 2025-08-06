@@ -3,10 +3,10 @@ import Flutter
 import FacebookCore
 import FacebookLogin
 
-class FacebookPixelPlugin: NSObject, FlutterPlugin {
+@objc class FacebookPixelPlugin: NSObject, FlutterPlugin {
     private var isInitialized = false
     
-    static func register(with registrar: FlutterPluginRegistrar) {
+    @objc static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "facebook_pixel", binaryMessenger: registrar.messenger())
         let instance = FacebookPixelPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
