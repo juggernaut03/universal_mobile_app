@@ -215,23 +215,6 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     final index = state.indexWhere((item) => item.product.pCode == product.pCode);
     if (index >= 0) {
       final existingItem = state[index];
-      
-  // Track add to cart events with Facebook Pixel
-  void _trackAddToCart(ProductModel product, int quantity) {
-    try {
-      // Use the Facebook Pixel service directly since we don't have WidgetRef here
-      final facebookPixel = _ref.read(facebookPixelProvider);
-      facebookPixel.trackAddToCart(
-        productId: product.pCode,
-        productName: product.productName,
-        quantity: quantity,
-        price: product.ourPrice,
-        category: product.categoryId,
-      );
-    } catch (e) {
-      _logger.error('Failed to track add to cart event: $e');
-    }
-  }
       if (existingItem.quantity > 1) {
         final updatedItems = [...state];
         updatedItems[index] = existingItem.copyWith(
