@@ -1,16 +1,12 @@
 /// Facebook Pixel Configuration
 /// This file contains all the configuration constants for Facebook Pixel integration
 class FacebookPixelConfig {
-  // Facebook App ID - Replace with your actual Facebook App ID
-  static const String facebookAppId = 'YOUR_FACEBOOK_APP_ID';
-  
-  // Facebook Pixel ID - Replace with your actual Pixel ID
-  static const String pixelId = 'YOUR_FACEBOOK_PIXEL_ID';
-  
-  // Facebook Client Token - Replace with your actual Client Token
-  static const String clientToken = 'YOUR_FACEBOOK_CLIENT_TOKEN';
-  
-  // Enable/Disable Facebook Pixel tracking
+  // Facebook App ID - Replace with your actual Facebook App ID , pixel id and client token
+
+  static const String facebookAppId = '1210146713871384';
+  static const String pixelId = '1509464530468211';
+  static const String clientToken = '36f759656151424a2b4113ccfab8e092';
+
   static const bool enableTracking = true;
   
   // Enable/Disable debug mode
