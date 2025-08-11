@@ -70,14 +70,14 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>fbYOUR_FACEBOOK_APP_ID</string>
+				<string>1210146713871384</string>
 			</array>
 		</dict>
 	</array>
 	<key>FacebookAppID</key>
-	<string>YOUR_FACEBOOK_APP_ID</string>
+	<string>1210146713871384</string>
 	<key>FacebookClientToken</key>
-	<string>YOUR_FACEBOOK_CLIENT_TOKEN</string>
+	<string>36f759656151424a2b4113ccfab8e092</string>
 	<key>FacebookDisplayName</key>
 	<string>Patel's R Mart</string>
 	<key>FacebookAdvertiserIDCollectionEnabled</key>
