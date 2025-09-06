@@ -232,8 +232,9 @@ class CentralizedAuthManager {
       _notifyProfileChanged(profile);
       _notifyLoginStatusChanged(true);
       
-      // Force a small delay to ensure all listeners are updated
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Force a longer delay to ensure all listeners are updated and auth state propagates
+      // This is crucial for new user login flow to prevent race conditions
+      await Future.delayed(const Duration(milliseconds: 500));
       
       _logger.log('User profile saved and streams updated: ${profile.mobile}');
     } catch (e) {

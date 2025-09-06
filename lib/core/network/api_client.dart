@@ -121,10 +121,21 @@ class ApiClient {
   /// POST request with automatic access token inclusion
   Future<dynamic> postWithAuth(String url, {Map<String, dynamic>? body}) async {
     try {
-      // Get access token from auth manager
+      // Get access token from auth manager with retry logic for new user login
       String? accessKey;
       if (_authManager != null) {
-        accessKey = await _authManager.getValidAccessKey();
+        // Try multiple times to get access key to handle race conditions
+        for (int attempt = 0; attempt < 3; attempt++) {
+          accessKey = await _authManager.getValidAccessKey();
+          if (accessKey != null && accessKey.isNotEmpty) {
+            break;
+          }
+          // Wait before retrying to allow auth state to propagate
+          if (attempt < 2) {
+            await Future.delayed(Duration(milliseconds: 200 * (attempt + 1)));
+            _logger.log('Retrying access key retrieval, attempt ${attempt + 2}');
+          }
+        }
       }
 
       // Create request body with project code and access key
@@ -136,9 +147,10 @@ class ApiClient {
       // Add access key if available
       if (accessKey != null && accessKey.isNotEmpty) {
         requestBody['access_key'] = accessKey;
+        _logger.log('POST with auth request to: $url (access key: ${accessKey.substring(0, 8)}...)');
+      } else {
+        _logger.warning('POST with auth request to: $url (NO ACCESS KEY AVAILABLE)');
       }
-      
-      _logger.log('POST with auth request to: $url');
       
       final response = await _client.post(
         Uri.parse(url),
@@ -173,10 +185,21 @@ class ApiClient {
   /// GET request with automatic access token inclusion
   Future<dynamic> getWithAuth(String url, {Map<String, String>? additionalParams}) async {
     try {
-      // Get access token from auth manager
+      // Get access token from auth manager with retry logic for new user login
       String? accessKey;
       if (_authManager != null) {
-        accessKey = await _authManager.getValidAccessKey();
+        // Try multiple times to get access key to handle race conditions
+        for (int attempt = 0; attempt < 3; attempt++) {
+          accessKey = await _authManager.getValidAccessKey();
+          if (accessKey != null && accessKey.isNotEmpty) {
+            break;
+          }
+          // Wait before retrying to allow auth state to propagate
+          if (attempt < 2) {
+            await Future.delayed(Duration(milliseconds: 200 * (attempt + 1)));
+            _logger.log('Retrying access key retrieval for GET, attempt ${attempt + 2}');
+          }
+        }
       }
 
       // Build query parameters
@@ -193,7 +216,11 @@ class ApiClient {
 
       final Uri uri = Uri.parse(url).replace(queryParameters: queryParams);
       
-      _logger.log('GET with auth request to: $uri');
+      if (accessKey != null && accessKey.isNotEmpty) {
+        _logger.log('GET with auth request to: $uri (access key: ${accessKey.substring(0, 8)}...)');
+      } else {
+        _logger.warning('GET with auth request to: $uri (NO ACCESS KEY AVAILABLE)');
+      }
       
       final response = await _client.get(
         uri,
