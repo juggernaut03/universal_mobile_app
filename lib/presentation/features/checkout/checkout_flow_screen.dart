@@ -28,6 +28,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../data/models/outlet_model.dart';
+import '../../../core/auth/centralized_auth_manager.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
 import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address;
@@ -1412,6 +1413,22 @@ Future<void> _loadAddresses() async {
   });
 
   try {
+    // Wait for auth state to be ready before loading addresses
+    final authManager = ref.read(centralizedAuthManagerProvider);
+    final isLoggedIn = await authManager.isLoggedIn();
+    
+    if (!isLoggedIn) {
+      ref.read(loggerProvider).warning('User not logged in, cannot load addresses');
+      _addresses = [];
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // Add a small delay to ensure auth state has fully propagated
+    await Future.delayed(const Duration(milliseconds: 300));
+    
     // Method 1: Use ref.read() to get the future directly
     _addresses = await ref.read(address.addressListProvider.future);
     
@@ -1438,6 +1455,7 @@ Future<void> _loadAddresses() async {
   } catch (e) {
     ref.read(loggerProvider).error('Error loading addresses: $e');
     // Handle error loading addresses
+    _addresses = [];
   }
 
   setState(() {

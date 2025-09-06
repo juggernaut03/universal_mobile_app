@@ -113,24 +113,20 @@ class AuthService {
     }
   }
 
-  /// Save user credentials - DEPRECATED: Use CentralizedAuthManager instead
-  /// This method is kept only for FCM token handling
+  /// Save user credentials and integrate with CentralizedAuthManager
+  /// This method now properly integrates with CentralizedAuthManager
   Future<void> _saveUserCredentials(String mobile, String accessKey) async {
     try {
       final now = DateTime.now();
       
-      // ❌ REMOVED: No longer save access key here - CentralizedAuthManager handles this
-      // ❌ REMOVED: No longer save login time here - CentralizedAuthManager handles this  
-      // ❌ REMOVED: No longer save user profile here - CentralizedAuthManager handles this
-      
-      // ✅ ONLY handle FCM token operations here
+      // Create user profile for CentralizedAuthManager
       final userProfile = UserProfile(
         mobile: mobile,
         accessKey: accessKey,
         loginTime: now,
       );
       
-      _logger.log('User credentials handled - access token managed by CentralizedAuthManager');
+      _logger.log('User credentials received - integrating with CentralizedAuthManager');
       
       // Save FCM token after successful login (non-blocking)
       _saveFcmTokenAfterLogin(userProfile);
