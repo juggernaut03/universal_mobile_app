@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/address_model.dart';
+import 'package:patelmart/data/models/auth_models.dart';
 import 'package:patelmart/data/models/delivery_slot_model.dart';
 import 'package:patelmart/data/models/payment_method_model.dart';
 import 'package:patelmart/data/models/product_model.dart';
@@ -31,6 +32,8 @@ import '../../../data/models/outlet_model.dart';
 import '../../../core/auth/centralized_auth_manager.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/checkout_timer_provider.dart';
+import '../checkout/widgets/checkout_timer_widget.dart';
 import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address;
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
@@ -57,6 +60,7 @@ class CheckoutData {
   String? deliveryTimeSlot;
   String? specialInstructions;
   String? paymentMethod;
+  String? pickupName;
 
   CheckoutData({
     this.deliveryMethod,
@@ -65,6 +69,7 @@ class CheckoutData {
     this.deliveryTimeSlot,
     this.specialInstructions,
     this.paymentMethod,
+    this.pickupName,
   });
 
   Map<String, dynamic> toJson() {
@@ -75,6 +80,7 @@ class CheckoutData {
       'deliveryTimeSlot': deliveryTimeSlot,
       'specialInstructions': specialInstructions,
       'paymentMethod': paymentMethod,
+      'pickupName': pickupName,
     };
   }
 
@@ -92,6 +98,7 @@ class CheckoutData {
       deliveryTimeSlot: json['deliveryTimeSlot'],
       specialInstructions: json['specialInstructions'],
       paymentMethod: json['paymentMethod'],
+      pickupName: json['pickupName'],
     );
   }
 
@@ -142,19 +149,19 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
     super.initState();
     _currentStep = widget.initialStep;
     _loadCheckoutData();
-    
+
     // Track checkout initiation with Facebook Pixel
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _trackCheckoutInitiation();
     });
   }
-  
+
   void _trackCheckoutInitiation() {
     try {
       final cartItems = ref.read(cartProvider);
       final cartTotal = ref.read(cartTotalProvider);
       final productIds = cartItems.map((item) => item.product.pCode).toList();
-      
+
       FacebookPixelIntegration.trackCheckoutEvent(
         ref,
         eventType: 'initiate',
@@ -165,6 +172,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
     } catch (e) {
       ref.read(loggerProvider).error('Failed to track checkout initiation: $e');
     }
+  }
   }
 
   Future<void> _loadCheckoutData() async {
@@ -644,6 +652,13 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
       );
     }
 
+    // Listen for timer expiration
+    ref.listen(checkoutTimerExpiredProvider, (previous, hasExpired) {
+      if (hasExpired && mounted) {
+        _handleTimerExpiration();
+      }
+    });
+
     return PopScope(
       canPop: false, // Prevent default pop behavior
       onPopInvoked: (bool didPop) async {
@@ -671,13 +686,19 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
             }
           },
         ),
+        actions: const [
+          CheckoutTimerCompactWidget(),
+        ],
         backgroundColor: AppColors.primary,
       ),
       body: Column(
         children: [
           // Progress bar - modified to show correct progress for self-pickup
           _buildProgressBar(),
-          
+
+          // Checkout timer
+          const CheckoutTimerWidget(),
+
           // Order summary
           _buildOrderSummary(),
           
@@ -880,6 +901,50 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
         return PaymentStep(
           checkoutData: _checkoutData,
         );
+    }
+  }
+
+  void _handleTimerExpiration() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Session Expired',
+            style: TextStyle(
+              color: Colors.red.shade900,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            'Your checkout session has expired. You will be redirected to your cart to continue with your order.',
+            style: TextStyle(color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToCart();
+              },
+              child: Text(
+                'Continue to Cart',
+                style: TextStyle(
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _navigateToCart() {
+    if (mounted) {
+      // Navigate to cart screen - cart data is preserved automatically
+      context.go('/cart');
     }
   }
 }
@@ -2696,6 +2761,7 @@ class PaymentStep extends ConsumerStatefulWidget {
 class _PaymentStepState extends ConsumerState<PaymentStep> {
   PaymentMethod? _selectedPaymentMethod;
   final TextEditingController _instructionsController = TextEditingController();
+  final TextEditingController _pickupNameController = TextEditingController();
   bool _isPlacingOrder = false;
   bool _showSuccessDialog = false;
 
@@ -2703,12 +2769,13 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
   void initState() {
     super.initState();
     _instructionsController.text = widget.checkoutData.specialInstructions ?? '';
-    
+    _pickupNameController.text = widget.checkoutData.pickupName ?? '';
+
     // Reset the order state when initializing the payment step
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.initial;
       ref.read(orderErrorMessageProvider.notifier).state = null;
-      
+
       // Try to restore previously selected payment method
       _restoreSelectedPaymentMethod();
     });
@@ -2716,7 +2783,10 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
 
   @override
   void dispose() {
+    // Stop checkout timer when leaving checkout
+    ref.read(checkoutTimerProvider.notifier).stopTimer();
     _instructionsController.dispose();
+    _pickupNameController.dispose();
     super.dispose();
   }
 
@@ -2780,9 +2850,17 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
         _showErrorSnackBar('Please select a delivery date');
         return false;
       }
-      if (widget.checkoutData.deliveryTimeSlot == null || 
+      if (widget.checkoutData.deliveryTimeSlot == null ||
           widget.checkoutData.deliveryTimeSlot!.isEmpty) {
         _showErrorSnackBar('Please select a delivery time slot');
+        return false;
+      }
+    }
+
+    // Check pickup name for self-pickup
+    if (widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup) {
+      if (widget.checkoutData.pickupName == null || widget.checkoutData.pickupName!.trim().isEmpty) {
+        _showErrorSnackBar('Please enter your pickup name');
         return false;
       }
     }
@@ -2811,6 +2889,39 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
         backgroundColor: Colors.red,
       ),
     );
+  }
+
+  String _buildSpecialNotes(UserProfile? userProfile) {
+    final List<String> notes = [];
+
+    // Add typed special instructions if provided
+    final instructions = _instructionsController.text.trim();
+    if (instructions.isNotEmpty) {
+      notes.add(instructions);
+    }
+
+    // For self-pickup, add pickup name info
+    if (widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup) {
+      final pickupName = widget.checkoutData.pickupName?.trim().isNotEmpty == true
+          ? widget.checkoutData.pickupName!
+          : (userProfile?.mobile ?? '');
+      notes.add('Pickup Name: $pickupName');
+    }
+
+    // Add profile name (using mobile since no explicit name field exists)
+    final profileName = userProfile?.mobile ?? '';
+    if (profileName.isNotEmpty) {
+      notes.add('Profile Name: $profileName');
+    }
+
+    // Add mobile number
+    final mobile = userProfile?.mobile ?? '';
+    if (mobile.isNotEmpty) {
+      notes.add('Mobile: $mobile');
+    }
+
+    // Join with " | " separator
+    return notes.join(' | ');
   }
 
 
@@ -2911,7 +3022,9 @@ Future<void> _placeOrder() async {
       // For self pickup, create address from outlet info
       deliveryAddress = Address(
         id: 'pickup_address',
-        fullName: userProfile?.mobile ?? 'Customer',
+        fullName: widget.checkoutData.pickupName?.trim().isNotEmpty == true
+            ? widget.checkoutData.pickupName!
+            : (userProfile?.mobile ?? 'Customer'),
         mobileNumber: userProfile?.mobile ?? '',
         emailId: userProfile?.mobile ?? '',
         deliveryAddrLine1: selectedOutlet.name,
@@ -2997,7 +3110,7 @@ Future<void> _placeOrder() async {
       finalPayableAmount: finalAmount,
       accessKey: accessKey,
       mobileNo: mobileNo,
-      specialNotes: _instructionsController.text,
+      specialNotes: _buildSpecialNotes(userProfile),
     );
     
     // Store payment processing result
@@ -3171,7 +3284,7 @@ Future<void> _placeOrder() async {
       paidAmount: (paymentResult?.success == true) ? finalAmount.toString() : "0",
       accessKey: accessKey,
       transactionId: transactionId,
-      specialNotes: _instructionsController.text,
+      specialNotes: _buildSpecialNotes(userProfile),
       paymentResult: paymentResult, // Pass the actual payment result (success or failure)
       paymentFormat: PaymentDataFormat.both,
     );
@@ -3196,7 +3309,7 @@ Future<void> _placeOrder() async {
         logger.log('Order ID: ${orderResult.orderId}');
         logger.log('Database Status: Order Confirmed');
         logger.log('Payment Status: Payment Confirmed');
-        
+
         print('\n🎉 === ORDER SUCCESSFULLY COMPLETED === 🎉');
         print('Order ID: ${orderResult.orderId}');
         print('Database Status: Order Confirmed');
@@ -3204,7 +3317,10 @@ Future<void> _placeOrder() async {
         print('Transaction ID: $transactionId');
         print('Payment Processing → Order Confirmed ✅');
         print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
-        
+
+        // Stop checkout timer on successful order completion
+        ref.read(checkoutTimerProvider.notifier).stopTimer();
+
         // Clear cart and show success
         await ref.read(cartProvider.notifier).clearCart();
         setState(() {
@@ -3228,7 +3344,10 @@ Future<void> _placeOrder() async {
         print('Payment Status: Pending');
         print('Payment Processing → Order Confirmed ✅');
         print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
-        
+
+        // Stop checkout timer on successful order completion
+        ref.read(checkoutTimerProvider.notifier).stopTimer();
+
         // Clear cart and show success
         await ref.read(cartProvider.notifier).clearCart();
         setState(() {
@@ -3685,14 +3804,38 @@ String _formatDate(DateTime date) {
                       ),
                     ),
                   ),
-                  
+
+                  // Pickup name field (only for self-pickup)
+                  if (isSelfPickup)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: TextField(
+                        controller: _pickupNameController,
+                        decoration: InputDecoration(
+                          labelText: 'Pickup Name',
+                          hintText: 'Enter your name for pickup',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          widget.checkoutData.pickupName = value;
+                        },
+                      ),
+                    ),
+
                   // Special instructions
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                     child: TextField(
                       controller: _instructionsController,
                       decoration: InputDecoration(
-                        hintText: isSelfPickup 
+                        hintText: isSelfPickup
                             ? 'Any special instructions for pickup?'
                             : 'Any special instructions for delivery?',
                         border: OutlineInputBorder(

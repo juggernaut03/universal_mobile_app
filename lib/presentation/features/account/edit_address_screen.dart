@@ -3,6 +3,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,7 @@ import 'package:patelmart/presentation/features/account/address_book_screen.dart
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
+import 'package:patelmart/utils/ascii_only_input_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -154,6 +156,39 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     _stateController.dispose();
     _contactNumberController.dispose();
     super.dispose();
+  }
+
+  /// Creates ASCII-only input formatter with dialog notification
+  List<TextInputFormatter> _getAsciiOnlyFormatters() {
+    return [
+      AsciiOnlyInputFormatter(
+        onBlocked: () {
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            barrierDismissible: true,
+            builder: (ctx) {
+              return AlertDialog(
+                title: const Text(
+                  'Use English keyboard',
+                  style: TextStyle(color: Colors.black),
+                ),
+                content: const Text(
+                  'sorry we are still upgrading for multilingual keyboard please use english keyboard ',
+                  style: TextStyle(color: Colors.black),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('OK'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    ];
   }
   
   // Get coordinates from the entered address
@@ -451,6 +486,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     controller: _fullNameController,
                     label: 'Full Name',
                     isRequired: true,
+                    inputFormatters: _getAsciiOnlyFormatters(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your full name';
@@ -482,6 +518,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     controller: _areaController,
                     label: 'Area',
                     isRequired: true,
+                    inputFormatters: _getAsciiOnlyFormatters(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter area';
@@ -494,6 +531,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     controller: _localityController,
                     label: 'Locality/ Street Name/ Apartment',
                     isRequired: true,
+                    inputFormatters: _getAsciiOnlyFormatters(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter locality details';
@@ -506,6 +544,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     controller: _wingFloorController,
                     label: 'Wing/ Floor/ Flat/ House No.',
                     isRequired: true,
+                    inputFormatters: _getAsciiOnlyFormatters(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter wing/floor details';
@@ -518,12 +557,14 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     controller: _landmarkController,
                     label: 'Landmark (optional)',
                     isRequired: false,
+                    inputFormatters: _getAsciiOnlyFormatters(),
                   ),
                   
                   _buildFormField(
                     controller: _cityController,
                     label: 'City',
                     isRequired: true,
+                    inputFormatters: _getAsciiOnlyFormatters(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter city';
@@ -536,6 +577,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     controller: _stateController,
                     label: 'State',
                     isRequired: true,
+                    inputFormatters: _getAsciiOnlyFormatters(),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter state';
@@ -658,6 +700,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     bool readOnly = false,
     String? prefixText,
     String? helperText,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -694,6 +737,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
             validator: validator,
             keyboardType: keyboardType,
             readOnly: readOnly,
+            inputFormatters: inputFormatters,
             style: TextStyle(
               color: readOnly ? Colors.grey[600] : Colors.black,
             ),

@@ -45,11 +45,14 @@ android {
 
     // Add signing configurations
     signingConfigs {
-        create("release") {
-            storeFile = file(keystoreProperties.getProperty("storeFile") ?: "")
-            storePassword = keystoreProperties.getProperty("storePassword")
-            keyAlias = keystoreProperties.getProperty("keyAlias")
-            keyPassword = keystoreProperties.getProperty("keyPassword")
+        if (keystorePropertiesFile.exists() &&
+            keystoreProperties.getProperty("storeFile")?.isNotEmpty() == true) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
         }
     }
 
@@ -61,8 +64,12 @@ android {
         }
         
         getByName("release") {
-            // Use RELEASE signing config instead of debug
-            signingConfig = signingConfigs.getByName("release")
+            // Use RELEASE signing config if available, otherwise fall back to debug
+            if (signingConfigs.names.contains("release")) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = false
             isShrinkResources = false
             isDebuggable = false
