@@ -14,6 +14,7 @@ import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
+import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import 'package:patelmart/utils/ascii_only_input_formatter.dart';
 
 
@@ -59,14 +60,8 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
     final logger = ref.read(loggerProvider);
     
     try {
-      // Load user mobile number from auth provider
-      final userProfile = await ref.read(userProfileProvider.future);
-      if (userProfile != null) {
-        setState(() {
-          _contactNumberController.text = userProfile.mobile;
-        });
-        logger.log('Loaded user mobile number: ${userProfile.mobile}');
-      }
+      // Load user mobile number from auth provider with retry logic
+      await _loadUserMobileWithRetry();
     } catch (e) {
       logger.error('Error loading user mobile number: $e');
     }
@@ -84,6 +79,61 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
       }
     } catch (e) {
       logger.error('Error loading selected pincode: $e');
+    }
+  }
+
+  /// Load user mobile number with retry logic to handle race conditions
+  Future<void> _loadUserMobileWithRetry() async {
+    final logger = ref.read(loggerProvider);
+    const maxRetries = 3;
+    const retryDelay = Duration(milliseconds: 300);
+    
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        logger.log('Attempting to load user mobile number (attempt $attempt/$maxRetries)');
+        
+        // Try to get user profile
+        final userProfile = await ref.read(userProfileProvider.future);
+        
+        if (userProfile != null && userProfile.mobile.isNotEmpty) {
+          setState(() {
+            _contactNumberController.text = userProfile.mobile;
+          });
+          logger.log('Successfully loaded user mobile number: ${userProfile.mobile}');
+          return; // Success, exit retry loop
+        } else {
+          logger.warning('User profile is null or mobile is empty on attempt $attempt');
+        }
+      } catch (e) {
+        logger.warning('Error loading user profile on attempt $attempt: $e');
+      }
+      
+      // If not the last attempt, wait before retrying
+      if (attempt < maxRetries) {
+        logger.log('Waiting ${retryDelay.inMilliseconds}ms before retry...');
+        await Future.delayed(retryDelay);
+        
+        // Invalidate the provider to force a fresh fetch
+        ref.invalidate(userProfileProvider);
+      }
+    }
+    
+      // If all retries failed, try direct access to auth manager
+      try {
+        logger.log('All retries failed, trying direct auth manager access...');
+        final authManager = ref.read(auth.centralizedAuthManagerProvider);
+        final userProfile = await authManager.getCurrentUserProfile();
+      
+      if (userProfile != null && userProfile.mobile.isNotEmpty) {
+        setState(() {
+          _contactNumberController.text = userProfile.mobile;
+        });
+        logger.log('Successfully loaded user mobile via direct auth manager: ${userProfile.mobile}');
+      } else {
+        logger.error('Could not load user mobile number after all attempts');
+      }
+    } catch (e) {
+      logger.error('Error accessing auth manager directly: $e');
     }
   }
   
@@ -112,12 +162,13 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
             barrierDismissible: true,
             builder: (ctx) {
               return AlertDialog(
+                backgroundColor: Colors.white,
                 title: const Text(
                   'Use English keyboard',
                   style: TextStyle(color: Colors.black),
                 ),
                 content: const Text(
-                  'sorry we are still upgrading for multilingual keyboard please use english keyboard ',
+                  'System accepts English text only',
                   style: TextStyle(color: Colors.black),
                 ),
                 actions: [

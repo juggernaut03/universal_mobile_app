@@ -178,7 +178,7 @@ class CheckoutTimerWidget extends ConsumerWidget {
     } else if (state.isInWarningZone) {
       return 'Hurry! Complete your order';
     } else {
-      return 'Complete your order within';
+      return 'Finish your order session to grab your deal';
     }
   }
 }
@@ -282,6 +282,7 @@ class CheckoutTimerCompactWidget extends ConsumerWidget {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
+          backgroundColor: Colors.white,
           title: Text(
             'Session Expired',
             style: TextStyle(
