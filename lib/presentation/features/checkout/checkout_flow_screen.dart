@@ -150,9 +150,12 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
     _currentStep = widget.initialStep;
     _loadCheckoutData();
 
-    // Track checkout initiation with Facebook Pixel
+    // Track checkout initiation with Facebook Pixel and start checkout timer
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _trackCheckoutInitiation();
+      if (mounted) {
+        ref.read(checkoutTimerProvider.notifier).forceResetAndStart();
+      }
     });
   }
 
@@ -172,7 +175,6 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
     } catch (e) {
       ref.read(loggerProvider).error('Failed to track checkout initiation: $e');
     }
-  }
   }
 
   Future<void> _loadCheckoutData() async {
@@ -918,7 +920,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
             ),
           ),
           content: const Text(
-            'Your checkout session has expired. You will be redirected to your cart to continue with your order.',
+            'Your order session has expired—no stress! We’ll take you back to your cart to continue shopping.',
             style: TextStyle(color: Colors.black87),
           ),
           actions: [
@@ -4569,140 +4571,3 @@ String _formatDate(DateTime date) {
   //     ),
   //   );
   // }
-
-  Widget _buildOrderSummary() {
-  return Consumer(
-    builder: (context, ref, _) {
-      final cartTotal = ref.watch(cartTotalProvider);
-      final cartSavings = ref.watch(cartSavingsProvider);
-      
-      // Get delivery charges
-      final deliveryChargesState = ref.watch(deliveryChargesProvider);
-      final deliveryCharge = deliveryChargesState.deliveryCharge;
-      final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
-      
-      // Calculate final amount
-      final finalAmount = cartTotal + deliveryCharge;
-      
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Item subtotal
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Item Subtotal',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                '₹${cartTotal.toStringAsFixed(2)}',
-                style: AppTextStyles.bodyMedium,
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Delivery charges
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Delivery Fee',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Text(
-                isFreeDelivery 
-                  ? 'FREE' 
-                  : '₹${deliveryCharge.toStringAsFixed(2)}',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: isFreeDelivery ? Colors.green : null,
-                  fontWeight: isFreeDelivery ? FontWeight.bold : null,
-                ),
-              ),
-            ],
-          ),
-          
-          // Display savings if any
-          if (cartSavings > 0) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Your Savings',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                Text(
-                  '₹${cartSavings.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          
-          const Divider(height: 24),
-          
-          // Total
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TOTAL AMOUNT',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                '₹${finalAmount.toStringAsFixed(2)}',
-                style: AppTextStyles.h5.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          
-          // Savings summary
-          if (cartSavings > 0 || isFreeDelivery)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      'You saved ₹${cartSavings.toStringAsFixed(2)} on this order',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: Colors.green[700],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      );
-    },
-    
-  );
-  
-  }
