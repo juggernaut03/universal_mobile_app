@@ -20,6 +20,7 @@ class DeliverySlotService {
   /// Get available delivery slots for a specific store
   Future<List<DeliverySlot>> getDeliverySlots({
     required String storeCode,
+    DateTime? orderDate,
   }) async {
     try {
       _logger.log('Fetching delivery slots for store: $storeCode');
@@ -30,6 +31,7 @@ class DeliverySlotService {
         body: jsonEncode({
           'store_code': storeCode,
           'project_code': ApiConstants.projectCode,
+          'order_date': _formatOrderDate(orderDate ?? DateTime.now()),
         }),
       ).timeout(const Duration(seconds: 15));
       
@@ -57,9 +59,10 @@ class DeliverySlotService {
   /// Get delivery slots grouped by availability (today, tomorrow, etc.)
   Future<Map<String, List<DeliverySlot>>> getDeliverySlotsGrouped({
     required String storeCode,
+    DateTime? orderDate,
   }) async {
     try {
-      final slots = await getDeliverySlots(storeCode: storeCode);
+      final slots = await getDeliverySlots(storeCode: storeCode, orderDate: orderDate);
       
       // For now, we'll return all slots for each day
       // In a more complex implementation, you might have different slots for different days
@@ -82,5 +85,12 @@ class DeliverySlotService {
 
   String _formatDateKey(DateTime date) {
     return '${date.year}_${date.month}_${date.day}';
+  }
+
+  String _formatOrderDate(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 }
