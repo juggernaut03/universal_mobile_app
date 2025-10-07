@@ -235,29 +235,6 @@ class OrderDetailScreen extends ConsumerWidget {
                 
                 const SizedBox(height: 8),
                 
-                // Reorder Button
-                Container(
-                  color: Colors.white,
-                  width: double.infinity,
-                  child: InkWell(
-                    onTap: () => _reorderItems(context, ref, order),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'REORDER',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 8),
-                
                 // Payment Details Section (Collapsible)
                 _buildExpandableSection(
                   title: 'Payment Details',
@@ -287,6 +264,29 @@ class OrderDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       _buildItemsList(order),
                     ],
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Reorder Button
+                Container(
+                  color: Colors.white,
+                  width: double.infinity,
+                  child: InkWell(
+                    onTap: () => _reorderItems(context, ref, order),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'REORDER',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 

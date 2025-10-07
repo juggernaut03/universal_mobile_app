@@ -87,6 +87,43 @@ class DeliverySlotService {
     return '${date.year}_${date.month}_${date.day}';
   }
 
+  /// Get available self-pickup delivery slots for a specific store
+  Future<List<DeliverySlot>> getSelfPickupDeliverySlots({
+    required String storeCode,
+  }) async {
+    try {
+      _logger.log('Fetching self-pickup delivery slots for store: $storeCode');
+      
+      final response = await _client.post(
+        Uri.parse('${ApiConstants.baseUrl}/get_self_pickup_delivery_slot'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'store_code': storeCode,
+          'project_code': ApiConstants.projectCode,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      
+      _logger.log('Self-pickup slots API response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final List<DeliverySlot> slots = data
+            .map((json) => DeliverySlot.fromJson(json))
+            .where((slot) => slot.isActive) // Only return active slots
+            .toList();
+        
+        _logger.log('Retrieved ${slots.length} active self-pickup delivery slots');
+        return slots;
+      } else {
+        _logger.error('Failed to fetch self-pickup delivery slots: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to load self-pickup delivery slots');
+      }
+    } catch (e) {
+      _logger.error('Error fetching self-pickup delivery slots: $e');
+      rethrow;
+    }
+  }
+
   String _formatOrderDate(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
     final m = date.month.toString().padLeft(2, '0');

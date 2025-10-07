@@ -194,9 +194,9 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
     setState(() {
       switch (_currentStep) {
         case CheckoutStep.delivery:
-          // If delivery method is self pickup, skip directly to payment
+          // For self pickup, skip address and go directly to time selection
           if (_checkoutData.deliveryMethod == DeliveryMethod.selfPickup) {
-            _currentStep = CheckoutStep.payment;
+            _currentStep = CheckoutStep.time;
           } else {
             _currentStep = CheckoutStep.address;
           }
@@ -721,13 +721,20 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
       // Exit checkout entirely
       return true; // Allow default back navigation
     } else {
-      // Navigate to previous step
-      if (_checkoutData.deliveryMethod == DeliveryMethod.selfPickup && 
-          _currentStep == CheckoutStep.payment) {
-        setState(() {
-          _currentStep = CheckoutStep.delivery;
-        });
+      // Navigate to previous step with proper logic for self-pickup
+      if (_checkoutData.deliveryMethod == DeliveryMethod.selfPickup) {
+        // Self-pickup flow: delivery -> time -> payment
+        if (_currentStep == CheckoutStep.time) {
+          setState(() {
+            _currentStep = CheckoutStep.delivery;
+          });
+        } else if (_currentStep == CheckoutStep.payment) {
+          setState(() {
+            _currentStep = CheckoutStep.time;
+          });
+        }
       } else {
+        // Home delivery flow: delivery -> address -> time -> payment
         setState(() {
           _currentStep = CheckoutStep.values[_currentStep.index - 1];
         });
@@ -756,8 +763,8 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
     List<CheckoutStep> stepsToShow = [];
     
     if (_checkoutData.deliveryMethod == DeliveryMethod.selfPickup) {
-      // For self-pickup, only show delivery and payment steps
-      stepsToShow = [CheckoutStep.delivery, CheckoutStep.payment];
+      // For self-pickup, show delivery, time, and payment steps (skip address)
+      stepsToShow = [CheckoutStep.delivery, CheckoutStep.time, CheckoutStep.payment];
     } else {
       // For home delivery, show all steps
       stepsToShow = CheckoutStep.values;
@@ -983,10 +990,8 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
     });
     widget.checkoutData.deliveryMethod = method;
     
-    // If self-pickup is selected, immediately proceed to payment
-    if (method == DeliveryMethod.selfPickup && widget.onSelfPickupSelected != null) {
-      widget.onSelfPickupSelected!();
-    }
+    // Note: We no longer skip directly to payment for self-pickup
+    // User will now select a pickup time slot in the next step
   }
 
   @override
@@ -1085,31 +1090,30 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
         // Order Total Section
         _buildOrderTotal(),
         
-        // Continue Button - Only shown for home delivery
-        if (_selectedMethod == DeliveryMethod.homeDelivery)
-          Padding(
-            padding: EdgeInsets.only(
-              left: 16.0,
-              right: 16.0,
-              bottom: MediaQuery.of(context).padding.bottom + 16.0,
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _selectedMethod == null ? null : widget.onContinue,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+        // Continue Button - Shown for both delivery methods
+        Padding(
+          padding: EdgeInsets.only(
+            left: 16.0,
+            right: 16.0,
+            bottom: MediaQuery.of(context).padding.bottom + 16.0,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _selectedMethod == null ? null : widget.onContinue,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text('CONTINUE'),
               ),
+              child: const Text('CONTINUE'),
             ),
           ),
+        ),
       ],
     );
   }
@@ -2174,8 +2178,13 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     });
 
     try {
-      // Get delivery slots from API
-      final slots = await ref.read(deliverySlotsProvider.future);
+      // Determine which slots to load based on delivery method
+      final isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+      
+      // Get appropriate delivery slots from API
+      final slots = isSelfPickup
+          ? await ref.read(selfPickupDeliverySlotsProvider.future)
+          : await ref.read(deliverySlotsProvider.future);
       
       // Organize slots by date (for now, same slots available for all dates)
       _timeSlots.clear();
@@ -2202,7 +2211,8 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
         }
       }
       
-      ref.read(loggerProvider).log('Loaded ${slots.length} delivery slots from API');
+      final slotType = isSelfPickup ? 'self-pickup' : 'delivery';
+      ref.read(loggerProvider).log('Loaded ${slots.length} $slotType slots from API');
     } catch (e) {
       ref.read(loggerProvider).error('Error loading delivery slots: $e');
       // Show error to user
@@ -2282,13 +2292,15 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
 
   @override
   Widget build(BuildContext context) {
+    final isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
-            'Choose Delivery Time',
+            isSelfPickup ? 'Choose Pickup Time' : 'Choose Delivery Time',
             style: AppTextStyles.h5,
           ),
         ),
@@ -2296,7 +2308,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            'Select delivery time slot',
+            isSelfPickup ? 'Select pickup time slot' : 'Select delivery time slot',
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textSecondary,
             ),
