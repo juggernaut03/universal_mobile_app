@@ -57,10 +57,31 @@ final deliverySlotsGroupedProvider = FutureProvider<Map<String, List<DeliverySlo
   );
 });
 
+// Provider for self-pickup delivery slots based on selected outlet
+final selfPickupDeliverySlotsProvider = FutureProvider<List<DeliverySlot>>((ref) async {
+  final selectedOutletAsync = ref.watch(selectedOutletProvider);
+  final deliverySlotService = ref.watch(deliverySlotServiceProvider);
+  
+  return selectedOutletAsync.when(
+    data: (outlet) async {
+      if (outlet == null) {
+        throw Exception('No store selected');
+      }
+      
+      return await deliverySlotService.getSelfPickupDeliverySlots(
+        storeCode: outlet.storeCode,
+      );
+    },
+    loading: () => throw Exception('Loading outlet information...'),
+    error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
+  );
+});
+
 // Provider to refresh delivery slots manually
 final refreshDeliverySlotsProvider = Provider<Future<void> Function()>((ref) {
   return () async {
     ref.refresh(deliverySlotsProvider);
     ref.refresh(deliverySlotsGroupedProvider);
+    ref.refresh(selfPickupDeliverySlotsProvider);
   };
 });

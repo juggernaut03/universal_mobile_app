@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io'; // Added for Platform detection
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:patelmart/utils/payment_data_formatter.dart';
@@ -49,6 +50,23 @@ class OrderService {
     _client = client ?? http.Client(),
     _logger = logger ?? Logger();
 
+  // Helper method to detect current platform
+  String _getPlatform() {
+    if (Platform.isIOS) {
+      return "iOS";
+    } else if (Platform.isAndroid) {
+      return "Android";
+    } else if (Platform.isWindows) {
+      return "Windows";
+    } else if (Platform.isMacOS) {
+      return "MacOS";
+    } else if (Platform.isLinux) {
+      return "Linux";
+    } else {
+      return "Unknown";
+    }
+  }
+
   // ENHANCED: confirmOrder method with payment failure handling added
   Future<OrderConfirmationResponse> confirmOrder({
     required String deviceId,
@@ -72,7 +90,7 @@ class OrderService {
     String? transactionId,
     String? specialNotes,
     String offerDetails = "No Offer",
-    String mobPlatform = "Android",
+    String? mobPlatform, // Now nullable - will auto-detect platform if not provided
     PaymentResult? paymentResult,
     PaymentDataFormat paymentFormat = PaymentDataFormat.both,
   }) async {
@@ -82,6 +100,10 @@ class OrderService {
       
       // Use the provided temp order ID consistently
       final providedTempOrderId = tempOrderId;
+      
+      // Auto-detect platform if not provided
+      final detectedMobPlatform = mobPlatform ?? _getPlatform();
+      _logger.log('Platform: $detectedMobPlatform ${mobPlatform == null ? "(auto-detected)" : "(provided)"}');
       
       // NEW: Determine final order and payment status based on payment result
       String finalOrderStatus;
@@ -249,7 +271,7 @@ class OrderService {
         "paid_amount": finalPaidAmount,
         "transaction_id": finalTransactionId,
         
-        "mob_platform": mobPlatform,
+        "mob_platform": detectedMobPlatform,
         "mobile_no": deliveryAddress.mobileNumber,
         
         // Add order_date_time in UTC ISO format
@@ -769,7 +791,7 @@ class OrderService {
     String? transactionId,
     String? specialNotes,
     String offerDetails = "No Offer",
-    String mobPlatform = "Android",
+    String? mobPlatform, // Now nullable - will auto-detect platform if not provided
     PaymentResult? paymentResult,
     PaymentDataFormat paymentFormat = PaymentDataFormat.both,
   }) async {

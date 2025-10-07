@@ -338,38 +338,6 @@ class OrderCardWidget extends ConsumerWidget {
                   // Dynamic action buttons based on order status
                   Row(
                     children: [
-                      // Track order button for orders in progress
-                      if (OrderStatusUtils.canTrackOrder(order.status)) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.track_changes,
-                                size: 12,
-                                color: Colors.blue,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'TRACK',
-                                style: TextStyle(
-                                  color: Colors.blue,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-
                       // Cancel button for orders that can be cancelled
                       if (OrderStatusUtils.canCancelOrder(order.status)) ...[
                         // Container(
@@ -402,7 +370,7 @@ class OrderCardWidget extends ConsumerWidget {
                         const SizedBox(width: 8),
                       ],
 
-                      // Reorder button for orders that can be reordered
+                      // View All button for orders that can be reordered
                       if (OrderStatusUtils.canReorder(order.status)) ...[
                         InkWell(
                           onTap: onReorderTap,
@@ -417,13 +385,13 @@ class OrderCardWidget extends ConsumerWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  Icons.refresh,
+                                  Icons.visibility,
                                   size: 12,
                                   color: Colors.white,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'REORDER',
+                                  'VIEW ALL',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
@@ -441,54 +409,6 @@ class OrderCardWidget extends ConsumerWidget {
               ),
             ),
 
-            // Progress indicator for orders in progress
-            if (OrderStatusUtils.isOrderInProgress(order.status)) ...[
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Order Progress',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        Text(
-                          '${(OrderStatusUtils.getProgressPercentage(order.status) * 100).toInt()}%',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: statusColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    LinearProgressIndicator(
-                      value: OrderStatusUtils.getProgressPercentage(order.status),
-                      backgroundColor: Colors.grey[200],
-                      valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                      minHeight: 3,
-                    ),
-                    const SizedBox(height: 4),
-                    // if (OrderStatusUtils.getEstimatedTimeToNextStatus(order.status) != null)
-                    //   Text(
-                    //     'Est. ${OrderStatusUtils.getEstimatedTimeToNextStatus(order.status)}h to next update',
-                    //     style: TextStyle(
-                    //       fontSize: 10,
-                    //       color: Colors.grey[600],
-                    //     ),
-                    //   ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
       ),
