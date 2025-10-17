@@ -698,9 +698,6 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
           // Progress bar - modified to show correct progress for self-pickup
           _buildProgressBar(),
 
-          // Checkout timer
-          const CheckoutTimerWidget(),
-
           // Order summary
           _buildOrderSummary(),
           
