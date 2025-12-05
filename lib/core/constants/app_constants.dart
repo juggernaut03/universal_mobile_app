@@ -4,10 +4,11 @@ class ApiConstants {
   static const String baseUrl = 'https://newtech.shalviadvision.com/api';
   
   // Project code to be sent with every API request
-  static const String projectCode = "RET5890";
+  static const String projectCode = "RET3163";
   
   // Google Maps API Configuration
-  static const String googleApiKey = 'AIzaSyAnFzm0egXHx7P7zBsOjC3NV01Wj3ZHgyo'; // Replace with your actual API key
+  //static const String googleApiKey = 'AIzaSyAnFzm0egXHx7P7zBsOjC3NV01Wj3ZHgyo'; // Replace with your actual API key
+  static const String googleApiKey = 'AIzaSyBAu4cNOm7_OJfwL8oX0PtL3BI8ma7MoOo'; // Replace with your actual API key
   static const int locationTimeout = 15; // Seconds to wait for location
   
   // API endpoints
