@@ -59,7 +59,7 @@ class SeasonalCategoryResponse {
 
   factory SeasonalCategoryResponse.fromJson(Map<String, dynamic> json) {
     return SeasonalCategoryResponse(
-      title: json['title'] ?? 'Popular Categories',
+      title: json['title'] ?? '',  // Use empty string fallback - title should only come from API
       categoryBgColor: json['category_bg_color'] ?? '#FFFFFF',
       categories: (json['categories_details'] as List<dynamic>? ?? [])
           .map((item) => SeasonalCategory.fromJson(item))
@@ -267,8 +267,8 @@ class SeasonalCategoryWidget extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section header
-          if (showTitle) _buildSectionHeader(context, response.title),
+          // Only show title if showTitle is enabled AND title from API is not empty
+          if (showTitle && response.title.isNotEmpty) _buildSectionHeader(context, response.title),
           
           // Horizontal scrolling categories
           _buildHorizontalCategories(context, response.categories),

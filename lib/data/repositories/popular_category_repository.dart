@@ -67,7 +67,7 @@ class PopularCategoryRepository {
       } else {
         _logger.error('Invalid response format for popular categories: $response');
         categoryResponse = PopularCategoryResponse(
-          title: 'Popular Categories',
+          title: '',  // Empty title - let UI handle empty title display
           categoriesDetails: [],
         );
       }
@@ -98,7 +98,7 @@ class PopularCategoryRepository {
       
       // Return empty response if no cache available
       return PopularCategoryResponse(
-        title: 'Popular Categories',
+        title: '',  // Empty title - let UI handle empty title display
         categoriesDetails: [],
       );
     }
