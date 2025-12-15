@@ -644,8 +644,9 @@ class EnhancedPaymentFlow {
       );
       
       if (step3Success) {
-        // Clear cart after successful order
+        // Clear cart and checkout data cache after successful order
         await ref.read(cartProvider.notifier).clearCart();
+        await CheckoutData.clearFromPrefs();  // Clear cached checkout data including special notes
         logger.log('🎉 === COMPLETE PAYMENT FLOW SUCCESSFUL === 🎉');
         return true;
       } else {

@@ -3332,8 +3332,9 @@ Future<void> _placeOrder() async {
         // Stop checkout timer on successful order completion
         ref.read(checkoutTimerProvider.notifier).stopTimer();
 
-        // Clear cart and show success
+        // Clear cart, checkout data cache, and show success
         await ref.read(cartProvider.notifier).clearCart();
+        await CheckoutData.clearFromPrefs();  // Clear cached checkout data including special notes
         setState(() {
           _isPlacingOrder = false;
         });
@@ -3359,8 +3360,9 @@ Future<void> _placeOrder() async {
         // Stop checkout timer on successful order completion
         ref.read(checkoutTimerProvider.notifier).stopTimer();
 
-        // Clear cart and show success
+        // Clear cart, checkout data cache, and show success
         await ref.read(cartProvider.notifier).clearCart();
+        await CheckoutData.clearFromPrefs();  // Clear cached checkout data including special notes
         setState(() {
           _isPlacingOrder = false;
         });

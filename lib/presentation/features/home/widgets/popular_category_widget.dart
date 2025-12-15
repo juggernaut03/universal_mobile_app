@@ -33,7 +33,7 @@ class PopularCategoryWidget extends ConsumerStatefulWidget {
 }
 
 class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
-  bool _expanded = false;
+  bool _expanded = true;  // Expanded by default
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +57,8 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min, // Add this to prevent Column expansion
             children: [
-              if (widget.showTitle)
+              // Only show title if showTitle is enabled AND title from API is not empty
+              if (widget.showTitle && categoryResponse.title.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.only(
                     left: widget.padding.horizontal / 2,
