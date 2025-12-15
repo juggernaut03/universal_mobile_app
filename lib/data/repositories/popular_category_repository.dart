@@ -30,6 +30,7 @@ class PopularCategoryRepository {
     required int sectionId,
     required String departmentId,
     required String storeCode,
+    bool forceRefresh = false,  // When true, bypass cache and fetch from API
   }) async {
     try {
       // Check if cache should be cleared (2 AM daily)
@@ -38,16 +39,24 @@ class PopularCategoryRepository {
       final cacheKey = '${_categoryCacheKeyPrefix}${sectionId}_${departmentId}_$storeCode';
       
       final prefs = await SharedPreferences.getInstance();
-      final cachedData = prefs.getString(cacheKey);
-      final cachedTimestamp = prefs.getInt('${_timestampKeyPrefix}$cacheKey') ?? 0;
-      final currentTime = DateTime.now().millisecondsSinceEpoch;
       
-      // Check if cache is valid (not older than cache duration)
-      if (cachedData != null && (currentTime - cachedTimestamp < _cacheDurationHours * 3600000)) {
-        _logger.log('Using cached popular categories data for section $sectionId');
-        final Map<String, dynamic> decoded = jsonDecode(cachedData);
-        return PopularCategoryResponse.fromJson(decoded);
+      // Skip cache check if forceRefresh is true - always fetch from API
+      if (!forceRefresh) {
+        final cachedData = prefs.getString(cacheKey);
+        final cachedTimestamp = prefs.getInt('${_timestampKeyPrefix}$cacheKey') ?? 0;
+        final currentTime = DateTime.now().millisecondsSinceEpoch;
+        
+        // Check if cache is valid (not older than cache duration)
+        if (cachedData != null && (currentTime - cachedTimestamp < _cacheDurationHours * 3600000)) {
+          _logger.log('Using cached popular categories data for section $sectionId');
+          final Map<String, dynamic> decoded = jsonDecode(cachedData);
+          return PopularCategoryResponse.fromJson(decoded);
+        }
+      } else {
+        _logger.log('Force refresh enabled - bypassing cache for section $sectionId');
       }
+      
+      final currentTime = DateTime.now().millisecondsSinceEpoch;
 
       _logger.log('Fetching popular categories for section $sectionId from API');
       
