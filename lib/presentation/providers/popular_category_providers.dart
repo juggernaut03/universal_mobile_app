@@ -38,13 +38,12 @@ final popularCategoryProvider = FutureProvider.family<PopularCategoryResponse, i
   final outletAsync = ref.watch(selectedOutletProvider);
   final forceRefresh = ref.watch(refreshPopularCategoryProvider);
   
-  // If force refresh is true, clear cache before fetching
-  if (forceRefresh) {
-    await repository.clearCache();
-    // Reset the refresh flag after clearing cache
-    if (sectionId == 1) { // Only reset once to avoid multiple resets
+  // Reset the refresh flag after reading it (only once for section 1)
+  if (forceRefresh && sectionId == 1) {
+    // Use Future.microtask to avoid modifying state during build
+    Future.microtask(() {
       ref.read(refreshPopularCategoryProvider.notifier).state = false;
-    }
+    });
   }
   
   // Handle the AsyncValue properly
@@ -57,10 +56,12 @@ final popularCategoryProvider = FutureProvider.family<PopularCategoryResponse, i
       // Default to department ID 1 if not specified
       const defaultDepartmentId = "1";
       
+      // Pass forceRefresh to repository to bypass cache when refreshing
       return repository.getPopularCategories(
         sectionId: sectionId,
         departmentId: defaultDepartmentId,
         storeCode: outlet.storeCode,
+        forceRefresh: forceRefresh,  // This ensures API is hit on refresh
       );
     },
     loading: () => throw Exception('Loading outlet information...'),
