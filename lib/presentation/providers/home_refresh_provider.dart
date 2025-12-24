@@ -8,6 +8,7 @@ import 'package:patelmart/presentation/providers/popular_category_providers.dart
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 
 // Provider to track overall home screen refresh state
 final homeScreenRefreshStateProvider = StateProvider<bool>((ref) => false);
@@ -62,6 +63,13 @@ final unifiedHomeRefreshProvider = Provider<Future<void> Function()>((ref) {
       refreshOperations.add(
         _refreshSeasonalPicksUnified(ref as WidgetRef).catchError((e) {
           ref.read(loggerProvider).error('Seasonal picks refresh failed: $e');
+        })
+      );
+      
+      // 5. Seasonal Categories - using the provider refresh
+      refreshOperations.add(
+        ref.read(seasonalCategoryRefreshProvider)().catchError((e) {
+          ref.read(loggerProvider).error('Seasonal categories refresh failed: $e');
         })
       );
       

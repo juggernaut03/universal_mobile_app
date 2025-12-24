@@ -358,6 +358,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         })
       );
 
+      // 5. Seasonal Categories - using the provider refresh
+      refreshOperations.add(
+        ref.read(seasonalCategoryRefreshProvider)().catchError((e) {
+          ref.read(loggerProvider).error('Seasonal categories refresh failed: $e');
+        })
+      );
+
       // Wait for all refresh operations to complete
       await Future.wait(refreshOperations);
 
@@ -759,6 +766,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               showViewAll: false,
               spacing: 12,
               padding: EdgeInsets.symmetric(horizontal: 16),
+              enablePullToRefresh: false, // Disabled - using home screen's unified refresh
             ),
           ),
 
