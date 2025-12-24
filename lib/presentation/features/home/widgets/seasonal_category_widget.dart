@@ -140,8 +140,13 @@ final seasonalCategoryProvider = FutureProvider.family<SeasonalCategoryResponse,
 /// Provider for controlling pull-to-refresh functionality
 final seasonalCategoryRefreshProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    // Set the refresh flag to true which will trigger a fresh API call
+    // Set the refresh flag to true which will trigger cache bypass
     ref.read(refreshSeasonalCategoryProvider.notifier).state = true;
+    
+    // Invalidate the provider to force a refresh
+    // Note: We invalidate all possible providers by using a common pattern
+    // The provider will re-fetch with the fresh flag when watched again
+    ref.invalidate(seasonalCategoryProvider);
   };
 });
 
