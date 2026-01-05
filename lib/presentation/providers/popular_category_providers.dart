@@ -29,6 +29,7 @@ final popularCategoryRepositoryProvider = Provider<PopularCategoryRepository>((r
 final refreshPopularCategoryProvider = StateProvider<bool>((ref) => false);
 
 // Provider for popular categories with family parameter for different section IDs (1-5)
+// Provider for popular categories with family parameter for different section IDs (1-5)
 final popularCategoryProvider = FutureProvider.family<PopularCategoryResponse, int>((ref, sectionId) async {
   if (sectionId < 1 || sectionId > 5) {
     throw Exception('Section ID must be between 1 and 5');
@@ -36,15 +37,8 @@ final popularCategoryProvider = FutureProvider.family<PopularCategoryResponse, i
   
   final repository = ref.watch(popularCategoryRepositoryProvider);
   final outletAsync = ref.watch(selectedOutletProvider);
-  final forceRefresh = ref.watch(refreshPopularCategoryProvider);
-  
-  // Reset the refresh flag after reading it (only once for section 1)
-  if (forceRefresh && sectionId == 1) {
-    // Use Future.microtask to avoid modifying state during build
-    Future.microtask(() {
-      ref.read(refreshPopularCategoryProvider.notifier).state = false;
-    });
-  }
+  // Use read instead of watch to avoid double-rebuild when we reset the flag
+  final forceRefresh = ref.read(refreshPopularCategoryProvider);
   
   // Handle the AsyncValue properly
   return outletAsync.when(
@@ -72,10 +66,15 @@ final popularCategoryProvider = FutureProvider.family<PopularCategoryResponse, i
 // Provider for refreshing all popular category data
 final popularCategoryRefreshProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    // Set the refresh flag to true to trigger cache clearing
+    // 1. Clear the SharedPreferences cache FIRST to ensure fresh data
+    final repository = ref.read(popularCategoryRepositoryProvider);
+    await repository.clearCache();
+    
+    // 2. Set the refresh flag to true to bypass any remaining cache
     ref.read(refreshPopularCategoryProvider.notifier).state = true;
     
-    // Refresh all the popular category providers
+    // 3. Refresh all the popular category providers
+    // This will trigger a re-fetch because ref.refresh forces invalidation
     await Future.wait([
       ref.refresh(popularCategoryProvider(1).future),
       ref.refresh(popularCategoryProvider(2).future),
@@ -83,5 +82,8 @@ final popularCategoryRefreshProvider = Provider<Future<void> Function()>((ref) {
       ref.refresh(popularCategoryProvider(4).future),
       ref.refresh(popularCategoryProvider(5).future),
     ]);
+
+    // 4. Reset the refresh flag
+    ref.read(refreshPopularCategoryProvider.notifier).state = false;
   };
 });

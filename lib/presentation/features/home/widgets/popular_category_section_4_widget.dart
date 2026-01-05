@@ -6,10 +6,11 @@ import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/core/widgets/cached_network_image_widget.dart';
 import 'package:patelmart/core/widgets/error_widgets.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
-import 'package:patelmart/presentation/providers/popular_category_providers.dart';
+import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
 
-class PopularCategoryWidget extends ConsumerStatefulWidget {
-  final int sectionId;
+class PopularCategorySection4Widget extends ConsumerStatefulWidget {
+  final int sectionId = 4;
+  
   final bool showTitle;
   final bool showViewAll;
   final double itemWidth;
@@ -18,9 +19,8 @@ class PopularCategoryWidget extends ConsumerStatefulWidget {
   final String? titleOverride;
   final double spacing;
 
-  const PopularCategoryWidget({
+  const PopularCategorySection4Widget({
     Key? key,
-    required this.sectionId,
     this.titleOverride,
     this.showTitle = true,
     this.showViewAll = true,
@@ -31,15 +31,16 @@ class PopularCategoryWidget extends ConsumerStatefulWidget {
   }) : super(key: key);
 
   @override
-  ConsumerState<PopularCategoryWidget> createState() => _PopularCategoryWidgetState();
+  ConsumerState<PopularCategorySection4Widget> createState() => _PopularCategorySection4WidgetState();
 }
 
-class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
-  bool _expanded = true;  // Expanded by default
+class _PopularCategorySection4WidgetState extends ConsumerState<PopularCategorySection4Widget> {
+  bool _expanded = true;
 
   @override
   Widget build(BuildContext context) {
-    final categoriesAsync = ref.watch(popularCategoryProvider(widget.sectionId));
+    // Use dedicated Section 4 provider for complete isolation
+    final categoriesAsync = ref.watch(popularCategorySection4Provider);
     final logger = ref.read(loggerProvider);
 
     return categoriesAsync.when(
@@ -53,16 +54,14 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
             ? categories
             : categories.length > 6 ? categories.sublist(0, 6) : categories;
         
-        // Use override if provided, otherwise use API title
         final displayTitle = widget.titleOverride ?? categoryResponse.title;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min, // Add this to prevent Column expansion
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Only show title if showTitle is enabled AND title is not empty
               if (widget.showTitle && displayTitle.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.only(
@@ -111,7 +110,7 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
         child: AppErrorWidget(
           errorType: ErrorType.generic,
           message: 'Error loading categories: $error',
-          onRetry: () => ref.refresh(popularCategoryProvider(widget.sectionId)),
+          onRetry: () => ref.refresh(popularCategorySection4Provider),
         ),
       ),
     );
@@ -136,11 +135,8 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
   }
 
   Widget _buildExpandedGrid(BuildContext context, List<dynamic> categories) {
-    // Calculate the number of rows needed
     const int fixedColumns = 3;
     final int rowCount = (categories.length / fixedColumns).ceil();
-    
-    // Calculate the total grid height
     final double gridHeight = (widget.itemHeight + widget.spacing) * rowCount - widget.spacing;
     
     return Container(

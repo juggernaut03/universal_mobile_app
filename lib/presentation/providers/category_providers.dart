@@ -124,7 +124,7 @@ final allCategoriesProvider = FutureProvider<Map<String, List<CategoryModel>>>((
     loading: () => throw Exception('Loading outlet information...'),
     error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
   );
-});
+}); 
 
 // Provider for controlling pull-to-refresh functionality
 /// Loading state for category refresh - prevents shuffling during refresh
