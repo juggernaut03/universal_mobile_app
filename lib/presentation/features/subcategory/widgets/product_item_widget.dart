@@ -275,7 +275,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                   Row(
                     children: [
                       Text(
-                        "₹${widget.product.ourPrice.toStringAsFixed(0)}",
+                        "₹${widget.product.ourPrice.toStringAsFixed(widget.product.ourPrice.truncateToDouble() == widget.product.ourPrice ? 0 : 2)}",
                         style: const TextStyle(
                           fontSize: 16, // Reduced from 18
                           fontWeight: FontWeight.bold,
@@ -285,7 +285,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                       const SizedBox(width: 6), // Reduced from 8
                       
                       Text(
-                        "MRP₹${widget.product.productMrp.toStringAsFixed(0)}",
+                        "MRP₹${widget.product.productMrp.toStringAsFixed(widget.product.productMrp.truncateToDouble() == widget.product.productMrp ? 0 : 2)}",
                         style: TextStyle(
                           decoration: TextDecoration.lineThrough,
                           color: Colors.grey.shade600,

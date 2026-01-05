@@ -830,7 +830,7 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
                   child: Row(
                     children: [
                       Text(
-                        '₹${product.ourPrice.toStringAsFixed(0)}',
+                        '₹${product.ourPrice.toStringAsFixed(product.ourPrice.truncateToDouble() == product.ourPrice ? 0 : 2)}',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -840,7 +840,7 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
                       const SizedBox(width: 12),
                       if (product.productMrp > product.ourPrice) ...[
                         Text(
-                          '₹${product.productMrp.toStringAsFixed(0)}',
+                          '₹${product.productMrp.toStringAsFixed(product.productMrp.truncateToDouble() == product.productMrp ? 0 : 2)}',
                           style: TextStyle(
                             decoration: TextDecoration.lineThrough,
                             color: Colors.grey[600],
@@ -855,8 +855,8 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
                             color: Colors.orange,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            'Save ₹${discount.toStringAsFixed(0)}',
+						child: Text(
+                            'Save ₹${discount.toStringAsFixed(discount.truncateToDouble() == discount ? 0 : 2)}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

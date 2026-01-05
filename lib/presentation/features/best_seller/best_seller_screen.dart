@@ -335,7 +335,7 @@ class _BestSellerProductCard extends ConsumerWidget {
                   Row(
                     children: [
                       Text(
-                        "₹${product.ourPrice.toStringAsFixed(0)}",
+                        "₹${product.ourPrice.toStringAsFixed(product.ourPrice.truncateToDouble() == product.ourPrice ? 0 : 2)}",
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -345,7 +345,7 @@ class _BestSellerProductCard extends ConsumerWidget {
                       const SizedBox(width: 8),
                       
                       Text(
-                        "MRP₹${product.productMrp.toStringAsFixed(0)}",
+                        "MRP₹${product.productMrp.toStringAsFixed(product.productMrp.truncateToDouble() == product.productMrp ? 0 : 2)}",
                         style: TextStyle(
                           decoration: TextDecoration.lineThrough,
                           color: Colors.grey.shade600,
