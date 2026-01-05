@@ -777,7 +777,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               departmentId: 2, // Your department ID
               itemWidth: 100,
               itemHeight: 100,
-              showTitle: true, // Now shows title from API (list_1)
+              showTitle: false, // User requested to hide title for "list one"
               showViewAll: false,
               spacing: 12,
               padding: EdgeInsets.symmetric(horizontal: 16),
