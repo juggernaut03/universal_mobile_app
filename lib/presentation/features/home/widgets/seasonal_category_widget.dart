@@ -118,6 +118,9 @@ Color hexToColor(String hexString) {
 /// State provider to control force refresh
 final refreshSeasonalCategoryProvider = StateProvider<bool>((ref) => false);
 
+/// Loading state provider for seasonal categories - prevents shuffling during refresh
+final seasonalCategoryLoadingProvider = StateProvider<bool>((ref) => false);
+
 /// Riverpod provider for seasonal categories with refresh capability
 final seasonalCategoryProvider = FutureProvider.family<SeasonalCategoryResponse, SeasonalCategoryParams>((ref, params) async {
   final forceRefresh = ref.watch(refreshSeasonalCategoryProvider);
@@ -138,15 +141,23 @@ final seasonalCategoryProvider = FutureProvider.family<SeasonalCategoryResponse,
 });
 
 /// Provider for controlling pull-to-refresh functionality
+/// Implements the "clear state before fetch" pattern to prevent shuffling
 final seasonalCategoryRefreshProvider = Provider<Future<void> Function()>((ref) {
   return () async {
+    // 1. Set loading state FIRST to show loader immediately (prevents shuffling)
+    ref.read(seasonalCategoryLoadingProvider.notifier).state = true;
+    
     // Set the refresh flag to true which will trigger cache bypass
     ref.read(refreshSeasonalCategoryProvider.notifier).state = true;
     
     // Invalidate the provider to force a refresh
-    // Note: We invalidate all possible providers by using a common pattern
-    // The provider will re-fetch with the fresh flag when watched again
     ref.invalidate(seasonalCategoryProvider);
+    
+    // Wait a brief moment to ensure invalidation takes effect
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    // 2. Reset loading state after refresh completes
+    ref.read(seasonalCategoryLoadingProvider.notifier).state = false;
   };
 });
 
@@ -199,6 +210,14 @@ class SeasonalCategoryWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Check loading state first - prevents shuffling during refresh
+    final isLoading = ref.watch(seasonalCategoryLoadingProvider);
+    
+    // Show loading immediately if refreshing (prevents showing stale data)
+    if (isLoading) {
+      return _buildLoadingState();
+    }
+    
     // Get the current outlet to determine store code
     final outletAsync = ref.watch(selectedOutletProvider);
     
@@ -440,6 +459,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   Widget _buildCategoryName(SeasonalCategory category) {
     return Text(
       category.categoryName,
+      key: ValueKey('seasonal_cat_name_${category.id}'), // Prevents widget recycling issues
       style: AppTextStyles.bodySmall.copyWith(
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
