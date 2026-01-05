@@ -22,6 +22,7 @@ import '../../../data/models/outlet_model.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/home_refresh_provider.dart';
 // POPUP IMPORTS
 import '../../providers/popup_providers.dart';
 // APP LIFECYCLE HANDLER
@@ -293,6 +294,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       // Add haptic feedback
       HapticFeedback.lightImpact();
       
+      // Clear/invalidate all cached data BEFORE starting the refresh
+      // This ensures old data isn't shown during the refresh
+      ref.read(homeScreenRefreshStateProvider.notifier).state = true;
+      
       // Show loading indicator with descriptive message
       if (mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
@@ -416,6 +421,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       // Log successful refresh
       ref.read(loggerProvider).log('Home screen refresh completed successfully');
+      
+      // Reset loading state
+      ref.read(homeScreenRefreshStateProvider.notifier).state = false;
 
     } catch (e) {
       // Add error haptic feedback
@@ -463,6 +471,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       
       // Log the error with details
       ref.read(loggerProvider).error('Home screen refresh failed with error: $e');
+      
+      // Reset loading state on error
+      ref.read(homeScreenRefreshStateProvider.notifier).state = false;
     }
   }
 

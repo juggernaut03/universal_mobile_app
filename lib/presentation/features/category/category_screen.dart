@@ -53,6 +53,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   
   @override
   Widget build(BuildContext context) {
+    // Check loading state first - prevents shuffling during refresh
+    final isRefreshingProvider = ref.watch(categoryRefreshLoadingProvider);
     final departmentsAsync = ref.watch(departmentsProvider);
     final allCategoriesAsync = ref.watch(allCategoriesProvider);
     final logger = ref.read(loggerProvider);
@@ -82,7 +84,10 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _handleRefresh,
-                    child: departmentsAsync.when(
+                    // Show shimmer loading immediately when refreshing (prevents shuffling)
+                    child: isRefreshingProvider
+                        ? _buildShimmerLoading(context)
+                        : departmentsAsync.when(
                       data: (departments) {
                         return allCategoriesAsync.when(
                           data: (categoriesByDepartment) {
@@ -399,6 +404,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   
 Widget _buildCategoryCard(CategoryModel category) {
   return Card(
+    key: ValueKey('category_${category.categoryId}'), // Prevents widget recycling issues
     elevation: 2,
     color: Colors.white, // ✅ Explicitly set white background to match departments
     shape: RoundedRectangleBorder(

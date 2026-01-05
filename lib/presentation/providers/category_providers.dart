@@ -127,13 +127,26 @@ final allCategoriesProvider = FutureProvider<Map<String, List<CategoryModel>>>((
 });
 
 // Provider for controlling pull-to-refresh functionality
+/// Loading state for category refresh - prevents shuffling during refresh
+final categoryRefreshLoadingProvider = StateProvider<bool>((ref) => false);
+
+/// Provider for controlling pull-to-refresh functionality
+/// Implements the "clear state before fetch" pattern to prevent shuffling
 final categoryRefreshProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    // Set the refresh flag to true
-    ref.read(refreshCategoriesProvider.notifier).state = true;
-    // Refresh the departments provider which will trigger a cache clear
-    await ref.refresh(departmentsProvider.future);
-    // Refresh the all categories provider
-    await ref.refresh(allCategoriesProvider.future);
+    // 1. Set loading state to show shimmer immediately (prevents shuffling)
+    ref.read(categoryRefreshLoadingProvider.notifier).state = true;
+    
+    try {
+      // Set the refresh flag to true
+      ref.read(refreshCategoriesProvider.notifier).state = true;
+      // Refresh the departments provider which will trigger a cache clear
+      final _ = await ref.refresh(departmentsProvider.future);
+      // Refresh the all categories provider
+      final __ = await ref.refresh(allCategoriesProvider.future);
+    } finally {
+      // 2. Reset loading state after completion
+      ref.read(categoryRefreshLoadingProvider.notifier).state = false;
+    }
   };
 });
