@@ -1146,7 +1146,7 @@ class _ReorderProductItemWidgetState extends ConsumerState<_ReorderProductItemWi
                   Row(
                     children: [
                       Text(
-                        "₹${widget.reorderItem.product.ourPrice.toStringAsFixed(0)}",
+                        "₹${widget.reorderItem.product.ourPrice.toStringAsFixed(widget.reorderItem.product.ourPrice.truncateToDouble() == widget.reorderItem.product.ourPrice ? 0 : 2)}",
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1154,7 +1154,7 @@ class _ReorderProductItemWidgetState extends ConsumerState<_ReorderProductItemWi
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        "MRP₹${widget.reorderItem.product.productMrp.toStringAsFixed(0)}",
+                        "MRP₹${widget.reorderItem.product.productMrp.toStringAsFixed(widget.reorderItem.product.productMrp.truncateToDouble() == widget.reorderItem.product.productMrp ? 0 : 2)}",
                         style: TextStyle(
                           decoration: TextDecoration.lineThrough,
                           color: Colors.grey.shade600,

@@ -154,7 +154,7 @@ class SuggestedProductCard extends ConsumerWidget {
                     Row(
                       children: [
                         Text(
-                          '₹${product.ourPrice.toStringAsFixed(0)}',
+                          '₹${product.ourPrice.toStringAsFixed(product.ourPrice.truncateToDouble() == product.ourPrice ? 0 : 2)}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
@@ -164,7 +164,7 @@ class SuggestedProductCard extends ConsumerWidget {
                         if (hasDiscount) ...[
                           const SizedBox(width: 6),
                           Text(
-                            '₹${product.productMrp.toStringAsFixed(0)}',
+                            '₹${product.productMrp.toStringAsFixed(product.productMrp.truncateToDouble() == product.productMrp ? 0 : 2)}',
                             style: TextStyle(
                               decoration: TextDecoration.lineThrough,
                               color: Colors.grey[500],

@@ -327,7 +327,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '₹${(item.product.ourPrice * item.quantity).toStringAsFixed(2)}',
+                            '₹${(item.product.ourPrice * item.quantity).toStringAsFixed((item.product.ourPrice * item.quantity).truncateToDouble() == (item.product.ourPrice * item.quantity) ? 0 : 2)}',
                             style: AppTextStyles.bodyMedium.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
