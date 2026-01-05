@@ -11,7 +11,7 @@ class PopularCategoryResponse {
 
   factory PopularCategoryResponse.fromJson(Map<String, dynamic> json) {
     return PopularCategoryResponse(
-      title: json['title'] ?? '',
+      title: (json['title'] as String?)?.replaceAll('Cateogory', 'Category') ?? '',
       categoriesDetails: (json['categories_details'] as List?)
           ?.map((item) => PopularCategoryItem.fromJson(item))
           .toList() ?? [],

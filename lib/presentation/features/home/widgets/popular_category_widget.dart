@@ -15,11 +15,13 @@ class PopularCategoryWidget extends ConsumerStatefulWidget {
   final double itemWidth;
   final double itemHeight;
   final EdgeInsetsGeometry padding;
+  final String? titleOverride;
   final double spacing;
 
   const PopularCategoryWidget({
     Key? key,
     required this.sectionId,
+    this.titleOverride,
     this.showTitle = true,
     this.showViewAll = true,
     this.itemWidth = 110,
@@ -50,6 +52,9 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
         final displayCategories = _expanded
             ? categories
             : categories.length > 6 ? categories.sublist(0, 6) : categories;
+        
+        // Use override if provided, otherwise use API title
+        final displayTitle = widget.titleOverride ?? categoryResponse.title;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -57,8 +62,8 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min, // Add this to prevent Column expansion
             children: [
-              // Only show title if showTitle is enabled AND title from API is not empty
-              if (widget.showTitle && categoryResponse.title.isNotEmpty)
+              // Only show title if showTitle is enabled AND title is not empty
+              if (widget.showTitle && displayTitle.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.only(
                     left: widget.padding.horizontal / 2,
@@ -69,7 +74,7 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        categoryResponse.title,
+                        displayTitle,
                         style: AppTextStyles.h6.copyWith(
                           fontWeight: FontWeight.bold,
                         ),

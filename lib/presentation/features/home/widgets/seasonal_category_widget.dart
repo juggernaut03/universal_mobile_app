@@ -147,16 +147,16 @@ final seasonalCategoryRefreshProvider = Provider<Future<void> Function()>((ref) 
     // 1. Set loading state FIRST to show loader immediately (prevents shuffling)
     ref.read(seasonalCategoryLoadingProvider.notifier).state = true;
     
-    // Set the refresh flag to true which will trigger cache bypass
+    // 2. Set the refresh flag to true which will trigger fresh API call
     ref.read(refreshSeasonalCategoryProvider.notifier).state = true;
     
-    // Invalidate the provider to force a refresh
+    // 3. Invalidate the provider to clear cached data
     ref.invalidate(seasonalCategoryProvider);
     
-    // Wait a brief moment to ensure invalidation takes effect
-    await Future.delayed(const Duration(milliseconds: 100));
+    // 4. Wait a moment for the invalidation to take effect
+    await Future.delayed(const Duration(milliseconds: 200));
     
-    // 2. Reset loading state after refresh completes
+    // 5. Reset loading state after refresh completes
     ref.read(seasonalCategoryLoadingProvider.notifier).state = false;
   };
 });
@@ -191,6 +191,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   final bool showTitle;
   final bool showViewAll;
   final EdgeInsets padding;
+  final String? titleOverride;
   final double spacing;
   final bool enablePullToRefresh;
   final double imageHeight;
@@ -201,6 +202,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     this.itemWidth = 120,
     this.itemHeight = 120,
     this.showTitle = true,
+    this.titleOverride,
     this.showViewAll = true,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
     this.spacing = 12,
@@ -281,6 +283,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     }
 
     final backgroundColor = hexToColor(response.categoryBgColor);
+    final displayTitle = titleOverride ?? response.title;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -291,8 +294,8 @@ class SeasonalCategoryWidget extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Only show title if showTitle is enabled AND title from API is not empty
-          if (showTitle && response.title.isNotEmpty) _buildSectionHeader(context, response.title),
+          // Only show title if showTitle is enabled AND title is not empty
+          if (showTitle && displayTitle.isNotEmpty) _buildSectionHeader(context, displayTitle),
           
           // Horizontal scrolling categories
           _buildHorizontalCategories(context, response.categories),

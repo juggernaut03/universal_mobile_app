@@ -9,13 +9,17 @@ import 'package:patelmart/core/widgets/header_widget.dart';
 import 'package:patelmart/core/widgets/search_widget.dart';
 import 'package:patelmart/presentation/features/cart/widgets/persistent_cart_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/home_popup_widget.dart';
-import 'package:patelmart/presentation/features/home/widgets/popular_category_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/popular_category_section_2_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/popular_category_section_3_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/popular_category_section_4_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/popular_category_section_5_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/promotional_banner_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_providers.dart';
+import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/outlet_model.dart';
@@ -342,9 +346,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         })
       );
 
-      // 2. Popular Categories (1-5) - using existing provider
+      // 2. Popular Categories (2-5) - using NEW isolated providers for complete separation
       refreshOperations.add(
-        ref.read(popularCategoryRefreshProvider)().catchError((e) {
+        ref.read(allSectionsRefreshProvider)().catchError((e) {
           ref.read(loggerProvider).error('Popular categories refresh failed: $e');
         })
       );
@@ -773,7 +777,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               departmentId: 2, // Your department ID
               itemWidth: 100,
               itemHeight: 100,
-              showTitle: false,
+              showTitle: true, // Now shows title from API (list_1)
               showViewAll: false,
               spacing: 12,
               padding: EdgeInsets.symmetric(horizontal: 16),
@@ -822,20 +826,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
 
           // Popular Category sections
-          ...List.generate(4, (index) {
-            return RepaintBoundary(
-              key: ValueKey('popular_category_repaint_${index + 2}'),
-              child: PopularCategoryWidget(
-                sectionId: index + 2,
-                showTitle: true,
-                showViewAll: true,
-                itemWidth: 110,
-                itemHeight: 120,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                spacing: 12,
-              ),
-            );
-          }),
+          // Popular Category Section 2 (Title overridden internally)
+          const RepaintBoundary(
+            key: ValueKey('popular_category_section_2'),
+            child: PopularCategorySection2Widget(
+              showTitle: true,
+              showViewAll: true,
+              itemWidth: 110,
+              itemHeight: 120,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              spacing: 12,
+            ),
+          ),
+
+          // Popular Category Section 3
+          const RepaintBoundary(
+            key: ValueKey('popular_category_section_3'),
+            child: PopularCategorySection3Widget(
+              showTitle: true,
+              showViewAll: true,
+              itemWidth: 110,
+              itemHeight: 120,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              spacing: 12,
+            ),
+          ),
+
+          // Popular Category Section 4
+          const RepaintBoundary(
+            key: ValueKey('popular_category_section_4'),
+            child: PopularCategorySection4Widget(
+              showTitle: true,
+              showViewAll: true,
+              itemWidth: 110,
+              itemHeight: 120,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              spacing: 12,
+            ),
+          ),
+
+          // Popular Category Section 5
+          const RepaintBoundary(
+            key: ValueKey('popular_category_section_5'),
+            child: PopularCategorySection5Widget(
+              showTitle: true,
+              showViewAll: true,
+              itemWidth: 110,
+              itemHeight: 120,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              spacing: 12,
+            ),
+          ),
 
           // Bottom spacing
           const SizedBox(height: 60),
@@ -895,11 +936,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   ref.watch(bestSellerBannerProvider(3)).isLoading ||
                                   ref.watch(bestSellerBannerProvider(4)).isLoading;
         
-        final popularCategoryLoading = ref.watch(popularCategoryProvider(1)).isLoading ||
-                                       ref.watch(popularCategoryProvider(2)).isLoading ||
-                                       ref.watch(popularCategoryProvider(3)).isLoading ||
-                                       ref.watch(popularCategoryProvider(4)).isLoading ||
-                                       ref.watch(popularCategoryProvider(5)).isLoading;
+        // Use isolated section providers for loading state
+        final popularCategoryLoading = ref.watch(popularCategorySection2Provider).isLoading ||
+                                       ref.watch(popularCategorySection3Provider).isLoading ||
+                                       ref.watch(popularCategorySection4Provider).isLoading ||
+                                       ref.watch(popularCategorySection5Provider).isLoading;
         
         final promotionalBannerLoading = ref.watch(promotionalBannersProvider).isLoading;
         
