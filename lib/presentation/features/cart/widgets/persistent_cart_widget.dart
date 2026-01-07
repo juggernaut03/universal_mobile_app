@@ -98,14 +98,14 @@ class PersistentCartWidget extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '₹${cartTotal.toStringAsFixed(0)} Cart Total',
+                        '₹${cartTotal.toStringAsFixed(cartTotal.truncateToDouble() == cartTotal ? 0 : 2)} Cart Total',
                         style: AppTextStyles.labelLarge.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        '${cartItems.length} Item(s) • ₹${cartSavings.toStringAsFixed(0)} Saved',
+                        '${cartItems.length} Item(s) • ₹${cartSavings.toStringAsFixed(cartSavings.truncateToDouble() == cartSavings ? 0 : 2)} Saved',
                         style: AppTextStyles.labelSmall.copyWith(
                           color: Colors.white.withOpacity(0.8),
                         ),

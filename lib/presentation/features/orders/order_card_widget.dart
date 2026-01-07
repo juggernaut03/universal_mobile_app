@@ -202,7 +202,7 @@ class OrderCardWidget extends ConsumerWidget {
                           Row(
                             children: [
                               Text(
-                                '₹${order.totalAmount.toStringAsFixed(0)}',
+                                '₹${order.totalAmount.toStringAsFixed(order.totalAmount.truncateToDouble() == order.totalAmount ? 0 : 2)}',
                                 style: const TextStyle(
                                   color: Colors.black87,
                                   fontWeight: FontWeight.w700,
@@ -279,7 +279,7 @@ class OrderCardWidget extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            '₹${correctSavings.toStringAsFixed(0)}',
+                            '₹${correctSavings.toStringAsFixed(correctSavings.truncateToDouble() == correctSavings ? 0 : 2)}',
                             style: TextStyle(
                               color: AppColors.primary,
                               fontSize: 16,

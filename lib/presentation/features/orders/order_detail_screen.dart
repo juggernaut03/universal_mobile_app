@@ -124,8 +124,8 @@ class OrderDetailScreen extends ConsumerWidget {
                         fullDateFormatter.format(displayDate)
                       ),
                       const SizedBox(height: 12),
-                      
-                      _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(0)}'),
+
+                      _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(order.totalAmount.truncateToDouble() == order.totalAmount ? 0 : 2)}'),
                       const SizedBox(height: 12),
                       _buildInfoRow('Payment Mode:', order.paymentMethod),
                       const SizedBox(height: 12),
@@ -448,9 +448,9 @@ class OrderDetailScreen extends ConsumerWidget {
         children: [
           _buildInfoRow('Payment Mode:', order.paymentMethod),
           const SizedBox(height: 12),
-          _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(0)}'),
+          _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(order.totalAmount.truncateToDouble() == order.totalAmount ? 0 : 2)}'),
           const SizedBox(height: 12),
-          _buildInfoRow('Cart Total:', '₹${cartTotal.toStringAsFixed(0)}'),
+          _buildInfoRow('Cart Total:', '₹${cartTotal.toStringAsFixed(cartTotal.truncateToDouble() == cartTotal ? 0 : 2)}'),
           const SizedBox(height: 12),
           
           // Delivery Charges
@@ -488,7 +488,7 @@ class OrderDetailScreen extends ConsumerWidget {
                       ),
                     const SizedBox(width: 6),
                     Text(
-                      delivery > 0 ? '₹${delivery.toStringAsFixed(0)}' : '₹49',
+                      delivery > 0 ? '₹${delivery.toStringAsFixed(delivery.truncateToDouble() == delivery ? 0 : 2)}' : '₹49',
                       style: TextStyle(
                         color: delivery > 0 ? Colors.black : Colors.grey,
                         fontSize: 13,
@@ -530,7 +530,7 @@ class OrderDetailScreen extends ConsumerWidget {
                   ),
                   const Spacer(),
                   Text(
-                    '₹${savings.toStringAsFixed(0)}',
+                    '₹${savings.toStringAsFixed(savings.truncateToDouble() == savings ? 0 : 2)}',
                     style: TextStyle(
                       color: Colors.amber[700],
                       fontWeight: FontWeight.bold,
@@ -647,7 +647,7 @@ Widget _buildItemsList(Order order) {
                       Row(
                         children: [
                           Text(
-                            '₹${(sellingPrice * item.quantity).toStringAsFixed(0)}',
+                            '₹${(sellingPrice * item.quantity).toStringAsFixed((sellingPrice * item.quantity).truncateToDouble() == (sellingPrice * item.quantity) ? 0 : 2)}',
                             style: const TextStyle(
                               color: Colors.black87,
                               fontSize: 13,
@@ -657,7 +657,7 @@ Widget _buildItemsList(Order order) {
                           if (savings > 0) ...[
                             const SizedBox(width: 8),
                             Text(
-                              '₹${(mrp * item.quantity).toStringAsFixed(0)}',
+                              '₹${(mrp * item.quantity).toStringAsFixed((mrp * item.quantity).truncateToDouble() == (mrp * item.quantity) ? 0 : 2)}',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 11,
