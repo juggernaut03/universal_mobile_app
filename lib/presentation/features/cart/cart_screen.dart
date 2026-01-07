@@ -169,7 +169,7 @@ class CartScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'You have ${cartCount} item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(0)})',
+                        'You have ${cartCount} item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(cartTotal.truncateToDouble() == cartTotal ? 0 : 2)})',
                       ),
                       duration: const Duration(seconds: 2),
                       backgroundColor: AppColors.primary,
@@ -241,7 +241,7 @@ class CartScreen extends ConsumerWidget {
       return '${(total / 1000).toStringAsFixed(total % 1000 == 0 ? 0 : 1)}K';
     } else {
       // Show full amount for values < 1000
-      return total.toStringAsFixed(0);
+      return total.toStringAsFixed(total.truncateToDouble() == total ? 0 : 2);
     }
   }
 
@@ -256,14 +256,14 @@ class CartScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Savings ₹${savings.toStringAsFixed(0)}',
+                'Savings ₹${savings.toStringAsFixed(savings.truncateToDouble() == savings ? 0 : 2)}',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: Colors.green,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Text(
-                'Cart Total ₹${total.toStringAsFixed(0)}',
+                'Cart Total ₹${total.toStringAsFixed(total.truncateToDouble() == total ? 0 : 2)}',
                 style: AppTextStyles.bodyLarge.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -517,7 +517,7 @@ class CartScreen extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                'Add items worth ₹${(minimumOrderValue - cartTotal).toStringAsFixed(0)} more to place order',
+                'Add items worth ₹${(minimumOrderValue - cartTotal).toStringAsFixed((minimumOrderValue - cartTotal).truncateToDouble() == (minimumOrderValue - cartTotal) ? 0 : 2)} more to place order',
                 style: AppTextStyles.bodySmall.copyWith(
                   color: Colors.red,
                   fontWeight: FontWeight.w500,
@@ -963,7 +963,7 @@ class CartScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Your cart value is under ₹${minimumOrderValue.toStringAsFixed(0)}. Please add more items to proceed with checkout.',
+                'Your cart value is under ₹${minimumOrderValue.toStringAsFixed(minimumOrderValue.truncateToDouble() == minimumOrderValue ? 0 : 2)}. Please add more items to proceed with checkout.',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),

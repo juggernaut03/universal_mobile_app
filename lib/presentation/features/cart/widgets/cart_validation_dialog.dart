@@ -92,9 +92,9 @@ class CartValidationDialog extends StatelessWidget {
               // 1. Price changes
               if (result.priceChangedItems.isNotEmpty)
                 _buildIssueList(
-                  "Price changes detected:", 
-                  result.priceChangedItems.map((item) => 
-                    "${item.product.productName}: ₹${item.oldPrice.toStringAsFixed(0)} → ₹${item.newPrice.toStringAsFixed(0)}"
+                  "Price changes detected:",
+                  result.priceChangedItems.map((item) =>
+                    "${item.product.productName}: ₹${item.oldPrice.toStringAsFixed(item.oldPrice.truncateToDouble() == item.oldPrice ? 0 : 2)} → ₹${item.newPrice.toStringAsFixed(item.newPrice.truncateToDouble() == item.newPrice ? 0 : 2)}"
                   ).toList()
                 ),
                 

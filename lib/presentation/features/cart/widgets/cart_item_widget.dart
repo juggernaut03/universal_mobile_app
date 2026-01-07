@@ -120,16 +120,16 @@ class CartItemWidget extends StatelessWidget {
                           children: [
                             // You pay
                             Text(
-                              'You Pay ₹${totalPrice.toStringAsFixed(0)}',
+                              'You Pay ₹${totalPrice.toStringAsFixed(totalPrice.truncateToDouble() == totalPrice ? 0 : 2)}',
                               style: AppTextStyles.bodyMedium.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            
+
                             // You save
                             if (savings > 0)
                               Text(
-                                'You Save ₹${savings.toStringAsFixed(0)}',
+                                'You Save ₹${savings.toStringAsFixed(savings.truncateToDouble() == savings ? 0 : 2)}',
                                 style: AppTextStyles.bodySmall.copyWith(
                                   color: Colors.green,
                                   fontWeight: FontWeight.w500,
