@@ -2854,7 +2854,29 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
       _showErrorSnackBar('Please select a delivery address');
       return false;
     }
-    
+
+    // Validate address fields for home delivery (critical for online payment)
+    if (widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery &&
+        widget.checkoutData.selectedAddress != null) {
+      final address = widget.checkoutData.selectedAddress!;
+
+      // Check that address has required fields for payment
+      if (address.mobileNumber.isEmpty || address.mobileNumber.trim().isEmpty) {
+        _showErrorSnackBar('Address is missing mobile number. Please select a different address or update this one.');
+        return false;
+      }
+
+      if (address.emailId.isEmpty || address.emailId.trim().isEmpty) {
+        _showErrorSnackBar('Address is missing email address. Please select a different address or update this one.');
+        return false;
+      }
+
+      if (address.fullName.isEmpty || address.fullName.trim().isEmpty) {
+        _showErrorSnackBar('Address is missing recipient name. Please select a different address or update this one.');
+        return false;
+      }
+    }
+
     // Check if we have delivery date and time slot (for home delivery)
     if (widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery) {
       if (widget.checkoutData.deliveryDate == null) {
@@ -3026,18 +3048,39 @@ Future<void> _placeOrder() async {
     
     // Prepare delivery address
     Address deliveryAddress;
-    
+
     if (widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery) {
       deliveryAddress = widget.checkoutData.selectedAddress!;
+
+      // CRITICAL: Ensure address has valid payment fields for Razorpay
+      if (deliveryAddress.mobileNumber.isEmpty ||
+          deliveryAddress.emailId.isEmpty ||
+          deliveryAddress.fullName.isEmpty) {
+        _showErrorSnackBar('Address details incomplete. Cannot process payment. Please select or update your address.');
+        setState(() {
+          _isPlacingOrder = false;
+        });
+        return;
+      }
     } else {
       // For self pickup, create address from outlet info
+      // Ensure mobile number has a valid value
+      final mobileForPayment = userProfile?.mobile?.isNotEmpty == true
+          ? userProfile!.mobile
+          : '9999999999'; // Fallback mobile for payment
+
+      // Generate valid email from mobile or use default
+      final emailForPayment = userProfile?.mobile?.isNotEmpty == true
+          ? '${userProfile!.mobile}@customer.patelrmart.com'
+          : 'orders@patelrmart.com';
+
       deliveryAddress = Address(
         id: 'pickup_address',
         fullName: widget.checkoutData.pickupName?.trim().isNotEmpty == true
             ? widget.checkoutData.pickupName!
             : (userProfile?.mobile ?? 'Customer'),
-        mobileNumber: userProfile?.mobile ?? '',
-        emailId: userProfile?.mobile ?? '',
+        mobileNumber: mobileForPayment,
+        emailId: emailForPayment,
         deliveryAddrLine1: selectedOutlet.name,
         deliveryAddrLine2: selectedOutlet.address,
         deliveryAddrCity: 'Store Location',
