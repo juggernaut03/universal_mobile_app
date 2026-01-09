@@ -475,6 +475,17 @@ class PaymentService {
       print('🚀 === CHECKOUT OPENING === 🚀\n');
       
       // STEP 2: Create the payment options with the created order ID
+      // Validate and prepare customer data for Razorpay
+      final validatedPhone = (customerPhone?.isNotEmpty == true)
+          ? customerPhone
+          : '9999999999'; // Fallback phone for payment gateway
+      final validatedEmail = (customerEmail?.isNotEmpty == true)
+          ? customerEmail
+          : 'orders@patelrmart.com';
+      final validatedName = (customerName.isNotEmpty)
+          ? customerName
+          : 'Customer';
+
       final options = {
         'key': keyId,
         'amount': razorpayOrder['amount'], // Use amount from created order
@@ -483,9 +494,9 @@ class PaymentService {
         'description': description,
         'order_id': razorpayOrder['id'], // CRITICAL: Use the created order ID
         'prefill': {
-          'name': customerName,
-          'email': customerEmail ?? 'orders@patelrmart.com',
-          'contact': customerPhone ?? '',
+          'name': validatedName,
+          'email': validatedEmail,
+          'contact': validatedPhone,
         },
         'external': {
           'wallets': ['paytm']
