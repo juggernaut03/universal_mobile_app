@@ -2866,10 +2866,7 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
         return false;
       }
 
-      if (address.emailId.isEmpty || address.emailId.trim().isEmpty) {
-        _showErrorSnackBar('Address is missing email address. Please select a different address or update this one.');
-        return false;
-      }
+
 
       if (address.fullName.isEmpty || address.fullName.trim().isEmpty) {
         _showErrorSnackBar('Address is missing recipient name. Please select a different address or update this one.');
@@ -3054,7 +3051,6 @@ Future<void> _placeOrder() async {
 
       // CRITICAL: Ensure address has valid payment fields for Razorpay
       if (deliveryAddress.mobileNumber.isEmpty ||
-          deliveryAddress.emailId.isEmpty ||
           deliveryAddress.fullName.isEmpty) {
         _showErrorSnackBar('Address details incomplete. Cannot process payment. Please select or update your address.');
         setState(() {
