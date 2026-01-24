@@ -47,6 +47,7 @@ class ApiConstants {
   static const String confirmOrderEndpoint = '/confirm_order';
   static const String paymentProcessingEndpoint = '/order_payment_processing';
   static const String deliverySlotsEndpoint = '/get_delivery_slots';
+  static const String deliveryDatesEndpoint = '/get_delivery_dates';
   static const String paymentMethodsEndpoint = '/get_payment_methods';
   static const Map<String, String> defaultHeaders = {
     'Content-Type': 'application/json',

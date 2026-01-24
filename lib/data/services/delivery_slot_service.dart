@@ -124,6 +124,50 @@ class DeliverySlotService {
     }
   }
 
+  /// Get available delivery dates for a specific store
+  /// Returns list of date strings in dd/MM/yyyy format
+  Future<List<String>> fetchDeliveryDates({
+    required String storeCode,
+  }) async {
+    try {
+      _logger.log('Fetching delivery dates for store: $storeCode');
+      
+      final response = await _client.post(
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.deliveryDatesEndpoint}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'store_code': storeCode,
+          'project_code': ApiConstants.projectCode,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      
+      _logger.log('Delivery dates API response status: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final List<String> dates = data
+            .map((item) {
+              // Parse the delivery_slot_from field from each object
+              if (item is Map<String, dynamic> && item.containsKey('delivery_slot_from')) {
+                return item['delivery_slot_from'] as String;
+              }
+              return null;
+            })
+            .whereType<String>()
+            .toList();
+        
+        _logger.log('Retrieved ${dates.length} delivery dates');
+        return dates;
+      } else {
+        _logger.error('Failed to fetch delivery dates: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to load delivery dates');
+      }
+    } catch (e) {
+      _logger.error('Error fetching delivery dates: $e');
+      rethrow;
+    }
+  }
+
   String _formatOrderDate(DateTime date) {
     final y = date.year.toString().padLeft(4, '0');
     final m = date.month.toString().padLeft(2, '0');

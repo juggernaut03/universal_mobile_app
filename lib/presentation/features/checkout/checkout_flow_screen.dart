@@ -2131,24 +2131,18 @@ class DeliveryTimeStep extends ConsumerStatefulWidget {
 class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
   DateTime? _selectedDate;
   DeliverySlot? _selectedSlot;
-  late List<DateTime> _availableDates;
+  List<DateTime> _availableDates = [];
   Map<String, List<DeliverySlot>> _timeSlots = {};
   bool _isLoadingSlots = false;
+  bool _isLoadingDates = true;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = widget.checkoutData.deliveryDate;
-    _initializeAvailableDates();
     
-    // If we have a date but no time slot, or neither, initialize them
-    if (_selectedDate == null) {
-      _selectedDate = _availableDates.first;
-      widget.checkoutData.deliveryDate = _selectedDate;
-    }
-    
-    // Load delivery slots from API
-    _loadDeliverySlots();
+    // Load data asynchronously
+    _loadData();
     
     // Ensure delivery charges are calculated on initial load
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2161,8 +2155,66 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     });
   }
 
+  Future<void> _loadData() async {
+    // Load available dates first
+    await _loadAvailableDates();
+    
+    // Then load delivery slots
+    await _loadDeliverySlots();
+  }
+
+  Future<void> _loadAvailableDates() async {
+    setState(() {
+      _isLoadingDates = true;
+    });
+
+    try {
+      // Fetch delivery dates from API
+      final dateStrings = await ref.read(deliveryDatesProvider.future);
+      
+      // Parse dd/MM/yyyy format to DateTime
+      final parsedDates = <DateTime>[];
+      for (final dateStr in dateStrings) {
+        try {
+          final parts = dateStr.split('/');
+          if (parts.length == 3) {
+            final day = int.parse(parts[0]);
+            final month = int.parse(parts[1]);
+            final year = int.parse(parts[2]);
+            parsedDates.add(DateTime(year, month, day));
+          }
+        } catch (e) {
+          ref.read(loggerProvider).error('Error parsing date $dateStr: $e');
+        }
+      }
+      
+      if (parsedDates.isNotEmpty) {
+        _availableDates = parsedDates;
+        ref.read(loggerProvider).log('Loaded ${_availableDates.length} delivery dates from API');
+      } else {
+        // Fallback to local generation if no dates returned
+        _initializeAvailableDates();
+        ref.read(loggerProvider).log('Using fallback dates (API returned no dates)');
+      }
+    } catch (e) {
+      ref.read(loggerProvider).error('Error loading delivery dates from API: $e');
+      // Fallback to local generation on error
+      _initializeAvailableDates();
+    }
+    
+    // If we don't have a selected date yet, select the first available one
+    if (_selectedDate == null && _availableDates.isNotEmpty) {
+      _selectedDate = _availableDates.first;
+      widget.checkoutData.deliveryDate = _selectedDate;
+    }
+    
+    setState(() {
+      _isLoadingDates = false;
+    });
+  }
+
   void _initializeAvailableDates() {
-    // Generate dates for the next 3 days
+    // Generate dates for the next 3 days (fallback)
     final now = DateTime.now();
     _availableDates = List.generate(3, (index) {
       return DateTime(now.year, now.month, now.day + index);
@@ -2318,42 +2370,59 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
         Container(
           height: 48,
           margin: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _availableDates.length,
-            itemBuilder: (context, index) {
-              final date = _availableDates[index];
-              final isSelected = _selectedDate?.day == date.day && 
-                                _selectedDate?.month == date.month &&
-                                _selectedDate?.year == date.year;
-              
-              return Padding(
-                padding: EdgeInsets.only(right: index < _availableDates.length - 1 ? 12.0 : 0),
-                child: InkWell(
-                  onTap: () => _selectDate(date),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : Colors.transparent,
-                      border: Border.all(
-                        color: isSelected ? AppColors.primary : Colors.grey[300]!,
+          child: _isLoadingDates
+            ? ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: 3,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: EdgeInsets.only(right: index < 2 ? 12.0 : 0),
+                    child: Container(
+                      width: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      borderRadius: BorderRadius.circular(24),
                     ),
-                    child: Center(
-                      child: Text(
-                        _formatDateDisplay(date),
-                        style: AppTextStyles.bodyMedium.copyWith(
-                          color: isSelected ? Colors.white : AppColors.textPrimary,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  );
+                },
+              )
+            : ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _availableDates.length,
+                itemBuilder: (context, index) {
+                  final date = _availableDates[index];
+                  final isSelected = _selectedDate?.day == date.day && 
+                                    _selectedDate?.month == date.month &&
+                                    _selectedDate?.year == date.year;
+                  
+                  return Padding(
+                    padding: EdgeInsets.only(right: index < _availableDates.length - 1 ? 12.0 : 0),
+                    child: InkWell(
+                      onTap: () => _selectDate(date),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primary : Colors.transparent,
+                          border: Border.all(
+                            color: isSelected ? AppColors.primary : Colors.grey[300]!,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Center(
+                          child: Text(
+                            _formatDateDisplay(date),
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: isSelected ? Colors.white : AppColors.textPrimary,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
+                  );
+                },
+              ),
         ),
         
         const SizedBox(height: 24),
@@ -2382,7 +2451,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                 final isCalculating = deliveryChargesState.isLoading;
                 
                 return ElevatedButton(
-                  onPressed: (_selectedSlot == null || isCalculating || _isLoadingSlots) 
+                  onPressed: (_selectedSlot == null || isCalculating || _isLoadingSlots || _isLoadingDates) 
                     ? null 
                     : widget.onContinue,
                   style: ElevatedButton.styleFrom(
@@ -2393,7 +2462,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: (isCalculating || _isLoadingSlots)
+                  child: (isCalculating || _isLoadingSlots || _isLoadingDates)
                     ? const SizedBox(
                         width: 24,
                         height: 24,
