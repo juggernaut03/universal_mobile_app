@@ -312,6 +312,49 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     _logger.log('Applied validation changes to cart');
   }
   
+  // Apply validation result auto-updates
+  void applyValidationResult(CartValidationResult result) {
+    if (!result.hasChanges) return;
+    
+    // 1. Handle Removed Items
+    for (final removed in result.removedItems) {
+      removeItem(removed.product);
+    }
+    
+    // 2. Handle Price Changes
+    for (final changed in result.priceChangedItems) {
+      final index = state.indexWhere((item) => item.product.pCode == changed.product.pCode);
+      if (index >= 0) {
+        final existingItem = state[index];
+        final updatedItems = [...state];
+        updatedItems[index] = existingItem.copyWith(
+          product: existingItem.product.copyWith(ourPrice: changed.newPrice),
+        );
+        state = updatedItems;
+      }
+    }
+    
+    // 3. Handle Quantity Changes
+    for (final changed in result.quantityChangedItems) {
+      final index = state.indexWhere((item) => item.product.pCode == changed.product.pCode);
+       if (index >= 0) {
+          if (changed.newQuantity > 0) {
+               final existingItem = state[index];
+               final updatedItems = [...state];
+               updatedItems[index] = existingItem.copyWith(
+                  quantity: changed.newQuantity
+               );
+               state = updatedItems;
+          } else {
+              removeItem(changed.product);
+          }
+       }
+    }
+    
+    _saveCart();
+    _logger.log('Applied auto-updates from validation result');
+  }
+  
   // Get the expiration time of the cart session in days
   int get sessionExpirationDays => _cartStorage.sessionExpirationDays;
   
