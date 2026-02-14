@@ -23,7 +23,7 @@ class CartValidator {
   static const String _customerMobilePrefKey = 'customer_mobile'; // Added to store customer mobile
   
   static const String _saveCartUrl = '${ApiConstants.baseUrl}/save_cart';
-  static const String _validateCartUrl = '${ApiConstants.baseUrl}/validate_cart';
+  static const String _validateCartUrl = '${ApiConstants.baseUrl}/validate_cart_test';
   
   // Instance variables to maintain consistency between operations
   String? _currentCartKey;
@@ -370,6 +370,17 @@ Map<String, String> generateUniqueOrderIdentifiers() {
         'cart_items': apiItems,
       };
       
+      // Print request body for Postman testing
+      try {
+        const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+        final String prettyJson = encoder.convert(requestBody);
+        print('\n🔄 ================= VALIDATE CART REQUEST BODY ================= 🔄');
+        print(prettyJson);
+        print('🔄 ============================================================== 🔄\n');
+      } catch (e) {
+        print('Error printing request body: $e');
+      }
+
       _logger.log('Validating cart with ${apiItems.length} items, cart key: $customerCartKey, temp_order_id: $tempOrderId');
       
       final response = await _client.post(
@@ -414,6 +425,48 @@ Map<String, String> generateUniqueOrderIdentifiers() {
             if (cartItemIndex >= 0) {
               final cartItem = cartItems[cartItemIndex];
               final validation = validatedItem['validation_txt'];
+              final action = validatedItem['action'];
+              final actionType = validatedItem['action_type'];
+              
+              bool handled = false;
+              
+              // NEW LOGIC FOR ACTION FIELDS
+              if (action != null && actionType != null) {
+                 // Case 1: Insufficient Stock
+                 if (actionType == 'insufficient_stock') {
+                    // Try to parse quantity
+                    final match = RegExp(r'Only (\d+) items').firstMatch(validation.toString());
+                    if (match != null) {
+                        final availableQty = int.parse(match.group(1)!);
+                         result.quantityChangedItems.add(QuantityChangedCartItem(
+                            product: cartItem.product,
+                            oldQuantity: cartItem.quantity,
+                            newQuantity: availableQty,
+                            reason: validation.toString(),
+                          ));
+                          handled = true;
+                    }
+                 }
+                 // Case 2: Price Change
+                 else if (actionType.toString().startsWith('price_changed')) {
+                    final matchPrice = RegExp(r'update_price\s+([\d\.]+)').firstMatch(action.toString());
+                    if (matchPrice != null) {
+                         final newPrice = double.tryParse(matchPrice.group(1)!) ?? 0.0;
+                         // Verify price actually changed
+                         if ((newPrice - cartItem.product.ourPrice).abs() > 0.01) {
+                            result.priceChangedItems.add(PriceChangedCartItem(
+                                product: cartItem.product,
+                                oldPrice: cartItem.product.ourPrice,
+                                newPrice: newPrice,
+                                quantity: cartItem.quantity,
+                            ));
+                         }
+                         handled = true;
+                    }
+                 }
+              }
+              
+              if (handled) continue;
               
               // Check for validation text
               if (validation != null && validation.toString().isNotEmpty) {
@@ -438,12 +491,14 @@ Map<String, String> generateUniqueOrderIdentifiers() {
               // Check for price changes
               final validatedPrice = _toDouble(validatedItem['selling_price']);
               if ((validatedPrice - cartItem.product.ourPrice).abs() > 0.01) {
-                result.priceChangedItems.add(PriceChangedCartItem(
-                  product: cartItem.product,
-                  oldPrice: cartItem.product.ourPrice,
-                  newPrice: validatedPrice,
-                  quantity: cartItem.quantity,
-                ));
+                 if (!result.priceChangedItems.any((i) => i.product.pCode == pcode)) {
+                    result.priceChangedItems.add(PriceChangedCartItem(
+                      product: cartItem.product,
+                      oldPrice: cartItem.product.ourPrice,
+                      newPrice: validatedPrice,
+                      quantity: cartItem.quantity,
+                    ));
+                 }
               }
               
               // Check if quantity is 0 (out of stock)
@@ -586,6 +641,7 @@ class CartValidationResult {
   final String validationMessage;
   final List<RemovedCartItem> removedItems = [];
   final List<PriceChangedCartItem> priceChangedItems = [];
+  final List<QuantityChangedCartItem> quantityChangedItems = [];
   final List<CartItemWithIssue> itemsWithIssues = [];
   final Map<String, dynamic>? rawResponse;
   final bool isSaveError;
@@ -604,6 +660,7 @@ class CartValidationResult {
   bool get hasChanges => 
       removedItems.isNotEmpty || 
       priceChangedItems.isNotEmpty || 
+      quantityChangedItems.isNotEmpty ||
       itemsWithIssues.isNotEmpty ||
       forcedHasChanges ||
       genericValidationItem != null ||
@@ -660,5 +717,19 @@ class GenericValidationItem {
   GenericValidationItem({
     required this.product,
     required this.quantity,
+  });
+}
+
+class QuantityChangedCartItem {
+  final ProductModel product;
+  final int oldQuantity;
+  final int newQuantity;
+  final String reason;
+
+  QuantityChangedCartItem({
+    required this.product,
+    required this.oldQuantity,
+    required this.newQuantity,
+    required this.reason,
   });
 }

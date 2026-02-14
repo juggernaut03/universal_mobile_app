@@ -459,6 +459,7 @@ final validationRetryCountProvider = StateProvider<int>((ref) => 0);
 
 // Define a state class for cart validation
 class CartValidationStateNotifier extends StateNotifier<CartValidationState> {
+  final Ref _ref;
   final EnhancedCartValidator _enhancedCartValidator;
   final Logger _logger;
   CartValidationResult? _lastResult;
@@ -468,9 +469,11 @@ class CartValidationStateNotifier extends StateNotifier<CartValidationState> {
   static const int _maxRetries = 2;
 
   CartValidationStateNotifier({
+    required Ref ref,
     required EnhancedCartValidator enhancedCartValidator,
     required Logger logger,
   }) : 
+    _ref = ref,
     _enhancedCartValidator = enhancedCartValidator,
     _logger = logger,
     super(CartValidationState.initial);
@@ -512,6 +515,12 @@ class CartValidationStateNotifier extends StateNotifier<CartValidationState> {
       final result = await _enhancedCartValidator.processCartValidation(cartItems, storeCode);
       
       if (result != null) {
+        // Auto-update cart if needed
+        if (result.hasChanges) {
+           _logger.log('Auto-updating cart based on validation result');
+           _ref.read(cartProvider.notifier).applyValidationResult(result);
+        }
+
         _lastResult = result;
         state = CartValidationState.success;
         _logger.log('Cart validation successful: ${result.validationMessage}');
@@ -544,6 +553,7 @@ final cartValidationStateProvider = StateNotifierProvider<CartValidationStateNot
   final enhancedCartValidator = ref.watch(enhancedCartValidatorProvider);
   final logger = ref.watch(loggerProvider);
   return CartValidationStateNotifier(
+    ref: ref,
     enhancedCartValidator: enhancedCartValidator,
     logger: logger,
   );
