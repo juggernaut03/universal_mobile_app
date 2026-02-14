@@ -182,7 +182,11 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
       _isLoading = true;
     });
 
-    // Load saved checkout data if any
+    // Clear any cached checkout data from previous sessions to ensure fresh start
+    // This prevents special notes and other data from persisting across orders
+    await CheckoutData.clearFromPrefs();
+    
+    // Load fresh checkout data (will be empty after clearing)
     _checkoutData = await CheckoutData.loadFromPrefs();
 
     setState(() {
