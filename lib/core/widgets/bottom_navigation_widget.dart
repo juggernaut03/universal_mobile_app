@@ -15,11 +15,13 @@ class BottomNavigationWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // On some newer Android devices with gesture navigation, SafeArea might report 0 bottom padding 
+    // or the system gesture pill might overlap the UI. 
+    // We get the system bottom padding and ensure a minimum padding of 14 for safe interaction.
+    final double bottomPadding = MediaQuery.of(context).padding.bottom;
+    final double effectiveBottomPadding = bottomPadding > 0 ? bottomPadding : 14.0;
+
     return Container(
-      height: 60, // Fixed height
-      padding: EdgeInsets.only(
-        bottom: Platform.isIOS ? 15 : 0, // Additional 10px padding for iOS
-      ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -31,15 +33,21 @@ class BottomNavigationWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(0, Icons.home, 'Home'),
-          _buildNavItem(1, Icons.grid_view, 'Category'),
-          _buildOrderButton(2),
-          _buildNavItem(3, Icons.shopping_bag_outlined, 'Reorder'),
-          _buildNavItem(4, Icons.person_outline, 'Account'),
-        ],
+      // Apply the calculated padding at the bottom instead of relying on SafeArea,
+      // which can sometimes fail on specific Android OEM implementations
+      padding: EdgeInsets.only(bottom: effectiveBottomPadding),
+      child: Container(
+        height: 64, // Slightly increased from 60 for better touch targets
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(0, Icons.home, 'Home'),
+            _buildNavItem(1, Icons.grid_view, 'Category'),
+            _buildOrderButton(2),
+            _buildNavItem(3, Icons.shopping_bag_outlined, 'Reorder'),
+            _buildNavItem(4, Icons.person_outline, 'Account'),
+          ],
+        ),
       ),
     );
   }
