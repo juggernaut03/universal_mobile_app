@@ -18,6 +18,7 @@ import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
 import 'package:patelmart/presentation/features/orders/order_tracking_widget.dart';
+import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
@@ -791,7 +792,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       title: orderStatus.orderStatusTxt,
                       imageUrl: orderStatus.orderStatusImg,
                       onViewOrderTap: () {
-                        context.push('/orders');
+                        if (orderStatus.lastOrder != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OrderDetailScreen(
+                                order: orderStatus.lastOrder!,
+                              ),
+                            ),
+                          );
+                        } else {
+                          // Fallback to orders list if order details not available
+                          context.push('/my-orders');
+                        }
                       },
                     ),
                   );
