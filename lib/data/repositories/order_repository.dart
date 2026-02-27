@@ -303,12 +303,17 @@ class OrderRepository {
       };
       
       _logger.log('Fetching last order status');
+      print('=== [OrderTracking] Request URL: $uri');
+      print('=== [OrderTracking] Request Body: ${jsonEncode(requestBody)}');
       
       final response = await _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
       ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
+      
+      print('=== [OrderTracking] Response Status: ${response.statusCode}');
+      print('=== [OrderTracking] Response Body: ${response.body}');
       
       if (response.statusCode == 200) {
         final dynamic jsonData = jsonDecode(response.body);

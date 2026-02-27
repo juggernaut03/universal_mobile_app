@@ -1,14 +1,18 @@
+import 'order_model.dart';
+
 class LastOrderStatus {
   final String orderStatusTxt;
   final String actualOrderNo;
   final String orderStatusImg;
   final bool isVisible;
+  final Order? lastOrder; // parsed from last_order_details[0]
 
   LastOrderStatus({
     required this.orderStatusTxt,
     required this.actualOrderNo,
     required this.orderStatusImg,
     this.isVisible = false,
+    this.lastOrder,
   });
 
   factory LastOrderStatus.fromJson(Map<String, dynamic> json) {
@@ -23,11 +27,35 @@ class LastOrderStatus {
       }
     }
 
+    // actual_order_no can be int or String from the API
+    final actualOrderNoRaw = json['actual_order_no'];
+    final String actualOrderNo = actualOrderNoRaw != null
+        ? actualOrderNoRaw.toString()
+        : '';
+
+    // Parse first order from last_order_details if available
+    Order? lastOrder;
+    final lastOrderDetails = json['last_order_details'];
+    if (lastOrderDetails is List && lastOrderDetails.isNotEmpty) {
+      try {
+        final rawItem = lastOrderDetails[0];
+        if (rawItem is Map<String, dynamic>) {
+          lastOrder = Order.fromJson(rawItem);
+        } else if (rawItem is Map) {
+          final converted = Map<String, dynamic>.from(rawItem);
+          lastOrder = Order.fromJson(converted);
+        }
+      } catch (e) {
+        print('Error parsing last_order_details: $e');
+      }
+    }
+
     return LastOrderStatus(
       orderStatusTxt: json['order_status_txt'] as String? ?? '',
-      actualOrderNo: json['actual_order_no'] as String? ?? '',
+      actualOrderNo: actualOrderNo,
       orderStatusImg: json['order_status_img'] as String? ?? '',
       isVisible: visible,
+      lastOrder: lastOrder,
     );
   }
 
