@@ -6,6 +6,7 @@ import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../data/models/order_model.dart';
+import '../../../../data/models/last_order_status_model.dart';
 import '../../../../data/repositories/order_repository.dart';
 
 // Provider for the OrderRepository instance
@@ -72,6 +73,21 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async
 final orderDetailsProvider = FutureProvider.family<Order?, String>((ref, orderId) async {
   final repository = ref.watch(orderRepositoryProvider);
   return repository.getOrderDetails(orderId);
+});
+
+// Provider for the last order status to display in the tracking widget
+final lastOrderStatusProvider = FutureProvider.autoDispose<LastOrderStatus?>((ref) async {
+  final logger = ref.read(loggerProvider);
+  logger.log('Fetching last order status for tracking widget');
+  
+  try {
+    final repository = ref.watch(orderRepositoryProvider);
+    return await repository.getLastOrderStatus();
+  } catch (e, stacktrace) {
+    logger.error('Error in lastOrderStatusProvider: $e');
+    logger.error('Stack trace: $stacktrace');
+    return null;
+  }
 });
 
 // Provider to expose a reorder function

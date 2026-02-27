@@ -17,10 +17,12 @@ import 'package:patelmart/presentation/features/home/widgets/promotional_banner_
 import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
+import 'package:patelmart/presentation/features/orders/order_tracking_widget.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+import 'package:patelmart/presentation/providers/order_history_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/outlet_model.dart';
 import '../../providers/outlet_provider.dart';
@@ -770,6 +772,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         children: [
           // REDUCED SPACING: Smaller gap after search
           const SizedBox(height: 8), // Reduced from 16 to 8
+
+          // Order Tracking Widget Positioned AFTER Search Bar
+          Consumer(
+            builder: (context, ref, child) {
+              final lastOrderStatusAsync = ref.watch(lastOrderStatusProvider);
+              
+              return lastOrderStatusAsync.when(
+                data: (orderStatus) {
+                  if (orderStatus == null || !orderStatus.isVisible || orderStatus.orderStatusTxt.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: OrderTrackingWidget(
+                      orderId: orderStatus.actualOrderNo,
+                      title: orderStatus.orderStatusTxt,
+                      imageUrl: orderStatus.orderStatusImg,
+                      onViewOrderTap: () {
+                        context.push('/orders');
+                      },
+                    ),
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
 
           // Popular Categories - using RepaintBoundary for better performance
           RepaintBoundary(

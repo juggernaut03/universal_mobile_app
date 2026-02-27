@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 import '../models/order_model.dart';
+import '../models/last_order_status_model.dart';
 import '../repositories/auth_repository.dart';
 
 class OrderRepository {
@@ -279,6 +280,62 @@ class OrderRepository {
     } catch (e) {
       _logger.error('Error creating reorder: $e');
       return false;
+    }
+  }
+
+  // Get last order status
+  Future<LastOrderStatus?> getLastOrderStatus() async {
+    try {
+      final userProfile = await _authRepository.getUserProfile();
+      if (userProfile == null) {
+        _logger.log('User not logged in, cannot fetch last order status');
+        return null; // Requires login properly now
+      }
+
+      final uri = Uri.parse('${ApiConstants.baseUrl}/get_last_order_status');
+      final storeCode = await _getStoreCode();
+      
+      final requestBody = {
+        'access_key': userProfile.accessKey,
+        'mobile': userProfile.mobile,
+        'store_code': storeCode,
+        'project_code': ApiConstants.projectCode,
+      };
+      
+      _logger.log('Fetching last order status');
+      
+      final response = await _client.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: ApiConstants.apiTimeoutSeconds));
+      
+      if (response.statusCode == 200) {
+        final dynamic jsonData = jsonDecode(response.body);
+        
+        // API returns an array containing the object
+        if (jsonData is List && jsonData.isNotEmpty) {
+          final firstItem = jsonData[0];
+          if (firstItem is Map) {
+            final Map<String, dynamic> typedData = 
+              firstItem is Map<String, dynamic> ? firstItem : _convertMap(firstItem as Map<dynamic, dynamic>);
+            return LastOrderStatus.fromJson(typedData);
+          }
+        } else if (jsonData is Map) {
+          final Map<String, dynamic> typedData = 
+              jsonData is Map<String, dynamic> ? jsonData : _convertMap(jsonData as Map<dynamic, dynamic>);
+          return LastOrderStatus.fromJson(typedData);
+        }
+        
+        _logger.log('No recent order status found or unexpected format.');
+        return null;
+      } else {
+        _logger.error('Failed to fetch last order status: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      _logger.error('Error fetching last order status: $e');
+      return null;
     }
   }
 }
