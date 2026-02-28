@@ -23,7 +23,7 @@ class CartValidator {
   static const String _customerMobilePrefKey = 'customer_mobile'; // Added to store customer mobile
   
   static const String _saveCartUrl = '${ApiConstants.baseUrl}/save_cart';
-  static const String _validateCartUrl = '${ApiConstants.baseUrl}/validate_cart_test';
+  static const String _validateCartUrl = '${ApiConstants.baseUrl}/validate_cart';
   
   // Instance variables to maintain consistency between operations
   String? _currentCartKey;
