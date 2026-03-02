@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/outlet_provider.dart';
@@ -75,10 +76,10 @@ final storeDetailsProvider = FutureProvider<StoreDetails?>((ref) async {
     
     final apiClient = ref.read(apiClientProvider);
     final response = await apiClient.post(
-      'https://newtech.shalviadvision.com/api/get_store_details',
+      '${ApiConstants.baseUrl}/get_store_details',
       body: {
         'store_code': selectedOutlet.storeCode,
-        'project_code': 'RET5890',
+        'project_code': ApiConstants.projectCode,
       },
     );
 

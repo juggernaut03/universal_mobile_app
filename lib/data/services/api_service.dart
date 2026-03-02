@@ -31,13 +31,14 @@ class ApiService {
     }
   }
 
-  Future<List<PincodeModel>> getPincodeList() async {
+  Future<PincodeModel?> getPincodeList() async {
     try {
-      // Note: project_code is automatically added as query parameter by ApiClient.get()
-      final response = await _apiClient.get(ApiConstants.getPincodeList);
-      return (response as List)
-          .map((json) => PincodeModel.fromJson(json))
-          .toList();
+      // API returns an array with a single pincode object
+      // project_code is automatically added by ApiClient.post()
+      final response = await _apiClient.post(ApiConstants.getPincodeList);
+      final list = (response as List);
+      if (list.isEmpty) return null;
+      return PincodeModel.fromJson(list.first);
     } catch (e) {
       _logger.error('Error fetching pincode list: $e');
       rethrow;

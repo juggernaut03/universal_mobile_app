@@ -28,6 +28,7 @@ class OutletStatusService {
         Uri.parse(_checkOutletStatusUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
+          'project_code': ApiConstants.projectCode,
           'store_code': storeCode,
         }),
       ).timeout(const Duration(seconds: 15));

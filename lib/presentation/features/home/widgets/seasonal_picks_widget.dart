@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
+import '../../../../core/constants/app_constants.dart';
 
 /// A simple model for the seasonal banner data
 class SeasonalBanner {
@@ -46,8 +47,8 @@ class SeasonalCategory {
 
 /// Enhanced API service for fetching seasonal data with refresh capability
 class SeasonalApi {
-  final String baseUrl = 'https://newtech.shalviadvision.com/api';
-  final String projectCode = 'RET5890';
+  final String baseUrl = ApiConstants.baseUrl;
+  final String projectCode = ApiConstants.projectCode;
   final http.Client client;
 
   SeasonalApi({http.Client? client}) : client = client ?? http.Client();

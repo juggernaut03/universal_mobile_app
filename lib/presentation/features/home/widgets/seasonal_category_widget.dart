@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/constants/app_constants.dart';
 
 /// Model for seasonal category data
 class SeasonalCategory {
@@ -70,8 +71,8 @@ class SeasonalCategoryResponse {
 
 /// API service for fetching seasonal categories
 class SeasonalCategoryApi {
-  static const String baseUrl = 'https://newtech.shalviadvision.com/api';
-  static const String projectCode = 'RET5890';
+  static String get baseUrl => ApiConstants.baseUrl;
+  static String get projectCode => ApiConstants.projectCode;
   
   static Future<SeasonalCategoryResponse> fetchSeasonalCategories({
     required String storeCode,
