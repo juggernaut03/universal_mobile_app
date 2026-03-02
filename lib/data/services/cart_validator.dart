@@ -370,12 +370,17 @@ Map<String, String> generateUniqueOrderIdentifiers() {
         'cart_items': apiItems,
       };
       
-      // Print request body for Postman testing
+      // Print request body for Postman testing (chunked to avoid Android logcat truncation)
       try {
         const JsonEncoder encoder = JsonEncoder.withIndent('  ');
         final String prettyJson = encoder.convert(requestBody);
         print('\n🔄 ================= VALIDATE CART REQUEST BODY ================= 🔄');
-        print(prettyJson);
+        print('Total cart items: ${apiItems.length}');
+        // Split into 800-char chunks to avoid Android logcat line limit
+        const int chunkSize = 800;
+        for (int i = 0; i < prettyJson.length; i += chunkSize) {
+          print(prettyJson.substring(i, i + chunkSize > prettyJson.length ? prettyJson.length : i + chunkSize));
+        }
         print('🔄 ============================================================== 🔄\n');
       } catch (e) {
         print('Error printing request body: $e');

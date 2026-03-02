@@ -13,10 +13,11 @@ class ProductRepository {
   final Logger _logger;
   final DefaultCacheManager _cacheManager;
   
-  static const int _cacheDurationHours = 20; // Cache duration of 20 hours
+  static const int _cacheDurationHours = 2; // Cache duration of 2 hours
   static const String _productsKeyPrefix = 'products_cache_';
   static const String _timestampKeyPrefix = 'timestamp_';
   static const String _lastCacheClearKey = 'last_product_cache_clear_time';
+  static const String _sessionStartKey = 'product_cache_session_start';
 
   ProductRepository({
     http.Client? client,

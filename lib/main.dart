@@ -23,6 +23,8 @@ import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/favorites_provider.dart';
 // FACEBOOK PIXEL IMPORTS
 import 'facebook_pixel/facebook_pixel_integration.dart';
+// PRODUCT CACHE IMPORTS
+import 'presentation/providers/subcategory_providers.dart';
 
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -299,10 +301,13 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
       // STEP 1: Initialize popup system first (lighter)
       _initializePopupSystem();
       
-      // STEP 2: Initialize app launch flow
+      // STEP 2: Clear product cache so fresh prices are always fetched on startup
+      await _clearProductCacheOnStartup();
+      
+      // STEP 3: Initialize app launch flow
       await _initializeAppLaunchFlow();
       
-      // STEP 3: Initialize FCM token system
+      // STEP 4: Initialize FCM token system
       _initializeFcmTokenSystem();
       
       // Mark app as ready
@@ -534,6 +539,9 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
           }
         });
 
+        // Clear product cache on resume so updated prices are fetched
+        _clearProductCacheOnStartup();
+
         // Handle FCM token check on app resume
         _handleFcmTokenOnAppResume();
         
@@ -625,6 +633,20 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
       });
     } catch (e) {
       ref.read(loggerProvider).error('❌ Error in notification status check: $e');
+    }
+  }
+
+  /// Clear product price cache so fresh data is fetched from API
+  Future<void> _clearProductCacheOnStartup() async {
+    try {
+      final logger = ref.read(loggerProvider);
+      logger.log('🗑️ Clearing product cache for fresh price fetch...');
+      final productRepo = ref.read(productRepositoryProvider);
+      await productRepo.clearCache();
+      logger.log('✅ Product cache cleared — fresh prices will be fetched from API');
+    } catch (e) {
+      ref.read(loggerProvider).error('⚠️ Could not clear product cache: $e');
+      // Non-critical — app continues normally
     }
   }
 

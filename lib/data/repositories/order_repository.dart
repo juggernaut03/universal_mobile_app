@@ -64,6 +64,7 @@ class OrderRepository {
       
       // Updated request body to match the new API format
       final requestBody = {
+        "project_code": ApiConstants.projectCode,
         "access_key": userProfile.accessKey,
         "store_code": storeCode,
       };
