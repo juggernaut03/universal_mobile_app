@@ -34,8 +34,8 @@ class ApiService {
   Future<PincodeModel?> getPincodeList() async {
     try {
       // API returns an array with a single pincode object
-      // project_code is automatically added by ApiClient.post()
-      final response = await _apiClient.post(ApiConstants.getPincodeList);
+      // project_code is automatically added by ApiClient.get()
+      final response = await _apiClient.get(ApiConstants.getPincodeList);
       final list = (response as List);
       if (list.isEmpty) return null;
       return PincodeModel.fromJson(list.first);
@@ -47,10 +47,9 @@ class ApiService {
 
   Future<List<OutletModel>> getPincodewiseOutlet(String pincode) async {
     try {
-      final response = await _apiClient.post(
-        ApiConstants.getPincodewiseOutlet,
-        body: {'pincode': pincode},
-        // Note: project_code is automatically added by ApiClient.post()
+      // project_code is automatically added by ApiClient.get()
+      final response = await _apiClient.get(
+        '${ApiConstants.getPincodewiseOutlet}?pincode=$pincode',
       );
       return (response as List)
           .map((json) => OutletModel.fromJson(json))
