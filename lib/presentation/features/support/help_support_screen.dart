@@ -75,12 +75,8 @@ final storeDetailsProvider = FutureProvider<StoreDetails?>((ref) async {
     logger.log('Fetching store details for store code: ${selectedOutlet.storeCode}');
     
     final apiClient = ref.read(apiClientProvider);
-    final response = await apiClient.post(
-      '${ApiConstants.baseUrl}/get_store_details',
-      body: {
-        'store_code': selectedOutlet.storeCode,
-        'project_code': ApiConstants.projectCode,
-      },
+    final response = await apiClient.get(
+      '${ApiConstants.baseUrl}/get_store_details?store_code=${selectedOutlet.storeCode}',
     );
 
     if (response is List && response.isNotEmpty) {
