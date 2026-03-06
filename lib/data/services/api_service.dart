@@ -17,6 +17,8 @@ class ApiService {
   })  : _apiClient = apiClient,
         _logger = logger ?? Logger();
 
+  /// POST /check_if_pincode_exists
+  /// Body: { pincode, project_code }
   Future<PincodeCheckResponse> checkIfPincodeExists(String pincode) async {
     try {
       final response = await _apiClient.post(
@@ -31,25 +33,29 @@ class ApiService {
     }
   }
 
-  Future<PincodeModel?> getPincodeList() async {
+  /// GET /get_pincode_list
+  /// project_code is automatically sent as a query param by ApiClient.get()
+  Future<List<PincodeModel>> getPincodeList() async {
     try {
-      // API returns an array with a single pincode object
-      // project_code is automatically added by ApiClient.get()
-      final response = await _apiClient.get(ApiConstants.getPincodeList);
+      final response = await _apiClient.get(ApiConstants.getPincodeList, includeProjectCode: false);
       final list = (response as List);
-      if (list.isEmpty) return null;
-      return PincodeModel.fromJson(list.first);
+      return list.map((json) => PincodeModel.fromJson(json)).toList();
     } catch (e) {
       _logger.error('Error fetching pincode list: $e');
       rethrow;
     }
   }
 
+  /// POST /get_pincodewise_outlet
+  /// Body: { pincode, project_code }
   Future<List<OutletModel>> getPincodewiseOutlet(String pincode) async {
     try {
-      // project_code is automatically added by ApiClient.get()
-      final response = await _apiClient.get(
-        '${ApiConstants.getPincodewiseOutlet}?pincode=$pincode',
+      // Fixed: was incorrectly using GET with query params.
+      // Postman spec requires POST with { pincode, project_code } in body.
+      final response = await _apiClient.post(
+        ApiConstants.getPincodewiseOutlet,
+        body: {'pincode': pincode},
+        // project_code is automatically added by ApiClient.post()
       );
       return (response as List)
           .map((json) => OutletModel.fromJson(json))
@@ -60,6 +66,65 @@ class ApiService {
     }
   }
 
+  /// POST /get_store_details
+  /// Body: { store_code, project_code }
+  Future<Map<String, dynamic>?> getStoreDetails(String storeCode) async {
+    try {
+      final response = await _apiClient.post(
+        ApiConstants.getStoreDetails,
+        body: {'store_code': storeCode},
+        // project_code is automatically added by ApiClient.post()
+      );
+      if (response is List && response.isNotEmpty) {
+        return response.first as Map<String, dynamic>;
+      }
+      return response as Map<String, dynamic>?;
+    } catch (e) {
+      _logger.error('Error fetching store details: $e');
+      rethrow;
+    }
+  }
+
+  /// POST /get_active_department_list
+  /// Body: { store_code, project_code }
+  Future<List<dynamic>> getActiveDepartmentList(String storeCode) async {
+    try {
+      final response = await _apiClient.post(
+        ApiConstants.getActiveDepartmentList,
+        body: {'store_code': storeCode},
+        // project_code is automatically added by ApiClient.post()
+      );
+      return response as List;
+    } catch (e) {
+      _logger.error('Error fetching department list: $e');
+      rethrow;
+    }
+  }
+
+  /// POST /get_active_categories_list
+  /// Body: { department_id, store_code, project_code }
+  Future<List<dynamic>> getActiveCategoriesList({
+    required String departmentId,
+    required String storeCode,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiConstants.getActiveCategoriesList,
+        body: {
+          'department_id': departmentId,
+          'store_code': storeCode,
+        },
+        // project_code is automatically added by ApiClient.post()
+      );
+      return response as List;
+    } catch (e) {
+      _logger.error('Error fetching categories list: $e');
+      rethrow;
+    }
+  }
+
+  /// POST /get_offerscreen
+  /// Body: { store_code, project_code }
   Future<OfferModel> getOfferScreen(String storeCode) async {
     try {
       final response = await _apiClient.post(

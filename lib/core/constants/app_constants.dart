@@ -16,6 +16,7 @@ class ApiConstants {
   static const String getPincodeList = '$baseUrl/get_pincode_list';
   static const String getPincodewiseOutlet = '$baseUrl/get_pincodewise_outlet';
   static const String getOfferScreen = '$baseUrl/get_offerscreen';
+  static const String getStoreDetails = '$baseUrl/get_store_details';
   static const String getActiveDepartmentList = '$baseUrl/get_active_department_list';
   static const String getActiveCategoriesList = '$baseUrl/get_active_categories_list';
   // Storage keys

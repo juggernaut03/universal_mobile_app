@@ -65,13 +65,13 @@ final allPincodesProvider = FutureProvider<List<PincodeModel>>((ref) async {
   final logger = ref.watch(loggerProvider);
   
   try {
-    final pincode = await repository.getAllPincodes();
-    if (pincode == null) {
+    final pincodes = await repository.getAllPincodes();
+    if (pincodes.isEmpty) {
       logger.log('No pincodes retrieved');
       return [];
     }
-    logger.log('Retrieved pincode: ${pincode.pincode}');
-    return [pincode];
+    logger.log('Retrieved ${pincodes.length} pincodes');
+    return pincodes;
   } catch (e) {
     logger.error('Error getting all pincodes: $e');
     return [];
