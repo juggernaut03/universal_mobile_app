@@ -37,15 +37,14 @@ class ApiClient {
        _logger = logger ?? Logger(),
        _authManager = authManager;
 
-  Future<dynamic> get(String url) async {
+  Future<dynamic> get(String url, {bool includeProjectCode = true}) async {
     try {
-      // Add project code as a query parameter
-      final Uri uri = Uri.parse(url).replace(
-        queryParameters: {
-          'project_code': ApiConstants.projectCode,
-          ...Uri.parse(url).queryParameters,
-        },
-      );
+      // Optionally add project_code as a query parameter
+      final Map<String, String> queryParams = {
+        if (includeProjectCode) 'project_code': ApiConstants.projectCode,
+        ...Uri.parse(url).queryParameters,
+      };
+      final Uri uri = Uri.parse(url).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
       
       _logger.log('GET request to: $uri');
       

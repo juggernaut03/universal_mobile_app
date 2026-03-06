@@ -42,7 +42,7 @@ class LocationRepository {
     }
   }
 
-  Future<PincodeModel?> getAllPincodes() async {
+  Future<List<PincodeModel>> getAllPincodes() async {
     return await _apiService.getPincodeList();
   }
 
