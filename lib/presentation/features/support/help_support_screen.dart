@@ -74,17 +74,15 @@ final storeDetailsProvider = FutureProvider<StoreDetails?>((ref) async {
   try {
     logger.log('Fetching store details for store code: ${selectedOutlet.storeCode}');
     
-    final apiClient = ref.read(apiClientProvider);
-    final response = await apiClient.get(
-      '${ApiConstants.baseUrl}/get_store_details?store_code=${selectedOutlet.storeCode}',
-    );
+    final apiService = ref.read(apiServiceProvider);
+    final response = await apiService.getStoreDetails(selectedOutlet.storeCode);
 
-    if (response is List && response.isNotEmpty) {
-      final storeDetails = StoreDetails.fromJson(response[0]);
+    if (response != null && response.isNotEmpty) {
+      final storeDetails = StoreDetails.fromJson(response);
       logger.log('Store details fetched successfully: ${storeDetails.mobileOutletName}');
       return storeDetails;
     } else {
-      logger.error('Invalid response format for store details');
+      logger.error('Invalid or empty response format for store details');
       return null;
     }
   } catch (e) {
