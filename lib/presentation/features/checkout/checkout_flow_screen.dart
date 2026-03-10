@@ -3729,7 +3729,7 @@ void _showOrderSuccessDialog(String orderId) {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop(); // Close dialog
-              context.go('/my-orders'); // Navigate to orders page
+              context.go('/'); // Navigate to home
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
