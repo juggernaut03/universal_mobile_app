@@ -234,10 +234,23 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                       ),
                     ),
                   ),
+                // IPO badge
+                if (widget.product.ipoImg.isNotEmpty)
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Image.network(
+                      widget.product.ipoImg,
+                      width: 65,
+                      height: 65,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                    ),
+                  ),
               ],
             ),
           ),
-          
+
           // Right side: Product details (60% width)
           Expanded(
             child: Padding(
