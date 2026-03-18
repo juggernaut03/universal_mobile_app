@@ -177,7 +177,23 @@ class SuggestedProductCard extends ConsumerWidget {
                     ),
                     
                     const Spacer(),
-                    
+
+                    // IPO badge + Add to cart button
+                    if (product.ipoImg.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Image.network(
+                            product.ipoImg,
+                            width: 58,
+                            height: 58,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+
                     // Add to cart button or quantity selector with conditional rendering
                     outletStatusAsync.when(
                       data: (status) {

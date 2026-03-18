@@ -562,13 +562,30 @@ Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
         ),
         
         const Spacer(),
-        
-        // Add to cart button or quantity selector with manual input
+
+        // IPO badge + Add to cart button row
         Padding(
           padding: const EdgeInsets.all(8.0),
-          child: isInCart
-              ? _buildManualQuantitySelector(context, ref, product, quantity)
-              : _buildConditionalAddToCartButton(ref, product),
+          child: Row(
+            children: [
+              if (product.ipoImg.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Image.network(
+                    product.ipoImg,
+                    width: 58,
+                    height: 58,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  ),
+                ),
+              Expanded(
+                child: isInCart
+                    ? _buildManualQuantitySelector(context, ref, product, quantity)
+                    : _buildConditionalAddToCartButton(ref, product),
+              ),
+            ],
+          ),
         ),
       ],
     ),
