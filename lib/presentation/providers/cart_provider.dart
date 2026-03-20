@@ -762,3 +762,86 @@ final cartOrderPreparationProvider = FutureProvider<Map<String, String?>>((ref) 
   final cartNotifier = ref.watch(cartProvider.notifier);
   return await cartNotifier.prepareForNewOrder();
 });
+
+// ─── Offer Slab System ───
+
+class OfferSlab {
+  final double threshold;
+  final double discount;
+  const OfferSlab({required this.threshold, required this.discount});
+}
+
+const List<OfferSlab> kOfferSlabs = [
+  OfferSlab(threshold: 600, discount: 50),
+  OfferSlab(threshold: 1200, discount: 100),
+  OfferSlab(threshold: 1800, discount: 150),
+  OfferSlab(threshold: 2400, discount: 200),
+];
+
+class OfferSlabStatus {
+  final OfferSlab slab;
+  final bool unlocked;
+  final bool isNext;
+  final double progress;
+  final double remaining;
+  const OfferSlabStatus({
+    required this.slab,
+    required this.unlocked,
+    required this.isNext,
+    required this.progress,
+    required this.remaining,
+  });
+}
+
+// Next offer slab provider - used by persistent cart bar teaser
+final nextOfferSlabProvider = Provider<OfferSlabStatus?>((ref) {
+  final cartTotal = ref.watch(cartTotalProvider);
+  for (int i = 0; i < kOfferSlabs.length; i++) {
+    final slab = kOfferSlabs[i];
+    if (cartTotal < slab.threshold) {
+      final prevThreshold = i > 0 ? kOfferSlabs[i - 1].threshold : 0.0;
+      final range = slab.threshold - prevThreshold;
+      final progress = range > 0 ? ((cartTotal - prevThreshold) / range).clamp(0.0, 1.0) : 0.0;
+      final remaining = slab.threshold - cartTotal;
+      return OfferSlabStatus(
+        slab: slab,
+        unlocked: false,
+        isNext: true,
+        progress: progress,
+        remaining: remaining,
+      );
+    }
+  }
+  return null; // All slabs unlocked
+});
+
+// Full offer slabs status provider - used by offers bottom sheet
+final offerSlabsStatusProvider = Provider<List<OfferSlabStatus>>((ref) {
+  final cartTotal = ref.watch(cartTotalProvider);
+  bool foundNext = false;
+  return kOfferSlabs.asMap().entries.map((entry) {
+    final i = entry.key;
+    final slab = entry.value;
+    final unlocked = cartTotal >= slab.threshold;
+    final isNext = !unlocked && !foundNext;
+    if (isNext) foundNext = true;
+
+    final prevThreshold = i > 0 ? kOfferSlabs[i - 1].threshold : 0.0;
+    final range = slab.threshold - prevThreshold;
+    double progress = 0.0;
+    if (unlocked) {
+      progress = 1.0;
+    } else if (isNext && range > 0) {
+      progress = ((cartTotal - prevThreshold) / range).clamp(0.0, 1.0);
+    }
+    final remaining = unlocked ? 0.0 : slab.threshold - cartTotal;
+
+    return OfferSlabStatus(
+      slab: slab,
+      unlocked: unlocked,
+      isNext: isNext,
+      progress: progress,
+      remaining: remaining,
+    );
+  }).toList();
+});

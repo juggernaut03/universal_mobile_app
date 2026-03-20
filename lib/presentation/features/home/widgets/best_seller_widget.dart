@@ -27,7 +27,7 @@ class BestSellerWidget extends ConsumerWidget {
   const BestSellerWidget({
     Key? key,
     required this.bestSellerId,
-    this.height = 320,
+    this.height = 370,
     this.padding = const EdgeInsets.symmetric(vertical: 16),
   }) : super(key: key);
 
@@ -573,8 +573,8 @@ Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
                   padding: const EdgeInsets.only(right: 6),
                   child: Image.network(
                     product.ipoImg,
-                    width: 58,
-                    height: 58,
+                    width: 32,
+                    height: 32,
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                   ),
