@@ -17,6 +17,7 @@ import 'package:patelmart/presentation/features/home/widgets/promotional_banner_
 import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/steal_deals_widget.dart';
 import 'package:patelmart/presentation/features/orders/order_tracking_widget.dart';
 import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
@@ -842,6 +843,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 enableRefresh: true,
               ),
             ),
+          ),
+
+          // Steal Deals section - shows highest discount products
+          RepaintBoundary(
+            child: const StealDealsWidget(bestSellerId: 1),
           ),
 
           // Best Seller sections - optimized with RepaintBoundary and keys

@@ -178,24 +178,22 @@ class SuggestedProductCard extends ConsumerWidget {
                     
                     const Spacer(),
 
-                    // IPO badge + Add to cart button
-                    if (product.ipoImg.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Image.network(
-                            product.ipoImg,
-                            width: 58,
-                            height: 58,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                    // IPO badge + Add to cart button row
+                    Row(
+                      children: [
+                        if (product.ipoImg.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Image.network(
+                              product.ipoImg,
+                              width: 32,
+                              height: 32,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                            ),
                           ),
-                        ),
-                      ),
-
-                    // Add to cart button or quantity selector with conditional rendering
-                    outletStatusAsync.when(
+                        Expanded(
+                          child: outletStatusAsync.when(
                       data: (status) {
                         // If outlet status is unknown, show normal buttons (fail-safe)
                         if (status == null) {
@@ -220,6 +218,9 @@ class SuggestedProductCard extends ConsumerWidget {
                       error: (error, stackTrace) => isInCart
                           ? _buildQuantitySelector(context, ref, product, quantity, true)
                           : _buildAddToCartButton(ref, product, true),
+                    ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
