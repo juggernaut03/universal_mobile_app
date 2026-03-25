@@ -847,7 +847,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
           // Steal Deals section - shows highest discount products
           RepaintBoundary(
-            child: const StealDealsWidget(bestSellerId: 1),
+            child: const StealDealsWidget(),
           ),
 
           // Best Seller sections - optimized with RepaintBoundary and keys
