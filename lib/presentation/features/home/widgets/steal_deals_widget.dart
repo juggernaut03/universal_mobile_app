@@ -6,34 +6,20 @@ import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../data/models/product_model.dart';
 import '../../../providers/cart_provider.dart';
-import '../../../providers/best_seller_providers.dart';
+import '../../../providers/steal_deals_provider.dart';
 import '../../../providers/outlet_status_provider.dart';
 
 /// "Steal deals for you" widget — wide horizontal cards matching reference UI.
 class StealDealsWidget extends ConsumerWidget {
-  final int bestSellerId;
-
-  const StealDealsWidget({
-    Key? key,
-    this.bestSellerId = 1,
-  }) : super(key: key);
+  const StealDealsWidget({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final productsAsync = ref.watch(bestSellerProductsProvider(bestSellerId));
+    final offersAsync = ref.watch(stealDealsOffersProvider);
 
-    return productsAsync.when(
-      data: (products) {
-        final dealProducts = products.where((p) {
-          return p.productMrp > p.ourPrice && p.ourPrice > 0;
-        }).toList()
-          ..sort((a, b) {
-            final discountA = ((a.productMrp - a.ourPrice) / a.productMrp);
-            final discountB = ((b.productMrp - b.ourPrice) / b.productMrp);
-            return discountB.compareTo(discountA);
-          });
-
-        if (dealProducts.isEmpty) return const SizedBox.shrink();
+    return offersAsync.when(
+      data: (offers) {
+        if (offers.isEmpty) return const SizedBox.shrink();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,9 +38,9 @@ class StealDealsWidget extends ConsumerWidget {
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: dealProducts.length,
+                itemCount: offers.length,
                 itemBuilder: (context, index) {
-                  return _StealDealCard(product: dealProducts[index]);
+                  return _StealDealCard(offer: offers[index]);
                 },
               ),
             ),
@@ -68,9 +54,9 @@ class StealDealsWidget extends ConsumerWidget {
 }
 
 class _StealDealCard extends ConsumerWidget {
-  final ProductModel product;
+  final StealDealOffer offer;
 
-  const _StealDealCard({required this.product});
+  const _StealDealCard({required this.offer});
 
   String _formatPrice(double price) {
     return price.truncateToDouble() == price
@@ -80,6 +66,7 @@ class _StealDealCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final product = offer.product;
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth * 0.75;
 
@@ -89,6 +76,15 @@ class _StealDealCard extends ConsumerWidget {
     final bool isInCart = cartItem.isNotEmpty;
     final int quantity = isInCart ? cartItem.first.quantity : 0;
     final isCartEnabled = ref.watch(isCartEnabledProvider);
+
+    // Determine header based on offer visibility
+    final bool isUnlocked = offer.visible;
+    final String headerText =
+        isUnlocked ? 'Deal unlocked!' : offer.offerConditionText;
+    final Color headerColor =
+        isUnlocked ? AppColors.success : Colors.orange.shade700;
+    final IconData headerIcon =
+        isUnlocked ? Icons.check_circle_outline : Icons.lock_outline;
 
     return GestureDetector(
       onTap: () => context.push('/product/${product.pCode}'),
@@ -110,30 +106,34 @@ class _StealDealCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Green "Deal unlocked!" header ──
+            // ── Header ──
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: const BoxDecoration(
-                color: AppColors.success,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: headerColor,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.check_circle_outline,
+                  Icon(
+                    headerIcon,
                     color: Colors.white,
                     size: 18,
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    'Deal unlocked!',
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      headerText,
+                      style: AppTextStyles.labelLarge.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -155,14 +155,14 @@ class _StealDealCard extends ConsumerWidget {
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: _buildProductImage(cardWidth * 0.38),
+                            child: _buildProductImage(product, cardWidth * 0.38),
                           ),
                           Positioned(
                             bottom: -4,
                             right: -4,
                             child: isInCart
-                                ? _buildQuantityBadge(ref, quantity)
-                                : _buildAddButton(ref, isCartEnabled),
+                                ? _buildQuantityBadge(ref, product, quantity)
+                                : _buildAddButton(ref, product, isCartEnabled),
                           ),
                         ],
                       ),
@@ -170,7 +170,7 @@ class _StealDealCard extends ConsumerWidget {
 
                     const SizedBox(width: 12),
 
-                    // Right side — weight chip + product name
+                    // Right side — offer name + product name
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,9 +193,9 @@ class _StealDealCard extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          // Product name
+                          // Offer name
                           Text(
-                            product.productName,
+                            offer.offerName,
                             style: AppTextStyles.bodyLarge.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -258,7 +258,7 @@ class _StealDealCard extends ConsumerWidget {
 
   // ── Helpers ──
 
-  Widget _buildProductImage(double size) {
+  Widget _buildProductImage(ProductModel product, double size) {
     if (product.pcodeImg.isNotEmpty &&
         product.pcodeImg != 'null' &&
         product.pcodeImg.toLowerCase() != 'null') {
@@ -312,7 +312,7 @@ class _StealDealCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildAddButton(WidgetRef ref, bool isCartEnabled) {
+  Widget _buildAddButton(WidgetRef ref, ProductModel product, bool isCartEnabled) {
     return GestureDetector(
       onTap: isCartEnabled
           ? () => ref.read(cartProvider.notifier).addItem(product)
@@ -344,7 +344,7 @@ class _StealDealCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuantityBadge(WidgetRef ref, int quantity) {
+  Widget _buildQuantityBadge(WidgetRef ref, ProductModel product, int quantity) {
     return GestureDetector(
       onTap: () => ref.read(cartProvider.notifier).incrementQuantity(product),
       child: Container(

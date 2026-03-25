@@ -123,6 +123,36 @@ class ApiService {
     }
   }
 
+  /// POST /get_offer
+  /// Body: { temp_order_id, access_key, store_code, project_code, ipo_order_amount, cart_items }
+  Future<List<Map<String, dynamic>>> getOffer({
+    required String tempOrderId,
+    required String accessKey,
+    required String storeCode,
+    required double ipoOrderAmount,
+    required List<Map<String, dynamic>> cartItems,
+  }) async {
+    try {
+      final response = await _apiClient.post(
+        ApiConstants.getOffer,
+        body: {
+          'temp_order_id': tempOrderId,
+          'access_key': accessKey,
+          'store_code': storeCode,
+          'ipo_order_amount': ipoOrderAmount,
+          'cart_items': cartItems,
+        },
+      );
+      if (response is List) {
+        return response.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      _logger.error('Error fetching offers: $e');
+      rethrow;
+    }
+  }
+
   /// POST /get_offerscreen
   /// Body: { store_code, project_code }
   Future<OfferModel> getOfferScreen(String storeCode) async {
