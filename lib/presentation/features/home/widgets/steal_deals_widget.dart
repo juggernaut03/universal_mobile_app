@@ -17,38 +17,50 @@ class StealDealsWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final offersAsync = ref.watch(stealDealsOffersProvider);
 
-    return offersAsync.when(
-      data: (offers) {
-        if (offers.isEmpty) return const SizedBox.shrink();
+    // Use .when with skipLoadingOnRefresh to keep showing previous data
+    // while new data is being fetched
+    final offers = offersAsync.whenOrNull(data: (data) => data);
+    final previousOffers = offersAsync.valueOrNull;
+    final displayOffers = offers ?? previousOffers;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: Text(
-                'Steal deals for you',
-                style: AppTextStyles.h5.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+    if (displayOffers == null || displayOffers.isEmpty) {
+      // Only hide if we truly have no data (not just refreshing)
+      if (offersAsync.isLoading && previousOffers == null) {
+        return const SizedBox.shrink();
+      }
+      if (offersAsync.hasError && previousOffers == null) {
+        return const SizedBox.shrink();
+      }
+      if (displayOffers != null && displayOffers.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Text(
+            'Steal deals for you',
+            style: AppTextStyles.h5.copyWith(
+              fontWeight: FontWeight.w700,
             ),
-            SizedBox(
-              height: 230,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: offers.length,
-                itemBuilder: (context, index) {
-                  return _StealDealCard(offer: offers[index]);
-                },
-              ),
-            ),
-          ],
-        );
-      },
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+          ),
+        ),
+        SizedBox(
+          height: 230,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: displayOffers.length,
+            itemBuilder: (context, index) {
+              return _StealDealCard(offer: displayOffers[index]);
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -77,10 +89,9 @@ class _StealDealCard extends ConsumerWidget {
     final int quantity = isInCart ? cartItem.first.quantity : 0;
     final isCartEnabled = ref.watch(isCartEnabledProvider);
 
-    // Determine header based on offer visibility
+    // Determine header based on offer deal_status
     final bool isUnlocked = offer.visible;
-    final String headerText =
-        isUnlocked ? 'Deal unlocked!' : offer.offerConditionText;
+    final String headerText = offer.offerConditionText;
     final Color headerColor =
         isUnlocked ? AppColors.success : Colors.orange.shade700;
     final IconData headerIcon =
@@ -132,7 +143,7 @@ class _StealDealCard extends ConsumerWidget {
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -157,13 +168,14 @@ class _StealDealCard extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(8),
                             child: _buildProductImage(product, cardWidth * 0.38),
                           ),
-                          Positioned(
-                            bottom: -4,
-                            right: -4,
-                            child: isInCart
-                                ? _buildQuantityBadge(ref, product, quantity)
-                                : _buildAddButton(ref, product, isCartEnabled),
-                          ),
+                          if (isUnlocked)
+                            Positioned(
+                              bottom: -4,
+                              right: -4,
+                              child: isInCart
+                                  ? _buildQuantityBadge(ref, product, quantity)
+                                  : _buildAddButton(ref, product, isCartEnabled),
+                            ),
                         ],
                       ),
                     ),

@@ -156,28 +156,42 @@ class ProductRepository {
     }
   }
   Future<ProductModel?> getProductByCode(String pCode, String storeCode) async {
+  _logger.log('getProductByCode: Fetching product - pCode: $pCode, storeCode: $storeCode');
   try {
+    final requestBody = {
+      'p_code': int.tryParse(pCode) ?? pCode,
+      'store_code': storeCode,
+      'project_code': ApiConstants.projectCode,
+    };
+    _logger.log('getProductByCode: Request body: $requestBody');
+
     final response = await _client.post(
-      Uri.parse('$_baseUrl/get_product_by_code'),
+      Uri.parse('$_baseUrl/getpcodeproducts'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'p_code': pCode,
-        'store_code': storeCode,
-        'project_code': ApiConstants.projectCode,
-      }),
+      body: jsonEncode(requestBody),
     );
+
+    _logger.log('getProductByCode: Response status: ${response.statusCode}');
+    _logger.log('getProductByCode: Response body: ${response.body}');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if (data is Map<String, dynamic>) {
+        _logger.log('getProductByCode: Parsed as Map - product: ${data['product_name']}');
         return ProductModel.fromJson(data);
       } else if (data is List && data.isNotEmpty) {
+        _logger.log('getProductByCode: Parsed as List[${data.length}] - product: ${data[0]['product_name']}');
         return ProductModel.fromJson(data[0]);
+      } else {
+        _logger.log('getProductByCode: Unexpected response format - type: ${data.runtimeType}');
       }
+    } else {
+      _logger.error('getProductByCode: Failed with status ${response.statusCode}');
     }
     return null;
-  } catch (e) {
-    _logger.error('Error fetching product by code: $e');
+  } catch (e, stackTrace) {
+    _logger.error('getProductByCode: Error fetching product by code: $e');
+    _logger.error('getProductByCode: StackTrace: $stackTrace');
     return null;
   }
 }
