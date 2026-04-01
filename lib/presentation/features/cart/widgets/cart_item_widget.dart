@@ -1,12 +1,14 @@
 // lib/presentation/features/cart/widgets/cart_item_widget.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../data/models/product_model.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/steal_deals_provider.dart';
 
-class CartItemWidget extends StatelessWidget {
+class CartItemWidget extends ConsumerWidget {
   final CartItem cartItem;
   final VoidCallback onIncrementQuantity;
   final VoidCallback onDecrementQuantity;
@@ -21,9 +23,14 @@ class CartItemWidget extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final product = cartItem.product;
     final quantity = cartItem.quantity;
+
+    // Check if this product is an offer product (max 1 qty)
+    final offerPCodes = ref.watch(offerProductCodesProvider);
+    final isOfferProduct = offerPCodes.contains(product.pCode);
+    final maxQty = isOfferProduct ? 1 : product.maxQuantityAllowed;
     
     // Calculate total price and savings
     final totalPrice = product.ourPrice * quantity;
@@ -45,25 +52,6 @@ class CartItemWidget extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Green dot indicator
-              Container(
-                height: 12,
-                width: 12,
-                margin: const EdgeInsets.only(right: 8, top: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 2,
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-              ),
-              
               // Product image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
@@ -187,14 +175,14 @@ class CartItemWidget extends StatelessWidget {
                               
                               // Increment button
                               InkWell(
-                                onTap: quantity < product.maxQuantityAllowed 
+                                onTap: quantity < maxQty 
                                     ? onIncrementQuantity 
                                     : null,
                                 child: Container(
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
-                                    color: quantity < product.maxQuantityAllowed 
+                                    color: quantity < maxQty 
                                         ? AppColors.primary 
                                         : AppColors.neutral300,
                                     borderRadius: const BorderRadius.only(
@@ -221,7 +209,7 @@ class CartItemWidget extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        'Max ${product.maxQuantityAllowed} items',
+                        'Max ${maxQty} items',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textSecondary,
                           fontSize: 10,

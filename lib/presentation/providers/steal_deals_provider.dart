@@ -13,12 +13,10 @@ final _debouncedCartProvider =
     StateNotifierProvider.autoDispose<_DebouncedCartNotifier, _CartSnapshot>(
         (ref) {
   final notifier = _DebouncedCartNotifier();
-  // Listen to cart changes and debounce them
   ref.listen(cartProvider, (_, cartItems) {
     final cartTotal = ref.read(cartTotalProvider);
     notifier.update(cartItems, cartTotal);
   });
-  // Set initial value
   final cartItems = ref.watch(cartProvider);
   final cartTotal = ref.watch(cartTotalProvider);
   notifier.setInitial(cartItems, cartTotal);
@@ -56,11 +54,10 @@ class _DebouncedCartNotifier extends StateNotifier<_CartSnapshot> {
 }
 
 /// Provider that fetches offers from the get_offer API and returns
-/// the product details for each offer's offer_p_code.
+/// the product details for each offer's offer_p_code (array of codes).
 /// Uses keepAlive + previous data caching to avoid flickering on cart changes.
 final stealDealsOffersProvider =
     FutureProvider.autoDispose<List<StealDealOffer>>((ref) async {
-  // Keep alive so it doesn't dispose between rebuilds
   // ignore: unused_local_variable
   final link = ref.keepAlive();
 
@@ -71,18 +68,14 @@ final stealDealsOffersProvider =
 
   logger.log('StealDeals: Provider triggered - storeCode: $storeCode');
 
-  // Get temp_order_id from SharedPreferences
   final prefs = ref.watch(sharedPreferencesProvider);
   final tempOrderId = prefs.getString('temp_order_id') ?? '';
 
-  // Get access_key from auth manager
   final authManager = ref.watch(centralizedAuthManagerProvider);
   final accessKey = await authManager.getValidAccessKey() ?? '';
 
-  // Watch debounced cart state instead of raw cart
   final cartSnapshot = ref.watch(_debouncedCartProvider);
 
-  // Build cart items for the request
   final cartItemsList = cartSnapshot.items
       .map((item) => {
             'pcode': item.product.pCode,
@@ -99,7 +92,7 @@ final stealDealsOffersProvider =
       .toList();
 
   logger.log(
-      'StealDeals: Request params - tempOrderId: $tempOrderId, accessKey: ${accessKey.isNotEmpty ? "present" : "empty"}, cartTotal: ${cartSnapshot.total}, cartItems: ${cartItemsList.length}');
+      'StealDeals: Request - tempOrderId: $tempOrderId, cartTotal: ${cartSnapshot.total}, cartItems: ${cartItemsList.length}');
 
   try {
     final offers = await apiService.getOffer(
@@ -111,51 +104,56 @@ final stealDealsOffersProvider =
     );
 
     logger.log('StealDeals: get_offer API returned ${offers.length} offers');
-    if (offers.isEmpty) {
-      logger.log('StealDeals: No offers returned, widget will be hidden');
-      return [];
-    }
+    if (offers.isEmpty) return [];
 
-    // Log each offer briefly
-    for (int i = 0; i < offers.length; i++) {
-      logger.log(
-          'StealDeals: Offer[$i] - offer_p_code: ${offers[i]['offer_p_code']}, offer_name: ${offers[i]['offer_name']}, deal_status: ${offers[i]['deal_status']}');
-    }
-
-    // For each offer, fetch product details using offer_p_code
     final productRepository = ref.watch(productRepositoryProvider);
     final List<StealDealOffer> stealDeals = [];
 
     for (final offer in offers) {
-      final pCode = offer['offer_p_code']?.toString() ?? '';
-      if (pCode.isEmpty) {
+      // offer_p_code is an array of product codes
+      final rawPCode = offer['offer_p_code'];
+      final List<String> pCodes = [];
+
+      if (rawPCode is List) {
+        for (final code in rawPCode) {
+          final s = code.toString();
+          if (s.isNotEmpty) pCodes.add(s);
+        }
+      } else if (rawPCode != null) {
+        final s = rawPCode.toString();
+        if (s.isNotEmpty) pCodes.add(s);
+      }
+
+      if (pCodes.isEmpty) {
         logger.log(
-            'StealDeals: Skipping offer with empty p_code - offer_name: ${offer['offer_name']}');
+            'StealDeals: Skipping offer with empty p_codes - offer_name: ${offer['offer_name']}');
         continue;
       }
 
-      try {
-        logger.log('StealDeals: Fetching product details for pCode: $pCode');
-        final product =
-            await productRepository.getProductByCode(pCode, storeCode);
-        if (product != null) {
-          logger.log(
-              'StealDeals: Product fetched - ${product.productName} (pCode: $pCode)');
-          stealDeals.add(StealDealOffer(
-            offer: offer,
-            product: product,
-          ));
-        } else {
-          logger.log('StealDeals: Product returned null for pCode: $pCode');
+      // Fetch all products for this offer
+      final List<ProductModel> products = [];
+      for (final pCode in pCodes) {
+        try {
+          final product =
+              await productRepository.getProductByCode(pCode, storeCode);
+          if (product != null) {
+            products.add(product);
+          }
+        } catch (e) {
+          logger.error(
+              'StealDeals: Error fetching product pCode $pCode: $e');
         }
-      } catch (e) {
-        logger.error(
-            'StealDeals: Error fetching product for offer pCode $pCode: $e');
+      }
+
+      if (products.isNotEmpty) {
+        stealDeals.add(StealDealOffer(offer: offer, products: products));
+        logger.log(
+            'StealDeals: Offer "${offer['offer_heading_text']}" - ${products.length} products loaded');
       }
     }
 
     logger.log(
-        'StealDeals: Final result - ${stealDeals.length} steal deals to display');
+        'StealDeals: Final result - ${stealDeals.length} offers to display');
     return stealDeals;
   } catch (e, stackTrace) {
     logger.error('StealDeals: Error fetching steal deals offers: $e');
@@ -164,24 +162,69 @@ final stealDealsOffersProvider =
   }
 });
 
-/// Model combining offer data with its product details.
+/// Model combining offer data with its list of products.
 class StealDealOffer {
   final Map<String, dynamic> offer;
-  final ProductModel product;
+  final List<ProductModel> products;
 
-  StealDealOffer({required this.offer, required this.product});
+  StealDealOffer({required this.offer, required this.products});
 
-  String get offerName => offer['offer_name']?.toString() ?? '';
-  String get offerDesc => offer['offer_desc']?.toString() ?? '';
+  // Text fields
+  String get offerStatus =>
+      offer['offer_status']?.toString() ?? '';
+  String get offerHeadingText =>
+      offer['offer_heading_text']?.toString() ?? '';
+  String get offerName =>
+      offer['offer_name']?.toString() ?? '';
+  String get offerDesc =>
+      offer['offer_desc']?.toString() ?? '';
   String get offerConditionText =>
       offer['offer_condition_text']?.toString() ?? '';
   String get offerCouponCode =>
       offer['offer_coupon_code']?.toString() ?? '';
-  String get imgPath => offer['img_path']?.toString() ?? '';
-  bool get visible =>
-      offer['deal_status']?.toString().toLowerCase() == 'unlocked';
+  String get imgPath =>
+      offer['img_path']?.toString() ?? '';
+
+  // Status
+  bool get isUnlocked =>
+      offerStatus.toLowerCase() == 'unlocked';
+
+  // Values
   double get minOrderValue =>
       double.tryParse(offer['min_order_value']?.toString() ?? '0') ?? 0;
   double get maxOrderValue =>
       double.tryParse(offer['max_order_value']?.toString() ?? '0') ?? 0;
+  double get ipoOrderAmount =>
+      double.tryParse(offer['ipo_order_amount']?.toString() ?? '0') ?? 0;
+
+  // API-driven colors
+  String get headingBgColor =>
+      offer['offer_heading_bg_color']?.toString() ?? '#F4BB44';
+  String get headingTextColor =>
+      offer['offer_heading_text_color']?.toString() ?? '#000000';
+  String get cardBgColor =>
+      offer['offer_card_bg_color']?.toString() ?? '#FFFFFF';
+  String get progressFillColor =>
+      offer['offer_progress_fill_color']?.toString() ?? '#4CAF50';
+  String get lockedBadgeColor =>
+      offer['offer_locked_badge_color']?.toString() ?? '#CCCCCC';
+  String get unlockedBadgeColor =>
+      offer['offer_unlocked_badge_color']?.toString() ?? '#4CAF50';
 }
+
+/// Set of product codes that belong to unlocked offers — max 1 qty allowed.
+final offerProductCodesProvider = Provider<Set<String>>((ref) {
+  final offersAsync = ref.watch(stealDealsOffersProvider);
+  final offers = offersAsync.valueOrNull;
+  if (offers == null || offers.isEmpty) return {};
+
+  final Set<String> codes = {};
+  for (final offer in offers) {
+    if (offer.isUnlocked) {
+      for (final product in offer.products) {
+        codes.add(product.pCode);
+      }
+    }
+  }
+  return codes;
+});

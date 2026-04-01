@@ -17,7 +17,8 @@ import 'package:patelmart/presentation/features/home/widgets/promotional_banner_
 import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
-import 'package:patelmart/presentation/features/home/widgets/steal_deals_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/single_offer_section_widget.dart';
+import 'package:patelmart/presentation/providers/steal_deals_provider.dart';
 import 'package:patelmart/presentation/features/orders/order_tracking_widget.dart';
 import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
@@ -845,31 +846,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
 
-          // Steal Deals section - shows highest discount products
-          RepaintBoundary(
-            child: const StealDealsWidget(),
-          ),
+          // Offers interleaved with Best Sellers
+          Consumer(
+            builder: (context, ref, _) {
+              final offersAsync = ref.watch(stealDealsOffersProvider);
+              final offers = offersAsync.whenOrNull(data: (data) => data);
+              final previousOffers = offersAsync.valueOrNull;
+              final displayOffers = offers ?? previousOffers ?? [];
 
-          // Best Seller sections - optimized with RepaintBoundary and keys
-          ...List.generate(4, (index) {
-            final bestSellerId = index + 1;
-            return RepaintBoundary(
-              key: ValueKey('best_seller_repaint_$bestSellerId'),
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final backgroundColor = ref.watch(
-                    bestSellerBackgroundColorProvider(bestSellerId)
-                  );
-                  
-                  return BestSellerWidget(
-                    key: ValueKey('best_seller_${bestSellerId}_${backgroundColor.value}'),
-                    bestSellerId: bestSellerId,
-                    height: 320,
-                  );
-                },
-              ),
-            );
-          }),
+              const int bestSellerCount = 4;
+              final int maxPairs = displayOffers.length > bestSellerCount
+                  ? displayOffers.length
+                  : bestSellerCount;
+
+              return Column(
+                children: [
+                  for (int i = 0; i < maxPairs; i++) ...[
+                    // Offer at index i (if exists)
+                    if (i < displayOffers.length)
+                      RepaintBoundary(
+                        key: ValueKey('offer_section_$i'),
+                        child: SingleOfferSectionWidget(
+                            offer: displayOffers[i]),
+                      ),
+                    // Best seller at index i (if exists)
+                    if (i < bestSellerCount)
+                      RepaintBoundary(
+                        key: ValueKey('best_seller_repaint_${i + 1}'),
+                        child: Consumer(
+                          builder: (context, ref, _) {
+                            final backgroundColor = ref.watch(
+                              bestSellerBackgroundColorProvider(i + 1),
+                            );
+                            return BestSellerWidget(
+                              key: ValueKey(
+                                  'best_seller_${i + 1}_${backgroundColor.value}'),
+                              bestSellerId: i + 1,
+                              height: 320,
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ],
+              );
+            },
+          ),
 
           // Seasonal Picks
           RepaintBoundary(
