@@ -1,5 +1,7 @@
 // lib/data/services/api_service.dart
 
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:patelmart/core/constants/app_constants.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
@@ -133,16 +135,32 @@ class ApiService {
     required List<Map<String, dynamic>> cartItems,
   }) async {
     try {
+      final body = {
+        'temp_order_id': tempOrderId,
+        'access_key': accessKey,
+        'store_code': storeCode,
+        'ipo_order_amount': ipoOrderAmount,
+        'cart_items': cartItems,
+      };
+      debugPrint('=== GET OFFER REQUEST BODY ===');
+      debugPrint(const JsonEncoder.withIndent('  ').convert(body));
+      debugPrint('=============================');
       final response = await _apiClient.post(
         ApiConstants.getOffer,
-        body: {
-          'temp_order_id': tempOrderId,
-          'access_key': accessKey,
-          'store_code': storeCode,
-          'ipo_order_amount': ipoOrderAmount,
-          'cart_items': cartItems,
-        },
+        body: body,
       );
+      debugPrint('=== GET OFFER RESPONSE BODY ===');
+      debugPrint(const JsonEncoder.withIndent('  ').convert(response));
+      debugPrint('===============================');
+      // Handle new response format: { "offer_list": [...] }
+      if (response is Map<String, dynamic> &&
+          response.containsKey('offer_list')) {
+        final offerList = response['offer_list'];
+        if (offerList is List) {
+          return offerList.cast<Map<String, dynamic>>();
+        }
+      }
+      // Legacy format: direct list
       if (response is List) {
         return response.cast<Map<String, dynamic>>();
       }

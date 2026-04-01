@@ -7,6 +7,7 @@ import '../../data/services/cart_validator.dart';
 import '../../data/services/cart_session_manager.dart';
 import '../../core/utils/logger.dart';
 import 'launch_flow_provider.dart';
+import 'steal_deals_provider.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../facebook_pixel/facebook_pixel_integration.dart';
 import '../../facebook_pixel/facebook_pixel_provider.dart';
@@ -763,20 +764,31 @@ final cartOrderPreparationProvider = FutureProvider<Map<String, String?>>((ref) 
   return await cartNotifier.prepareForNewOrder();
 });
 
-// ─── Offer Slab System ───
+// ─── Offer Slab System (API-driven) ───
 
 class OfferSlab {
-  final double threshold;
+  final double threshold; // min_order_value
   final double discount;
-  const OfferSlab({required this.threshold, required this.discount});
-}
+  final String offerHeadingText; // offer_heading_text from API
+  final String offerName; // offer_name from API
+  final String offerConditionText; // offer_condition_text from API
+  final String offerStatus; // offer_status from API
+  final String progressFillColor; // offer_progress_fill_color from API
+  final String lockedBadgeColor;
+  final String unlockedBadgeColor;
 
-const List<OfferSlab> kOfferSlabs = [
-  OfferSlab(threshold: 600, discount: 50),
-  OfferSlab(threshold: 1200, discount: 100),
-  OfferSlab(threshold: 1800, discount: 150),
-  OfferSlab(threshold: 2400, discount: 200),
-];
+  const OfferSlab({
+    required this.threshold,
+    required this.discount,
+    this.offerHeadingText = '',
+    this.offerName = '',
+    this.offerConditionText = '',
+    this.offerStatus = '',
+    this.progressFillColor = '#4CAF50',
+    this.lockedBadgeColor = '#CCCCCC',
+    this.unlockedBadgeColor = '#4CAF50',
+  });
+}
 
 class OfferSlabStatus {
   final OfferSlab slab;
@@ -793,13 +805,43 @@ class OfferSlabStatus {
   });
 }
 
+// Provider that builds offer slabs from API data (stealDealsOffersProvider)
+final offerSlabsProvider = Provider<List<OfferSlab>>((ref) {
+  final offersAsync = ref.watch(stealDealsOffersProvider);
+  final offers = offersAsync.valueOrNull;
+
+  if (offers == null || offers.isEmpty) {
+    return [];
+  }
+
+  return offers.map((offer) {
+    return OfferSlab(
+      threshold: offer.minOrderValue,
+      discount: double.tryParse(
+              offer.offer['offer_coupon_value']?.toString() ?? '0') ??
+          0,
+      offerHeadingText: offer.offerHeadingText,
+      offerName: offer.offerName,
+      offerConditionText: offer.offerConditionText,
+      offerStatus: offer.offerStatus,
+      progressFillColor: offer.progressFillColor,
+      lockedBadgeColor: offer.lockedBadgeColor,
+      unlockedBadgeColor: offer.unlockedBadgeColor,
+    );
+  }).toList();
+});
+
 // Next offer slab provider - used by persistent cart bar teaser
 final nextOfferSlabProvider = Provider<OfferSlabStatus?>((ref) {
   final cartTotal = ref.watch(cartTotalProvider);
-  for (int i = 0; i < kOfferSlabs.length; i++) {
-    final slab = kOfferSlabs[i];
+  final slabs = ref.watch(offerSlabsProvider);
+
+  if (slabs.isEmpty) return null;
+
+  for (int i = 0; i < slabs.length; i++) {
+    final slab = slabs[i];
     if (cartTotal < slab.threshold) {
-      final prevThreshold = i > 0 ? kOfferSlabs[i - 1].threshold : 0.0;
+      final prevThreshold = i > 0 ? slabs[i - 1].threshold : 0.0;
       final range = slab.threshold - prevThreshold;
       final progress = range > 0 ? ((cartTotal - prevThreshold) / range).clamp(0.0, 1.0) : 0.0;
       final remaining = slab.threshold - cartTotal;
@@ -818,15 +860,19 @@ final nextOfferSlabProvider = Provider<OfferSlabStatus?>((ref) {
 // Full offer slabs status provider - used by offers bottom sheet
 final offerSlabsStatusProvider = Provider<List<OfferSlabStatus>>((ref) {
   final cartTotal = ref.watch(cartTotalProvider);
+  final slabs = ref.watch(offerSlabsProvider);
+
+  if (slabs.isEmpty) return [];
+
   bool foundNext = false;
-  return kOfferSlabs.asMap().entries.map((entry) {
+  return slabs.asMap().entries.map((entry) {
     final i = entry.key;
     final slab = entry.value;
     final unlocked = cartTotal >= slab.threshold;
     final isNext = !unlocked && !foundNext;
     if (isNext) foundNext = true;
 
-    final prevThreshold = i > 0 ? kOfferSlabs[i - 1].threshold : 0.0;
+    final prevThreshold = i > 0 ? slabs[i - 1].threshold : 0.0;
     final range = slab.threshold - prevThreshold;
     double progress = 0.0;
     if (unlocked) {

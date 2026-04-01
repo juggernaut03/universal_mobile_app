@@ -155,30 +155,32 @@ class _PersistentCartWidgetState extends ConsumerState<PersistentCartWidget> {
       );
     }
 
-    final discount = nextOffer.slab.discount.toInt();
-    final remaining = nextOffer.remaining;
-    final remainingStr = remaining.toStringAsFixed(
-      remaining.truncateToDouble() == remaining ? 0 : 0,
-    );
+    // Use API texts
+    final headingText = nextOffer.slab.offerHeadingText;
+    final conditionText = nextOffer.slab.offerConditionText;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Unlock extra ₹$discount OFF',
+          headingText.isNotEmpty ? headingText : 'Unlock next offer',
           style: const TextStyle(
             color: Colors.white,
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         Text(
-          'Shop for ₹$remainingStr more',
+          conditionText.isNotEmpty ? conditionText : 'Add more to unlock',
           style: const TextStyle(
             color: Colors.white54,
             fontSize: 11,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
@@ -362,12 +364,23 @@ class _OffersBottomSheet extends ConsumerWidget {
     );
   }
 
+  Color _parseColor(String hex, Color fallback) {
+    try {
+      final colorStr = hex.replaceFirst('#', '');
+      return Color(int.parse('FF$colorStr', radix: 16));
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   Widget _buildSlabCard(OfferSlabStatus status) {
-    final discount = status.slab.discount.toInt();
-    final remaining = status.remaining;
-    final remainingStr = remaining.toStringAsFixed(
-      remaining.truncateToDouble() == remaining ? 0 : 0,
-    );
+    // API-driven texts
+    final headingText = status.slab.offerHeadingText;
+    final conditionText = status.slab.offerConditionText;
+
+    // API-driven progress bar fill color
+    final progressColor =
+        _parseColor(status.slab.progressFillColor, _offerGreen);
 
     Color borderColor;
     Color? cardBgColor;
@@ -400,8 +413,9 @@ class _OffersBottomSheet extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // offer_heading_text from API
                 Text(
-                  'Unlock extra ₹$discount OFF',
+                  headingText.isNotEmpty ? headingText : 'Offer',
                   style: TextStyle(
                     color: status.unlocked || status.isNext
                         ? Colors.white
@@ -409,20 +423,27 @@ class _OffersBottomSheet extends ConsumerWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
+                // 2) offer_condition_text from API
                 Text(
                   status.unlocked
                       ? 'Offer unlocked!'
-                      : 'Shop for ₹$remainingStr more',
+                      : conditionText.isNotEmpty
+                          ? conditionText
+                          : 'Add more to unlock',
                   style: TextStyle(
                     color: status.unlocked
                         ? _offerGreen
                         : Colors.white38,
                     fontSize: 12,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                // Progress bar for active slab
+                // 1) Progress bar with offer_progress_fill_color from API
                 if (status.isNext) ...[
                   const SizedBox(height: 8),
                   ClipRRect(
@@ -430,7 +451,7 @@ class _OffersBottomSheet extends ConsumerWidget {
                     child: LinearProgressIndicator(
                       value: status.progress,
                       backgroundColor: AppColors.primaryDarker,
-                      valueColor: const AlwaysStoppedAnimation<Color>(_offerGreen),
+                      valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                       minHeight: 4,
                     ),
                   ),
@@ -449,7 +470,9 @@ class _OffersBottomSheet extends ConsumerWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              status.unlocked ? 'Unlocked' : 'Locked',
+              status.slab.offerStatus.isNotEmpty
+                  ? status.slab.offerStatus
+                  : (status.unlocked ? 'Unlocked' : 'Locked'),
               style: TextStyle(
                 color: status.unlocked ? _offerGreen : AppColors.primaryLight.withOpacity(0.5),
                 fontSize: 11,
