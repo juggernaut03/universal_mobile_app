@@ -152,9 +152,13 @@ final stealDealsOffersProvider =
       }
     }
 
+    // Filter out offers where offer_visible is false
+    final visibleDeals =
+        stealDeals.where((deal) => deal.offerVisible).toList();
+
     logger.log(
-        'StealDeals: Final result - ${stealDeals.length} offers to display');
-    return stealDeals;
+        'StealDeals: Final result - ${visibleDeals.length} visible offers (${stealDeals.length} total)');
+    return visibleDeals;
   } catch (e, stackTrace) {
     logger.error('StealDeals: Error fetching steal deals offers: $e');
     logger.error('StealDeals: StackTrace: $stackTrace');
@@ -184,6 +188,10 @@ class StealDealOffer {
       offer['offer_coupon_code']?.toString() ?? '';
   String get imgPath =>
       offer['img_path']?.toString() ?? '';
+
+  // Visibility
+  bool get offerVisible =>
+      offer['offer_visible']?.toString().toLowerCase() == 'true';
 
   // Status
   bool get isUnlocked =>
