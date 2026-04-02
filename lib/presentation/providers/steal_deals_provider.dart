@@ -53,6 +53,31 @@ class _DebouncedCartNotifier extends StateNotifier<_CartSnapshot> {
   }
 }
 
+/// Panel colors from the get_offer API response (top-level fields).
+class OfferPanelColors {
+  final String bgColor;
+  final String headingTxtColor;
+  final String descriptTxtColor;
+  final String unlockTxtColor;
+  final String unlockBgColor;
+
+  const OfferPanelColors({
+    this.bgColor = '',
+    this.headingTxtColor = '',
+    this.descriptTxtColor = '',
+    this.unlockTxtColor = '',
+    this.unlockBgColor = '',
+  });
+}
+
+final _offerPanelColorsState =
+    StateProvider<OfferPanelColors>((ref) => const OfferPanelColors());
+
+/// Public provider to read panel colors.
+final offerPanelColorsProvider = Provider<OfferPanelColors>((ref) {
+  return ref.watch(_offerPanelColorsState);
+});
+
 /// Provider that fetches offers from the get_offer API and returns
 /// the product details for each offer's offer_p_code (array of codes).
 /// Uses keepAlive + previous data caching to avoid flickering on cart changes.
@@ -95,7 +120,7 @@ final stealDealsOffersProvider =
       'StealDeals: Request - tempOrderId: $tempOrderId, cartTotal: ${cartSnapshot.total}, cartItems: ${cartItemsList.length}');
 
   try {
-    final offers = await apiService.getOffer(
+    final apiResponse = await apiService.getOffer(
       tempOrderId: tempOrderId,
       accessKey: accessKey,
       storeCode: storeCode,
@@ -103,6 +128,16 @@ final stealDealsOffersProvider =
       cartItems: cartItemsList,
     );
 
+    // Store panel colors
+    ref.read(_offerPanelColorsState.notifier).state = OfferPanelColors(
+      bgColor: apiResponse.pannelBgColor,
+      headingTxtColor: apiResponse.pannelHeadingTxtColor,
+      descriptTxtColor: apiResponse.pannelDescriptTxtColor,
+      unlockTxtColor: apiResponse.pannelUnlockTxtColor,
+      unlockBgColor: apiResponse.pannelUnlockBgColor,
+    );
+
+    final offers = apiResponse.offers;
     logger.log('StealDeals: get_offer API returned ${offers.length} offers');
     if (offers.isEmpty) return [];
 
@@ -218,6 +253,8 @@ class StealDealOffer {
       offer['offer_locked_badge_color']?.toString() ?? '#CCCCCC';
   String get unlockedBadgeColor =>
       offer['offer_unlocked_badge_color']?.toString() ?? '#4CAF50';
+  String get claimBgColor =>
+      offer['offer_claim_bg_color']?.toString() ?? '';
 }
 
 /// Set of product codes that belong to unlocked offers — max 1 qty allowed.

@@ -48,7 +48,7 @@ class SingleOfferSectionWidget extends ConsumerWidget {
       children: [
         // ── Section title: offer_heading_text ──
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
           child: Text(
             offer.offerHeadingText,
             style: AppTextStyles.h5.copyWith(
@@ -59,7 +59,7 @@ class SingleOfferSectionWidget extends ConsumerWidget {
 
         // ── Product cards — each is a wide steal-deal style card ──
         SizedBox(
-          height: 230,
+          height: 210,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -78,6 +78,7 @@ class SingleOfferSectionWidget extends ConsumerWidget {
             },
           ),
         ),
+        const SizedBox(height: 16),
       ],
     );
   }
@@ -144,7 +145,7 @@ class _OfferProductCardState extends ConsumerState<_OfferProductCard>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = screenWidth * 0.75;
+    final cardWidth = screenWidth * 0.68;
 
     final cartItems = ref.watch(cartProvider);
     final cartItem = cartItems
@@ -193,12 +194,25 @@ class _OfferProductCardState extends ConsumerState<_OfferProductCard>
     );
   }
 
+  Color _parseHexColor(String hex, Color fallback) {
+    try {
+      final colorStr = hex.replaceFirst('#', '');
+      return Color(int.parse('FF$colorStr', radix: 16));
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   Widget _buildClaimedCard(double cardWidth) {
+    final claimBg = widget.offer.claimBgColor.isNotEmpty
+        ? _parseHexColor(widget.offer.claimBgColor, AppColors.success)
+        : AppColors.success;
+
     return Container(
       width: cardWidth,
       margin: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: AppColors.success,
+        color: claimBg,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -488,8 +502,7 @@ class _OfferProductCardState extends ConsumerState<_OfferProductCard>
           ? () => ref.read(cartProvider.notifier).addItem(product)
           : null,
       child: Container(
-        width: 32,
-        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -505,10 +518,13 @@ class _OfferProductCardState extends ConsumerState<_OfferProductCard>
             ),
           ],
         ),
-        child: Icon(
-          Icons.add,
-          color: isCartEnabled ? AppColors.primary : Colors.grey.shade400,
-          size: 20,
+        child: Text(
+          'Add',
+          style: TextStyle(
+            color: isCartEnabled ? AppColors.primary : Colors.grey.shade400,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
