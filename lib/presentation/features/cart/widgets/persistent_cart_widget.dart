@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
+import 'package:patelmart/presentation/providers/steal_deals_provider.dart';
 
 // Offer slab colors — mapped to AppColors
 const Color _offerGreen = AppColors.secondary;
@@ -237,6 +238,7 @@ class _OffersBottomSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final slabs = ref.watch(offerSlabsStatusProvider);
     final cartItems = ref.watch(cartProvider);
+    final panelColors = ref.watch(offerPanelColorsProvider);
 
     // Auto-close if cart becomes empty
     if (cartItems.isEmpty) {
@@ -246,9 +248,17 @@ class _OffersBottomSheet extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    // Panel colors from API
+    final Color panelBg = panelColors.bgColor.isNotEmpty
+        ? _parseColor(panelColors.bgColor, AppColors.primaryDarker)
+        : AppColors.primaryDarker;
+    final Color headingColor = panelColors.headingTxtColor.isNotEmpty
+        ? _parseColor(panelColors.headingTxtColor, Colors.white)
+        : Colors.white;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.primaryDarker,
+        color: panelBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: const EdgeInsets.only(top: 16, bottom: 24),
@@ -260,10 +270,10 @@ class _OffersBottomSheet extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                const Text(
+                Text(
                   'Offers for you',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: headingColor,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
@@ -275,7 +285,7 @@ class _OffersBottomSheet extends ConsumerWidget {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryDark.withOpacity(0.5),
+                      color: panelBg.withOpacity(0.5),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.close, color: Colors.white, size: 18),
@@ -287,17 +297,23 @@ class _OffersBottomSheet extends ConsumerWidget {
           const SizedBox(height: 20),
           // Slab list
           ...List.generate(slabs.length, (index) {
-            return _buildSlabRow(slabs, index);
+            return _buildSlabRow(slabs, index, panelColors);
           }),
         ],
       ),
     );
   }
 
-  Widget _buildSlabRow(List<OfferSlabStatus> slabs, int index) {
+  Widget _buildSlabRow(
+      List<OfferSlabStatus> slabs, int index, OfferPanelColors panelColors) {
     final status = slabs[index];
     final isFirst = index == 0;
     final isLast = index == slabs.length - 1;
+
+    // Unlock bg color from API panel
+    final Color unlockBg = panelColors.unlockBgColor.isNotEmpty
+        ? _parseColor(panelColors.unlockBgColor, _offerGreen)
+        : _offerGreen;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -316,8 +332,8 @@ class _OffersBottomSheet extends ConsumerWidget {
                       child: Container(
                         width: 2,
                         color: status.unlocked || status.isNext
-                            ? _offerGreen.withOpacity(0.5)
-                            : AppColors.primaryDark.withOpacity(0.6),
+                            ? unlockBg.withOpacity(0.5)
+                            : Colors.white.withOpacity(0.2),
                       ),
                     )
                   else
@@ -328,8 +344,8 @@ class _OffersBottomSheet extends ConsumerWidget {
                     height: 28,
                     decoration: BoxDecoration(
                       color: status.unlocked
-                          ? _offerGreen
-                          : AppColors.primaryDark.withOpacity(0.6),
+                          ? unlockBg
+                          : Colors.white.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -344,8 +360,8 @@ class _OffersBottomSheet extends ConsumerWidget {
                       child: Container(
                         width: 2,
                         color: status.unlocked
-                            ? _offerGreen.withOpacity(0.5)
-                            : AppColors.primaryDark.withOpacity(0.6),
+                            ? unlockBg.withOpacity(0.5)
+                            : Colors.white.withOpacity(0.2),
                       ),
                     )
                   else
@@ -356,7 +372,7 @@ class _OffersBottomSheet extends ConsumerWidget {
             const SizedBox(width: 12),
             // Card
             Expanded(
-              child: _buildSlabCard(status),
+              child: _buildSlabCard(status, panelColors),
             ),
           ],
         ),
@@ -373,10 +389,21 @@ class _OffersBottomSheet extends ConsumerWidget {
     }
   }
 
-  Widget _buildSlabCard(OfferSlabStatus status) {
+  Widget _buildSlabCard(OfferSlabStatus status, OfferPanelColors panelColors) {
     // API-driven texts
     final headingText = status.slab.offerHeadingText;
     final conditionText = status.slab.offerConditionText;
+
+    // Panel text colors
+    final Color descriptColor = panelColors.descriptTxtColor.isNotEmpty
+        ? _parseColor(panelColors.descriptTxtColor, Colors.white)
+        : Colors.white;
+    final Color unlockTxtColor = panelColors.unlockTxtColor.isNotEmpty
+        ? _parseColor(panelColors.unlockTxtColor, Colors.white)
+        : Colors.white;
+    final Color unlockBg = panelColors.unlockBgColor.isNotEmpty
+        ? _parseColor(panelColors.unlockBgColor, _offerGreen)
+        : _offerGreen;
 
     // API-driven progress bar fill color
     final progressColor =
@@ -385,14 +412,14 @@ class _OffersBottomSheet extends ConsumerWidget {
     Color borderColor;
     Color? cardBgColor;
     if (status.unlocked) {
-      borderColor = _offerGreen;
-      cardBgColor = _offerGreen.withOpacity(0.08);
+      borderColor = unlockBg;
+      cardBgColor = unlockBg.withOpacity(0.08);
     } else if (status.isNext) {
-      borderColor = _offerGreenBorder;
-      cardBgColor = AppColors.primaryDark;
+      borderColor = unlockBg.withOpacity(0.6);
+      cardBgColor = Colors.white.withOpacity(0.08);
     } else {
-      borderColor = AppColors.primaryDark.withOpacity(0.5);
-      cardBgColor = AppColors.primaryDark;
+      borderColor = Colors.white.withOpacity(0.15);
+      cardBgColor = Colors.white.withOpacity(0.05);
     }
 
     return Container(
@@ -418,8 +445,8 @@ class _OffersBottomSheet extends ConsumerWidget {
                   headingText.isNotEmpty ? headingText : 'Offer',
                   style: TextStyle(
                     color: status.unlocked || status.isNext
-                        ? Colors.white
-                        : Colors.white54,
+                        ? descriptColor
+                        : descriptColor.withOpacity(0.5),
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -427,7 +454,7 @@ class _OffersBottomSheet extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                // 2) offer_condition_text from API
+                // offer_condition_text from API
                 Text(
                   status.unlocked
                       ? 'Offer unlocked!'
@@ -436,21 +463,21 @@ class _OffersBottomSheet extends ConsumerWidget {
                           : 'Add more to unlock',
                   style: TextStyle(
                     color: status.unlocked
-                        ? _offerGreen
-                        : Colors.white38,
+                        ? unlockBg
+                        : descriptColor.withOpacity(0.4),
                     fontSize: 12,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                // 1) Progress bar with offer_progress_fill_color from API
+                // Progress bar with offer_progress_fill_color from API
                 if (status.isNext) ...[
                   const SizedBox(height: 8),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: status.progress,
-                      backgroundColor: AppColors.primaryDarker,
+                      backgroundColor: Colors.white.withOpacity(0.1),
                       valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                       minHeight: 4,
                     ),
@@ -465,8 +492,8 @@ class _OffersBottomSheet extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: status.unlocked
-                  ? _offerGreen.withOpacity(0.15)
-                  : AppColors.primaryDark.withOpacity(0.8),
+                  ? unlockBg.withOpacity(0.15)
+                  : Colors.white.withOpacity(0.08),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -474,7 +501,9 @@ class _OffersBottomSheet extends ConsumerWidget {
                   ? status.slab.offerStatus
                   : (status.unlocked ? 'Unlocked' : 'Locked'),
               style: TextStyle(
-                color: status.unlocked ? _offerGreen : AppColors.primaryLight.withOpacity(0.5),
+                color: status.unlocked
+                    ? unlockTxtColor
+                    : descriptColor.withOpacity(0.5),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),

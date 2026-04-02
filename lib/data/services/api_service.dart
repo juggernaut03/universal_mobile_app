@@ -127,7 +127,7 @@ class ApiService {
 
   /// POST /get_offer
   /// Body: { temp_order_id, access_key, store_code, project_code, ipo_order_amount, cart_items }
-  Future<List<Map<String, dynamic>>> getOffer({
+  Future<OfferApiResponse> getOffer({
     required String tempOrderId,
     required String accessKey,
     required String storeCode,
@@ -152,24 +152,37 @@ class ApiService {
       debugPrint('=== GET OFFER RESPONSE BODY ===');
       debugPrint(const JsonEncoder.withIndent('  ').convert(response));
       debugPrint('===============================');
-      // Handle new response format: { "offer_list": [...] }
+
+      // New response format: { "offer_pannel_bg": "...", "offer_list": [...] }
       if (response is Map<String, dynamic> &&
           response.containsKey('offer_list')) {
         final offerList = response['offer_list'];
+        final List<Map<String, dynamic>> offers = [];
         if (offerList is List) {
-          return offerList.cast<Map<String, dynamic>>();
+          offers.addAll(offerList.cast<Map<String, dynamic>>());
         }
+        return OfferApiResponse(
+          offers: offers,
+          pannelBgColor: response['offer_pannel_bg']?.toString() ?? '',
+          pannelHeadingTxtColor: response['offer_pannel_heading_txt_color']?.toString() ?? '',
+          pannelDescriptTxtColor: response['offer_pannel_descript_txt_color']?.toString() ?? '',
+          pannelUnlockTxtColor: response['offer_pannel_unlock_txt_color']?.toString() ?? '',
+          pannelUnlockBgColor: response['offer_pannel_unlock_bg']?.toString() ?? '',
+        );
       }
       // Legacy format: direct list
       if (response is List) {
-        return response.cast<Map<String, dynamic>>();
+        return OfferApiResponse(
+          offers: response.cast<Map<String, dynamic>>(),
+        );
       }
-      return [];
+      return OfferApiResponse(offers: []);
     } catch (e) {
       _logger.error('Error fetching offers: $e');
       rethrow;
     }
   }
+
 
   /// POST /get_offerscreen
   /// Body: { store_code, project_code }
@@ -186,4 +199,23 @@ class ApiService {
       rethrow;
     }
   }
+}
+
+/// Response model for get_offer API containing panel colors + offer list.
+class OfferApiResponse {
+  final List<Map<String, dynamic>> offers;
+  final String pannelBgColor;
+  final String pannelHeadingTxtColor;
+  final String pannelDescriptTxtColor;
+  final String pannelUnlockTxtColor;
+  final String pannelUnlockBgColor;
+
+  OfferApiResponse({
+    required this.offers,
+    this.pannelBgColor = '',
+    this.pannelHeadingTxtColor = '',
+    this.pannelDescriptTxtColor = '',
+    this.pannelUnlockTxtColor = '',
+    this.pannelUnlockBgColor = '',
+  });
 }
