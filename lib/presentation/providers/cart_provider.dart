@@ -891,3 +891,27 @@ final offerSlabsStatusProvider = Provider<List<OfferSlabStatus>>((ref) {
     );
   }).toList();
 });
+
+/// Auto-removes offer products from cart when their offer locks back.
+/// This provider should be watched from a top-level widget (e.g. home screen).
+final offerProductAutoRemovalProvider = Provider<void>((ref) {
+  final unlockedCodes = ref.watch(offerProductCodesProvider);
+  final allOfferCodes = ref.watch(allOfferProductCodesProvider);
+  final cartItems = ref.read(cartProvider);
+
+  // Find cart items that are offer products but no longer unlocked
+  final toRemove = cartItems.where((item) {
+    final pCode = item.product.pCode;
+    // It's an offer product (in any offer) but not in unlocked set
+    return allOfferCodes.contains(pCode) && !unlockedCodes.contains(pCode);
+  }).toList();
+
+  if (toRemove.isNotEmpty) {
+    // Schedule removal after current frame to avoid modification during build
+    Future.microtask(() {
+      for (final item in toRemove) {
+        ref.read(cartProvider.notifier).removeItem(item.product);
+      }
+    });
+  }
+});

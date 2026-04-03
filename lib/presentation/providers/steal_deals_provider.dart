@@ -273,3 +273,18 @@ final offerProductCodesProvider = Provider<Set<String>>((ref) {
   }
   return codes;
 });
+
+/// Set of ALL offer product codes (locked + unlocked).
+final allOfferProductCodesProvider = Provider<Set<String>>((ref) {
+  final offersAsync = ref.watch(stealDealsOffersProvider);
+  final offers = offersAsync.valueOrNull;
+  if (offers == null || offers.isEmpty) return {};
+
+  final Set<String> codes = {};
+  for (final offer in offers) {
+    for (final product in offer.products) {
+      codes.add(product.pCode);
+    }
+  }
+  return codes;
+});

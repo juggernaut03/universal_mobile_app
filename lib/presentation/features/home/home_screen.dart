@@ -523,7 +523,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
-    
+
+    // Auto-remove offer products when their offer locks back
+    ref.watch(offerProductAutoRemovalProvider);
+
     // Watch for outlet changes and handle popup reinitialization
     final outletAsync = ref.watch(selectedOutletProvider);
     outletAsync.whenData((outlet) => _handleOutletChange(outlet));
