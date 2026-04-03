@@ -48,6 +48,9 @@ class CartScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Auto-remove offer products when their offer locks back
+    ref.watch(offerProductAutoRemovalProvider);
+
     final cartItems = ref.watch(cartProvider);
     final cartTotal = ref.watch(cartTotalProvider);
     final cartSavings = ref.watch(cartSavingsProvider);
