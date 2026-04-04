@@ -181,7 +181,7 @@ class SuggestedProductCard extends ConsumerWidget {
                     // IPO badge + Add to cart button row
                     Row(
                       children: [
-                        if (product.ipoImg.isNotEmpty)
+                        if (product.isIpoProduct && product.ipoImg.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: Image.network(

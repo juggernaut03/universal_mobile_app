@@ -235,7 +235,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                     ),
                   ),
                 // IPO badge
-                if (widget.product.ipoImg.isNotEmpty)
+                if (widget.product.isIpoProduct && widget.product.ipoImg.isNotEmpty)
                   Positioned(
                     bottom: 4,
                     right: 4,

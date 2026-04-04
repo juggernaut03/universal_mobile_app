@@ -420,12 +420,6 @@ class _OfferProductCardState extends ConsumerState<_OfferProductCard>
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'current price ',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.neutral500,
-                    ),
-                  ),
-                  Text(
                     '₹${_formatPrice(widget.product.productMrp)}',
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.neutral500,

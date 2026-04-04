@@ -963,10 +963,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     
                     const SizedBox(height: 12),
                     
-                    // Add to cart button or quantity selector
-                    isInCart
-                        ? _buildQuantitySelector(context, ref, _createProductModel(result), quantity)
-                        : _buildAddToCartButton(ref, _createProductModel(result)),
+                    // IPO badge + Add to cart
+                    Row(
+                      children: [
+                        if (result['is_ipo_product']?.toString().toLowerCase() == 'yes' &&
+                            (result['ipo_img'] ?? '').toString().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Image.network(
+                              result['ipo_img'],
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                            ),
+                          ),
+                        Expanded(
+                          child: isInCart
+                              ? _buildQuantitySelector(context, ref, _createProductModel(result), quantity)
+                              : _buildAddToCartButton(ref, _createProductModel(result)),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -1123,6 +1141,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       subCategoryId: productData['sub_category_id'] ?? '',
       storeQuantity: int.tryParse(productData['store_quantity']?.toString() ?? '10') ?? 10,
       maxQuantityAllowed: int.tryParse(productData['max_quantity_allowed']?.toString() ?? '10') ?? 10,
+      ipoImg: productData['ipo_img'] ?? '',
+      isIpoProduct: productData['is_ipo_product']?.toString().toLowerCase() == 'yes',
     );
   }
   

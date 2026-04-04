@@ -19,6 +19,7 @@ class ProductModel {
   final int storeQuantity;
   final int maxQuantityAllowed;
   final String ipoImg;
+  final bool isIpoProduct;
 
   ProductModel({
     required this.id,
@@ -40,6 +41,7 @@ class ProductModel {
     required this.storeQuantity,
     required this.maxQuantityAllowed,
     this.ipoImg = '',
+    this.isIpoProduct = false,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -63,6 +65,7 @@ class ProductModel {
       storeQuantity: _parseInt(json['store_quantity']),
       maxQuantityAllowed: _parseInt(json['max_quantity_allowed']),
       ipoImg: json['ipo_img'] ?? '',
+      isIpoProduct: json['is_ipo_product']?.toString().toLowerCase() == 'yes',
     );
   }
 
@@ -141,6 +144,7 @@ class ProductModel {
       'store_quantity': storeQuantity,
       'max_quantity_allowed': maxQuantityAllowed,
       'ipo_img': ipoImg,
+      'is_ipo_product': isIpoProduct ? 'Yes' : 'No',
     };
   }
   
@@ -164,6 +168,7 @@ class ProductModel {
     int? storeQuantity,
     int? maxQuantityAllowed,
     String? ipoImg,
+    bool? isIpoProduct,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -185,6 +190,7 @@ class ProductModel {
       storeQuantity: storeQuantity ?? this.storeQuantity,
       maxQuantityAllowed: maxQuantityAllowed ?? this.maxQuantityAllowed,
       ipoImg: ipoImg ?? this.ipoImg,
+      isIpoProduct: isIpoProduct ?? this.isIpoProduct,
     );
   }
 

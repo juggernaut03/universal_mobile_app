@@ -833,24 +833,19 @@ final offerSlabsProvider = Provider<List<OfferSlab>>((ref) {
 
 // Next offer slab provider - used by persistent cart bar teaser
 final nextOfferSlabProvider = Provider<OfferSlabStatus?>((ref) {
-  final cartTotal = ref.watch(cartTotalProvider);
   final slabs = ref.watch(offerSlabsProvider);
-
   if (slabs.isEmpty) return null;
 
-  for (int i = 0; i < slabs.length; i++) {
-    final slab = slabs[i];
-    if (cartTotal < slab.threshold) {
-      final prevThreshold = i > 0 ? slabs[i - 1].threshold : 0.0;
-      final range = slab.threshold - prevThreshold;
-      final progress = range > 0 ? ((cartTotal - prevThreshold) / range).clamp(0.0, 1.0) : 0.0;
-      final remaining = slab.threshold - cartTotal;
+  // Find first locked slab — that's the next offer to unlock
+  for (final slab in slabs) {
+    final unlocked = slab.offerStatus.toLowerCase() == 'unlocked';
+    if (!unlocked) {
       return OfferSlabStatus(
         slab: slab,
         unlocked: false,
         isNext: true,
-        progress: progress,
-        remaining: remaining,
+        progress: 0.0,
+        remaining: 0.0,
       );
     }
   }
@@ -859,35 +854,22 @@ final nextOfferSlabProvider = Provider<OfferSlabStatus?>((ref) {
 
 // Full offer slabs status provider - used by offers bottom sheet
 final offerSlabsStatusProvider = Provider<List<OfferSlabStatus>>((ref) {
-  final cartTotal = ref.watch(cartTotalProvider);
   final slabs = ref.watch(offerSlabsProvider);
-
   if (slabs.isEmpty) return [];
 
   bool foundNext = false;
-  return slabs.asMap().entries.map((entry) {
-    final i = entry.key;
-    final slab = entry.value;
-    final unlocked = cartTotal >= slab.threshold;
+  return slabs.map((slab) {
+    // Use offer_status from API as source of truth
+    final unlocked = slab.offerStatus.toLowerCase() == 'unlocked';
     final isNext = !unlocked && !foundNext;
     if (isNext) foundNext = true;
-
-    final prevThreshold = i > 0 ? slabs[i - 1].threshold : 0.0;
-    final range = slab.threshold - prevThreshold;
-    double progress = 0.0;
-    if (unlocked) {
-      progress = 1.0;
-    } else if (isNext && range > 0) {
-      progress = ((cartTotal - prevThreshold) / range).clamp(0.0, 1.0);
-    }
-    final remaining = unlocked ? 0.0 : slab.threshold - cartTotal;
 
     return OfferSlabStatus(
       slab: slab,
       unlocked: unlocked,
       isNext: isNext,
-      progress: progress,
-      remaining: remaining,
+      progress: unlocked ? 1.0 : 0.0,
+      remaining: 0.0,
     );
   }).toList();
 });
