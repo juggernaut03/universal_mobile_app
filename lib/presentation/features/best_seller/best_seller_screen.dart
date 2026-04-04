@@ -297,7 +297,7 @@ class _BestSellerProductCard extends ConsumerWidget {
                     ),
                   ),
                 // IPO badge
-                if (product.ipoImg.isNotEmpty)
+                if (product.isIpoProduct && product.ipoImg.isNotEmpty)
                   Positioned(
                     bottom: 4,
                     right: 4,

@@ -568,7 +568,7 @@ Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
           padding: const EdgeInsets.all(8.0),
           child: Row(
             children: [
-              if (product.ipoImg.isNotEmpty)
+              if (product.isIpoProduct && product.ipoImg.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: Image.network(
