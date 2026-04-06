@@ -421,7 +421,7 @@ class _OfferProductCardState extends ConsumerState<_OfferProductCard>
                   const SizedBox(width: 8),
                   Text(
                     '₹${_formatPrice(widget.product.productMrp)}',
-                    style: AppTextStyles.bodySmall.copyWith(
+                    style: AppTextStyles.bodyMedium.copyWith(
                       color: AppColors.neutral500,
                       decoration: TextDecoration.lineThrough,
                     ),
