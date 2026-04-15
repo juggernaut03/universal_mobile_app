@@ -194,6 +194,9 @@ class ProductModel {
     );
   }
 
+  /// True if product should be shown — in stock and has a valid price.
+  bool get isAvailable => storeQuantity > 0 && ourPrice > 0;
+
   @override
   String toString() {
     return 'ProductModel(id: $id, pCode: $pCode, productName: $productName, productMrp: $productMrp, ourPrice: $ourPrice)';

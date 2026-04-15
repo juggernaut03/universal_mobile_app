@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/product_model.dart';
@@ -123,6 +124,13 @@ class SearchNotifier extends StateNotifier<SearchState> {
       } else if (response is Map && response.containsKey('products')) {
         results = response['products'] as List;
       }
+
+      // Filter out out-of-stock or zero-price products
+      results = results.where((item) {
+        final qty = int.tryParse(item['store_quantity']?.toString() ?? '0') ?? 0;
+        final price = ProductModel.parseDecimal128OrNumber(item['our_price']);
+        return qty > 0 && price > 0;
+      }).toList();
       
       // Only update state if this search is still current
       if (state.query == query) {
@@ -254,6 +262,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: TextField(
                 controller: _searchController,
                 focusNode: _searchFocusNode,
+                inputFormatters: [NoEmojiInputFormatter()],
                 decoration: InputDecoration(
                   hintText: 'Search for products...',
                   hintStyle: AppTextStyles.bodyMedium.copyWith(

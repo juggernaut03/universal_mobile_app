@@ -171,7 +171,7 @@ final stealDealsOffersProvider =
         try {
           final product =
               await productRepository.getProductByCode(pCode, storeCode);
-          if (product != null) {
+          if (product != null && product.isAvailable) {
             products.add(product);
           }
         } catch (e) {

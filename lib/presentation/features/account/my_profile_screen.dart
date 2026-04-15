@@ -1,6 +1,7 @@
 // lib/presentation/features/account/my_profile_screen.dart
 
 import 'package:flutter/material.dart';
+import '../../../core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
@@ -671,6 +672,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       validator: validator,
+      inputFormatters: [NoEmojiInputFormatter()],
       decoration: InputDecoration(
         hintText: hintText,
         border: OutlineInputBorder(
