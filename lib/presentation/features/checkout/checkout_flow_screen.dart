@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../../../core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/address_model.dart';
@@ -3936,6 +3937,7 @@ String _formatDate(DateTime date) {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       child: TextField(
                         controller: _pickupNameController,
+                        inputFormatters: [NoEmojiInputFormatter()],
                         decoration: InputDecoration(
                           labelText: 'Pickup Name',
                           hintText: 'Enter your name for pickup',
@@ -3959,6 +3961,7 @@ String _formatDate(DateTime date) {
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                     child: TextField(
                       controller: _instructionsController,
+                      inputFormatters: [NoEmojiInputFormatter()],
                       decoration: InputDecoration(
                         hintText: isSelfPickup
                             ? 'Any special instructions for pickup?'
