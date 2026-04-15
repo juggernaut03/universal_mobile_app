@@ -135,11 +135,11 @@ class BestSellerRepository {
         // Handle both old format (direct array) and new format (with title)
         if (decoded is List) {
           // Old format - direct array
-          return decoded.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+          return decoded.map((item) => ProductModel.fromJson(_castToStringMap(item))).where((p) => p.isAvailable).toList();
         } else if (decoded is Map) {
           // New format - with title and bestseller_details
           final response = BestSellerProductsResponse.fromJson(_castToStringMap(decoded));
-          return response.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+          return response.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).where((p) => p.isAvailable).toList();
         }
       }
 
@@ -159,7 +159,7 @@ class BestSellerRepository {
       if (response is Map && response.containsKey('title') && response.containsKey('bestseller_details')) {
         // New API format with title and bestseller_details
         final bestSellerResponse = BestSellerProductsResponse.fromJson(_castToStringMap(response));
-        final products = bestSellerResponse.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+        final products = bestSellerResponse.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).where((p) => p.isAvailable).toList();
         
         // Cache the entire response (including title)
         await prefs.setString(cacheKey, jsonEncode(response));
@@ -176,7 +176,7 @@ class BestSellerRepository {
         return products;
       } else if (response is List) {
         // Old API format - direct array of products
-        final products = response.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+        final products = response.map((item) => ProductModel.fromJson(_castToStringMap(item))).where((p) => p.isAvailable).toList();
         
         // Cache the products
         await prefs.setString(cacheKey, jsonEncode(response));
@@ -208,10 +208,10 @@ class BestSellerRepository {
         
         // Handle both old format (direct array) and new format (with title)
         if (decoded is List) {
-          return decoded.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+          return decoded.map((item) => ProductModel.fromJson(_castToStringMap(item))).where((p) => p.isAvailable).toList();
         } else if (decoded is Map) {
           final response = BestSellerProductsResponse.fromJson(_castToStringMap(decoded));
-          return response.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).toList();
+          return response.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).where((p) => p.isAvailable).toList();
         }
       }
       

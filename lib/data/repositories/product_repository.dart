@@ -49,7 +49,10 @@ class ProductRepository {
       if (cachedData != null && (currentTime - cachedTimestamp < _cacheDurationHours * 3600000)) {
         _logger.log('Using cached products data for filter: dept=$deptId, cat=$categoryId, subcat=$subCategoryId');
         final List<dynamic> decoded = jsonDecode(cachedData);
-        return decoded.map((item) => ProductModel.fromJson(item)).toList();
+        return decoded
+            .map((item) => ProductModel.fromJson(item))
+            .where((p) => p.isAvailable)
+            .toList();
       }
 
       _logger.log('Fetching products for dept=$deptId, cat=$categoryId, subcat=$subCategoryId from API');
@@ -67,8 +70,11 @@ class ProductRepository {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        final products = data.map((json) => ProductModel.fromJson(json)).toList();
-        
+        final products = data
+            .map((json) => ProductModel.fromJson(json))
+            .where((p) => p.isAvailable)
+            .toList();
+
         // Cache the products
         await prefs.setString(cacheKey, response.body);
         await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
@@ -89,7 +95,10 @@ class ProductRepository {
       if (cachedData != null) {
         _logger.log('Using expired cached products data due to error');
         final List<dynamic> decoded = jsonDecode(cachedData);
-        return decoded.map((item) => ProductModel.fromJson(item)).toList();
+        return decoded
+            .map((item) => ProductModel.fromJson(item))
+            .where((p) => p.isAvailable)
+            .toList();
       }
       rethrow;
     }

@@ -1,5 +1,6 @@
 // lib/presentation/features/support/faq_screen.dart
 import 'package:flutter/material.dart';
+import '../../../core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/widgets/back_button_wrapper.dart';
@@ -108,11 +109,6 @@ class _FAQScreenState extends ConsumerState<FAQScreen> {
       FAQCategory(
         title: 'DELIVERY',
         faqs: [
-          FAQ(
-            question: 'How long will it take to deliver my order?',
-            answer:
-                'Delivery times vary based on your location and the selected store. Typically, orders are delivered within 2-3 hours for same-day delivery if placed before 6 PM. You can see the estimated delivery time during checkout.',
-          ),
           FAQ(
             question: 'Do you deliver to my area?',
             answer:
@@ -237,6 +233,7 @@ class _FAQScreenState extends ConsumerState<FAQScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: TextField(
                     controller: _searchController,
+                    inputFormatters: [NoEmojiInputFormatter()],
                     decoration: InputDecoration(
                       hintText: 'Search FAQs',
                       prefixIcon: const Icon(Icons.search),

@@ -1,6 +1,7 @@
 // lib/presentation/widgets/search_widget.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:patelmart/core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
@@ -306,6 +307,7 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
           onChanged: _onTextChanged,
           onSubmitted: _onSubmitted,
           textInputAction: TextInputAction.search,
+          inputFormatters: [NoEmojiInputFormatter()],
           textAlign: TextAlign.start, // Ensure text starts from left when typing
           decoration: InputDecoration(
             hintText: widget.hintText,
