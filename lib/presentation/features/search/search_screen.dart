@@ -1008,12 +1008,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildQuantitySelector(BuildContext context, WidgetRef ref, ProductModel product, int quantity) {
     return Container(
       height: 32,
+      width: 120,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         children: [
           // Decrement button
           Material(
@@ -1047,17 +1048,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
           
-          // Manual quantity input
-          Container(
-            width: 60,
-            height: 32,
-            color: Colors.white,
-            child: _ManualQuantityInput(
-              initialQuantity: quantity,
-              maxQuantity: product.maxQuantityAllowed,
-              onQuantityChanged: (newQuantity) {
-                _handleManualQuantityInput(context, ref, product, newQuantity);
-              },
+          // Manual quantity input — expands to fill remaining space
+          Expanded(
+            child: Container(
+              height: 32,
+              color: Colors.white,
+              child: _ManualQuantityInput(
+                initialQuantity: quantity,
+                maxQuantity: product.maxQuantityAllowed,
+                onQuantityChanged: (newQuantity) {
+                  _handleManualQuantityInput(context, ref, product, newQuantity);
+                },
+              ),
             ),
           ),
           
