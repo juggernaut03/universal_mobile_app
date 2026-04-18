@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
-/// Input formatter that blocks emoji and pictographic characters.
-/// Use on any TextField/TextFormField that should accept only regular text/numbers.
+/// Input formatter that blocks emoji and pictographic characters,
+/// prevents leading whitespace, and collapses consecutive spaces.
 class NoEmojiInputFormatter extends TextInputFormatter {
   // Matches emoji, pictographs, symbols, flags, and variation selectors.
   static final RegExp _emojiRegex = RegExp(
@@ -9,19 +9,41 @@ class NoEmojiInputFormatter extends TextInputFormatter {
     unicode: true,
   );
 
+  // Matches 2+ consecutive whitespace characters
+  static final RegExp _multiSpaceRegex = RegExp(r' {2,}');
+
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    if (_emojiRegex.hasMatch(newValue.text)) {
-      // Strip emojis and return the cleaned text
-      final cleaned = newValue.text.replaceAll(_emojiRegex, '');
-      return TextEditingValue(
-        text: cleaned,
-        selection: TextSelection.collapsed(offset: cleaned.length),
-      );
+    var text = newValue.text;
+
+    // 1) Strip emojis
+    if (_emojiRegex.hasMatch(text)) {
+      text = text.replaceAll(_emojiRegex, '');
     }
-    return newValue;
+
+    // 2) Remove leading whitespace
+    text = text.trimLeft();
+
+    // 3) Collapse multiple spaces into single space
+    if (_multiSpaceRegex.hasMatch(text)) {
+      text = text.replaceAll(_multiSpaceRegex, ' ');
+    }
+
+    // If nothing changed, return as-is to preserve cursor position
+    if (text == newValue.text) {
+      return newValue;
+    }
+
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(
+        offset: text.length < newValue.selection.baseOffset
+            ? text.length
+            : newValue.selection.baseOffset.clamp(0, text.length),
+      ),
+    );
   }
 }
