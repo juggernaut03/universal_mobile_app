@@ -17,7 +17,7 @@ import '../../providers/auth_providers.dart';
 import '../../providers/cart_validator_provider.dart';
 import '../../providers/outlet_provider.dart';
 import 'widgets/cart_item_widget.dart';
-import '../home/widgets/steal_deals_widget.dart';
+import 'widgets/tabbed_offers_widget.dart';
 import 'widgets/section_header_widget.dart';
 import 'widgets/cart_validation_dialog.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
@@ -365,9 +365,9 @@ class CartScreen extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 80), // Space for checkout button
       child: Column(
         children: [
-          // Offers section at the top
+          // Offers section at the top - tabbed layout
           const RepaintBoundary(
-            child: StealDealsWidget(),
+            child: TabbedOffersWidget(),
           ),
 
           // Cart items

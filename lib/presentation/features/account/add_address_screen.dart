@@ -16,6 +16,7 @@ import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import 'package:patelmart/utils/ascii_only_input_formatter.dart';
+import 'package:patelmart/core/utils/input_formatters.dart';
 
 
 class AddAddressScreen extends ConsumerStatefulWidget {
@@ -154,6 +155,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
   /// Creates ASCII-only input formatter with dialog notification
   List<TextInputFormatter> _getAsciiOnlyFormatters() {
     return [
+      NoEmojiInputFormatter(),
       AsciiOnlyInputFormatter(
         onBlocked: () {
           if (!mounted) return;
