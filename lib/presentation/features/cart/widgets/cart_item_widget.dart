@@ -52,22 +52,42 @@ class CartItemWidget extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Product image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  product.pcodeImg.isNotEmpty 
-                      ? product.pcodeImg 
-                      : ApiConstants.fallbackImageUrl,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Image.network(
-                    ApiConstants.fallbackImageUrl,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                  ),
+              // Product image with optional IPO badge overlay
+              SizedBox(
+                width: 80,
+                height: 80,
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        product.pcodeImg.isNotEmpty
+                            ? product.pcodeImg
+                            : ApiConstants.fallbackImageUrl,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Image.network(
+                          ApiConstants.fallbackImageUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    if (product.isIpoProduct && product.ipoImg.isNotEmpty)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        child: Image.network(
+                          product.ipoImg,
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               
