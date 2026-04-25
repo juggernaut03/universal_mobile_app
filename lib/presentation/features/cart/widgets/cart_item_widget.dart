@@ -101,8 +101,9 @@ class CartItemWidget extends ConsumerWidget {
                     // Product name
                     Text(
                       product.productName,
-                      style: AppTextStyles.bodyMedium.copyWith(
+                      style: AppTextStyles.bodySmall.copyWith(
                         fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,

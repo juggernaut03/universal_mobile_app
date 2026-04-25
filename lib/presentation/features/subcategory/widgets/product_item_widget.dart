@@ -262,9 +262,9 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
                   Text(
                     widget.product.productName,
                     style: const TextStyle(
-                      fontSize: 14, // Reduced from 16
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      height: 1.2, // Reduced line height
+                      height: 1.2,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
