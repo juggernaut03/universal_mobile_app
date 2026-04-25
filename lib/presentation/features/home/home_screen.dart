@@ -908,10 +908,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: PopularCategorySection2Widget(
               showTitle: true,
               showViewAll: true,
-              itemWidth: 110,
-              itemHeight: 120,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              spacing: 12,
+              itemWidth: 80,
+              itemHeight: 95,
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              spacing: 6,
             ),
           ),
 
@@ -921,10 +921,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: PopularCategorySection3Widget(
               showTitle: true,
               showViewAll: true,
-              itemWidth: 110,
-              itemHeight: 120,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              spacing: 12,
+              itemWidth: 80,
+              itemHeight: 95,
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              spacing: 6,
             ),
           ),
 
@@ -934,10 +934,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: PopularCategorySection4Widget(
               showTitle: true,
               showViewAll: true,
-              itemWidth: 110,
-              itemHeight: 120,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              spacing: 12,
+              itemWidth: 80,
+              itemHeight: 95,
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              spacing: 6,
             ),
           ),
 
@@ -947,10 +947,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: PopularCategorySection5Widget(
               showTitle: true,
               showViewAll: true,
-              itemWidth: 110,
-              itemHeight: 120,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              spacing: 12,
+              itemWidth: 80,
+              itemHeight: 95,
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              spacing: 6,
             ),
           ),
 

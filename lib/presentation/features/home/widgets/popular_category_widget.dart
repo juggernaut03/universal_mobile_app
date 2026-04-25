@@ -24,10 +24,10 @@ class PopularCategoryWidget extends ConsumerStatefulWidget {
     this.titleOverride,
     this.showTitle = true,
     this.showViewAll = true,
-    this.itemWidth = 110,
-    this.itemHeight = 140,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    this.spacing = 12,
+    this.itemWidth = 80,
+    this.itemHeight = 95,
+    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    this.spacing = 6,
   }) : super(key: key);
 
   @override
@@ -137,7 +137,7 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
 
   Widget _buildExpandedGrid(BuildContext context, List<dynamic> categories) {
     // Calculate the number of rows needed
-    const int fixedColumns = 3;
+    const int fixedColumns = 4;
     final int rowCount = (categories.length / fixedColumns).ceil();
     
     // Calculate the total grid height
@@ -167,55 +167,44 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
   }
 
   Widget _buildCategoryCard(BuildContext context, dynamic category) {
-    final imageHeight = widget.itemHeight * 0.65;
-    final textHeight = widget.itemHeight * 0.25;
-
-    return SizedBox(
-      width: widget.itemWidth,
-      height: widget.itemHeight,
-      child: InkWell(
-        onTap: () {
-          context.push(
-            '/subcategory/${category.categoryId}/${category.deptId}/${Uri.encodeComponent(category.categoryName)}',
-          );
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: imageHeight,
-              width: widget.itemWidth,
-              child: CachedNetworkImageWidget(
-                imageUrl: category.imageLink,
-                cacheKey: 'popular_category_${category.categoryId}',
-                fit: BoxFit.contain,
-                errorWidget: Container(
-                  color: Colors.grey.shade100,
-                  child: Icon(
-                    Icons.image_not_supported_outlined,
-                    color: Colors.grey.shade400,
-                    size: 24,
-                  ),
+    return InkWell(
+      onTap: () {
+        context.push(
+          '/subcategory/${category.categoryId}/${category.deptId}/${Uri.encodeComponent(category.categoryName)}',
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: CachedNetworkImageWidget(
+              imageUrl: category.imageLink,
+              cacheKey: 'popular_category_${category.categoryId}',
+              fit: BoxFit.contain,
+              errorWidget: Container(
+                color: Colors.grey.shade100,
+                child: Icon(
+                  Icons.image_not_supported_outlined,
+                  color: Colors.grey.shade400,
+                  size: 20,
                 ),
               ),
             ),
-            SizedBox(
-              height: textHeight,
-              width: widget.itemWidth,
-              child: Text(
-                category.categoryName,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            category.categoryName,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
