@@ -1116,7 +1116,7 @@ class _ReorderProductItemWidgetState extends ConsumerState<_ReorderProductItemWi
                   Text(
                     widget.reorderItem.product.productName,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                       height: 1.2,
                     ),
