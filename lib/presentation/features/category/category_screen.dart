@@ -382,11 +382,11 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         // Categories grid
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.95,
+                childAspectRatio: 1.1,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
@@ -404,11 +404,12 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   
 Widget _buildCategoryCard(CategoryModel category) {
   return Card(
-    key: ValueKey('category_${category.categoryId}'), // Prevents widget recycling issues
-    elevation: 2,
-    color: Colors.white, // ✅ Explicitly set white background to match departments
+    key: ValueKey('category_${category.categoryId}'),
+    elevation: 1,
+    margin: EdgeInsets.zero,
+    color: Colors.white,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
     ),
     child: InkWell(
       onTap: () {
@@ -419,55 +420,39 @@ Widget _buildCategoryCard(CategoryModel category) {
       },
       borderRadius: BorderRadius.circular(12),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            flex: 3,
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.fromLTRB(6, 6, 6, 2),
               child: CachedNetworkImageWidget(
                 imageUrl: category.imageLink,
                 fit: BoxFit.contain,
-                placeholder: Container(
-                  color: Colors.grey[50],
-                  child: Center(
-                    child: SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ),
+                placeholder: Container(color: Colors.grey[50]),
                 errorWidget: Container(
                   color: Colors.grey[50],
                   child: Center(
                     child: Icon(
                       Icons.image_not_supported_outlined,
                       color: Colors.grey[400],
-                      size: 48,
+                      size: 28,
                     ),
                   ),
                 ),
               ),
             ),
           ),
-          Expanded(
-            flex: 1,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-              child: Text(
-                category.categoryName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 9,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 2, 4, 6),
+            child: Text(
+              category.categoryName,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
               ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -601,12 +586,12 @@ Widget _buildCategoryCard(CategoryModel category) {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.95,
+                childAspectRatio: 1.1,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
               itemCount: 6,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               itemBuilder: (context, index) {
                 return Card(
                   elevation: 2,
