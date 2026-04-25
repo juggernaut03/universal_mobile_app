@@ -386,7 +386,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 1.1,
+                mainAxisExtent: 170,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
@@ -403,60 +403,44 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   
   
 Widget _buildCategoryCard(CategoryModel category) {
-  return Card(
+  return GestureDetector(
     key: ValueKey('category_${category.categoryId}'),
-    elevation: 1,
-    margin: EdgeInsets.zero,
-    color: Colors.white,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: InkWell(
-      onTap: () {
-        final departmentId = _currentDepartmentId ?? '';
-        context.push(
-          '/subcategory/${category.categoryId}/$departmentId/${Uri.encodeComponent(category.categoryName)}',
-        );
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(6, 6, 6, 2),
-              child: CachedNetworkImageWidget(
-                imageUrl: category.imageLink,
-                fit: BoxFit.contain,
-                placeholder: Container(color: Colors.grey[50]),
-                errorWidget: Container(
-                  color: Colors.grey[50],
-                  child: Center(
-                    child: Icon(
-                      Icons.image_not_supported_outlined,
-                      color: Colors.grey[400],
-                      size: 28,
-                    ),
-                  ),
-                ),
-              ),
+    onTap: () {
+      final departmentId = _currentDepartmentId ?? '';
+      context.push(
+        '/subcategory/${category.categoryId}/$departmentId/${Uri.encodeComponent(category.categoryName)}',
+      );
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          height: 120,
+          width: double.infinity,
+          child: CachedNetworkImageWidget(
+            imageUrl: category.imageLink,
+            fit: BoxFit.contain,
+            placeholder: const SizedBox.shrink(),
+            errorWidget: Icon(
+              Icons.image_not_supported_outlined,
+              color: Colors.grey[400],
+              size: 28,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 2, 4, 6),
-            child: Text(
-              category.categoryName,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 11,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          category.categoryName,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
           ),
-        ],
-      ),
+          textAlign: TextAlign.center,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     ),
   );
 }
@@ -586,49 +570,35 @@ Widget _buildCategoryCard(CategoryModel category) {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 1.1,
+                mainAxisExtent: 170,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
               itemCount: 6,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               itemBuilder: (context, index) {
-                return Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      height: 120,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      Expanded(
-                        flex: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Container(
-                            width: double.infinity,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: 70,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 );
               },
             ),
