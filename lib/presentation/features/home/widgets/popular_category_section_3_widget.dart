@@ -136,60 +136,52 @@ class _PopularCategorySection3WidgetState extends ConsumerState<PopularCategoryS
 
   Widget _buildExpandedGrid(BuildContext context, List<dynamic> categories) {
     const int fixedColumns = 4;
-    final int rowCount = (categories.length / fixedColumns).ceil();
-    final double gridHeight = (widget.itemHeight + widget.spacing) * rowCount - widget.spacing;
-    
-    return Container(
-      height: gridHeight,
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.symmetric(
-          horizontal: widget.padding.horizontal / 2,
-        ),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: fixedColumns,
-          childAspectRatio: widget.itemWidth / widget.itemHeight,
-          crossAxisSpacing: widget.spacing,
-          mainAxisSpacing: widget.spacing,
-        ),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          return _buildCategoryCard(context, category);
-        },
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.padding.horizontal / 2,
       ),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: fixedColumns,
+        mainAxisExtent: 130,
+        crossAxisSpacing: widget.spacing,
+        mainAxisSpacing: widget.spacing,
+      ),
+      itemCount: categories.length,
+      itemBuilder: (context, index) {
+        final category = categories[index];
+        return _buildCategoryCard(context, category);
+      },
     );
   }
 
   Widget _buildCategoryCard(BuildContext context, dynamic category) {
-    return InkWell(
+    return GestureDetector(
       onTap: () {
         context.push(
           '/subcategory/${category.categoryId}/${category.deptId}/${Uri.encodeComponent(category.categoryName)}',
         );
       },
-      borderRadius: BorderRadius.circular(8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(
+          SizedBox(
+            height: 90,
+            width: double.infinity,
             child: CachedNetworkImageWidget(
               imageUrl: category.imageLink,
               cacheKey: 'popular_category_${category.categoryId}',
               fit: BoxFit.contain,
-              errorWidget: Container(
-                color: Colors.grey.shade100,
-                child: Icon(
-                  Icons.image_not_supported_outlined,
-                  color: Colors.grey.shade400,
-                  size: 20,
-                ),
+              errorWidget: Icon(
+                Icons.image_not_supported_outlined,
+                color: Colors.grey.shade400,
+                size: 20,
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             category.categoryName,
             textAlign: TextAlign.center,
