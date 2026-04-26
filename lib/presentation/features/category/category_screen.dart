@@ -385,8 +385,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisExtent: 170,
+                crossAxisCount: 3,
+                mainAxisExtent: 130,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
@@ -416,7 +416,7 @@ Widget _buildCategoryCard(CategoryModel category) {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
-          height: 120,
+          height: 85,
           width: double.infinity,
           child: CachedNetworkImageWidget(
             imageUrl: category.imageLink,
@@ -569,8 +569,8 @@ Widget _buildCategoryCard(CategoryModel category) {
             child: GridView.builder(
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisExtent: 170,
+                crossAxisCount: 3,
+                mainAxisExtent: 130,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
@@ -582,7 +582,7 @@ Widget _buildCategoryCard(CategoryModel category) {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      height: 120,
+                      height: 85,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white,

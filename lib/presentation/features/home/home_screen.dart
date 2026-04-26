@@ -819,7 +819,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               );
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
 
           // Popular Categories - using RepaintBoundary for better performance
           RepaintBoundary(
