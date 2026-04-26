@@ -287,7 +287,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     final displayTitle = titleOverride ?? response.title;
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
@@ -301,7 +301,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
           // Horizontal scrolling categories
           _buildHorizontalCategories(context, response.categories),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -497,7 +497,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   /// Build loading state with shimmer effect
   Widget _buildLoadingState() {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(12),
@@ -546,7 +546,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
             ),
           ),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -590,7 +590,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   Widget _buildErrorState(BuildContext context, Object error, WidgetRef ref) {
     return Container(
       height: showTitle ? 120 : 80,
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       padding: padding,
       decoration: BoxDecoration(
         color: Colors.grey[50],
