@@ -434,10 +434,10 @@ Widget _buildCategoryCard(CategoryModel category) {
           category.categoryName,
           style: const TextStyle(
             fontWeight: FontWeight.w500,
-            fontSize: 12,
+            fontSize: 11,
           ),
           textAlign: TextAlign.center,
-          maxLines: 3,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
       ],

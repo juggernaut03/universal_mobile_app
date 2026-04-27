@@ -35,15 +35,18 @@ class _PersistentCartWidgetState extends ConsumerState<PersistentCartWidget> {
     final cartTotal = ref.watch(cartTotalProvider);
     final totalItems = cartItems.fold(0, (sum, item) => sum + item.quantity);
     final nextOffer = ref.watch(nextOfferSlabProvider);
+    final hasOffers = ref.watch(offerSlabsProvider).isNotEmpty;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Offers chip
-        _buildOffersChip(),
-        const SizedBox(height: 4),
+        // Offers chip — only show when offers exist
+        if (hasOffers) ...[
+          _buildOffersChip(),
+          const SizedBox(height: 4),
+        ],
         // Main cart bar
-        _buildCartBar(cartTotal, totalItems, nextOffer),
+        _buildCartBar(cartTotal, totalItems, hasOffers ? nextOffer : null, hasOffers),
       ],
     );
   }
@@ -77,7 +80,135 @@ class _PersistentCartWidgetState extends ConsumerState<PersistentCartWidget> {
     );
   }
 
-  Widget _buildCartBar(double cartTotal, int totalItems, OfferSlabStatus? nextOffer) {
+  Widget _buildCartBar(double cartTotal, int totalItems, OfferSlabStatus? nextOffer, bool hasOffers) {
+    if (!hasOffers) {
+      return _buildSimpleCartBar(cartTotal, totalItems);
+    }
+    return _buildOfferCartBar(totalItems, nextOffer);
+  }
+
+  // No-offers layout: cart icon + total/savings info + CART button
+  Widget _buildSimpleCartBar(double cartTotal, int totalItems) {
+    final savings = ref.watch(cartSavingsProvider);
+    return GestureDetector(
+      onTap: () => context.push('/cart'),
+      child: Container(
+        margin: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.primaryDark, AppColors.primaryDarker],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              // Cart icon with item badge
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.shopping_cart_outlined,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: Colors.orange,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$totalItems',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              // Cart total + savings
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '₹${cartTotal.toStringAsFixed(0)} Cart Total',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '$totalItems Item${totalItems > 1 ? 's' : ''}${savings > 0 ? ' • ₹${savings.toStringAsFixed(0)} Saved' : ''}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // CART button
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'CART',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // With-offers layout: discount icon + offer teaser + cart button
+  Widget _buildOfferCartBar(int totalItems, OfferSlabStatus? nextOffer) {
     return Container(
       margin: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
       decoration: BoxDecoration(
@@ -118,7 +249,7 @@ class _PersistentCartWidgetState extends ConsumerState<PersistentCartWidget> {
               const SizedBox(width: 12),
               // Offer teaser text
               Expanded(
-                child: _buildOfferTeaser(nextOffer),
+                child: _buildOfferTeaser(nextOffer, true),
               ),
               const SizedBox(width: 12),
               // Cart button
@@ -130,8 +261,12 @@ class _PersistentCartWidgetState extends ConsumerState<PersistentCartWidget> {
     );
   }
 
-  Widget _buildOfferTeaser(OfferSlabStatus? nextOffer) {
+  Widget _buildOfferTeaser(OfferSlabStatus? nextOffer, bool hasOffers) {
     if (nextOffer == null) {
+      if (!hasOffers) {
+        // No offers from backend — show nothing
+        return const SizedBox.shrink();
+      }
       // All offers unlocked
       return const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
