@@ -49,10 +49,11 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
         }
 
         final categories = categoryResponse.categoriesDetails;
+        const int firstRowCount = 4;
         final displayCategories = _expanded
             ? categories
-            : categories.length > 6 ? categories.sublist(0, 6) : categories;
-        
+            : categories.sublist(0, categories.length < firstRowCount ? categories.length : firstRowCount);
+
         // Use override if provided, otherwise use API title
         final displayTitle = widget.titleOverride ?? categoryResponse.title;
 
@@ -60,7 +61,7 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
           margin: const EdgeInsets.only(bottom: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min, // Add this to prevent Column expansion
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Only show title if showTitle is enabled AND title is not empty
               if (widget.showTitle && displayTitle.isNotEmpty)
@@ -79,7 +80,7 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (widget.showViewAll && categories.length > 3)
+                      if (widget.showViewAll && categories.length > firstRowCount)
                         TextButton(
                           onPressed: () {
                             setState(() {
@@ -94,9 +95,7 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
                     ],
                   ),
                 ),
-              _expanded
-                  ? _buildExpandedGrid(context, displayCategories)
-                  : _buildHorizontalList(context, displayCategories),
+              _buildExpandedGrid(context, displayCategories),
             ],
           ),
         );

@@ -50,10 +50,11 @@ class _PopularCategorySection5WidgetState extends ConsumerState<PopularCategoryS
         }
 
         final categories = categoryResponse.categoriesDetails;
+        const int firstRowCount = 4;
         final displayCategories = _expanded
             ? categories
-            : categories.length > 6 ? categories.sublist(0, 6) : categories;
-        
+            : categories.sublist(0, categories.length < firstRowCount ? categories.length : firstRowCount);
+
         final displayTitle = widget.titleOverride ?? categoryResponse.title;
 
         return Container(
@@ -78,7 +79,7 @@ class _PopularCategorySection5WidgetState extends ConsumerState<PopularCategoryS
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (widget.showViewAll && categories.length > 3)
+                      if (widget.showViewAll && categories.length > firstRowCount)
                         TextButton(
                           onPressed: () {
                             setState(() {
@@ -93,9 +94,7 @@ class _PopularCategorySection5WidgetState extends ConsumerState<PopularCategoryS
                     ],
                   ),
                 ),
-              _expanded
-                  ? _buildExpandedGrid(context, displayCategories)
-                  : _buildHorizontalList(context, displayCategories),
+              _buildExpandedGrid(context, displayCategories),
             ],
           ),
         );
