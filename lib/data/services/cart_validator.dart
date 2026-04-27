@@ -370,18 +370,18 @@ Map<String, String> generateUniqueOrderIdentifiers() {
         'cart_items': apiItems,
       };
       
-      // Print request body for Postman testing (chunked to avoid Android logcat truncation)
+      // Print full request for Postman testing
       try {
         const JsonEncoder encoder = JsonEncoder.withIndent('  ');
         final String prettyJson = encoder.convert(requestBody);
-        print('\n🔄 ================= VALIDATE CART REQUEST BODY ================= 🔄');
-        print('Total cart items: ${apiItems.length}');
-        // Split into 800-char chunks to avoid Android logcat line limit
-        const int chunkSize = 800;
-        for (int i = 0; i < prettyJson.length; i += chunkSize) {
-          print(prettyJson.substring(i, i + chunkSize > prettyJson.length ? prettyJson.length : i + chunkSize));
-        }
-        print('🔄 ============================================================== 🔄\n');
+        print('');
+        print('==== VALIDATE CART REQUEST ====');
+        print('POST $_validateCartUrl');
+        print('Content-Type: application/json');
+        print('--- BODY (${apiItems.length} items) ---');
+        print(prettyJson);
+        print('================================');
+        print('');
       } catch (e) {
         print('Error printing request body: $e');
       }
@@ -394,6 +394,22 @@ Map<String, String> generateUniqueOrderIdentifiers() {
         body: jsonEncode(requestBody),
       ).timeout(const Duration(seconds: 30));
       
+      // Print full response for Postman comparison
+      try {
+        const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+        final dynamic rawDecoded = jsonDecode(response.body);
+        final String prettyJson = encoder.convert(rawDecoded);
+        print('');
+        print('==== VALIDATE CART RESPONSE ====');
+        print('Status: ${response.statusCode}');
+        print('--- BODY ---');
+        print(prettyJson);
+        print('================================');
+        print('');
+      } catch (e) {
+        print('Error printing response body: $e');
+      }
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Parse response
         final responseData = jsonDecode(response.body);
