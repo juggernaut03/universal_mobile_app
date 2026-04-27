@@ -386,7 +386,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                mainAxisExtent: 130,
+                mainAxisExtent: 150,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),
@@ -570,7 +570,7 @@ Widget _buildCategoryCard(CategoryModel category) {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
-                mainAxisExtent: 130,
+                mainAxisExtent: 150,
                 crossAxisSpacing: 6,
                 mainAxisSpacing: 6,
               ),

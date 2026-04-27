@@ -827,10 +827,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               departmentId: 2, // Your department ID
               itemWidth: 100,
               itemHeight: 100,
-              showTitle: false, // User requested to hide title for "list one"
+              showTitle: false,
               showViewAll: false,
-              spacing: 12,
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              spacing: 4,
+              padding: EdgeInsets.symmetric(horizontal: 8),
               enablePullToRefresh: false, // Disabled - using home screen's unified refresh
             ),
           ),
