@@ -118,7 +118,7 @@ class _PopularCategorySection5WidgetState extends ConsumerState<PopularCategoryS
 
   Widget _buildHorizontalList(BuildContext context, List<dynamic> categories) {
     return Container(
-      height: widget.itemHeight + widget.spacing,
+      height: 130,
       padding: EdgeInsets.symmetric(
         horizontal: widget.padding.horizontal / 2,
       ),
