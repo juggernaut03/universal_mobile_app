@@ -8,6 +8,7 @@ import '../../../core/utils/responsive_utils.dart';
 import '../../../data/models/outlet_model.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/launch_flow_provider.dart';
+import '../../providers/home_refresh_provider.dart';
 
 class OutletSelectionScreen extends ConsumerStatefulWidget {
   final String pincode;
@@ -536,7 +537,10 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
       if (result) {
         // Update the launch flow state
         ref.read(launchFlowProvider.notifier).outletSelected();
-        
+
+        // Re-fetch all home screen data for the new outlet
+        ref.read(forceRefreshAllHomeDataProvider)().catchError((e) {});
+
         // Determine where to navigate based on user flow
         if (context.mounted) {
           // Check if user came from location change (subsequentLaunch means they were already using the app)
