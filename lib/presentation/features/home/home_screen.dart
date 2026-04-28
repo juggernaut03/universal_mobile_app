@@ -849,7 +849,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
 
-          // Offers interleaved with Best Sellers
+          // Offers interleaved with Best Sellers and Popular Categories
           Consumer(
             builder: (context, ref, _) {
               final offersAsync = ref.watch(stealDealsOffersProvider);
@@ -865,13 +865,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               return Column(
                 children: [
                   for (int i = 0; i < maxPairs; i++) ...[
-                    // Offer at index i (if exists)
-                    if (i < displayOffers.length)
-                      RepaintBoundary(
-                        key: ValueKey('offer_section_$i'),
-                        child: SingleOfferSectionWidget(
-                            offer: displayOffers[i]),
+                    // Popular Category sections interleaved (Rendered FIRST)
+                    if (i == 0)
+                      const RepaintBoundary(
+                        key: ValueKey('popular_category_section_2'),
+                        child: PopularCategorySection2Widget(
+                          showTitle: true,
+                          showViewAll: true,
+                          itemWidth: 80,
+                          itemHeight: 95,
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          spacing: 6,
+                        ),
                       ),
+                    if (i == 1)
+                      const RepaintBoundary(
+                        key: ValueKey('popular_category_section_3'),
+                        child: PopularCategorySection3Widget(
+                          showTitle: true,
+                          showViewAll: true,
+                          itemWidth: 80,
+                          itemHeight: 95,
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          spacing: 6,
+                        ),
+                      ),
+                    if (i == 2)
+                      const RepaintBoundary(
+                        key: ValueKey('popular_category_section_4'),
+                        child: PopularCategorySection4Widget(
+                          showTitle: true,
+                          showViewAll: true,
+                          itemWidth: 80,
+                          itemHeight: 95,
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          spacing: 6,
+                        ),
+                      ),
+                    if (i == 3)
+                      const RepaintBoundary(
+                        key: ValueKey('popular_category_section_5'),
+                        child: PopularCategorySection5Widget(
+                          showTitle: true,
+                          showViewAll: true,
+                          itemWidth: 80,
+                          itemHeight: 95,
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          spacing: 6,
+                        ),
+                      ),
+
                     // Best seller at index i (if exists)
                     if (i < bestSellerCount)
                       RepaintBoundary(
@@ -890,6 +933,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           },
                         ),
                       ),
+                    
+                    // Offer at index i (if exists)
+                    if (i < displayOffers.length)
+                      RepaintBoundary(
+                        key: ValueKey('offer_section_$i'),
+                        child: SingleOfferSectionWidget(
+                            offer: displayOffers[i]),
+                      ),
                   ],
                 ],
               );
@@ -897,61 +948,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
 
           // Seasonal Picks
-          RepaintBoundary(
-            child: const SeasonalPicksWidget(),
-          ),
-
-          // Popular Category sections
-          // Popular Category Section 2 (Title overridden internally)
           const RepaintBoundary(
-            key: ValueKey('popular_category_section_2'),
-            child: PopularCategorySection2Widget(
-              showTitle: true,
-              showViewAll: true,
-              itemWidth: 80,
-              itemHeight: 95,
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              spacing: 6,
-            ),
-          ),
-
-          // Popular Category Section 3
-          const RepaintBoundary(
-            key: ValueKey('popular_category_section_3'),
-            child: PopularCategorySection3Widget(
-              showTitle: true,
-              showViewAll: true,
-              itemWidth: 80,
-              itemHeight: 95,
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              spacing: 6,
-            ),
-          ),
-
-          // Popular Category Section 4
-          const RepaintBoundary(
-            key: ValueKey('popular_category_section_4'),
-            child: PopularCategorySection4Widget(
-              showTitle: true,
-              showViewAll: true,
-              itemWidth: 80,
-              itemHeight: 95,
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              spacing: 6,
-            ),
-          ),
-
-          // Popular Category Section 5
-          const RepaintBoundary(
-            key: ValueKey('popular_category_section_5'),
-            child: PopularCategorySection5Widget(
-              showTitle: true,
-              showViewAll: true,
-              itemWidth: 80,
-              itemHeight: 95,
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              spacing: 6,
-            ),
+            child: SeasonalPicksWidget(),
           ),
 
           // Bottom spacing
