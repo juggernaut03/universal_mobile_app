@@ -4,10 +4,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/presentation/features/home/widgets/promotional_banner_widget.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
+import 'package:patelmart/presentation/providers/category_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_providers.dart';
+import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
-import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart'
+    show bannerProvider, categoriesProvider, seasonalPicksRefreshProvider;
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 
 // Provider to track overall home screen refresh state
@@ -175,20 +178,54 @@ class RefreshButtonState {
   final bool canRefresh;
   final bool isRefreshing;
   final DateTime? lastRefresh;
-  
+
   const RefreshButtonState({
     required this.isLoading,
     required this.canRefresh,
     required this.isRefreshing,
     this.lastRefresh,
   });
-  
+
   bool get shouldShowLoading => isLoading || isRefreshing;
   bool get isEnabled => canRefresh && !shouldShowLoading;
-  
+
   String get tooltipText {
     if (shouldShowLoading) return 'Refreshing...';
     if (!canRefresh) return 'Please wait before refreshing again';
     return 'Refresh home screen';
   }
 }
+
+// Force-refresh all home data after outlet/pincode change.
+// Bypasses rate limiting and clears all caches before re-fetching.
+final forceRefreshAllHomeDataProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    ref.read(loggerProvider).log('Force-refreshing all home data after location/outlet change');
+
+    await Future.wait([
+      ref.read(bestSellerRefreshProvider)().catchError((e) {
+        ref.read(loggerProvider).error('Best seller force-refresh failed: $e');
+      }),
+      ref.read(popularCategoryRefreshProvider)().catchError((e) {
+        ref.read(loggerProvider).error('Popular categories force-refresh failed: $e');
+      }),
+      ref.read(allSectionsRefreshProvider)().catchError((e) {
+        ref.read(loggerProvider).error('Popular category sections force-refresh failed: $e');
+      }),
+      ref.read(promotionalBannerRefreshProvider)().catchError((e) {
+        ref.read(loggerProvider).error('Promotional banner force-refresh failed: $e');
+      }),
+      ref.read(categoryRefreshProvider)().catchError((e) {
+        ref.read(loggerProvider).error('Categories force-refresh failed: $e');
+      }),
+      ref.read(seasonalCategoryRefreshProvider)().catchError((e) {
+        ref.read(loggerProvider).error('Seasonal categories force-refresh failed: $e');
+      }),
+      ref.read(seasonalPicksRefreshProvider)().catchError((e) {
+        ref.read(loggerProvider).error('Seasonal picks force-refresh failed: $e');
+      }),
+    ]);
+
+    ref.read(loggerProvider).log('Force-refresh of all home data completed');
+  };
+});

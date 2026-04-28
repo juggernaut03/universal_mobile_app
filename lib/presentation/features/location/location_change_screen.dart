@@ -12,6 +12,7 @@ import '../../../data/models/outlet_model.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/launch_flow_provider.dart';
+import '../../providers/home_refresh_provider.dart';
 
 class LocationChangeScreen extends ConsumerStatefulWidget {
   const LocationChangeScreen({Key? key}) : super(key: key);
@@ -138,11 +139,14 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
 
   void _safeNavigateToHome() {
     if (_isDisposed || !mounted || _isNavigating) return;
-    
+
     _safeSetState(() {
       _isNavigating = true;
     });
-    
+
+    // Kick off a full refresh of all home data for the newly selected location
+    ref.read(forceRefreshAllHomeDataProvider)().catchError((e) {});
+
     context.go('/home');
   }
 
