@@ -379,6 +379,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         })
       );
 
+      // 6. Pending Order / Last Order Status widget
+      refreshOperations.add(
+        Future(() async {
+          try {
+            final future = ref.refresh(lastOrderStatusProvider.future);
+            await future;
+          } catch (e) {
+            ref.read(loggerProvider).error('Last order status refresh failed: $e');
+          }
+        })
+      );
+
       // Wait for all refresh operations to complete
       await Future.wait(refreshOperations);
 
@@ -490,30 +502,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _refreshSeasonalPicksData() async {
     try {
       final outletAsync = ref.read(selectedOutletProvider);
-      
-      await outletAsync.when(
-        data: (outlet) async {
-          if (outlet != null) {
-            // Refresh both seasonal banner and categories
-            await Future.wait([
-              ref.refresh(bannerProvider(outlet.storeCode).future),
-              ref.refresh(categoriesProvider(outlet.storeCode).future),
-            ]);
-            
-            ref.read(loggerProvider).log('Seasonal picks refreshed for store: ${outlet.storeCode}');
-          } else {
-            ref.read(loggerProvider).log('No outlet selected, skipping seasonal picks refresh');
-          }
-        },
-        loading: () {
-          ref.read(loggerProvider).log('Outlet still loading, skipping seasonal picks refresh');
-          return Future.value();
-        },
-        error: (error, stackTrace) {
-          ref.read(loggerProvider).error('Outlet error during seasonal picks refresh: $error');
-          return Future.value();
-        },
-      );
+      // Use valueOrNull to avoid the when() async-not-awaited pitfall
+      final outlet = outletAsync.valueOrNull;
+
+      if (outlet != null) {
+        // Refresh both seasonal banner and categories, and properly await them
+        await Future.wait([
+          ref.refresh(bannerProvider(outlet.storeCode).future),
+          ref.refresh(categoriesProvider(outlet.storeCode).future),
+        ]);
+
+        ref.read(loggerProvider).log('Seasonal picks refreshed for store: ${outlet.storeCode}');
+      } else {
+        ref.read(loggerProvider).log('No outlet selected, skipping seasonal picks refresh');
+      }
     } catch (e) {
       ref.read(loggerProvider).error('Failed to refresh seasonal picks: $e');
       rethrow; // Re-throw to be caught by the main refresh method

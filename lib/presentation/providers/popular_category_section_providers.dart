@@ -33,21 +33,17 @@ final popularCategorySection2Provider = FutureProvider<PopularCategoryResponse>(
   final repository = ref.watch(section2RepositoryProvider);
   final outletAsync = ref.watch(selectedOutletProvider);
   final forceRefresh = ref.read(section2RefreshFlagProvider);
-  
-  return outletAsync.when(
-    data: (outlet) async {
-      if (outlet == null) {
-        throw Exception('No store selected');
-      }
-      return repository.getPopularCategories(
-        sectionId: 2,
-        departmentId: "1",
-        storeCode: outlet.storeCode,
-        forceRefresh: forceRefresh,
-      );
-    },
-    loading: () => throw Exception('Loading outlet information...'),
-    error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
+
+  final outlet = outletAsync.valueOrNull;
+  if (outlet == null) {
+    // Outlet not yet available - return empty rather than throwing
+    return PopularCategoryResponse.empty();
+  }
+  return repository.getPopularCategories(
+    sectionId: 2,
+    departmentId: "1",
+    storeCode: outlet.storeCode,
+    forceRefresh: forceRefresh,
   );
 });
 
@@ -56,7 +52,8 @@ final section2RefreshProvider = Provider<Future<void> Function()>((ref) {
     final repository = ref.read(section2RepositoryProvider);
     await repository.clearCache();
     ref.read(section2RefreshFlagProvider.notifier).state = true;
-    await ref.refresh(popularCategorySection2Provider.future);
+    final future2 = ref.refresh(popularCategorySection2Provider.future);
+    await future2;
     ref.read(section2RefreshFlagProvider.notifier).state = false;
   };
 });
@@ -85,21 +82,16 @@ final popularCategorySection3Provider = FutureProvider<PopularCategoryResponse>(
   final repository = ref.watch(section3RepositoryProvider);
   final outletAsync = ref.watch(selectedOutletProvider);
   final forceRefresh = ref.read(section3RefreshFlagProvider);
-  
-  return outletAsync.when(
-    data: (outlet) async {
-      if (outlet == null) {
-        throw Exception('No store selected');
-      }
-      return repository.getPopularCategories(
-        sectionId: 3,
-        departmentId: "1",
-        storeCode: outlet.storeCode,
-        forceRefresh: forceRefresh,
-      );
-    },
-    loading: () => throw Exception('Loading outlet information...'),
-    error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
+
+  final outlet = outletAsync.valueOrNull;
+  if (outlet == null) {
+    return PopularCategoryResponse.empty();
+  }
+  return repository.getPopularCategories(
+    sectionId: 3,
+    departmentId: "1",
+    storeCode: outlet.storeCode,
+    forceRefresh: forceRefresh,
   );
 });
 
@@ -108,7 +100,8 @@ final section3RefreshProvider = Provider<Future<void> Function()>((ref) {
     final repository = ref.read(section3RepositoryProvider);
     await repository.clearCache();
     ref.read(section3RefreshFlagProvider.notifier).state = true;
-    await ref.refresh(popularCategorySection3Provider.future);
+    final future3 = ref.refresh(popularCategorySection3Provider.future);
+    await future3;
     ref.read(section3RefreshFlagProvider.notifier).state = false;
   };
 });
@@ -137,21 +130,16 @@ final popularCategorySection4Provider = FutureProvider<PopularCategoryResponse>(
   final repository = ref.watch(section4RepositoryProvider);
   final outletAsync = ref.watch(selectedOutletProvider);
   final forceRefresh = ref.read(section4RefreshFlagProvider);
-  
-  return outletAsync.when(
-    data: (outlet) async {
-      if (outlet == null) {
-        throw Exception('No store selected');
-      }
-      return repository.getPopularCategories(
-        sectionId: 4,
-        departmentId: "1",
-        storeCode: outlet.storeCode,
-        forceRefresh: forceRefresh,
-      );
-    },
-    loading: () => throw Exception('Loading outlet information...'),
-    error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
+
+  final outlet = outletAsync.valueOrNull;
+  if (outlet == null) {
+    return PopularCategoryResponse.empty();
+  }
+  return repository.getPopularCategories(
+    sectionId: 4,
+    departmentId: "1",
+    storeCode: outlet.storeCode,
+    forceRefresh: forceRefresh,
   );
 });
 
@@ -160,7 +148,8 @@ final section4RefreshProvider = Provider<Future<void> Function()>((ref) {
     final repository = ref.read(section4RepositoryProvider);
     await repository.clearCache();
     ref.read(section4RefreshFlagProvider.notifier).state = true;
-    await ref.refresh(popularCategorySection4Provider.future);
+    final future4 = ref.refresh(popularCategorySection4Provider.future);
+    await future4;
     ref.read(section4RefreshFlagProvider.notifier).state = false;
   };
 });
@@ -189,21 +178,16 @@ final popularCategorySection5Provider = FutureProvider<PopularCategoryResponse>(
   final repository = ref.watch(section5RepositoryProvider);
   final outletAsync = ref.watch(selectedOutletProvider);
   final forceRefresh = ref.read(section5RefreshFlagProvider);
-  
-  return outletAsync.when(
-    data: (outlet) async {
-      if (outlet == null) {
-        throw Exception('No store selected');
-      }
-      return repository.getPopularCategories(
-        sectionId: 5,
-        departmentId: "1",
-        storeCode: outlet.storeCode,
-        forceRefresh: forceRefresh,
-      );
-    },
-    loading: () => throw Exception('Loading outlet information...'),
-    error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
+
+  final outlet = outletAsync.valueOrNull;
+  if (outlet == null) {
+    return PopularCategoryResponse.empty();
+  }
+  return repository.getPopularCategories(
+    sectionId: 5,
+    departmentId: "1",
+    storeCode: outlet.storeCode,
+    forceRefresh: forceRefresh,
   );
 });
 
@@ -212,7 +196,8 @@ final section5RefreshProvider = Provider<Future<void> Function()>((ref) {
     final repository = ref.read(section5RepositoryProvider);
     await repository.clearCache();
     ref.read(section5RefreshFlagProvider.notifier).state = true;
-    await ref.refresh(popularCategorySection5Provider.future);
+    final future5 = ref.refresh(popularCategorySection5Provider.future);
+    await future5;
     ref.read(section5RefreshFlagProvider.notifier).state = false;
   };
 });

@@ -18,6 +18,15 @@ class PopularCategoryResponse {
     );
   }
 
+  /// Returns an empty response — used when outlet is not yet available
+  /// to prevent providers from throwing and stalling the RefreshIndicator.
+  factory PopularCategoryResponse.empty() {
+    return PopularCategoryResponse(
+      title: '',
+      categoriesDetails: [],
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'title': title,
