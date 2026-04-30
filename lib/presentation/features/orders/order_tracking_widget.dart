@@ -114,6 +114,8 @@ class OrderTrackingWidget extends StatelessWidget {
                     height: 50,
                     width: double.infinity,
                     fit: BoxFit.contain,
+                    // Hide the spinner placeholder — image is cached and loads instantly
+                    loadingWidget: const SizedBox.shrink(),
                   ),
                 ),
               ],
