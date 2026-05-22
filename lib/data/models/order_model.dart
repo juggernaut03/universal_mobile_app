@@ -19,6 +19,7 @@ class Order {
   final double? deliveryAmount;
   final DateTime? orderDateTime; // This is the primary field for order date/time
   final int? actualOrderId; // This is the display order ID
+  final double? refundAmount; // Refund amount returned to the customer
 
   Order({
     required this.orderId,
@@ -35,6 +36,7 @@ class Order {
     this.deliveryAmount,
     this.orderDateTime,
     this.actualOrderId,
+    this.refundAmount,
   });
 
   // Convert order to JSON
@@ -53,6 +55,7 @@ class Order {
       'deliveryAmount': deliveryAmount,
       'orderDateTime': orderDateTime?.toIso8601String(),
       'actualOrderId': actualOrderId,
+      'refundAmount': refundAmount,
       'items': items.map((item) => {
         'productId': item.product.pCode,
         'productName': item.product.productName,
@@ -158,6 +161,13 @@ class Order {
     
     // Calculate proper savings
     final correctSavings = max(0.0, totalMrp - totalOurPrice);
+
+    // Extract refund amount (only present when a refund has been issued)
+    double? refundAmount;
+    final rawRefund = json['refund_amount'];
+    if (rawRefund != null && rawRefund.toString().trim().isNotEmpty) {
+      refundAmount = double.tryParse(rawRefund.toString());
+    }
     
     // Format delivery address if available
     String? formattedAddress;
@@ -192,6 +202,7 @@ class Order {
       items: items,
       orderDateTime: orderDateTime, // Store the converted local time
       actualOrderId: actualOrderId, // Store actual_order_id for display
+      refundAmount: refundAmount, // Refund issued to the customer, if any
     );
   }
 
