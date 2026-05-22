@@ -441,6 +441,7 @@ class OrderDetailScreen extends ConsumerWidget {
     final delivery = order.deliveryAmount ?? 0.0;
     final cartTotal = order.totalAmount - delivery;
     final savings = order.savings;
+    final refund = order.refundAmount ?? 0.0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -533,6 +534,37 @@ class OrderDetailScreen extends ConsumerWidget {
                     '₹${savings.toStringAsFixed(savings.truncateToDouble() == savings ? 0 : 2)}',
                     style: TextStyle(
                       color: Colors.amber[700],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          if (refund > 0) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              color: Colors.green[50],
+              child: Row(
+                children: [
+                  Icon(Icons.currency_rupee, color: Colors.green[700], size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Refund Amount',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '₹${refund.toStringAsFixed(refund.truncateToDouble() == refund ? 0 : 2)}',
+                    style: TextStyle(
+                      color: Colors.green[700],
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
