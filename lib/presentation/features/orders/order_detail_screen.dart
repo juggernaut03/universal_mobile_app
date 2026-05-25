@@ -645,12 +645,65 @@ Widget _buildItemsList(Order order) {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      'Quantity: ${item.quantity}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 11,
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final updatedQty = order.updatedQuantities[item.product.pCode];
+                        final hasUpdate = updatedQty != null && updatedQty != item.quantity;
+                        if (!hasUpdate) {
+                          return Text(
+                            'Quantity: ${item.quantity}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                            ),
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Quantity: ',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 11,
+                              ),
+                            ),
+                            Text(
+                              '${item.quantity}',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 11,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '$updatedQty',
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.red[50],
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Text(
+                                'Updated',
+                                style: TextStyle(
+                                  color: Colors.red[700],
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     
                     // DEBUG: Always show what status check result is
