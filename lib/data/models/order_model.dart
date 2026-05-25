@@ -24,6 +24,9 @@ class Order {
   // after order placement). When an entry exists, the UI strikes out the
   // originally ordered quantity and shows this value beside it.
   final Map<String, int> updatedQuantities;
+  // Pcodes for items the server marked product_available_status == not_available.
+  // The UI strikes out the whole row and shows a "Not Available" badge.
+  final Set<String> unavailableItems;
 
   Order({
     required this.orderId,
@@ -42,6 +45,7 @@ class Order {
     this.actualOrderId,
     this.refundAmount,
     this.updatedQuantities = const {},
+    this.unavailableItems = const {},
   });
 
   // Convert order to JSON
@@ -103,6 +107,7 @@ class Order {
     // Convert cart_items to CartItems
     final List<CartItem> items = [];
     final Map<String, int> updatedQuantities = {};
+    final Set<String> unavailableItems = {};
     if (json['cart_items'] != null) {
       for (final item in json['cart_items']) {
         try {
@@ -141,6 +146,12 @@ class Order {
             if (parsed != null) {
               updatedQuantities[pcode] = parsed;
             }
+          }
+
+          // Mark items the server flagged as fully unavailable.
+          final availStatus = item['product_available_status']?.toString().toLowerCase();
+          if (pcode.isNotEmpty && availStatus == 'not_available') {
+            unavailableItems.add(pcode);
           }
         } catch (e) {
           print('Error parsing cart item: $e');
@@ -221,6 +232,7 @@ class Order {
       actualOrderId: actualOrderId, // Store actual_order_id for display
       refundAmount: refundAmount, // Refund issued to the customer, if any
       updatedQuantities: updatedQuantities,
+      unavailableItems: unavailableItems,
     );
   }
 
