@@ -20,6 +20,10 @@ class Order {
   final DateTime? orderDateTime; // This is the primary field for order date/time
   final int? actualOrderId; // This is the display order ID
   final double? refundAmount; // Refund amount returned to the customer
+  // Map of product pcode -> server-revised quantity (e.g. when stock changed
+  // after order placement). When an entry exists, the UI strikes out the
+  // originally ordered quantity and shows this value beside it.
+  final Map<String, int> updatedQuantities;
 
   Order({
     required this.orderId,
@@ -37,6 +41,7 @@ class Order {
     this.orderDateTime,
     this.actualOrderId,
     this.refundAmount,
+    this.updatedQuantities = const {},
   });
 
   // Convert order to JSON
@@ -97,12 +102,14 @@ class Order {
   factory Order.fromJson(Map<String, dynamic> json) {
     // Convert cart_items to CartItems
     final List<CartItem> items = [];
+    final Map<String, int> updatedQuantities = {};
     if (json['cart_items'] != null) {
       for (final item in json['cart_items']) {
         try {
+          final pcode = item['pcode']?.toString() ?? '';
           final productModel = ProductModel(
             id: '',
-            pCode: item['pcode'] ?? '',
+            pCode: pcode,
             pcodeImg: item['product_image_link'] ?? '',
             barcode: '',
             productName: item['product_name'] ?? 'Product',
@@ -120,11 +127,21 @@ class Order {
             storeQuantity: 10,
             maxQuantityAllowed: 10,
           );
-          
+
           items.add(CartItem(
             product: productModel,
             quantity: item['quantity'] ?? 1,
           ));
+
+          // Server may revise quantity post-order (e.g. insufficient stock).
+          // Capture it so the UI can strike out the original.
+          final rawNewQty = item['new_updated_qty'];
+          if (rawNewQty != null && rawNewQty.toString().trim().isNotEmpty && pcode.isNotEmpty) {
+            final parsed = int.tryParse(rawNewQty.toString());
+            if (parsed != null) {
+              updatedQuantities[pcode] = parsed;
+            }
+          }
         } catch (e) {
           print('Error parsing cart item: $e');
         }
@@ -203,6 +220,7 @@ class Order {
       orderDateTime: orderDateTime, // Store the converted local time
       actualOrderId: actualOrderId, // Store actual_order_id for display
       refundAmount: refundAmount, // Refund issued to the customer, if any
+      updatedQuantities: updatedQuantities,
     );
   }
 
