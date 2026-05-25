@@ -127,6 +127,54 @@ class OrderDetailScreen extends ConsumerWidget {
 
                       _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(order.totalAmount.truncateToDouble() == order.totalAmount ? 0 : 2)}'),
                       const SizedBox(height: 12),
+                      if ((order.refundAmount ?? 0) > 0) ...[
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 120,
+                              child: Text(
+                                'Refund Amount:',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '₹${order.refundAmount!.toStringAsFixed(order.refundAmount!.truncateToDouble() == order.refundAmount! ? 0 : 2)}',
+                                    style: TextStyle(
+                                      color: Colors.green[700],
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green[50],
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: Text(
+                                      'Refunded',
+                                      style: TextStyle(
+                                        color: Colors.green[700],
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       _buildInfoRow('Payment Mode:', order.paymentMethod),
                       const SizedBox(height: 12),
                       _buildInfoRow('Delivery Slot:', order.deliverySlot),
@@ -598,31 +646,58 @@ Widget _buildItemsList(Order order) {
         final mrp = item.product.productMrp;
         final sellingPrice = item.product.ourPrice;
         final savings = (mrp - sellingPrice) * item.quantity;
-        
-        return Padding(
+        final isUnavailable = order.unavailableItems.contains(item.product.pCode);
+
+        return Opacity(
+          opacity: isUnavailable ? 0.55 : 1.0,
+          child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Product Image
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: item.product.pcodeImg.isNotEmpty
-                    ? Image.network(
-                        item.product.pcodeImg,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.image_not_supported_outlined, size: 20),
-                      )
-                    : const Icon(Icons.image_not_supported_outlined, size: 20),
+              Stack(
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: ColorFiltered(
+                      colorFilter: isUnavailable
+                          ? const ColorFilter.matrix(<double>[
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0.2126, 0.7152, 0.0722, 0, 0,
+                              0, 0, 0, 1, 0,
+                            ])
+                          : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+                      child: item.product.pcodeImg.isNotEmpty
+                          ? Image.network(
+                              item.product.pcodeImg,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.image_not_supported_outlined, size: 20),
+                            )
+                          : const Icon(Icons.image_not_supported_outlined, size: 20),
+                    ),
+                  ),
+                  if (isUnavailable)
+                    Positioned.fill(
+                      child: Center(
+                        child: Container(
+                          width: 70,
+                          height: 1.5,
+                          color: Colors.red.withOpacity(0.6),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 12),
-              
+
               // Product Details
               Expanded(
                 child: Column(
@@ -630,23 +705,55 @@ Widget _buildItemsList(Order order) {
                   children: [
                     Text(
                       '${item.product.productName}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
                         height: 1.3,
+                        decoration: isUnavailable ? TextDecoration.lineThrough : TextDecoration.none,
+                        color: isUnavailable ? Colors.grey[700] : Colors.black,
                       ),
                     ),
+                    if (isUnavailable) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red[50],
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(color: Colors.red[200]!),
+                        ),
+                        child: Text(
+                          'Not Available',
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       '${item.product.packageSize} ${item.product.packageUnit}',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 11,
+                        decoration: isUnavailable ? TextDecoration.lineThrough : TextDecoration.none,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Builder(
                       builder: (context) {
+                        if (isUnavailable) {
+                          return Text(
+                            'Quantity: ${item.quantity}',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          );
+                        }
                         final updatedQty = order.updatedQuantities[item.product.pCode];
                         final hasUpdate = updatedQty != null && updatedQty != item.quantity;
                         if (!hasUpdate) {
@@ -733,10 +840,11 @@ Widget _buildItemsList(Order order) {
                         children: [
                           Text(
                             '₹${(sellingPrice * item.quantity).toStringAsFixed((sellingPrice * item.quantity).truncateToDouble() == (sellingPrice * item.quantity) ? 0 : 2)}',
-                            style: const TextStyle(
-                              color: Colors.black87,
+                            style: TextStyle(
+                              color: isUnavailable ? Colors.grey[600] : Colors.black87,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
+                              decoration: isUnavailable ? TextDecoration.lineThrough : TextDecoration.none,
                             ),
                           ),
                           if (savings > 0) ...[
@@ -776,6 +884,7 @@ Widget _buildItemsList(Order order) {
                 ),
               ),
             ],
+          ),
           ),
         );
       },
