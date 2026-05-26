@@ -136,39 +136,20 @@ class OrderDetailScreen extends ConsumerWidget {
                               child: Text(
                                 'Refund Amount:',
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: Colors.green[700],
                                   fontSize: 13,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                             Expanded(
-                              child: Row(
-                                children: [
-                                  Text(
-                                    '₹${order.refundAmount!.toStringAsFixed(order.refundAmount!.truncateToDouble() == order.refundAmount! ? 0 : 2)}',
-                                    style: TextStyle(
-                                      color: Colors.green[700],
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green[50],
-                                      borderRadius: BorderRadius.circular(3),
-                                    ),
-                                    child: Text(
-                                      'Refunded',
-                                      style: TextStyle(
-                                        color: Colors.green[700],
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                '₹${order.refundAmount!.toStringAsFixed(order.refundAmount!.truncateToDouble() == order.refundAmount! ? 0 : 2)}',
+                                style: TextStyle(
+                                  color: Colors.green[700],
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ],
@@ -731,6 +712,35 @@ Widget _buildItemsList(Order order) {
                           ),
                         ),
                       ),
+                    ] else if (order.updatedQuantities[item.product.pCode] != null &&
+                        order.updatedQuantities[item.product.pCode] != item.quantity) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Qty Updated',
+                              style: TextStyle(
+                                color: Colors.orange[800],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.error,
+                              size: 12,
+                              color: Colors.orange[700],
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                     const SizedBox(height: 4),
                     Text(
@@ -786,8 +796,8 @@ Widget _buildItemsList(Order order) {
                             const SizedBox(width: 6),
                             Text(
                               '$updatedQty',
-                              style: const TextStyle(
-                                color: Colors.red,
+                              style: TextStyle(
+                                color: Colors.green[700],
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -796,13 +806,13 @@ Widget _buildItemsList(Order order) {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                               decoration: BoxDecoration(
-                                color: Colors.red[50],
+                                color: Colors.green[50],
                                 borderRadius: BorderRadius.circular(3),
                               ),
                               child: Text(
-                                'Updated',
+                                'Available',
                                 style: TextStyle(
-                                  color: Colors.red[700],
+                                  color: Colors.green[700],
                                   fontSize: 9,
                                   fontWeight: FontWeight.w600,
                                 ),
