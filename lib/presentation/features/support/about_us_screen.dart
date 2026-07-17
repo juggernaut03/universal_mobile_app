@@ -1,46 +1,22 @@
 // lib/presentation/features/support/about_us_screen.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:patelmart/data/services/content_service.dart';
 import 'package:patelmart/core/widgets/back_button_wrapper.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/cached_network_image_widget.dart';
 
-// Provider for about us content
+// Provider for about us content (GET /api/content/about-us)
 final aboutUsContentProvider = FutureProvider<String>((ref) async {
   final logger = ref.read(loggerProvider);
   try {
     logger.log('Fetching about us content from API');
-    final response = await http.get(
-      Uri.parse('https://newtech.shalviadvision.com/api/about_us_screen'),
-    );
-    
-    // Consider any 2xx status code as success
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body);
-      
-      // Check for message field, but also handle other possible formats
-      if (data.containsKey('message')) {
-        return data['message'] as String;
-      } else if (data.containsKey('content')) {
-        return data['content'] as String;
-      } else if (data is String) {
-        return data;
-      } else {
-        // Handle case where response is valid but doesn't match expected format
-        logger.error('Unexpected response format: $data');
-        return 'Welcome to Patel\'s Rmart - Your daily partner! Information about our company will be available soon.';
-      }
-    }
-    
-    logger.error('Failed to load about us content: ${response.statusCode}');
-    throw Exception('Failed to load about us content: ${response.statusCode}');
+    return await ContentService().fetchContentPage('about-us');
   } catch (e) {
     logger.error('Error fetching about us content: $e');
     throw Exception('Unable to load content. Please check your connection and try again.');

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/presentation/routes/app_router.dart';
+import 'data/repositories/project_config_repository.dart';
 import 'presentation/providers/launch_flow_provider.dart';
 // POPUP IMPORTS
 import 'presentation/providers/popup_providers.dart';
@@ -43,16 +44,22 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    
+
+    // Runtime branding from the tenant's project config; falls back to the
+    // built-in brand while loading or when unset.
+    final projectConfig = ref.watch(projectConfigProvider).valueOrNull;
+    final brandPrimary = projectConfig?.primarySeedColor ?? AppColors.primary;
+    final appTitle = projectConfig?.displayName ?? 'Patel Mart';
+
     return MaterialApp.router(
-      title: 'Patel Mart',
+      title: appTitle,
       debugShowCheckedModeBanner: false,
-      
+
       // Theme configuration
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
+          seedColor: brandPrimary,
           brightness: Brightness.light,
         ),
         textTheme: TextTheme(
@@ -67,13 +74,13 @@ class _MyAppState extends ConsumerState<MyApp> {
           bodySmall: AppTextStyles.bodySmall,
         ),
         appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.primary,
+          backgroundColor: brandPrimary,
           foregroundColor: Colors.white,
           elevation: 0,
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: brandPrimary,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -86,7 +93,7 @@ class _MyAppState extends ConsumerState<MyApp> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.primary),
+            borderSide: BorderSide(color: brandPrimary),
           ),
         ),
       ),

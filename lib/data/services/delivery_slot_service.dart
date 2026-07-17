@@ -13,37 +13,44 @@ class DeliverySlotService {
   DeliverySlotService({
     http.Client? client,
     Logger? logger,
-  }) : 
+  }) :
     _client = client ?? http.Client(),
     _logger = logger ?? Logger();
 
   /// Get available delivery slots for a specific store
+  /// (POST /api/delivery-slots/get-delivery-slots on the universal backend;
+  /// slots are not date-specific there, so [orderDate] is accepted for
+  /// call-site compatibility but not sent).
   Future<List<DeliverySlot>> getDeliverySlots({
     required String storeCode,
     DateTime? orderDate,
   }) async {
     try {
       _logger.log('Fetching delivery slots for store: $storeCode');
-      
+
       final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/get_delivery_slot'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(ApiConstants.deliverySlotsGet),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+        },
         body: jsonEncode({
           'store_code': storeCode,
           'project_code': ApiConstants.projectCode,
-          'order_date': _formatOrderDate(orderDate ?? DateTime.now()),
         }),
       ).timeout(const Duration(seconds: 15));
-      
+
       _logger.log('Delivery slots API response status: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> data =
+            decoded is Map ? (decoded['data'] as List? ?? []) : (decoded as List);
         final List<DeliverySlot> slots = data
             .map((json) => DeliverySlot.fromJson(json))
             .where((slot) => slot.isActive) // Only return active slots
             .toList();
-        
+
         _logger.log('Retrieved ${slots.length} active delivery slots');
         return slots;
       } else {
@@ -63,11 +70,11 @@ class DeliverySlotService {
   }) async {
     try {
       final slots = await getDeliverySlots(storeCode: storeCode, orderDate: orderDate);
-      
+
       // For now, we'll return all slots for each day
       // In a more complex implementation, you might have different slots for different days
       final Map<String, List<DeliverySlot>> groupedSlots = {};
-      
+
       // Generate for next 3 days
       final now = DateTime.now();
       for (int i = 0; i < 3; i++) {
@@ -75,7 +82,7 @@ class DeliverySlotService {
         final dateKey = _formatDateKey(date);
         groupedSlots[dateKey] = List.from(slots);
       }
-      
+
       return groupedSlots;
     } catch (e) {
       _logger.error('Error grouping delivery slots: $e');
@@ -87,91 +94,28 @@ class DeliverySlotService {
     return '${date.year}_${date.month}_${date.day}';
   }
 
-  /// Get available self-pickup delivery slots for a specific store
+  /// Self-pickup uses the same slot list on the universal backend — the store
+  /// object's delivery_options.self_pickup flag decides whether to offer it.
   Future<List<DeliverySlot>> getSelfPickupDeliverySlots({
     required String storeCode,
   }) async {
-    try {
-      _logger.log('Fetching self-pickup delivery slots for store: $storeCode');
-      
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/get_self_pickup_delivery_slot'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'store_code': storeCode,
-          'project_code': ApiConstants.projectCode,
-        }),
-      ).timeout(const Duration(seconds: 15));
-      
-      _logger.log('Self-pickup slots API response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final List<DeliverySlot> slots = data
-            .map((json) => DeliverySlot.fromJson(json))
-            .where((slot) => slot.isActive) // Only return active slots
-            .toList();
-        
-        _logger.log('Retrieved ${slots.length} active self-pickup delivery slots');
-        return slots;
-      } else {
-        _logger.error('Failed to fetch self-pickup delivery slots: ${response.statusCode} - ${response.body}');
-        throw Exception('Failed to load self-pickup delivery slots');
-      }
-    } catch (e) {
-      _logger.error('Error fetching self-pickup delivery slots: $e');
-      rethrow;
-    }
+    return getDeliverySlots(storeCode: storeCode);
   }
 
-  /// Get available delivery dates for a specific store
-  /// Returns list of date strings in dd/MM/yyyy format
+  /// Get available delivery dates for a specific store.
+  /// The universal backend has no delivery-dates endpoint — selectable dates
+  /// are generated client-side (today + next 6 days) in dd/MM/yyyy format.
   Future<List<String>> fetchDeliveryDates({
     required String storeCode,
   }) async {
-    try {
-      _logger.log('Fetching delivery dates for store: $storeCode');
-      
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.deliveryDatesEndpoint}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'store_code': storeCode,
-          'project_code': ApiConstants.projectCode,
-        }),
-      ).timeout(const Duration(seconds: 15));
-      
-      _logger.log('Delivery dates API response status: ${response.statusCode}');
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final List<String> dates = data
-            .map((item) {
-              // Parse the delivery_slot_from field from each object
-              if (item is Map<String, dynamic> && item.containsKey('delivery_slot_from')) {
-                return item['delivery_slot_from'] as String;
-              }
-              return null;
-            })
-            .whereType<String>()
-            .toList();
-        
-        _logger.log('Retrieved ${dates.length} delivery dates');
-        return dates;
-      } else {
-        _logger.error('Failed to fetch delivery dates: ${response.statusCode} - ${response.body}');
-        throw Exception('Failed to load delivery dates');
-      }
-    } catch (e) {
-      _logger.error('Error fetching delivery dates: $e');
-      rethrow;
-    }
-  }
-
-  String _formatOrderDate(DateTime date) {
-    final y = date.year.toString().padLeft(4, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
+    final now = DateTime.now();
+    final dates = List.generate(7, (i) {
+      final date = DateTime(now.year, now.month, now.day + i);
+      final d = date.day.toString().padLeft(2, '0');
+      final m = date.month.toString().padLeft(2, '0');
+      return '$d/$m/${date.year}';
+    });
+    _logger.log('Generated ${dates.length} delivery dates for store $storeCode');
+    return dates;
   }
 }

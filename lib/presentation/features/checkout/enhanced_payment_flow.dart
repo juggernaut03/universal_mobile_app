@@ -265,6 +265,8 @@ class EnhancedPaymentFlow {
     String? accessKey,
     String? specialNotes,
     PaymentResult? paymentResult,
+    int? deliverySlotId,
+    int? paymentModeId,
   }) async {
     try {
       final logger = ref.read(loggerProvider);
@@ -331,6 +333,8 @@ class EnhancedPaymentFlow {
         specialNotes: specialNotes,
         paymentResult: paymentResult, // Pass the actual payment result (success or failure)
         paymentFormat: PaymentDataFormat.both,
+        deliverySlotId: deliverySlotId,
+        paymentModeId: paymentModeId,
       );
       
       // Store order result
@@ -641,6 +645,7 @@ class EnhancedPaymentFlow {
         accessKey: userProfile?.accessKey,
         specialNotes: specialInstructions,
         paymentResult: paymentResult,
+        deliverySlotId: checkoutData.deliverySlotId,
       );
       
       if (step3Success) {

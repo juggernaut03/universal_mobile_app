@@ -36,7 +36,6 @@ class BestSellerRepository {
       // Check if cache should be cleared (2 AM daily)
       await _checkAndClearCacheIfNeeded();
       
-      final bannerTypeId = BestSellerConfig.getBannerTypeId(bestSellerId);
       final cacheKey = '$_bannerCacheKeyPrefix$bestSellerId';
       
       final prefs = await SharedPreferences.getInstance();
@@ -52,37 +51,32 @@ class BestSellerRepository {
       }
 
       _logger.log('Fetching best seller banners for ID $bestSellerId from API');
-      
-      // Get the selected outlet for API request
-      final storeCode = await _getStoreCode();
-      
-      final response = await _apiClient.post(
-        ApiConstants.baseUrl + '/get_banner',
-        body: {
-          'banner_type_id': bannerTypeId,
-          'store_code': storeCode,
-          'platform': 'Android',
-          'project_code': ApiConstants.projectCode,
-        },
-      );
 
-      List<BestSellerBanner> banners = [];
-      
-      if (response is List) {
-        // Direct array response
-        banners = response.map((item) => BestSellerBanner.fromJson(_castToStringMap(item))).toList();
-      } else if (response is Map && response.containsKey('data')) {
-        // Response with data wrapper
-        if (response['data'] is List) {
-          banners = (response['data'] as List).map((item) => BestSellerBanner.fromJson(_castToStringMap(item))).toList();
+      final section = await _fetchSection(bestSellerId);
+      final List<BestSellerBanner> banners = [];
+
+      if (section != null) {
+        // Universal backend sections carry banner_urls {desktop, mobile}
+        final bannerUrls = section['banner_urls'] is Map
+            ? section['banner_urls'] as Map
+            : {};
+        final imageUrl =
+            (bannerUrls['mobile'] ?? bannerUrls['desktop'] ?? '').toString();
+        if (imageUrl.isNotEmpty) {
+          banners.add(BestSellerBanner.fromJson({
+            '_id': (section['_id'] ?? '').toString(),
+            'img_path': imageUrl,
+            'banner_bg_color':
+                (section['background_color'] ?? '#FFFFFF').toString(),
+            'sequence_id': section['sequence'] ?? 0,
+          }));
         }
-      } else {
-        _logger.error('Invalid response format for banners: $response');
       }
-      
+
       if (banners.isNotEmpty) {
-        // Cache the banners
-        await prefs.setString(cacheKey, jsonEncode(response));
+        // Cache the banners (legacy shape so cached reads keep working)
+        await prefs.setString(
+            cacheKey, jsonEncode(banners.map((b) => b.toJson()).toList()));
         await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
         
         // Log the banner URLs for debugging
@@ -119,7 +113,6 @@ class BestSellerRepository {
       // Check if cache should be cleared (2 AM daily)
       await _checkAndClearCacheIfNeeded();
       
-      final endpoint = BestSellerConfig.getProductEndpoint(bestSellerId);
       final cacheKey = '$_productsCacheKeyPrefix$bestSellerId';
       
       final prefs = await SharedPreferences.getInstance();
@@ -144,54 +137,47 @@ class BestSellerRepository {
       }
 
       _logger.log('Fetching best seller products for ID $bestSellerId from API');
-      
-      // Get the selected outlet for API request
-      final storeCode = await _getStoreCode();
-      
-      final response = await _apiClient.post(
-        ApiConstants.baseUrl + '/' + endpoint,
-        body: {
-          'store_code': storeCode,
-          'project_code': ApiConstants.projectCode,
-        },
-      );
 
-      if (response is Map && response.containsKey('title') && response.containsKey('bestseller_details')) {
-        // New API format with title and bestseller_details
-        final bestSellerResponse = BestSellerProductsResponse.fromJson(_castToStringMap(response));
+      final section = await _fetchSection(bestSellerId);
+
+      // Convert the universal section shape to the legacy
+      // {title, bestseller_details} shape the rest of this class handles.
+      Map<String, dynamic>? response;
+      if (section != null) {
+        final productDetails = <Map<String, dynamic>>[];
+        final sectionProducts = section['products'];
+        if (sectionProducts is List) {
+          for (final p in sectionProducts) {
+            if (p is Map && p['product_details'] is Map) {
+              productDetails.add(_castToStringMap(p['product_details']));
+            }
+          }
+        }
+        response = {
+          'title': section['title'] ?? BestSellerConfig.getDefaultTitle(bestSellerId),
+          'bestseller_details': productDetails,
+        };
+      }
+
+      if (response != null) {
+        final bestSellerResponse = BestSellerProductsResponse.fromJson(response);
         final products = bestSellerResponse.products.map((item) => ProductModel.fromJson(_castToStringMap(item))).where((p) => p.isAvailable).toList();
-        
+
         // Cache the entire response (including title)
         await prefs.setString(cacheKey, jsonEncode(response));
         await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
-        
+
         // Cache the title separately for easy access
         await prefs.setString('$_titleCacheKeyPrefix$bestSellerId', bestSellerResponse.title);
-        
+
         // Pre-cache product images for better user experience
         _preCacheProductImages(products);
-        
+
         _logger.log('Cached best seller title for ID $bestSellerId: ${bestSellerResponse.title}');
-        
-        return products;
-      } else if (response is List) {
-        // Old API format - direct array of products
-        final products = response.map((item) => ProductModel.fromJson(_castToStringMap(item))).where((p) => p.isAvailable).toList();
-        
-        // Cache the products
-        await prefs.setString(cacheKey, jsonEncode(response));
-        await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
-        
-        // Cache default title for backward compatibility
-        final defaultTitle = BestSellerConfig.getDefaultTitle(bestSellerId);
-        await prefs.setString('$_titleCacheKeyPrefix$bestSellerId', defaultTitle);
-        
-        // Pre-cache product images for better user experience
-        _preCacheProductImages(products);
-        
+
         return products;
       } else {
-        _logger.error('Invalid response format for products: $response');
+        _logger.log('No best seller section found for ID $bestSellerId');
         return [];
       }
     } catch (e) {
@@ -240,6 +226,57 @@ class BestSellerRepository {
     }
   }
   
+  // In-flight/session cache of the sections list so the banner and product
+  // fetches for all 4 home sections share one API call.
+  static Future<List<dynamic>>? _sectionsFuture;
+  static String? _sectionsStoreCode;
+  static DateTime? _sectionsFetchedAt;
+
+  /// Fetches every best-seller section from the universal backend
+  /// (POST /api/best-sellers/list, enriched) and returns the section whose
+  /// `sequence` matches [bestSellerId], falling back to list position.
+  Future<Map<String, dynamic>?> _fetchSection(int bestSellerId) async {
+    final storeCode = await _getStoreCode();
+
+    final bool cacheStale = _sectionsFuture == null ||
+        _sectionsStoreCode != storeCode ||
+        _sectionsFetchedAt == null ||
+        DateTime.now().difference(_sectionsFetchedAt!).inMinutes > 5;
+
+    if (cacheStale) {
+      _sectionsStoreCode = storeCode;
+      _sectionsFetchedAt = DateTime.now();
+      _sectionsFuture = _apiClient.post(
+        ApiConstants.bestSellersList,
+        body: {
+          'store_code': storeCode,
+          'include_inactive': false,
+          'enrich_products': true,
+        },
+      ).then((response) =>
+          response is Map ? (response['data'] as List? ?? []) : <dynamic>[]);
+      // A failed fetch must not poison the cache for later calls
+      _sectionsFuture!.catchError((_) {
+        _sectionsFuture = null;
+        return <dynamic>[];
+      });
+    }
+
+    final sections = await _sectionsFuture!;
+    if (sections.isEmpty) return null;
+
+    for (final s in sections) {
+      if (s is Map<String, dynamic> && s['sequence'] == bestSellerId) {
+        return s;
+      }
+    }
+    final index = bestSellerId - 1;
+    if (index >= 0 && index < sections.length && sections[index] is Map<String, dynamic>) {
+      return sections[index] as Map<String, dynamic>;
+    }
+    return null;
+  }
+
   // Helper method to safely cast Map<dynamic, dynamic> to Map<String, dynamic>
   Map<String, dynamic> _castToStringMap(dynamic data) {
     if (data is Map<String, dynamic>) {

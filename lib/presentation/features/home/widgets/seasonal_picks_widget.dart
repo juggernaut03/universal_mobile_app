@@ -45,7 +45,9 @@ class SeasonalCategory {
   }
 }
 
-/// Enhanced API service for fetching seasonal data with refresh capability
+/// Enhanced API service for fetching seasonal data with refresh capability.
+/// Both the banner and the category tiles come from the universal backend's
+/// POST /api/seasonal-categories/list sections.
 class SeasonalApi {
   final String baseUrl = ApiConstants.baseUrl;
   final String projectCode = ApiConstants.projectCode;
@@ -53,58 +55,75 @@ class SeasonalApi {
 
   SeasonalApi({http.Client? client}) : client = client ?? http.Client();
 
-  /// Fetch the seasonal banner with optional cache busting
-  Future<List<SeasonalBanner>> getBanner(String storeCode, {bool forceRefresh = false}) async {
-    final requestBody = {
-      'banner_type_id': 10,
-      'store_code': storeCode,
-      'platform': 'Android',
-      'project_code': projectCode,
-    };
-    
-    // Add timestamp for cache busting when force refresh is requested
-    if (forceRefresh) {
-      requestBody['timestamp'] = DateTime.now().millisecondsSinceEpoch.toString();
-    }
-
+  Future<List<dynamic>> _fetchSections(String storeCode) async {
     final response = await client.post(
-      Uri.parse('$baseUrl/get_banner'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(requestBody),
+      Uri.parse(ApiConstants.seasonalCategoriesList),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Project-Code': projectCode,
+      },
+      body: jsonEncode({
+        'store_code': storeCode,
+        'project_code': projectCode,
+        'include_inactive': false,
+        'enrich_subcategories': true,
+      }),
     );
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => SeasonalBanner.fromJson(json)).toList();
+      final decoded = jsonDecode(response.body);
+      return decoded is Map ? (decoded['data'] as List? ?? []) : [];
     } else {
-      throw Exception('Failed to load banner: ${response.statusCode}');
+      throw Exception('Failed to load seasonal sections: ${response.statusCode}');
     }
   }
 
-  /// Fetch the seasonal categories with optional cache busting
+  /// Fetch the seasonal banner (from the first section's banner assets)
+  Future<List<SeasonalBanner>> getBanner(String storeCode, {bool forceRefresh = false}) async {
+    final sections = await _fetchSections(storeCode);
+    final banners = <SeasonalBanner>[];
+    for (final section in sections) {
+      if (section is! Map) continue;
+      final bannerUrls = section['banner_urls'] is Map
+          ? section['banner_urls'] as Map
+          : {};
+      final imageUrl =
+          (bannerUrls['mobile'] ?? bannerUrls['desktop'] ?? '').toString();
+      if (imageUrl.isNotEmpty) {
+        banners.add(SeasonalBanner(imageUrl: imageUrl));
+        break; // one banner, as with the legacy widget
+      }
+    }
+    return banners;
+  }
+
+  /// Fetch the seasonal categories (tiles) from the enriched sections
   Future<List<SeasonalCategory>> getCategories(String storeCode, {bool forceRefresh = false}) async {
-    final requestBody = {
-      'store_code': storeCode,
-      'project_code': projectCode,
-    };
-    
-    // Add timestamp for cache busting when force refresh is requested
-    if (forceRefresh) {
-      requestBody['timestamp'] = DateTime.now().millisecondsSinceEpoch.toString();
+    final sections = await _fetchSections(storeCode);
+    final categories = <SeasonalCategory>[];
+    for (final section in sections) {
+      if (section is! Map) continue;
+      final subcategories = section['subcategories'];
+      if (subcategories is! List) continue;
+      for (final item in subcategories) {
+        if (item is! Map) continue;
+        final sub = item['subcategory_details'] is Map
+            ? item['subcategory_details'] as Map
+            : {};
+        final cat = item['category_details'] is Map
+            ? item['category_details'] as Map
+            : {};
+        categories.add(SeasonalCategory(
+          categoryId:
+              (cat['idcategory_master'] ?? sub['category_id'] ?? '').toString(),
+          departmentId: (cat['dept_id'] ?? '').toString(),
+          categoryName:
+              (sub['sub_category_name'] ?? cat['category_name'] ?? '').toString(),
+          imageUrl: (item['image_link'] ?? '').toString(),
+        ));
+      }
     }
-
-    final response = await client.post(
-      Uri.parse('$baseUrl/get_seasonal_picks'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(requestBody),
-    );
-
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => SeasonalCategory.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to load categories: ${response.statusCode}');
-    }
+    return categories;
   }
 
   /// Clear any internal caches

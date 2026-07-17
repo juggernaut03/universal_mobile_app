@@ -25,17 +25,15 @@ class OtpRequestResponse {
     this.statusCode = '',
   });
 
+  // Universal backend envelope: {success, message, expiresIn}
   factory OtpRequestResponse.fromJson(Map<String, dynamic> json) {
+    final bool success = json['success'] == true;
     return OtpRequestResponse(
-      type: json['type'] ?? '',
-      reason: json['reason'] ?? '',
-      createTime: json['createTime'] ?? '',
-      expiryTime: json['expiryTime'] ?? '',
-      retryAfter: json['retryAfter'] ?? '',
-      status: json['status'] ?? 'success', // Default to success if not provided
+      type: success ? 'success' : 'error',
+      reason: json['message'] ?? '',
+      expiryTime: json['expiresIn']?.toString() ?? '',
+      status: success ? 'success' : 'failure',
       mobile: json['mobile'] ?? '',
-      transactionId: json['transactionId'] ?? '',
-      statusCode: json['statusCode'] ?? '',
     );
   }
 }
@@ -54,12 +52,22 @@ class OtpValidationResponse {
     required this.mobileNumber,
   });
 
+  // Universal backend envelope: {success, message, data: {token, user}}.
+  // The JWT is carried in accessKey so existing storage/UI code keeps working.
   factory OtpValidationResponse.fromJson(Map<String, dynamic> json) {
+    final bool success = json['success'] == true;
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final user = data['user'] is Map<String, dynamic>
+        ? data['user'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
     return OtpValidationResponse(
-      authentication: json['authentication'] ?? 0,
+      authentication: success ? 1 : 0,
       message: json['message'] ?? '',
-      accessKey: json['access_key'] ?? '',
-      mobileNumber: json['mobile_number'] ?? 0,
+      accessKey: data['token'] ?? '',
+      mobileNumber: user['mobile'] ?? '',
     );
   }
   

@@ -28,8 +28,11 @@ class CentralizedAuthManager {
   static const Duration _validationInterval = Duration(minutes: 5);
   static const Duration _accessKeyExpiry = Duration(days: 10);
   
-  // Storage keys
-  static const String _userProfileKey = 'user_profile_v2';
+  // Storage keys.
+  // v3: profiles hold JWT tokens from the universal backend. Bumping the key
+  // deterministically logs out installs holding a legacy access_key that the
+  // new backend would reject.
+  static const String _userProfileKey = 'user_profile_v3';
   static const String _loginTimeKey = 'login_time_v2';
   static const String _accessKeyKey = 'access_key_v2';
   
@@ -50,117 +53,14 @@ class CentralizedAuthManager {
   /// Initialize the manager and load cached data
   Future<void> _initializeManager() async {
     try {
-      await _migrateLegacyStorage();
+      // Legacy access_key sessions (pre-universal backend) are not migrated —
+      // they are useless against the JWT-based backend. Just purge them.
+      await _cleanupLegacyStorage();
       await _loadCachedProfile();
       _startPeriodicValidation();
       _logger.log('CentralizedAuthManager initialized');
     } catch (e) {
       _logger.error('Error initializing auth manager: $e');
-    }
-  }
-
-  /// Migrate legacy storage to centralized format
-  Future<void> _migrateLegacyStorage() async {
-    try {
-      _logger.log('Checking for legacy storage to migrate...');
-      
-      // Check if new format already exists
-      final existingProfile = await _secureStorage.read(key: _userProfileKey);
-      if (existingProfile != null) {
-        _logger.log('New format already exists, skipping migration');
-        return;
-      }
-      
-      // Try to migrate from legacy AuthService format
-      String? legacyAccessKey;
-      String? legacyLoginTime;
-      String? legacyUserProfile;
-      
-      try {
-        legacyAccessKey = await _secureStorage.read(key: 'user_access_key');
-        legacyLoginTime = await _secureStorage.read(key: 'login_time');
-        legacyUserProfile = await _secureStorage.read(key: 'user_profile');
-      } catch (e) {
-        _logger.warning('Error reading legacy secure storage: $e');
-      }
-      
-      // Try to migrate from SharedPreferences
-      String? mobile;
-      String? accessKey = legacyAccessKey;
-      DateTime? loginTime;
-      
-      if (legacyLoginTime != null) {
-        try {
-          loginTime = DateTime.parse(legacyLoginTime);
-        } catch (e) {
-          _logger.warning('Error parsing legacy login time: $e');
-        }
-      }
-      
-      // Try to extract from legacy user profile
-      if (legacyUserProfile != null) {
-        try {
-          final parts = legacyUserProfile.split(':');
-          if (parts.length >= 3) {
-            mobile = parts[0];
-            accessKey = parts[1];
-            loginTime = DateTime.parse(parts[2]);
-          }
-        } catch (e) {
-          _logger.warning('Error parsing legacy user profile: $e');
-        }
-      }
-      
-      // Try SharedPreferences as fallback
-      if (accessKey == null || mobile == null) {
-        try {
-          final userProfileStr = _prefs.getString('user_profile');
-          if (userProfileStr != null) {
-            final userProfileData = jsonDecode(userProfileStr);
-            if (userProfileData is Map) {
-              mobile ??= userProfileData['mobile']?.toString();
-              accessKey ??= userProfileData['accessKey']?.toString();
-            }
-          }
-          
-          // Try OTP validation response
-          if (accessKey == null) {
-            final otpResponseStr = _prefs.getString('otp_validation_response');
-            if (otpResponseStr != null) {
-              final otpResponseData = jsonDecode(otpResponseStr);
-              if (otpResponseData is Map) {
-                accessKey = otpResponseData['access_key']?.toString();
-              }
-            }
-          }
-          
-          // Try direct access key
-          accessKey ??= _prefs.getString('user_access_key');
-        } catch (e) {
-          _logger.warning('Error reading legacy SharedPreferences: $e');
-        }
-      }
-      
-      // If we have enough data, migrate to new format
-      if (mobile != null && accessKey != null && mobile.isNotEmpty && accessKey.isNotEmpty) {
-        final profile = UserProfile(
-          mobile: mobile,
-          accessKey: accessKey,
-          loginTime: loginTime ?? DateTime.now(),
-        );
-        
-        await saveUserProfile(profile);
-        
-        _logger.log('Successfully migrated legacy storage for mobile: $mobile');
-        
-        // Clean up legacy storage
-        await _cleanupLegacyStorage();
-      } else {
-        _logger.log('No valid legacy data found to migrate');
-      }
-      
-    } catch (e) {
-      _logger.error('Error migrating legacy storage: $e');
     }
   }
 
@@ -173,6 +73,8 @@ class CentralizedAuthManager {
       await _secureStorage.delete(key: 'user_access_key');
       await _secureStorage.delete(key: 'login_time');
       await _secureStorage.delete(key: 'user_profile');
+      // v2 profiles hold legacy access_keys the universal backend rejects
+      await _secureStorage.delete(key: 'user_profile_v2');
       
       // Clean up legacy SharedPreferences
       await _prefs.remove('user_profile');

@@ -80,21 +80,63 @@ class SeasonalCategoryApi {
     bool forceRefresh = false,
   }) async {
     try {
+      // Universal backend: section 1 of POST /api/popular-categories/list
+      // replaces the legacy get_popular_category_list_1 endpoint.
       final response = await http.post(
-        Uri.parse('$baseUrl/get_popular_category_list_1'),
+        Uri.parse(ApiConstants.popularCategoriesList),
         headers: {
           'Content-Type': 'application/json',
+          'X-Project-Code': projectCode,
         },
         body: jsonEncode({
-          'department_id': departmentId,
           'store_code': storeCode,
           'project_code': projectCode,
+          'include_inactive': false,
+          'enrich_subcategories': true,
         }),
       );
 
       if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        return SeasonalCategoryResponse.fromJson(jsonData);
+        final decoded = jsonDecode(response.body);
+        final sections = decoded is Map ? (decoded['data'] as List? ?? []) : [];
+
+        Map<String, dynamic>? section;
+        for (final s in sections) {
+          if (s is Map<String, dynamic> && s['sequence'] == 1) {
+            section = s;
+            break;
+          }
+        }
+        section ??= sections.isNotEmpty && sections.first is Map<String, dynamic>
+            ? sections.first as Map<String, dynamic>
+            : null;
+
+        final items = <Map<String, dynamic>>[];
+        if (section != null && section['subcategories'] is List) {
+          for (final item in section['subcategories'] as List) {
+            if (item is! Map) continue;
+            final sub = item['subcategory_details'] is Map
+                ? item['subcategory_details'] as Map
+                : {};
+            final cat = item['category_details'] is Map
+                ? item['category_details'] as Map
+                : {};
+            items.add({
+              'idcategory_master':
+                  (cat['idcategory_master'] ?? sub['category_id'] ?? '').toString(),
+              'dept_id': (cat['dept_id'] ?? '').toString(),
+              'category_name':
+                  (sub['sub_category_name'] ?? cat['category_name'] ?? '').toString(),
+              'image_link': (item['image_link'] ?? '').toString(),
+            });
+          }
+        }
+
+        return SeasonalCategoryResponse.fromJson({
+          'title': section?['title'] ?? '',
+          'category_bg_color': section?['background_color'] ?? '#FFFFFF',
+          'categories_details': items,
+        });
       } else {
         throw Exception('Failed to load seasonal categories: ${response.statusCode}');
       }

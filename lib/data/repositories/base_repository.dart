@@ -84,6 +84,26 @@ abstract class BaseRepository {
     }
   }
 
+  /// Make authenticated PUT request using centralized token management
+  Future<dynamic> putWithAuth(String url, {Map<String, dynamic>? body}) async {
+    try {
+      return await _apiClient.putWithAuth(url, body: body);
+    } catch (e) {
+      _logger.error('Error in authenticated PUT request: $e');
+      rethrow;
+    }
+  }
+
+  /// Make authenticated DELETE request using centralized token management
+  Future<dynamic> deleteWithAuth(String url, {Map<String, dynamic>? body}) async {
+    try {
+      return await _apiClient.deleteWithAuth(url, body: body);
+    } catch (e) {
+      _logger.error('Error in authenticated DELETE request: $e');
+      rethrow;
+    }
+  }
+
   /// Make regular POST request (no authentication)
   Future<dynamic> post(String url, {Map<String, dynamic>? body}) async {
     try {

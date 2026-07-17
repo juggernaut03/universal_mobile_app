@@ -141,27 +141,31 @@ class BannerService {
       
       // Fetch fresh banners from API
       _logger.log('Fetching promotional banners from API for store: $storeCode');
-      
+
+      // Universal backend: POST /api/banners with the shared 'home_top'
+      // section (same convention as the web PWA); response nests
+      // data.banner_sections[].banners[].
       final response = await _apiClient.post(
-        '${ApiConstants.baseUrl}/get_banner',
+        ApiConstants.banners,
         body: {
-          "banner_type_id": 1, // Promotional banner type
           "store_code": storeCode,
-          "project_code": ApiConstants.projectCode,
+          "section_name": "home_top",
         },
       );
-      
-      if (response is List) {
-        final List<PromotionalBanner> banners = response
+
+      final legacyList = _sectionsToLegacyBanners(response, storeCode);
+
+      if (legacyList.isNotEmpty) {
+        final List<PromotionalBanner> banners = legacyList
             .map((item) => PromotionalBanner.fromJson(item))
             .where((banner) => banner.isActive)
             .toList();
-        
+
         // Sort by sequence for consistent display order
         banners.sort((a, b) => a.sequenceId.compareTo(b.sequenceId));
-        
+
         // Cache the banners
-        await prefs.setString(_bannerCacheKey, jsonEncode(response));
+        await prefs.setString(_bannerCacheKey, jsonEncode(legacyList));
         await prefs.setInt(_bannerCacheTimestampKey, currentTime);
         
         // Pre-cache banner images
@@ -170,7 +174,7 @@ class BannerService {
         _logger.log('Successfully fetched and cached ${banners.length} promotional banners');
         return banners;
       } else {
-        _logger.error('Unexpected response format: $response');
+        _logger.log('No promotional banners configured for store $storeCode');
         return [];
       }
     } catch (e) {
@@ -200,6 +204,52 @@ class BannerService {
     }
   }
   
+  /// Flattens the universal /api/banners response
+  /// (data.banner_sections[].banners[]) into legacy-keyed maps that
+  /// PromotionalBanner.fromJson understands.
+  List<Map<String, dynamic>> _sectionsToLegacyBanners(
+      dynamic response, String storeCode) {
+    final result = <Map<String, dynamic>>[];
+    final data = response is Map ? response['data'] : null;
+    final sections = data is Map ? (data['banner_sections'] as List? ?? []) : [];
+
+    for (final section in sections) {
+      if (section is! Map) continue;
+      final banners = section['banners'];
+      if (banners is! List) continue;
+      for (final b in banners) {
+        if (b is! Map) continue;
+        final bannerUrls = b['banner_urls'] is Map ? b['banner_urls'] as Map : {};
+        // banner_urls values are {desktop, mobile} maps keyed by asset name
+        String imageUrl = (b['image_url'] ?? '').toString();
+        for (final asset in bannerUrls.values) {
+          if (asset is Map) {
+            final mobile = (asset['mobile'] ?? asset['desktop'] ?? '').toString();
+            if (mobile.isNotEmpty) {
+              imageUrl = mobile;
+              break;
+            }
+          }
+        }
+        final action = b['action'] is Map ? b['action'] as Map : {};
+
+        result.add({
+          '_id': (b['id'] ?? '').toString(),
+          'redirect_link': (action['value'] ?? '').toString(),
+          'banner_img': imageUrl,
+          'is_active': b['is_active'] == false ? 'Disabled' : 'Enabled',
+          'banner_type_id': 1,
+          'sequence_id': b['sequence'] ?? 0,
+          // The API already filtered by store; pin the requested code so the
+          // cached-read filter (storeCode equality) keeps matching.
+          'store_code': storeCode,
+          'banner_bg_color': '#FFFFFF',
+        });
+      }
+    }
+    return result;
+  }
+
   // Pre-cache banner images in the background
   Future<void> _preCacheBannerImages(List<PromotionalBanner> banners) async {
     for (final banner in banners) {

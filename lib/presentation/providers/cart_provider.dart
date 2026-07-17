@@ -6,6 +6,7 @@ import '../../data/services/cart_storage_service.dart';
 import '../../data/services/cart_validator.dart';
 import '../../data/services/cart_session_manager.dart';
 import '../../core/utils/logger.dart';
+import 'auth_providers.dart';
 import 'launch_flow_provider.dart';
 import 'steal_deals_provider.dart';
 // FACEBOOK PIXEL IMPORTS
@@ -703,7 +704,8 @@ final cartItemCountProvider = Provider<int>((ref) {
 // Cart validator provider
 final cartValidatorProvider = Provider((ref) {
   final logger = ref.watch(loggerProvider);
-  return CartValidator(logger: logger);
+  final apiClient = ref.watch(apiClientProvider);
+  return CartValidator(logger: logger, apiClient: apiClient);
 });
 
 // Helper providers for cart session management

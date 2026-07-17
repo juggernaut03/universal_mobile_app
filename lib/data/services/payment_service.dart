@@ -2,11 +2,10 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:http/http.dart' as http;
 import '../../core/utils/logger.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/network/api_client.dart';
 
 class PaymentResult {
   final bool success;
@@ -94,11 +93,15 @@ class PaymentService {
   String? _currentRazorpayOrderId; // Store the created order ID
   String? _currentTempOrderId; // Store the temp order ID for tracking
 
-  // Razorpay API credentials - LIVE KEYS
+  // Razorpay publishable key id only — orders are created and verified by the
+  // backend (/api/razorpay/order, /api/razorpay/verify), which holds the secret.
   static const String keyId = ApiConstants.razorpayKeyId;
-  static const String keySecret = ApiConstants.razorpayKeySecret;
 
-  PaymentService({Logger? logger}) : _logger = logger ?? Logger() {
+  final ApiClient? _apiClient;
+
+  PaymentService({Logger? logger, ApiClient? apiClient})
+      : _logger = logger ?? Logger(),
+        _apiClient = apiClient {
     _initializeRazorpay();
   }
 
@@ -125,82 +128,44 @@ class PaymentService {
       _logger.log('Creating Razorpay order for amount: ${amount.toStringAsFixed(2)} $currency');
       _logger.log('Temp Order ID: ${tempOrderId ?? "Not provided"}');
       
-      final orderData = {
-        'amount': (amount * 100).toInt(), // Amount in paise
-        'currency': currency,
-        'receipt': receipt ?? tempOrderId ?? 'order_${DateTime.now().millisecondsSinceEpoch}',
-        'notes': {
-          'customer_name': _currentCustomerName,
-          'customer_email': _currentCustomerEmail,
-          'customer_phone': _currentCustomerPhone,
-          'description': _currentDescription,
-          'app_platform': 'flutter',
-          
-          // CRITICAL: Include temp order ID for tracking
-          'temp_order_id': tempOrderId ?? 'unknown',
-         
-          'flutter_timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
-          
-          // Additional tracking info
-          'payment_initiated_at': DateTime.now().toIso8601String(),
-          'app_version': 'flutter_live',
-          'environment': 'live',
-        }
-      };
-
-      print('\n🏦 === CREATING RAZORPAY ORDER === 🏦');
-      print('Amount: ₹${amount.toStringAsFixed(2)} (${(amount * 100).toInt()} paise)');
-      print('Currency: $currency');
-      print('Receipt: ${orderData['receipt']}');
-      print('Customer: $_currentCustomerName');
-      print('Temp Order ID: ${tempOrderId ?? "Not provided"}');
-      print('🏦 === CALLING RAZORPAY API === 🏦\n');
-
-      // Make API call to Razorpay Orders API
-      final response = await http.post(
-        Uri.parse('https://api.razorpay.com/v1/orders'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic ${base64Encode(utf8.encode('$keyId:$keySecret'))}',
-        },
-        body: jsonEncode(orderData),
-      );
-
-      _logger.log('Razorpay order creation response status: ${response.statusCode}');
-      _logger.log('Razorpay order creation response: ${response.body}');
-
-      print('\n📋 === RAZORPAY ORDER RESPONSE === 📋');
-      print('Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-      print('📋 === END RESPONSE === 📋\n');
-
-      if (response.statusCode == 200) {
-        final orderResponse = jsonDecode(response.body);
-        _currentRazorpayOrderId = orderResponse['id'];
-        
-        print('\n✅ === ORDER CREATED SUCCESSFULLY === ✅');
-        print('Razorpay Order ID: ${orderResponse['id']}');
-        print('Amount: ${orderResponse['amount']} paise');
-        print('Currency: ${orderResponse['currency']}');
-        print('Status: ${orderResponse['status']}');
-        print('Receipt: ${orderResponse['receipt']}');
-        print('Temp Order ID in Notes: ${tempOrderId ?? "Not provided"}');
-        print('✅ === END SUCCESS === ✅\n');
-        
-        return orderResponse;
-      } else {
-        _logger.error('Failed to create Razorpay order: ${response.statusCode} - ${response.body}');
-        print('\n❌ === ORDER CREATION FAILED === ❌');
-        print('Status: ${response.statusCode}');
-        print('Error: ${response.body}');
-        print('❌ === END FAILURE === ❌\n');
+      if (_apiClient == null) {
+        _logger.error('PaymentService has no ApiClient — cannot create order');
         return null;
       }
+
+      // The backend creates the Razorpay order with its own credentials;
+      // the app never touches the key secret.
+      final response = await _apiClient.postWithAuth(
+        ApiConstants.razorpayOrder,
+        body: {
+          'amount': amount, // in INR; backend converts to paise
+          'currency': currency,
+          if (receipt != null) 'receipt': receipt,
+          'notes': {
+            'customer_name': _currentCustomerName,
+            'app_platform': 'flutter',
+            if (tempOrderId != null) 'temp_order_id': tempOrderId,
+          },
+        },
+      );
+
+      if (response is Map<String, dynamic> && response['success'] == true) {
+        _currentRazorpayOrderId = response['id'];
+        _logger.log('Razorpay order created: ${response['id']} (${response['amount']} paise)');
+
+        return {
+          'id': response['id'],
+          'amount': response['amount'],
+          'currency': response['currency'],
+          'receipt': response['receipt'],
+          'status': 'created',
+        };
+      }
+
+      _logger.error('Failed to create Razorpay order: $response');
+      return null;
     } catch (e) {
       _logger.error('Error creating Razorpay order: $e');
-      print('\n💥 === ORDER CREATION ERROR === 💥');
-      print('Error: $e');
-      print('💥 === END ERROR === 💥\n');
       return null;
     }
   }
@@ -310,7 +275,56 @@ class PaymentService {
     print('Status: Payment Successful → Ready for Database Update');
     print('📊 === END PAYMENT DATA === 📊\n');
     
+    // Verify the payment signature with the backend before treating the
+    // payment as successful (POST /api/razorpay/verify).
+    _verifyAndComplete(response, enhancedPaymentData, currentTimestamp);
+  }
+
+  Future<void> _verifyAndComplete(
+    PaymentSuccessResponse response,
+    Map<String, dynamic> enhancedPaymentData,
+    int currentTimestamp,
+  ) async {
+    bool verified = true;
+    try {
+      if (_apiClient != null &&
+          response.orderId != null &&
+          response.paymentId != null &&
+          response.signature != null) {
+        final verifyResponse = await _apiClient.postWithAuth(
+          ApiConstants.razorpayVerify,
+          body: {
+            'razorpay_order_id': response.orderId,
+            'razorpay_payment_id': response.paymentId,
+            'razorpay_signature': response.signature,
+          },
+        );
+        verified =
+            verifyResponse is Map && verifyResponse['success'] == true;
+        _logger.log('Razorpay verify result: $verified');
+      } else {
+        _logger.warning(
+            'Razorpay verify skipped (missing client or payment fields)');
+      }
+    } catch (e) {
+      _logger.error('Razorpay verify call failed: $e');
+      verified = false;
+    }
+
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
+      if (!verified) {
+        _paymentCompleter!.complete(PaymentResult(
+          success: false,
+          paymentId: response.paymentId,
+          orderId: response.orderId,
+          signature: response.signature,
+          message:
+              'Payment could not be verified. If money was deducted it will be refunded — please contact support.',
+          error: Exception('Razorpay signature verification failed'),
+        ));
+        return;
+      }
+
       _paymentCompleter!.complete(PaymentResult(
         success: true,
         paymentId: response.paymentId,

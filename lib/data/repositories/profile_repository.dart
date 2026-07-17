@@ -15,41 +15,46 @@ class ProfileRepository extends BaseRepository {
     required super.logger,
   });
   
-  // Get user profile details using centralized auth
+  // Get user profile details (GET /api/auth/profile).
+  // The universal backend stores a single `name`; it is split into the
+  // legacy first_name / last_name keys existing screens read.
   Future<Map<String, dynamic>> getUserProfile() async {
     return await makeAuthenticatedRequest<Map<String, dynamic>>(
       () async {
         logActivity('Fetching user profile');
 
-        final mobile = await getUserMobile();
-        if (mobile == null) {
-          logActivity('No mobile number found');
-          return {};
-        }
-        
-        final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/get_customer_profile',
-          body: {
-            'mobile_number': mobile,
-          },
-        );
-        
-        if (response is List && response.isNotEmpty) {
-          logActivity('Successfully fetched user profile');
-          return response[0] as Map<String, dynamic>;
-        } else if (response is Map<String, dynamic>) {
-          logActivity('Successfully fetched user profile');
-          return response;
-        } else {
+        final response = await getWithAuth(ApiConstants.authProfile);
+
+        final user = response is Map<String, dynamic> &&
+                response['data'] is Map &&
+                (response['data'] as Map)['user'] is Map
+            ? Map<String, dynamic>.from((response['data'] as Map)['user'] as Map)
+            : null;
+
+        if (user == null) {
           logActivity('Unexpected response format for user profile');
           return {};
         }
+
+        final name = (user['name'] ?? '').toString().trim();
+        final parts = name.split(RegExp(r'\s+'));
+        final firstName = parts.isNotEmpty ? parts.first : '';
+        final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+
+        logActivity('Successfully fetched user profile');
+        return {
+          ...user,
+          'first_name': firstName,
+          'last_name': lastName,
+          'email_id': user['email'] ?? '',
+          'mobile_number': user['mobile'] ?? '',
+        };
       },
       onAuthError: () => <String, dynamic>{},
     ) ?? <String, dynamic>{};
   }
-  
-  // Update user profile details using centralized auth
+
+  // Update user profile details (PUT /api/auth/profile)
   Future<bool> updateUserProfile({
     required String firstName,
     required String lastName,
@@ -59,50 +64,25 @@ class ProfileRepository extends BaseRepository {
       () async {
         logActivity('Updating user profile');
 
-        final mobile = await getUserMobile();
-        if (mobile == null) {
-          logActivity('No mobile number found');
-          return false;
-        }
-        
-        // Create request body
-        final requestBody = {
-          'mobile_number': mobile,
-          'first_name': firstName,
-          'last_name': lastName,
+        final requestBody = <String, dynamic>{
+          'name': [firstName.trim(), lastName.trim()]
+              .where((p) => p.isNotEmpty)
+              .join(' '),
         };
-
-        // Add email if provided
         if (emailId != null && emailId.isNotEmpty) {
-          requestBody['email_id'] = emailId;
+          requestBody['email'] = emailId;
         }
-        
-        logActivity('Update profile request: $requestBody');
-        
-        final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/add_update_customer_profile',
+
+        final response = await putWithAuth(
+          ApiConstants.authProfile,
           body: requestBody,
         );
-        
-        logActivity('Update profile response: $response');
-        
-        if (response is Map<String, dynamic>) {
-          final message = response['message']?.toString() ?? '';
-          if (message.toLowerCase().contains('successfully') || 
-              message.toLowerCase().contains('success')) {
-            logActivity('Profile updated successfully');
-            return true;
-          }
-        } else if (response is String) {
-          // Handle plain text responses
-          final responseStr = response.toLowerCase();
-          if (responseStr.contains('successfully') || 
-              responseStr.contains('success')) {
-            logActivity('Profile updated successfully');
-            return true;
-          }
+
+        if (response is Map<String, dynamic> && response['success'] == true) {
+          logActivity('Profile updated successfully');
+          return true;
         }
-        
+
         logActivity('Failed to update profile - unexpected response');
         return false;
       },

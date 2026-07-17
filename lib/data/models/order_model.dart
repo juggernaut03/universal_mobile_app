@@ -102,28 +102,37 @@ class Order {
     }
   }
 
-  // Create order from JSON with proper timezone handling
+  // Create order from the universal backend's order JSON.
+  // Handles both the my-orders list shape (order_items with product_code /
+  // product_image / uom, top-level delivery_slot and delivery_address) and
+  // the order-detail shape (raw items with p_code / pcode_img, nested
+  // delivery_info and payment_info).
   factory Order.fromJson(Map<String, dynamic> json) {
-    // Convert cart_items to CartItems
+    double toDouble(dynamic v) =>
+        v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
+
     final List<CartItem> items = [];
     final Map<String, int> updatedQuantities = {};
     final Set<String> unavailableItems = {};
-    if (json['cart_items'] != null) {
-      for (final item in json['cart_items']) {
+
+    if (json['order_items'] is List) {
+      for (final item in json['order_items'] as List) {
+        if (item is! Map) continue;
         try {
-          final pcode = item['pcode']?.toString() ?? '';
+          final pcode =
+              (item['product_code'] ?? item['p_code'] ?? '').toString();
           final productModel = ProductModel(
             id: '',
             pCode: pcode,
-            pcodeImg: item['product_image_link'] ?? '',
+            pcodeImg: (item['product_image'] ?? item['pcode_img'] ?? '').toString(),
             barcode: '',
-            productName: item['product_name'] ?? 'Product',
+            productName: (item['product_name'] ?? 'Product').toString(),
             productDescription: '',
-            packageSize: double.tryParse(item['package_size']?.toString() ?? '0') ?? 0.0,
-            packageUnit: item['package_unit'] ?? '',
-            productMrp: double.tryParse(item['product_mrp']?.toString() ?? '0') ?? 0.0,
-            ourPrice: double.tryParse(item['selling_price']?.toString() ?? '0') ?? 0.0,
-            brandName: '',
+            packageSize: toDouble(item['package_size']),
+            packageUnit: (item['uom'] ?? item['package_unit'] ?? '').toString(),
+            productMrp: toDouble(item['product_mrp'] ?? item['unit_price']),
+            ourPrice: toDouble(item['unit_price']),
+            brandName: (item['product_brand'] ?? item['brand_name'] ?? '').toString(),
             storeCode: '',
             pcodestatus: '',
             deptId: '',
@@ -135,101 +144,93 @@ class Order {
 
           items.add(CartItem(
             product: productModel,
-            quantity: item['quantity'] ?? 1,
+            quantity: item['quantity'] is int
+                ? item['quantity']
+                : int.tryParse(item['quantity']?.toString() ?? '') ?? 1,
           ));
-
-          // Server may revise quantity post-order (e.g. insufficient stock).
-          // Capture it so the UI can strike out the original.
-          final rawNewQty = item['new_updated_qty'];
-          if (rawNewQty != null && rawNewQty.toString().trim().isNotEmpty && pcode.isNotEmpty) {
-            final parsed = int.tryParse(rawNewQty.toString());
-            if (parsed != null) {
-              updatedQuantities[pcode] = parsed;
-            }
-          }
-
-          // Mark items the server flagged as fully unavailable.
-          final availStatus = item['product_available_status']?.toString().toLowerCase();
-          if (pcode.isNotEmpty && availStatus == 'not_available') {
-            unavailableItems.add(pcode);
-          }
         } catch (e) {
-          print('Error parsing cart item: $e');
+          print('Error parsing order item: $e');
         }
       }
     }
-    
-    // Extract and properly handle order_date_time with timezone conversion
-    DateTime? orderDateTime = _parseOrderDateTime(json['order_date_time']);
-    
-    // Use order_date_time as primary, fallback to delivery_date, then current time
-    DateTime orderDate;
-    try {
-      if (orderDateTime != null) {
-        orderDate = orderDateTime;
-      } else if (json['delivery_date'] != null) {
-        // Handle delivery_date as well
-        DateTime deliveryDateTime = DateTime.parse(json['delivery_date']);
-        orderDate = deliveryDateTime.toLocal();
-      } else {
-        orderDate = DateTime.now();
-      }
-    } catch (e) {
-      print('Error parsing dates: $e');
-      orderDate = DateTime.now();
-    }
-    
-    // Extract actual_order_id for display
-    final actualOrderId = json['actual_order_id'] as int?;
-    
-    // Extract total MRP and our price from API
-    final totalMrp = double.tryParse(json['total_amount_mrp']?.toString() ?? '0') ?? 0.0;
-    final totalOurPrice = double.tryParse(json['total_amount_our_price']?.toString() ?? '0') ?? 0.0;
-    final deliveryCharges = double.tryParse(json['delivery_charges']?.toString() ?? '0') ?? 0.0;
-    
-    // Calculate proper savings
-    final correctSavings = max(0.0, totalMrp - totalOurPrice);
 
-    // Extract refund amount (only present when a refund has been issued)
+    // Order placement time
+    DateTime orderDate;
+    final placedAt = _parseOrderDateTime(
+        (json['order_placed_at'] ?? json['order_date_time'])?.toString());
+    orderDate = placedAt ?? DateTime.now();
+
+    // Summary totals
+    final summary = json['order_summary'] is Map
+        ? json['order_summary'] as Map
+        : {};
+    final subtotal = toDouble(summary['subtotal']);
+    final deliveryCharges = toDouble(summary['delivery_charges']);
+    final discountAmount = toDouble(summary['discount_amount']);
+    final dealSavings = toDouble(summary['deal_savings']);
+    final totalAmount = toDouble(summary['total_amount']);
+
+    final totalMrp = subtotal; // MRP not tracked server-side; show subtotal
+    final correctSavings = max(0.0, discountAmount + dealSavings);
+
+    // Delivery slot (list shape has it flattened, detail shape nests it)
+    final deliveryInfo = json['delivery_info'] is Map
+        ? json['delivery_info'] as Map
+        : {};
+    String deliverySlot = (json['delivery_slot'] ?? '').toString();
+    if (deliverySlot.isEmpty && deliveryInfo.isNotEmpty) {
+      deliverySlot =
+          '${deliveryInfo['delivery_slot_from'] ?? ''} - ${deliveryInfo['delivery_slot_to'] ?? ''}';
+    }
+
+    // Payment mode
+    final paymentInfo = json['payment_info'] is Map
+        ? json['payment_info'] as Map
+        : {};
+    final paymentMethod = (json['payment_mode'] ??
+            paymentInfo['payment_mode_name'] ??
+            'COD')
+        .toString();
+
+    // Refund amount (when issued by admin)
     double? refundAmount;
-    final rawRefund = json['refund_amount'];
+    final rawRefund = json['refund_amount'] ?? summary['refund_amount'];
     if (rawRefund != null && rawRefund.toString().trim().isNotEmpty) {
       refundAmount = double.tryParse(rawRefund.toString());
     }
-    
-    // Format delivery address if available
+
+    // Delivery address (object on both shapes)
     String? formattedAddress;
-    if (json['delivery_address'] != null && 
-        json['delivery_address'] is List && 
-        (json['delivery_address'] as List).isNotEmpty) {
-      final address = json['delivery_address'][0];
-      if (address != null) {
-        final parts = [
-          address['full_name'],
-          address['delivery_addr_line_1'] ?? address['address_1'],
-          address['delivery_addr_line_2'] ?? address['address_2'],
-          address['delivery_addr_city'] ?? address['city'],
-          address['delivery_addr_pincode'] ?? address['pincode'],
-        ].where((part) => part != null && part.toString().isNotEmpty).toList();
-        formattedAddress = parts.join(', ');
-      }
+    final rawAddress =
+        json['delivery_address'] ?? deliveryInfo['delivery_address'];
+    if (rawAddress is Map) {
+      final parts = [
+        rawAddress['full_name'],
+        rawAddress['line_1'] ?? rawAddress['delivery_addr_line_1'],
+        rawAddress['line_2'] ?? rawAddress['delivery_addr_line_2'],
+        rawAddress['city'] ?? rawAddress['delivery_addr_city'],
+        rawAddress['pincode'] ?? rawAddress['delivery_addr_pincode'],
+      ].where((part) => part != null && part.toString().isNotEmpty).toList();
+      formattedAddress = parts.join(', ');
     }
-    
+
+    const int? actualOrderId = null;
+
     return Order(
-      orderId: json['_id'] ?? json['temp_order_id'] ?? 'UNKNOWN',
+      orderId: (json['order_number'] ?? json['_id'] ?? 'UNKNOWN').toString(),
       orderDate: orderDate, // This will be properly converted to local time
       deliveryMethod: json['delivery_mode'] ?? 'Home Delivery',
-      deliverySlot: json['delivery_slot'] ?? '09:00 AM - 12:00 PM',
-      totalAmount: totalOurPrice + deliveryCharges, // Include delivery charges in total
+      deliverySlot: deliverySlot.trim().isEmpty ? '09:00 AM - 12:00 PM' : deliverySlot,
+      totalAmount: totalAmount > 0 ? totalAmount : subtotal + deliveryCharges,
       totalMrp: totalMrp,
       savings: correctSavings,
-      paymentMethod: json['payment_mode'] ?? 'COD',
+      paymentMethod: paymentMethod,
       status: json['order_status'] ?? 'Order Confirmed',
       deliveryAddress: formattedAddress,
       deliveryAmount: deliveryCharges,
       items: items,
-      orderDateTime: orderDateTime, // Store the converted local time
-      actualOrderId: actualOrderId, // Store actual_order_id for display
+      orderDateTime: placedAt, // Store the converted local time
+      actualOrderId: actualOrderId,
       refundAmount: refundAmount, // Refund issued to the customer, if any
       updatedQuantities: updatedQuantities,
       unavailableItems: unavailableItems,
