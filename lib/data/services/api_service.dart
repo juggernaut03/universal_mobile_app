@@ -1,8 +1,7 @@
 // lib/data/services/api_service.dart
 
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:patelmart/core/constants/app_constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
 import '../models/pincode_model.dart';
@@ -19,14 +18,12 @@ class ApiService {
   })  : _apiClient = apiClient,
         _logger = logger ?? Logger();
 
-  /// POST /check_if_pincode_exists
-  /// Body: { pincode, project_code }
+  /// POST /api/pincodes/check-availability
   Future<PincodeCheckResponse> checkIfPincodeExists(String pincode) async {
     try {
       final response = await _apiClient.post(
         ApiConstants.checkPincode,
         body: {'pincode': pincode},
-        // Note: project_code is automatically added by ApiClient.post()
       );
       return PincodeCheckResponse.fromJson(response);
     } catch (e) {
@@ -35,12 +32,11 @@ class ApiService {
     }
   }
 
-  /// GET /get_pincode_list
-  /// project_code is automatically sent as a query param by ApiClient.get()
+  /// GET /api/pincodes/enabled/list
   Future<List<PincodeModel>> getPincodeList() async {
     try {
-      final response = await _apiClient.get(ApiConstants.getPincodeList, includeProjectCode: false);
-      final list = (response as List);
+      final response = await _apiClient.get(ApiConstants.getPincodeList);
+      final list = (response is Map ? response['data'] : response) as List? ?? [];
       return list.map((json) => PincodeModel.fromJson(json)).toList();
     } catch (e) {
       _logger.error('Error fetching pincode list: $e');
@@ -48,63 +44,98 @@ class ApiService {
     }
   }
 
-  /// POST /get_pincodewise_outlet
-  /// Body: { pincode, project_code }
+  /// POST /api/stores/by-pincode
   Future<List<OutletModel>> getPincodewiseOutlet(String pincode) async {
     try {
-      // Fixed: was incorrectly using GET with query params.
-      // Postman spec requires POST with { pincode, project_code } in body.
       final response = await _apiClient.post(
         ApiConstants.getPincodewiseOutlet,
         body: {'pincode': pincode},
-        // project_code is automatically added by ApiClient.post()
       );
-      return (response as List)
-          .map((json) => OutletModel.fromJson(json))
-          .toList();
+      final list = (response is Map ? response['data'] : response) as List? ?? [];
+      return list.map((json) => OutletModel.fromJson(json)).toList();
     } catch (e) {
       _logger.error('Error fetching outlets: $e');
       rethrow;
     }
   }
 
-  /// POST /get_store_details
-  /// Body: { store_code, project_code }
+  /// Store details come from /api/stores/by-pincode (there is no separate
+  /// details endpoint on the universal backend). Looks up the saved pincode
+  /// and returns the matching store as a legacy-keyed map so existing
+  /// consumers (StoreDetails.fromJson) keep working.
   Future<Map<String, dynamic>?> getStoreDetails(String storeCode) async {
     try {
-      final response = await _apiClient.post(
-        ApiConstants.getStoreDetails,
-        body: {'store_code': storeCode},
-        // project_code is automatically added by ApiClient.post()
-      );
-      if (response is List && response.isNotEmpty) {
-        return response.first as Map<String, dynamic>;
+      final prefs = await SharedPreferences.getInstance();
+      final pincode = prefs.getString(ApiConstants.keyPincode);
+      if (pincode == null || pincode.isEmpty) {
+        _logger.warning('getStoreDetails: no saved pincode');
+        return null;
       }
-      return response as Map<String, dynamic>?;
+
+      final response = await _apiClient.post(
+        ApiConstants.getPincodewiseOutlet,
+        body: {'pincode': pincode},
+      );
+      final list = (response is Map ? response['data'] : response) as List? ?? [];
+      final store = list.cast<Map<String, dynamic>?>().firstWhere(
+            (s) => s?['store_code'] == storeCode,
+            orElse: () => null,
+          );
+      if (store == null) return null;
+
+      final location = store['location'] is Map<String, dynamic>
+          ? store['location'] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final contact = store['contact'] is Map<String, dynamic>
+          ? store['contact'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      // Legacy key names expected by StoreDetails.fromJson
+      return {
+        '_id': (store['id'] ?? '').toString(),
+        'pincode': store['pincode'] ?? '',
+        'mobile_outlet_name': store['store_name'] ?? '',
+        'store_code': store['store_code'] ?? '',
+        'is_enabled': store['is_enabled'] ?? '',
+        'store_address': store['address'] ?? '',
+        'min_order_amount': store['min_order_amount'] ?? 0,
+        'store_open_time': store['store_open_time'] ?? '',
+        'store_delivery_time': store['delivery_time'] ?? '',
+        'latitude': location['latitude'] ?? '',
+        'longitude': location['longitude'] ?? '',
+        'contact_number': contact['phone'] ?? '',
+        'email': contact['email'] ?? '',
+      };
     } catch (e) {
       _logger.error('Error fetching store details: $e');
       rethrow;
     }
   }
 
-  /// POST /get_active_department_list
-  /// Body: { store_code, project_code }
+  /// POST /api/departments/by-store.
+  /// Departments may be tenant-global (store_code null in the DB) — if the
+  /// store-specific query is empty, fall back to the shared catalog.
   Future<List<dynamic>> getActiveDepartmentList(String storeCode) async {
     try {
       final response = await _apiClient.post(
         ApiConstants.getActiveDepartmentList,
         body: {'store_code': storeCode},
-        // project_code is automatically added by ApiClient.post()
       );
-      return response as List;
+      final list = (response is Map ? response['data'] : response) as List? ?? [];
+      if (list.isNotEmpty) return list;
+
+      final fallback = await _apiClient.post(
+        ApiConstants.getActiveDepartmentList,
+        body: {'store_code': 'null'},
+      );
+      return (fallback is Map ? fallback['data'] : fallback) as List? ?? [];
     } catch (e) {
       _logger.error('Error fetching department list: $e');
       rethrow;
     }
   }
 
-  /// POST /get_active_categories_list
-  /// Body: { department_id, store_code, project_code }
+  /// POST /api/categories/get-categories
   Future<List<dynamic>> getActiveCategoriesList({
     required String departmentId,
     required String storeCode,
@@ -113,20 +144,20 @@ class ApiService {
       final response = await _apiClient.post(
         ApiConstants.getActiveCategoriesList,
         body: {
-          'department_id': departmentId,
+          'dept_id': departmentId,
           'store_code': storeCode,
         },
-        // project_code is automatically added by ApiClient.post()
       );
-      return response as List;
+      return (response is Map ? response['data'] : response) as List? ?? [];
     } catch (e) {
       _logger.error('Error fetching categories list: $e');
       rethrow;
     }
   }
 
-  /// POST /get_offer
-  /// Body: { temp_order_id, access_key, store_code, project_code, ipo_order_amount, cart_items }
+  /// GET /api/offers/for-cart — cart offers and product deals.
+  /// Maps the universal backend's product_deals onto the legacy offer keys
+  /// the steal-deals UI reads (offer_p_code, offer_status, offer_visible...).
   Future<OfferApiResponse> getOffer({
     required String tempOrderId,
     required String accessKey,
@@ -135,73 +166,64 @@ class ApiService {
     required List<Map<String, dynamic>> cartItems,
   }) async {
     try {
-      final body = {
-        'temp_order_id': tempOrderId,
-        'access_key': accessKey,
-        'store_code': storeCode,
-        'ipo_order_amount': ipoOrderAmount,
-        'cart_items': cartItems,
-      };
-      debugPrint('=== GET OFFER REQUEST BODY ===');
-      debugPrint(const JsonEncoder.withIndent('  ').convert(body));
-      debugPrint('=============================');
-      final response = await _apiClient.post(
-        ApiConstants.getOffer,
-        body: body,
+      final response = await _apiClient.getWithAuth(
+        ApiConstants.offersForCart,
+        additionalParams: {
+          'store_code': storeCode,
+          'cart_total': ipoOrderAmount.toStringAsFixed(2),
+        },
       );
-      debugPrint('=== GET OFFER RESPONSE BODY ===');
-      debugPrint(const JsonEncoder.withIndent('  ').convert(response));
-      debugPrint('===============================');
 
-      // New response format: { "offer_pannel_bg": "...", "offer_list": [...] }
-      if (response is Map<String, dynamic> &&
-          response.containsKey('offer_list')) {
-        final offerList = response['offer_list'];
-        final List<Map<String, dynamic>> offers = [];
-        if (offerList is List) {
-          offers.addAll(offerList.cast<Map<String, dynamic>>());
+      final data = response is Map<String, dynamic> &&
+              response['data'] is Map<String, dynamic>
+          ? response['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+
+      final List<Map<String, dynamic>> offers = [];
+
+      final deals = data['product_deals'];
+      if (deals is List) {
+        for (final deal in deals) {
+          if (deal is! Map<String, dynamic>) continue;
+          final dealProducts = deal['deal_products'];
+          final pCodes = <String>[];
+          if (dealProducts is List) {
+            for (final p in dealProducts) {
+              final code = (p is Map ? p['p_code'] : null)?.toString() ?? '';
+              if (code.isNotEmpty) pCodes.add(code);
+            }
+          }
+
+          offers.add({
+            ...deal,
+            'offer_p_code': pCodes,
+            'offer_name': deal['title'] ?? '',
+            'offer_heading_text': deal['title'] ?? '',
+            'offer_desc': deal['description'] ?? '',
+            'offer_status': deal['unlocked'] == true ? 'Unlocked' : 'Locked',
+            'offer_visible': 'true',
+            'min_order_value': deal['min_cart_value'] ?? 0,
+            'ipo_order_amount': ipoOrderAmount,
+          });
         }
-        return OfferApiResponse(
-          offers: offers,
-          pannelBgColor: response['offer_pannel_bg']?.toString() ?? '',
-          pannelHeadingTxtColor: response['offer_pannel_heading_txt_color']?.toString() ?? '',
-          pannelDescriptTxtColor: response['offer_pannel_descript_txt_color']?.toString() ?? '',
-          pannelUnlockTxtColor: response['offer_pannel_unlock_txt_color']?.toString() ?? '',
-          pannelUnlockBgColor: response['offer_pannel_unlock_bg']?.toString() ?? '',
-        );
       }
-      // Legacy format: direct list
-      if (response is List) {
-        return OfferApiResponse(
-          offers: response.cast<Map<String, dynamic>>(),
-        );
-      }
-      return OfferApiResponse(offers: []);
+
+      _logger.log('offers/for-cart returned ${offers.length} product deal(s)');
+      return OfferApiResponse(offers: offers);
     } catch (e) {
       _logger.error('Error fetching offers: $e');
       rethrow;
     }
   }
 
-
-  /// POST /get_offerscreen
-  /// Body: { store_code, project_code }
+  /// The legacy offer-screen endpoint has no universal equivalent — return an
+  /// empty banner so the UI hides the section (fail-soft).
   Future<OfferModel> getOfferScreen(String storeCode) async {
-    try {
-      final response = await _apiClient.post(
-        ApiConstants.getOfferScreen,
-        body: {'store_code': storeCode},
-        // Note: project_code is automatically added by ApiClient.post()
-      );
-      return OfferModel.fromJson(response);
-    } catch (e) {
-      _logger.error('Error fetching offer: $e');
-      rethrow;
-    }
+    return OfferModel(imageUrl: '');
   }
 }
 
-/// Response model for get_offer API containing panel colors + offer list.
+/// Response model for cart offers containing panel colors + offer list.
 class OfferApiResponse {
   final List<Map<String, dynamic>> offers;
   final String pannelBgColor;

@@ -8,6 +8,7 @@ import '../../../../core/utils/logger.dart';
 import '../../../../data/models/order_model.dart';
 import '../../../../data/models/last_order_status_model.dart';
 import '../../../../data/repositories/order_repository.dart';
+import 'cart_provider.dart';
 
 // Provider for the OrderRepository instance
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
@@ -90,10 +91,30 @@ final lastOrderStatusProvider = FutureProvider.autoDispose<LastOrderStatus?>((re
   }
 });
 
-// Provider to expose a reorder function
+// Provider to expose a reorder function.
+// The universal backend has no reorder endpoint — re-add the order's items
+// to the local cart so the user lands on a pre-filled cart.
 final reorderFunctionProvider = Provider<Future<bool> Function(String)>((ref) {
   final repository = ref.watch(orderRepositoryProvider);
-  return (String orderId) => repository.reorder(orderId);
+  final logger = ref.read(loggerProvider);
+  return (String orderId) async {
+    try {
+      final order = await repository.getOrderDetails(orderId);
+      if (order == null || order.items.isEmpty) {
+        logger.error('Reorder failed: order $orderId not found or empty');
+        return false;
+      }
+      final cartNotifier = ref.read(cartProvider.notifier);
+      for (final item in order.items) {
+        cartNotifier.addItemWithQuantity(item.product, item.quantity);
+      }
+      logger.log('Reorder: added ${order.items.length} item(s) from $orderId to cart');
+      return true;
+    } catch (e) {
+      logger.error('Reorder failed: $e');
+      return false;
+    }
+  };
 });
 
 // Provider to expose a cancel order function

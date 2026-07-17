@@ -54,27 +54,22 @@ class FcmTokenService {
 
       _logger.log('Saving FCM token for mobile: $mobile');
       
-      // Use centralized API client with auth
+      // Use centralized API client with auth (Bearer JWT)
       final response = await _apiClient.postWithAuth(
-        '${ApiConstants.baseUrl}/save_fcm_token',
+        ApiConstants.authSaveFcmToken,
         body: {
-          "mobile_no": mobile,
-          "fcm_token": tokenToSave,
+          "fcmToken": tokenToSave,
         },
       );
-      
+
       _logger.log('FCM token save response: $response');
-      
-      if (response is Map<String, dynamic>) {
-        // Check for success message
-        if (response.containsKey('message') && 
-            response['message'].toString().contains('Successfully')) {
-          _logger.log('FCM token saved successfully');
-          
-          // Store the token locally for future reference
-          await _storeFcmTokenLocally(tokenToSave);
-          return true;
-        }
+
+      if (response is Map<String, dynamic> && response['success'] == true) {
+        _logger.log('FCM token saved successfully');
+
+        // Store the token locally for future reference
+        await _storeFcmTokenLocally(tokenToSave);
+        return true;
       }
       
       _logger.error('Failed to save FCM token: $response');

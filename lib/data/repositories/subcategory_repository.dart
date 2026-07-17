@@ -46,23 +46,32 @@ class SubcategoryRepository {
       }
 
       _logger.log('Fetching subcategories for category $categoryId from API');
-      final response = await _client.post(
-        Uri.parse('$_baseUrl/get_sub_categories_list'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'category_id': categoryId,
-          'project_code': ApiConstants.projectCode,
-        }),
+      // GET /api/subcategories returns every subcategory for the tenant;
+      // filter by category_id client-side (the POST variant needs dept/store
+      // context this screen does not have).
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/subcategories?project_code=${ApiConstants.projectCode}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+        },
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final subcategories = data.map((json) => SubcategoryModel.fromJson(json)).toList();
-        
-        // Cache the subcategories
-        await prefs.setString(cacheKey, response.body);
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> data =
+            decoded is Map ? (decoded['data'] as List? ?? []) : (decoded as List);
+        final filtered = data
+            .where((json) =>
+                json is Map && json['category_id']?.toString() == categoryId)
+            .toList();
+        final subcategories =
+            filtered.map((json) => SubcategoryModel.fromJson(json)).toList();
+
+        // Cache the filtered subcategories for this category
+        await prefs.setString(cacheKey, jsonEncode(filtered));
         await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
-        
+
         return subcategories;
       } else {
         throw Exception('Failed to load subcategories: ${response.statusCode}');

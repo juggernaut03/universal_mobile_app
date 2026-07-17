@@ -57,8 +57,11 @@ class ProductRepository {
 
       _logger.log('Fetching products for dept=$deptId, cat=$categoryId, subcat=$subCategoryId from API');
       final response = await _client.post(
-        Uri.parse('$_baseUrl/get_active_products_list'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$_baseUrl/products/get-products'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+        },
         body: jsonEncode({
           'dept_id': deptId,
           'category_id': categoryId,
@@ -69,14 +72,16 @@ class ProductRepository {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> data =
+            decoded is Map ? (decoded['data'] as List? ?? []) : (decoded as List);
         final products = data
             .map((json) => ProductModel.fromJson(json))
             .where((p) => p.isAvailable)
             .toList();
 
         // Cache the products
-        await prefs.setString(cacheKey, response.body);
+        await prefs.setString(cacheKey, jsonEncode(data));
         await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
         
         // Pre-cache product images in background
@@ -168,28 +173,30 @@ class ProductRepository {
   _logger.log('getProductByCode: Fetching product - pCode: $pCode, storeCode: $storeCode');
   try {
     final requestBody = {
-      'p_code': int.tryParse(pCode) ?? pCode,
+      'p_code': pCode,
       'store_code': storeCode,
       'project_code': ApiConstants.projectCode,
     };
-    _logger.log('getProductByCode: Request body: $requestBody');
 
     final response = await _client.post(
-      Uri.parse('$_baseUrl/getpcodeproducts'),
-      headers: {'Content-Type': 'application/json'},
+      Uri.parse('$_baseUrl/products/productdetails'),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Project-Code': ApiConstants.projectCode,
+      },
       body: jsonEncode(requestBody),
     );
 
     _logger.log('getProductByCode: Response status: ${response.statusCode}');
-    _logger.log('getProductByCode: Response body: ${response.body}');
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
+      // Universal backend: {success, data: {product}}
+      final data = decoded is Map<String, dynamic> ? decoded['data'] : decoded;
       if (data is Map<String, dynamic>) {
-        _logger.log('getProductByCode: Parsed as Map - product: ${data['product_name']}');
+        _logger.log('getProductByCode: product: ${data['product_name']}');
         return ProductModel.fromJson(data);
       } else if (data is List && data.isNotEmpty) {
-        _logger.log('getProductByCode: Parsed as List[${data.length}] - product: ${data[0]['product_name']}');
         return ProductModel.fromJson(data[0]);
       } else {
         _logger.log('getProductByCode: Unexpected response format - type: ${data.runtimeType}');

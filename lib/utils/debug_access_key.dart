@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import '../core/constants/app_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/utils/logger.dart';
@@ -252,7 +253,7 @@ class _AccessKeyDebugScreenState extends ConsumerState<AccessKeyDebugScreen> {
                           children: [
                             Expanded(
                               child: const Text(
-                                '{\n  "access_key": "YOUR_ACCESS_KEY",\n  "project_code": "RET5890"\n}',
+                                'Authorization: Bearer YOUR_JWT_TOKEN\nX-Project-Code: ${ApiConstants.projectCode}',
                                 style: TextStyle(
                                   fontFamily: 'monospace',
                                   fontSize: 14,
@@ -262,7 +263,7 @@ class _AccessKeyDebugScreenState extends ConsumerState<AccessKeyDebugScreen> {
                             IconButton(
                               icon: const Icon(Icons.copy),
                               onPressed: () {
-                                _copyToClipboard('{\n  "access_key": "$_accessKey",\n  "project_code": "RET5890"\n}');
+                                _copyToClipboard('Bearer $_accessKey');
                               },
                               tooltip: 'Copy with access key',
                             ),
@@ -293,17 +294,17 @@ class _AccessKeyDebugScreenState extends ConsumerState<AccessKeyDebugScreen> {
                   ),
                   const SizedBox(height: 8),
                   _buildPostmanExample(
-                    'Get Address List', 
-                    'POST', 
-                    'https://newtech.shalviadvision.com/api/get_address_list', 
-                    '{\n  "access_key": "$_accessKey",\n  "project_code": "RET5890"\n}'
+                    'Get Addresses',
+                    'POST',
+                    ApiConstants.addressGet,
+                    'Header: Authorization: Bearer $_accessKey\nHeader: X-Project-Code: ${ApiConstants.projectCode}\n\n{}'
                   ),
                   const SizedBox(height: 16),
                   _buildPostmanExample(
-                    'Add Address', 
-                    'POST', 
-                    'https://newtech.shalviadvision.com/api/add_address', 
-                    '{\n  "idaddress_book": "12",\n  "project_code": "RET5890",\n  "full_name": "Test User",\n  "access_key": "$_accessKey",\n  "mobile_number": "9876543210",\n  "email_id": " ",\n  "delivery_addr_line_1": "Address Line 1",\n  "delivery_addr_line_2": "Address Line 2",\n  "delivery_addr_city": "Mumbai",\n  "delivery_addr_pincode": "400001",\n  "is_default": "No",\n  "latitude": "",\n  "longitude": "",\n  "area_id": "1"\n}'
+                    'Add Address',
+                    'POST',
+                    ApiConstants.addressAdd,
+                    'Header: Authorization: Bearer $_accessKey\nHeader: X-Project-Code: ${ApiConstants.projectCode}\n\n{\n  "full_name": "Test User",\n  "delivery_addr_line_1": "Address Line 1",\n  "delivery_addr_city": "Mumbai",\n  "delivery_addr_pincode": "400001",\n  "is_default": "No"\n}'
                   ),
                 ],
               ),

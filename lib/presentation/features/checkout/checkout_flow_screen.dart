@@ -59,6 +59,8 @@ class CheckoutData {
   Address? selectedAddress;
   DateTime? deliveryDate;
   String? deliveryTimeSlot;
+  // Universal backend needs the numeric iddelivery_slot, not the display text
+  int? deliverySlotId;
   String? specialInstructions;
   String? paymentMethod;
   String? pickupName;
@@ -68,6 +70,7 @@ class CheckoutData {
     this.selectedAddress,
     this.deliveryDate,
     this.deliveryTimeSlot,
+    this.deliverySlotId,
     this.specialInstructions,
     this.paymentMethod,
     this.pickupName,
@@ -79,6 +82,7 @@ class CheckoutData {
       'selectedAddress': selectedAddress?.toJson(),
       'deliveryDate': deliveryDate?.toIso8601String(),
       'deliveryTimeSlot': deliveryTimeSlot,
+      'deliverySlotId': deliverySlotId,
       'specialInstructions': specialInstructions,
       'paymentMethod': paymentMethod,
       'pickupName': pickupName,
@@ -97,6 +101,9 @@ class CheckoutData {
           ? DateTime.parse(json['deliveryDate'])
           : null,
       deliveryTimeSlot: json['deliveryTimeSlot'],
+      deliverySlotId: json['deliverySlotId'] is int
+          ? json['deliverySlotId']
+          : int.tryParse(json['deliverySlotId']?.toString() ?? ''),
       specialInstructions: json['specialInstructions'],
       paymentMethod: json['paymentMethod'],
       pickupName: json['pickupName'],
@@ -2253,6 +2260,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
         if (_timeSlots.containsKey(dateSlotsKey) && _timeSlots[dateSlotsKey]!.isNotEmpty) {
           _selectedSlot = _timeSlots[dateSlotsKey]!.first;
           widget.checkoutData.deliveryTimeSlot = _selectedSlot!.displayText;
+          widget.checkoutData.deliverySlotId = _selectedSlot!.id;
         }
       } else if (widget.checkoutData.deliveryTimeSlot != null) {
         // Try to find the previously selected slot
@@ -2260,6 +2268,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
         for (final slot in slots) {
           if (slot.displayText == previousSlotText) {
             _selectedSlot = slot;
+            widget.checkoutData.deliverySlotId = slot.id;
             break;
           }
         }
@@ -2335,6 +2344,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     // Update checkout data
     widget.checkoutData.deliveryDate = date;
     widget.checkoutData.deliveryTimeSlot = _selectedSlot?.displayText;
+    widget.checkoutData.deliverySlotId = _selectedSlot?.id;
   }
 
   void _selectTimeSlot(DeliverySlot slot) {
@@ -2342,6 +2352,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
       _selectedSlot = slot;
     });
     widget.checkoutData.deliveryTimeSlot = slot.displayText;
+    widget.checkoutData.deliverySlotId = slot.id;
   }
 
   @override
@@ -3411,8 +3422,11 @@ Future<void> _placeOrder() async {
       specialNotes: _buildSpecialNotes(userProfile),
       paymentResult: paymentResult, // Pass the actual payment result (success or failure)
       paymentFormat: PaymentDataFormat.both,
+      deliverySlotId: widget.checkoutData.deliverySlotId,
+      paymentModeId: _selectedPaymentMethod?.idPaymentMode,
+      deliveryDistance: ref.read(deliveryChargesProvider).distance,
     );
-    
+
     // Store order result
     ref.read(orderConfirmationResultProvider.notifier).state = orderResult;
     

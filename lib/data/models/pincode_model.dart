@@ -11,7 +11,7 @@ class PincodeModel {
 
   factory PincodeModel.fromJson(Map<String, dynamic> json) {
     return PincodeModel(
-      id: json['_id'] ?? '',
+      id: json['id'] ?? json['_id'] ?? '',
       pincode: json['pincode'] ?? '',
     );
   }
@@ -33,9 +33,12 @@ class PincodeCheckResponse {
     required this.message,
   });
 
+  // Universal backend: {success, available, serviceable, message, pincode}
   factory PincodeCheckResponse.fromJson(Map<String, dynamic> json) {
+    final bool serviceable =
+        json['serviceable'] == true && json['available'] == true;
     return PincodeCheckResponse(
-      count: json['cnt'] ?? 0,
+      count: serviceable ? 1 : 0,
       message: json['message'] ?? '',
     );
   }

@@ -11,6 +11,7 @@ enum ErrorType {
   server,
   location,
   dataNotFound,
+  auth,
   generic
 }
 

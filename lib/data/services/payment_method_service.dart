@@ -21,14 +21,20 @@ class PaymentMethodService {
       _logger.log('Fetching payment methods from API');
       
       final response = await _client.get(
-        Uri.parse('${ApiConstants.baseUrl}/get_payment_mode'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(
+            '${ApiConstants.baseUrl}/payment-modes/enabled?project_code=${ApiConstants.projectCode}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+        },
       ).timeout(const Duration(seconds: 15));
-      
+
       _logger.log('Payment methods API response status: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
-        final List<dynamic> jsonData = jsonDecode(response.body);
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> jsonData =
+            decoded is Map ? (decoded['data'] as List? ?? []) : (decoded as List);
         final paymentMethods = jsonData
             .map((json) => PaymentMethod.fromJson(json))
             .toList();

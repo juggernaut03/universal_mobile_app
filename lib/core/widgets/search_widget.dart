@@ -8,6 +8,7 @@ import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/providers/search_providers.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_constants.dart';
 
 
 class SearchWidget extends ConsumerStatefulWidget {
@@ -104,21 +105,20 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
       final apiClient = ref.read(apiClientProvider);
       
       final response = await apiClient.post(
-        'https://newtech.shalviadvision.com/api/get_search_autocomplete_results',
+        ApiConstants.searchProducts,
         body: {
-          'product_name': query,
+          'search_term': query,
           'store_code': storeCode,
-          'project_code': 'RET5890',
         },
       );
-      
+
       if (!mounted) return;
-      
+
       List<dynamic> suggestions = [];
-      if (response is List) {
-        suggestions = response.take(5).toList(); // Limit to 5 suggestions
-      } else if (response is Map && response.containsKey('products')) {
-        suggestions = (response['products'] as List).take(5).toList();
+      if (response is Map && response['data'] is List) {
+        suggestions = (response['data'] as List).take(5).toList();
+      } else if (response is List) {
+        suggestions = response.take(5).toList();
       }
       
       setState(() {

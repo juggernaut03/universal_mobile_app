@@ -5,51 +5,47 @@ import '../../core/constants/app_constants.dart';
 import '../models/address_model.dart';
 import 'base_repository.dart';
 
+/// Addresses against the universal backend (/api/address-crud/*).
+/// The customer's mobile number comes from the JWT, not the request body.
 class AddressRepository extends BaseRepository {
-  
+
   AddressRepository({
     required super.authManager,
     required super.apiClient,
     required super.logger,
   });
 
-  /// Add a new address using centralized auth management
+  Map<String, dynamic> _toApiBody(Address address) {
+    return {
+      "full_name": address.fullName.trim(),
+      "email_id": address.emailId.trim(),
+      "delivery_addr_line_1": address.deliveryAddrLine1.trim(),
+      "delivery_addr_line_2": address.deliveryAddrLine2.trim(),
+      "delivery_addr_city": address.deliveryAddrCity.trim(),
+      "delivery_addr_pincode": address.deliveryAddrPincode.trim(),
+      "is_default": address.isDefault,
+      "latitude": address.latitude ?? "",
+      "longitude": address.longitude ?? "",
+      "area_id": address.areaId.isEmpty ? "1" : address.areaId,
+    };
+  }
+
+  /// Add a new address (POST /api/address-crud/add-address)
   Future<bool> addAddress(Address address) async {
     return await makeAuthenticatedRequest<bool>(
       () async {
         logActivity('Adding new address');
-        
-        // Format exactly as shown in the successful Postman request
-        final requestData = {
-          "idaddress_book": "12", // This is a default ID for new addresses as seen in Postman
-          "full_name": address.fullName.trim(),
-          "mobile_number": address.mobileNumber.trim(),
-          "email_id": address.emailId.trim(),
-          "delivery_addr_line_1": address.deliveryAddrLine1.trim(),
-          "delivery_addr_line_2": address.deliveryAddrLine2.trim(),
-          "delivery_addr_city": address.deliveryAddrCity.trim(),
-          "delivery_addr_pincode": address.deliveryAddrPincode.trim(),
-          "is_default": address.isDefault,
-          "latitude": "", // Empty string as shown in Postman
-          "longitude": "", // Empty string as shown in Postman
-          "area_id": address.areaId.isEmpty ? "1" : address.areaId,
-        };
-        
+
         final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/add_address',
-          body: requestData,
+          ApiConstants.addressAdd,
+          body: _toApiBody(address),
         );
-        
-        // Check for exact success message wording from Postman
-        if (response is Map<String, dynamic>) {
-          if (response.containsKey('insertedItems') || 
-              (response.containsKey('message') && 
-               response['message'].toString().contains("Address Inserted Successfully"))) {
-            logActivity('Address added successfully');
-            return true;
-          }
+
+        if (response is Map<String, dynamic> && response['success'] == true) {
+          logActivity('Address added successfully');
+          return true;
         }
-        
+
         logActivity('Failed to add address');
         return false;
       },
@@ -57,27 +53,29 @@ class AddressRepository extends BaseRepository {
     ) ?? false;
   }
 
-  /// Get all addresses for the current user using centralized auth management
+  /// Get all addresses for the current user (POST /api/address-crud/get-addresses)
   Future<List<Address>> getAddresses() async {
     return await makeAuthenticatedRequest<List<Address>>(
       () async {
         logActivity('Fetching user addresses');
-        
+
         final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/get_address',
-          body: {}, // Empty body as access_key is automatically added
+          ApiConstants.addressGet,
+          body: {},
         );
-        
-        if (response is Map<String, dynamic> && response.containsKey('addresses')) {
-          final addressList = response['addresses'] as List<dynamic>;
+
+        if (response is Map<String, dynamic> && response['data'] is List) {
+          final addressList = response['data'] as List<dynamic>;
           final addresses = addressList
-              .map((addressJson) => Address.fromJson(addressJson as Map<String, dynamic>))
+              .whereType<Map>()
+              .map((addressJson) =>
+                  Address.fromJson(Map<String, dynamic>.from(addressJson)))
               .toList();
-          
-          logActivity('Successfully fetched addresses');
+
+          logActivity('Successfully fetched ${addresses.length} addresses');
           return addresses;
         }
-        
+
         logActivity('No addresses found or invalid response format');
         return <Address>[];
       },
@@ -85,41 +83,22 @@ class AddressRepository extends BaseRepository {
     ) ?? <Address>[];
   }
 
-  /// Update an existing address using centralized auth management
+  /// Update an existing address (PUT /api/address-crud/update-address/:id)
   Future<bool> updateAddress(Address address) async {
     return await makeAuthenticatedRequest<bool>(
       () async {
-        logActivity('Updating address');
-        
-        // Format for update request
-        final requestData = {
-          "idaddress_book": address.id,
-          "full_name": address.fullName.trim(),
-          "mobile_number": address.mobileNumber.trim(),
-          "email_id": address.emailId.trim(),
-          "delivery_addr_line_1": address.deliveryAddrLine1.trim(),
-          "delivery_addr_line_2": address.deliveryAddrLine2.trim(),
-          "delivery_addr_city": address.deliveryAddrCity.trim(),
-          "delivery_addr_pincode": address.deliveryAddrPincode.trim(),
-          "is_default": address.isDefault,
-          "latitude": address.latitude ?? "",
-          "longitude": address.longitude ?? "",
-          "area_id": address.areaId.isEmpty ? "1" : address.areaId,
-        };
-        
-        final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/update_address',
-          body: requestData,
+        logActivity('Updating address ${address.id}');
+
+        final response = await putWithAuth(
+          ApiConstants.addressUpdate(address.id),
+          body: _toApiBody(address),
         );
-        
-        if (response is Map<String, dynamic>) {
-          if (response.containsKey('message') && 
-              response['message'].toString().contains("updated successfully")) {
-            logActivity('Address updated successfully');
-            return true;
-          }
+
+        if (response is Map<String, dynamic> && response['success'] == true) {
+          logActivity('Address updated successfully');
+          return true;
         }
-        
+
         logActivity('Failed to update address');
         return false;
       },
@@ -127,27 +106,21 @@ class AddressRepository extends BaseRepository {
     ) ?? false;
   }
 
-  /// Delete an address using centralized auth management
+  /// Delete an address (DELETE /api/address-crud/delete-address/:id)
   Future<bool> deleteAddress(String addressId) async {
     return await makeAuthenticatedRequest<bool>(
       () async {
-        logActivity('Deleting address');
-        
-        final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/delete_address',
-          body: {
-            "idaddress_book": addressId,
-          },
+        logActivity('Deleting address $addressId');
+
+        final response = await deleteWithAuth(
+          ApiConstants.addressDelete(addressId),
         );
-        
-        if (response is Map<String, dynamic>) {
-          if (response.containsKey('message') && 
-              response['message'].toString().contains("deleted successfully")) {
-            logActivity('Address deleted successfully');
-            return true;
-          }
+
+        if (response is Map<String, dynamic> && response['success'] == true) {
+          logActivity('Address deleted successfully');
+          return true;
         }
-        
+
         logActivity('Failed to delete address');
         return false;
       },
@@ -155,28 +128,23 @@ class AddressRepository extends BaseRepository {
     ) ?? false;
   }
 
-  /// Set an address as default using centralized auth management
+  /// Set an address as default — the universal backend clears other defaults
+  /// when an address is updated with is_default = 'Yes'.
   Future<bool> setDefaultAddress(String addressId) async {
     return await makeAuthenticatedRequest<bool>(
       () async {
-        logActivity('Setting default address');
-        
-        final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/set_default_address',
-          body: {
-            "idaddress_book": addressId,
-          },
+        logActivity('Setting default address $addressId');
+
+        final response = await putWithAuth(
+          ApiConstants.addressUpdate(addressId),
+          body: {"is_default": "Yes"},
         );
-        
-        if (response is Map<String, dynamic>) {
-          if (response.containsKey('message') && 
-              (response['message'].toString().contains("default") ||
-               response['message'].toString().contains("success"))) {
-            logActivity('Default address set successfully');
-            return true;
-          }
+
+        if (response is Map<String, dynamic> && response['success'] == true) {
+          logActivity('Default address set successfully');
+          return true;
         }
-        
+
         logActivity('Failed to set default address');
         return false;
       },
@@ -188,7 +156,7 @@ class AddressRepository extends BaseRepository {
 /// Provider for AddressRepository using centralized dependencies
 final addressRepositoryProvider = Provider<AddressRepository>((ref) {
   final dependencies = ref.watch(baseRepositoryDependenciesProvider);
-  
+
   return AddressRepository(
     authManager: dependencies.authManager,
     apiClient: dependencies.apiClient,

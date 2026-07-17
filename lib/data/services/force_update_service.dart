@@ -13,75 +13,75 @@ class ForceUpdateService {
 
   ForceUpdateService({http.Client? client}) : _client = client ?? http.Client();
 
-  /// Check for app version update
+  /// Check for app version update.
+  /// The update policy lives in the tenant's project config
+  /// (GET /api/project-config → config.min_app_version etc.). Any failure
+  /// results in "no update required" so the app never blocks on this.
   Future<UpdateCheckResponse> checkForUpdate() async {
     try {
       // Get current app version
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
-      final platform = Platform.isAndroid ? 'Android' : 'iOS';
 
-      // Prepare request body
-      final requestBody = {
-        'mobile_platform': platform,
-        'current_ver': currentVersion,
-      };
-
-      // DEBUG: Print request details
-      debugPrint('🚀 FORCE UPDATE API CALL:');
-      debugPrint('📍 URL: ${ApiConstants.baseUrl}/check_app_version');
-      debugPrint('📱 Platform: $platform');
-      debugPrint('🔢 Current Version: $currentVersion');
-      debugPrint('📦 Request Body: ${json.encode(requestBody)}');
-      debugPrint('=' * 50);
-
-      // Make API call
-      final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/check_app_version'),
+      final response = await _client.get(
+        Uri.parse(
+            '${ApiConstants.projectConfig}?project_code=${ApiConstants.projectCode}'),
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
         },
-        body: json.encode(requestBody),
       );
 
-      // DEBUG: Print response details
-      debugPrint('📥 FORCE UPDATE API RESPONSE:');
-      debugPrint('🔍 Status Code: ${response.statusCode}');
-      debugPrint('📄 Response Headers: ${response.headers}');
-      debugPrint('📝 Response Body: ${response.body}');
-      debugPrint('=' * 50);
-
       if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        final updateResponse = UpdateCheckResponse.fromJson(data);
-        
-        // DEBUG: Print parsed response
-        debugPrint('✅ PARSED FORCE UPDATE RESPONSE:');
-        debugPrint('🔄 Force Update Required: ${updateResponse.forceUpdate}');
-        debugPrint('📱 Latest Version: ${updateResponse.latestVersion}');
-        debugPrint('⚠️ Minimum Version: ${updateResponse.minimumSupportedVersion}');
-        debugPrint('💬 Update Message: ${updateResponse.updateMessage}');
-        debugPrint('🔗 Android Download URL: ${updateResponse.androidDownloadUrl}');
-        debugPrint('🔗 iOS Download URL: ${updateResponse.iosDownloadUrl}');
-        debugPrint('🔗 Selected Download URL: ${updateResponse.downloadUrl}');
-        debugPrint('=' * 50);
-        
+        final decoded = json.decode(response.body);
+        final config = decoded is Map &&
+                decoded['data'] is Map &&
+                (decoded['data'] as Map)['config'] is Map
+            ? (decoded['data'] as Map)['config'] as Map
+            : {};
+
+        final minVersion = (config['min_app_version'] ?? '').toString();
+        final latestVersion =
+            (config['latest_app_version'] ?? minVersion).toString();
+        final forceUpdate = minVersion.isNotEmpty &&
+            _compareVersions(currentVersion, minVersion) < 0;
+
+        final updateResponse = UpdateCheckResponse(
+          latestVersion: latestVersion,
+          minimumSupportedVersion: minVersion,
+          forceUpdate: forceUpdate,
+          updateMessage: (config['force_update_message'] ?? 'Please update your app')
+              .toString(),
+          androidDownloadUrl: (config['android_store_url'] ?? '').toString(),
+          iosDownloadUrl: (config['ios_store_url'] ?? '').toString(),
+          releaseNotes: '',
+          maintenanceMode: '',
+          maintenanceMessage: '',
+        );
+
+        debugPrint(
+            'Force update check: current=$currentVersion min=$minVersion force=${updateResponse.forceUpdate}');
         return updateResponse;
-      } else {
-        debugPrint('❌ FORCE UPDATE API ERROR:');
-        debugPrint('🔍 Status Code: ${response.statusCode}');
-        debugPrint('📝 Response Body: ${response.body}');
-        debugPrint('=' * 50);
-        throw Exception('Failed to check app version: ${response.statusCode}');
       }
+
+      debugPrint('Force update check failed (${response.statusCode}) — assuming no update');
+      return UpdateCheckResponse.none();
     } catch (e) {
-      debugPrint('💥 FORCE UPDATE EXCEPTION:');
-      debugPrint('❌ Error: $e');
-      debugPrint('📍 Stack Trace: ${StackTrace.current}');
-      debugPrint('=' * 50);
-      throw Exception('Error checking for app update: $e');
+      debugPrint('Force update check error ($e) — assuming no update');
+      return UpdateCheckResponse.none();
     }
+  }
+
+  /// Compare dotted version strings: negative if a < b.
+  int _compareVersions(String a, String b) {
+    final pa = a.split('.').map((p) => int.tryParse(p) ?? 0).toList();
+    final pb = b.split('.').map((p) => int.tryParse(p) ?? 0).toList();
+    for (var i = 0; i < (pa.length > pb.length ? pa.length : pb.length); i++) {
+      final va = i < pa.length ? pa[i] : 0;
+      final vb = i < pb.length ? pb[i] : 0;
+      if (va != vb) return va - vb;
+    }
+    return 0;
   }
 
   /// Open store URL for app update
@@ -137,6 +137,21 @@ class UpdateCheckResponse {
     required this.maintenanceMode,
     required this.maintenanceMessage,
   });
+
+  /// "No update required" default used when the check fails.
+  factory UpdateCheckResponse.none() {
+    return UpdateCheckResponse(
+      latestVersion: '',
+      minimumSupportedVersion: '',
+      forceUpdate: false,
+      updateMessage: '',
+      androidDownloadUrl: '',
+      iosDownloadUrl: '',
+      releaseNotes: '',
+      maintenanceMode: '',
+      maintenanceMessage: '',
+    );
+  }
 
   factory UpdateCheckResponse.fromJson(Map<String, dynamic> json) {
     return UpdateCheckResponse(

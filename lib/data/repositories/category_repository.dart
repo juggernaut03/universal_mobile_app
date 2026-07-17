@@ -51,17 +51,27 @@ class CategoryRepository {
       final response = await _apiClient.post(
         ApiConstants.getActiveDepartmentList,
         body: {
-          'project_code': ApiConstants.projectCode,
           'store_code': storeCode,
         },
       );
 
-      final List<DepartmentModel> departments = (response as List)
-          .map((item) => DepartmentModel.fromJson(item))
-          .toList();
+      List<dynamic> deptData =
+          response is Map ? (response['data'] as List? ?? []) : (response as List);
+
+      // Departments may be tenant-global (store_code null in the DB)
+      if (deptData.isEmpty) {
+        final fallback = await _apiClient.post(
+          ApiConstants.getActiveDepartmentList,
+          body: {'store_code': 'null'},
+        );
+        deptData =
+            fallback is Map ? (fallback['data'] as List? ?? []) : (fallback as List);
+      }
+      final List<DepartmentModel> departments =
+          deptData.map((item) => DepartmentModel.fromJson(item)).toList();
 
       // Cache the departments
-      await prefs.setString(_departmentsKey, jsonEncode(response));
+      await prefs.setString(_departmentsKey, jsonEncode(deptData));
       await prefs.setInt('${_timestampKeyPrefix}${_departmentsKey}', currentTime);
 
       // Pre-cache department images for better user experience
@@ -104,18 +114,18 @@ class CategoryRepository {
       final response = await _apiClient.post(
         ApiConstants.getActiveCategoriesList,
         body: {
-          'department_id': departmentId,
+          'dept_id': departmentId,
           'store_code': storeCode,
-          'project_code': ApiConstants.projectCode,
         },
       );
 
-      final List<CategoryModel> categories = (response as List)
-          .map((item) => CategoryModel.fromJson(item))
-          .toList();
+      final List<dynamic> catData =
+          response is Map ? (response['data'] as List? ?? []) : (response as List);
+      final List<CategoryModel> categories =
+          catData.map((item) => CategoryModel.fromJson(item)).toList();
 
       // Cache the categories
-      await prefs.setString(cacheKey, jsonEncode(response));
+      await prefs.setString(cacheKey, jsonEncode(catData));
       await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
 
       // Pre-cache category images for better user experience

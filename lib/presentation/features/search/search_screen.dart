@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/product_model.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
@@ -107,22 +108,21 @@ class SearchNotifier extends StateNotifier<SearchState> {
       // Use the API client
       final apiClient = _ref.read(apiClientProvider);
       
-      // Make the API call
+      // Make the API call (universal backend product search)
       final response = await apiClient.post(
-        'https://newtech.shalviadvision.com/api/get_search_autocomplete_results',
+        ApiConstants.searchProducts,
         body: {
-          'product_name': query,
+          'search_term': query,
           'store_code': storeCode,
-          'project_code': 'RET5890',
         },
       );
-      
+
       // Process the response based on its format
       List<dynamic> results = [];
-      if (response is List) {
+      if (response is Map && response['data'] is List) {
+        results = response['data'] as List;
+      } else if (response is List) {
         results = response;
-      } else if (response is Map && response.containsKey('products')) {
-        results = response['products'] as List;
       }
 
       // Filter out out-of-stock or zero-price products

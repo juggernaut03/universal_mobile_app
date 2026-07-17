@@ -13,7 +13,10 @@ class FavoritesRepository extends BaseRepository {
     required super.logger,
   });
 
-  /// Get all favorite items for the current user using centralized auth
+  /// Get all favorite items for the current user.
+  /// The universal backend returns favorite records (p_code + store_code
+  /// only), so full product cards are hydrated via productdetails with
+  /// bounded concurrency.
   Future<List<ProductModel>> getFavoriteItems({
     required String storeCode,
   }) async {
@@ -21,99 +24,56 @@ class FavoritesRepository extends BaseRepository {
       () async {
         logActivity('Fetching favorite items');
 
-        final mobile = await getUserMobile();
-        if (mobile == null) {
-          logActivity('No mobile number found');
+        final response = await postWithAuth(
+          ApiConstants.favoritesGetByStore,
+          body: {'store_code': storeCode},
+        );
+
+        if (response is! Map<String, dynamic> || response['data'] is! List) {
+          logActivity('Unexpected favorites response format');
           return <ProductModel>[];
         }
-        
-        // The postWithAuth method automatically adds access_key and project_code
-        final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/get_favorite_items',
-          body: {
-            'mobile_no': mobile,
-            'store_code': storeCode,
-          },
-        );
-        
-        logActivity('🔥 Get favorites API response: $response');
-        
-        // Handle different response formats
-        if (response is List) {
-          // Response is directly an array of favorite items
-          final favoriteItems = response.cast<Map<String, dynamic>>();
-          final products = favoriteItems
-              .map((item) {
-                try {
-                  return ProductModel.fromJson(item);
-                } catch (e) {
-                  logActivity('Error parsing favorite item: $e');
-                  return null;
-                }
-              })
-              .where((product) => product != null)
-              .cast<ProductModel>()
-              .toList();
-          
-          logActivity('Successfully fetched ${products.length} favorite items from array');
-          return products;
-        } else if (response is Map<String, dynamic>) {
-          // Check if response contains favoriteItems key
-          if (response.containsKey('favoriteItems')) {
-            final favoriteItems = response['favoriteItems'] as List<dynamic>;
-            final products = favoriteItems
-                .map((item) {
-                  try {
-                    return ProductModel.fromJson(item as Map<String, dynamic>);
-                  } catch (e) {
-                    logActivity('Error parsing favorite item: $e');
-                    return null;
-                  }
-                })
-                .where((product) => product != null)
-                .cast<ProductModel>()
-                .toList();
-            
-            logActivity('Successfully fetched ${products.length} favorite items from object');
-            return products;
-          }
-          // Check if response contains items directly at root level
-          else if (response.containsKey('items') || response.containsKey('data')) {
-            final itemsKey = response.containsKey('items') ? 'items' : 'data';
-            final favoriteItems = response[itemsKey] as List<dynamic>;
-            final products = favoriteItems
-                .map((item) {
-                  try {
-                    return ProductModel.fromJson(item as Map<String, dynamic>);
-                  } catch (e) {
-                    logActivity('Error parsing favorite item: $e');
-                    return null;
-                  }
-                })
-                .where((product) => product != null)
-                .cast<ProductModel>()
-                .toList();
-            
-            logActivity('Successfully fetched ${products.length} favorite items from $itemsKey');
-            return products;
-          }
-          // Response might be an error message object
-          else {
-            final message = response['message']?.toString() ?? 'Unknown error';
-            logActivity('API response contains message: $message');
-            return <ProductModel>[];
-          }
+
+        final pCodes = (response['data'] as List)
+            .whereType<Map>()
+            .map((f) => (f['p_code'] ?? '').toString())
+            .where((code) => code.isNotEmpty)
+            .toList();
+
+        logActivity('Found ${pCodes.length} favorite p_code(s); hydrating products');
+        if (pCodes.isEmpty) return <ProductModel>[];
+
+        final products = <ProductModel>[];
+        const batchSize = 5;
+        for (var i = 0; i < pCodes.length; i += batchSize) {
+          final batch = pCodes.skip(i).take(batchSize);
+          final results = await Future.wait(batch.map((pCode) async {
+            try {
+              final detail = await post(
+                ApiConstants.productDetails,
+                body: {'p_code': pCode, 'store_code': storeCode},
+              );
+              final data =
+                  detail is Map<String, dynamic> ? detail['data'] : null;
+              if (data is Map<String, dynamic>) {
+                return ProductModel.fromJson(data);
+              }
+            } catch (e) {
+              logActivity('Error hydrating favorite $pCode: $e');
+            }
+            return null;
+          }));
+          products.addAll(results.whereType<ProductModel>());
         }
-        
-        logActivity('Unexpected response format: ${response.runtimeType}');
-        logActivity('Response content: $response');
-        return <ProductModel>[];
+
+        logActivity('Hydrated ${products.length} favorite product(s)');
+        return products;
       },
       onAuthError: () => <ProductModel>[],
     ) ?? <ProductModel>[];
   }
 
-  /// Add or remove item from favorites using centralized auth
+  /// Add or remove item from favorites
   Future<bool> toggleFavorite({
     required String productId,
     required String storeCode,
@@ -122,67 +82,24 @@ class FavoritesRepository extends BaseRepository {
     return await makeAuthenticatedRequest<bool>(
       () async {
         final action = addToFavorites ? 'Adding to favorites' : 'Removing from favorites';
-        logActivity('🔥 $action - Product: $productId, Store: $storeCode');
+        logActivity('$action - Product: $productId, Store: $storeCode');
 
-        final mobile = await getUserMobile();
-        if (mobile == null) {
-          logActivity('❌ No mobile number found');
-          return false;
-        }
-        
-        logActivity('📱 Mobile number: $mobile');
-        
-        // The postWithAuth method automatically adds access_key and project_code
-        final requestBody = {
-          'mobile_no': mobile,
+        final body = {
           'p_code': productId,
           'store_code': storeCode,
         };
-        
-        logActivity('🔥 Making favorites API call with body: $requestBody');
-        
-        final response = await postWithAuth(
-          '${ApiConstants.baseUrl}/add_remove_to_favorites',
-          body: requestBody,
-        );
-        
-        logActivity('🔥 Favorites API response: $response');
-        
-        if (response is Map<String, dynamic>) {
-          final message = response['message']?.toString() ?? '';
-          logActivity('📋 Response message: "$message"');
-          
-          // Check for both success patterns and specific favorite messages
-          if (message.toLowerCase().contains('success') ||
-              message.toLowerCase().contains('added to favorite') ||
-              message.toLowerCase().contains('removed from favorite') ||
-              message.contains('Added to favorite') ||
-              message.contains('Removed from favorite')) {
-            logActivity('✅ Successfully toggled favorite status: $message');
-            return true;
-          }
-          
-          // Check for error messages
-          if (message.toLowerCase().contains('error') || 
-              message.toLowerCase().contains('failed') ||
-              message.toLowerCase().contains('invalid')) {
-            logActivity('❌ API returned error message: $message');
-            return false;
-          }
-          
-          // If message exists but doesn't match known patterns, consider it successful
-          if (message.isNotEmpty) {
-            logActivity('⚠️ Unknown message format but assuming success: $message');
-            return true;
-          }
-          
-          logActivity('❌ Empty or missing message in response');
-          return false;
-        } else {
-          logActivity('❌ Unexpected response type: ${response.runtimeType}');
-          logActivity('🔍 Response content: $response');
-          return false;
+
+        final response = addToFavorites
+            ? await postWithAuth(ApiConstants.favoritesAdd, body: body)
+            : await deleteWithAuth(ApiConstants.favoritesRemove, body: body);
+
+        if (response is Map<String, dynamic> && response['success'] == true) {
+          logActivity('✅ Successfully toggled favorite status');
+          return true;
         }
+
+        logActivity('❌ Favorite toggle failed: $response');
+        return false;
       },
       onAuthError: () {
         logActivity('❌ Authentication error in toggleFavorite');
@@ -226,17 +143,28 @@ class FavoritesRepository extends BaseRepository {
     ) ?? 0;
   }
 
-  /// Get list of favorite product codes (for quick lookup)
+  /// Get list of favorite product codes (for quick lookup) — no product
+  /// hydration needed, the raw favorite records carry p_code.
   Future<Set<String>> getFavoriteProductCodes({required String storeCode}) async {
     return await makeAuthenticatedRequest<Set<String>>(
       () async {
         logActivity('Getting favorite product codes');
 
-        final favorites = await getFavoriteItems(storeCode: storeCode);
-        final productCodes = favorites.map((product) => product.pCode).toSet();
-        
-        logActivity('Found ${productCodes.length} favorite product codes');
-        return productCodes;
+        final response = await postWithAuth(
+          ApiConstants.favoritesGetByStore,
+          body: {'store_code': storeCode},
+        );
+
+        if (response is Map<String, dynamic> && response['data'] is List) {
+          final productCodes = (response['data'] as List)
+              .whereType<Map>()
+              .map((f) => (f['p_code'] ?? '').toString())
+              .where((code) => code.isNotEmpty)
+              .toSet();
+          logActivity('Found ${productCodes.length} favorite product codes');
+          return productCodes;
+        }
+        return <String>{};
       },
       onAuthError: () => <String>{},
     ) ?? <String>{};

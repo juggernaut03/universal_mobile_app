@@ -7,11 +7,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:patelmart/core/auth/centralized_auth_manager.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/data/models/address_model.dart';
+import 'package:patelmart/data/repositories/address_repository.dart';
 import 'package:patelmart/presentation/features/account/address_book_screen.dart';
 import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
@@ -301,92 +301,32 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         await _getCoordinatesFromAddress();
       }
       
-      // Get access key using centralized manager
-      final authManager = ref.read(auth.centralizedAuthManagerProvider);
-      final accessKey = await authManager.getValidAccessKey();
-      
-      if (accessKey == null || accessKey.isEmpty) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Access key not found. Please log in again.';
-        });
-        return;
-      }
-      
       // Format mobile number (remove prefix if present)
       String mobileNumber = _contactNumberController.text;
       if (mobileNumber.startsWith('+91 | ')) {
         mobileNumber = mobileNumber.replaceAll('+91 | ', '');
       }
-      
-      // Create request body exactly like Postman
-      final requestBody = {
-        "idaddress_book": _address.id,
-        "project_code": "RET5890",
-        "full_name": _fullNameController.text.trim(),
-        "access_key": accessKey,
-        "mobile_number": mobileNumber.trim(),
-        "email_id": _address.emailId.isEmpty ? "" : _address.emailId.trim(),
-        "delivery_addr_line_1": _wingFloorController.text.trim(),
-        "delivery_addr_line_2": _localityController.text.trim(),
-        "delivery_addr_city": _cityController.text.trim(),
-        "delivery_addr_pincode": _pincodeController.text.trim(),
-        "is_default": _isDefault ? "Yes" : "No",
-        "latitude": _latitude,
-        "longitude": _longitude,
-        "area_id": _areaController.text.isEmpty ? "1" : _areaController.text.trim(),
-      };
-      
-      logger.log('Request body: ${jsonEncode(requestBody)}');
-      
-      // Make direct HTTP request
-      final client = http.Client();
-      bool success = false;
-      
-      try {
-        // First try the update_address/{id} endpoint
-        logger.log('Trying update_address endpoint');
-        var response = await client.post(
-          Uri.parse('https://newtech.shalviadvision.com/api/update_address/${_address.id}'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(requestBody),
-        );
-        
-        logger.log('Update address response status: ${response.statusCode}');
-        logger.log('Update address response body: ${response.body}');
-        
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          final responseData = jsonDecode(response.body);
-          if (responseData.containsKey('message') && 
-              responseData['message'].toString().toLowerCase().contains('success')) {
-            logger.log('Address updated successfully');
-            success = true;
-          }
-        }
-        
-        // If the first attempt fails, try the add_address endpoint
-        if (!success) {
-          logger.log('First update attempt failed, trying add_address endpoint');
-          response = await client.post(
-            Uri.parse('https://newtech.shalviadvision.com/api/add_address'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(requestBody),
-          );
-          
-          logger.log('Alternative update response status: ${response.statusCode}');
-          logger.log('Alternative update response body: ${response.body}');
-          
-          if (response.statusCode == 200 || response.statusCode == 201) {
-            final responseData = jsonDecode(response.body);
-            if (responseData.containsKey('message') && 
-                responseData['message'].toString().toLowerCase().contains('success')) {
-              logger.log('Address updated successfully via add_address');
-              success = true;
-            }
-          }
-        }
-      } finally {
-        client.close();
+
+      // Build the updated address and save via the universal backend.
+      final updatedAddress = _address.copyWith(
+        fullName: _fullNameController.text.trim(),
+        mobileNumber: mobileNumber.trim(),
+        deliveryAddrLine1: _wingFloorController.text.trim(),
+        deliveryAddrLine2: _localityController.text.trim(),
+        deliveryAddrCity: _cityController.text.trim(),
+        deliveryAddrPincode: _pincodeController.text.trim(),
+        isDefault: _isDefault ? "Yes" : "No",
+        latitude: _latitude,
+        longitude: _longitude,
+        areaId: _areaController.text.isEmpty ? "1" : _areaController.text.trim(),
+      );
+
+      final repository = ref.read(addressRepositoryProvider);
+      bool success;
+      if (_address.id.isEmpty) {
+        success = await repository.addAddress(updatedAddress);
+      } else {
+        success = await repository.updateAddress(updatedAddress);
       }
       
       // Refresh address list if successful

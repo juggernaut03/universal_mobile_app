@@ -97,7 +97,7 @@ class AppTheme {
       ),
 
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.cardBackground,
         elevation: 2,
         margin: const EdgeInsets.all(8),
@@ -196,7 +196,7 @@ class AppTheme {
       ),
 
       // Tab Bar Theme
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: AppColors.primary,
         unselectedLabelColor: AppColors.neutral700,
         labelStyle: AppTextStyles.labelMedium.copyWith(fontWeight: FontWeight.w600),
@@ -235,7 +235,7 @@ class AppTheme {
       ),
 
       // Dialog Theme
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: AppColors.white,
         elevation: 24,
         shape: RoundedRectangleBorder(

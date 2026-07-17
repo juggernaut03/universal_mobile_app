@@ -288,22 +288,9 @@ class AdvancedNotificationService {
         'price': item.product.ourPrice,
       }).toList();
 
-      // Send to your backend for scheduling
-      await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/schedule_cart_reminder'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'fcm_token': token,
-          'user_id': userProfile.mobile,
-          'cart_items': cartData,
-          'reminder_times': [
-            DateTime.now().add(const Duration(hours: 1)).toIso8601String(),
-            DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
-          ],
-        }),
-      );
-
-      _logger.log('Cart abandonment reminder scheduled');
+      // The universal backend has no cart-reminder scheduler; keep the local
+      // bookkeeping only (fail-soft no-op).
+      _logger.log('Cart abandonment reminder skipped (${cartData.length} items) — no server endpoint');
     } catch (e) {
       _logger.error('Error scheduling cart abandonment reminder: $e');
     }
@@ -408,21 +395,9 @@ class AdvancedNotificationService {
       final token = await _firebaseMessaging.getToken();
       if (token == null) return;
 
-      final preferences = await _getNotificationPreferences();
-      
-      await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/sync_user_notification_profile'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': userProfile.mobile,
-          'access_key': userProfile.accessKey,
-          'fcm_token': token,
-          'preferences': preferences.toJson(),
-          'platform': defaultTargetPlatform.name,
-        }),
-      );
-      
-      _logger.log('User notification profile synced with server');
+      // No profile-sync endpoint on the universal backend — preferences stay
+      // local; FCM topic subscriptions still apply (fail-soft no-op).
+      _logger.log('Notification profile sync skipped — no server endpoint');
     } catch (e) {
       _logger.error('Error syncing user profile: $e');
     }
@@ -437,18 +412,9 @@ class AdvancedNotificationService {
       final token = await _firebaseMessaging.getToken();
       if (token == null) return;
 
-      await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/product_subscription'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_id': userProfile.mobile,
-          'product_code': productCode,
-          'fcm_token': token,
-          'action': subscribe ? 'subscribe' : 'unsubscribe',
-        }),
-      );
-      
-      _logger.log('Product subscription synced: $productCode ($subscribe)');
+      // No product-subscription endpoint on the universal backend — the FCM
+      // topic subscription above is the effective mechanism (fail-soft no-op).
+      _logger.log('Product subscription server sync skipped: $productCode ($subscribe)');
     } catch (e) {
       _logger.error('Error syncing product subscription: $e');
     }
@@ -485,17 +451,8 @@ class AdvancedNotificationService {
       final token = await _firebaseMessaging.getToken();
       if (token == null) return;
 
-      await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/send_test_notification'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'fcm_token': token,
-          'notification_type': type.toString(),
-          'data': data ?? {},
-        }),
-      );
-      
-      _logger.log('Test notification sent: $type');
+      // No test-notification endpoint on the universal backend (no-op).
+      _logger.log('Test notification skipped: $type — no server endpoint');
     } catch (e) {
       _logger.error('Error sending test notification: $e');
     }

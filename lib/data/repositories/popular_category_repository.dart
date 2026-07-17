@@ -59,37 +59,31 @@ class PopularCategoryRepository {
       final currentTime = DateTime.now().millisecondsSinceEpoch;
 
       _logger.log('Fetching popular categories for section $sectionId from API');
-      
+
+      // Universal backend: POST /api/popular-categories/list returns section
+      // documents ordered by sequence; the legacy per-section endpoints map to
+      // section index (sequence) here.
       final response = await _apiClient.post(
-        ApiConstants.baseUrl + '/get_popular_category_list_$sectionId',
+        ApiConstants.popularCategoriesList,
         body: {
-          'department_id': int.tryParse(departmentId) ?? departmentId,
           'store_code': storeCode,
-          'project_code': ApiConstants.projectCode,
+          'include_inactive': false,
+          'enrich_subcategories': true,
         },
       );
 
-      PopularCategoryResponse categoryResponse;
-      
-      if (response is Map<String, dynamic>) {
-        categoryResponse = PopularCategoryResponse.fromJson(response);
-      } else {
-        _logger.error('Invalid response format for popular categories: $response');
-        categoryResponse = PopularCategoryResponse(
-          title: '',  // Empty title - let UI handle empty title display
-          categoriesDetails: [],
-        );
-      }
-      
+      final legacyJson = _sectionToLegacyJson(response, sectionId);
+      final categoryResponse = PopularCategoryResponse.fromJson(legacyJson);
+
       if (categoryResponse.categoriesDetails.isNotEmpty) {
-        // Cache the response
-        await prefs.setString(cacheKey, jsonEncode(response));
+        // Cache the response (legacy shape so cached reads keep working)
+        await prefs.setString(cacheKey, jsonEncode(legacyJson));
         await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
-        
+
         // Pre-cache category images for better user experience
         _preCacheCategoryImages(categoryResponse.categoriesDetails);
       }
-      
+
       return categoryResponse;
     } catch (e) {
       _logger.error('Error fetching popular categories for section $sectionId: $e');
@@ -111,6 +105,59 @@ class PopularCategoryRepository {
         categoriesDetails: [],
       );
     }
+  }
+
+  /// Picks the section matching [sectionId] (by sequence, falling back to
+  /// list position) and converts its enriched subcategories to the legacy
+  /// {title, categories_details} shape PopularCategoryResponse parses.
+  Map<String, dynamic> _sectionToLegacyJson(dynamic response, int sectionId) {
+    final sections = response is Map ? (response['data'] as List? ?? []) : [];
+    if (sections.isEmpty) return {'title': '', 'categories_details': []};
+
+    Map<String, dynamic>? section;
+    for (final s in sections) {
+      if (s is Map<String, dynamic> && s['sequence'] == sectionId) {
+        section = s;
+        break;
+      }
+    }
+    section ??= sectionId - 1 < sections.length &&
+            sections[sectionId - 1] is Map<String, dynamic>
+        ? sections[sectionId - 1] as Map<String, dynamic>
+        : null;
+    if (section == null) return {'title': '', 'categories_details': []};
+
+    final items = <Map<String, dynamic>>[];
+    final subcategories = section['subcategories'];
+    if (subcategories is List) {
+      for (final item in subcategories) {
+        if (item is! Map<String, dynamic>) continue;
+        final sub = item['subcategory_details'] is Map<String, dynamic>
+            ? item['subcategory_details'] as Map<String, dynamic>
+            : <String, dynamic>{};
+        final cat = item['category_details'] is Map<String, dynamic>
+            ? item['category_details'] as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        items.add({
+          '_id': (sub['id'] ?? item['sub_category_id'] ?? '').toString(),
+          'idcategory_master':
+              (cat['idcategory_master'] ?? sub['category_id'] ?? '').toString(),
+          'category_name':
+              (sub['sub_category_name'] ?? cat['category_name'] ?? '').toString(),
+          'dept_id': (cat['dept_id'] ?? '').toString(),
+          'sequence_id': item['position'] ?? 0,
+          'store_code': '',
+          'no_of_col': '4',
+          'image_link': (item['image_link'] ?? '').toString(),
+        });
+      }
+    }
+
+    return {
+      'title': section['title'] ?? '',
+      'categories_details': items,
+    };
   }
 
   // Pre-cache category images in the background

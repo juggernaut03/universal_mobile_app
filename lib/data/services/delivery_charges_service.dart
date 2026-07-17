@@ -11,6 +11,32 @@ import '../../core/utils/logger.dart';
 import '../models/address_model.dart';
 import '../models/outlet_model.dart';
 
+/// Result of a delivery-charge calculation from the universal backend.
+class DeliveryChargeQuote {
+  final bool available;
+  final double charge;
+  final double distanceKm;
+  final bool freeDelivery;
+  final String reason;
+
+  DeliveryChargeQuote({
+    required this.available,
+    required this.charge,
+    required this.distanceKm,
+    required this.freeDelivery,
+    this.reason = '',
+  });
+
+  /// Fail-soft default: deliverable with no charge (matches legacy behavior
+  /// of defaulting to free delivery on errors).
+  factory DeliveryChargeQuote.fallback() => DeliveryChargeQuote(
+        available: true,
+        charge: 0.0,
+        distanceKm: 0.0,
+        freeDelivery: true,
+      );
+}
+
 /// Service that handles delivery charge calculations and API integration
 class DeliveryChargesService {
   final http.Client _client;
@@ -23,45 +49,88 @@ class DeliveryChargesService {
     _client = client ?? http.Client(),
     _logger = logger ?? Logger();
 
-  /// Calculate delivery charge based on distance, store code, and order amount
-  Future<double> getDeliveryCharges({
-    required double distance, 
+  /// Calculate delivery charge via the universal backend
+  /// (POST /api/delivery-charges/calculate). The server computes road
+  /// distance from the address coordinates, so this needs lat/lng — resolve
+  /// them with [resolveAddressCoordinates] first.
+  Future<DeliveryChargeQuote> getDeliveryChargesForCoordinates({
+    required double addressLatitude,
+    required double addressLongitude,
     required String storeCode,
     required double orderAmount,
   }) async {
     try {
-      _logger.log('Fetching delivery charges - Distance: $distance, Store: $storeCode, Amount: $orderAmount');
-      
+      _logger.log(
+          'Fetching delivery charges - lat: $addressLatitude, lng: $addressLongitude, Store: $storeCode, Amount: $orderAmount');
+
       final response = await _client.post(
-        Uri.parse('${ApiConstants.baseUrl}/get_delivery_charges'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse(ApiConstants.deliveryChargesCalculate),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+        },
         body: jsonEncode({
-          'distance': distance.round().toString(),
           'store_code': storeCode,
-          'order_amount': orderAmount.round(),
+          'project_code': ApiConstants.projectCode,
+          'address_latitude': addressLatitude.toString(),
+          'address_longitude': addressLongitude.toString(),
+          'order_amount': orderAmount,
         }),
       ).timeout(const Duration(seconds: 10));
 
       _logger.log('Delivery charges API response status: ${response.statusCode}');
-      _logger.log('Delivery charges API response body: ${response.body}');
-      
+
       if (response.statusCode == 200) {
-        // The API returns just a number as a string
-        try {
-          final double deliveryCharge = double.parse(response.body.trim());
-          return deliveryCharge;
-        } catch (e) {
-          _logger.error('Error parsing delivery charge response: $e');
-          return 0.0; // Default to free delivery on parsing error
-        }
+        final decoded = jsonDecode(response.body);
+        final data = decoded is Map && decoded['data'] is Map
+            ? decoded['data'] as Map
+            : {};
+        return DeliveryChargeQuote(
+          available: data['delivery_available'] != false,
+          charge: (data['total_charges'] ?? data['delivery_charge'] ?? 0)
+              .toDouble(),
+          distanceKm: (data['distance_km'] ?? 0).toDouble(),
+          freeDelivery: data['free_delivery'] == true,
+          reason: (data['reason'] ?? '').toString(),
+        );
       } else {
-        _logger.error('Failed to fetch delivery charges: ${response.statusCode}');
-        return 0.0; // Default to free delivery on error
+        _logger.error('Failed to fetch delivery charges: ${response.statusCode} - ${response.body}');
+        return DeliveryChargeQuote.fallback();
       }
     } catch (e) {
       _logger.error('Error getting delivery charges: $e');
-      return 0.0; // Default to free delivery on error
+      return DeliveryChargeQuote.fallback();
     }
+  }
+
+  /// Resolve an address to coordinates: use stored lat/lng if present,
+  /// otherwise geocode the address text. Returns null when unresolvable.
+  Future<({double latitude, double longitude})?> resolveAddressCoordinates(
+      Address userAddress) async {
+    if (userAddress.latitude != null &&
+        userAddress.latitude!.isNotEmpty &&
+        userAddress.longitude != null &&
+        userAddress.longitude!.isNotEmpty) {
+      final lat = double.tryParse(userAddress.latitude!);
+      final lng = double.tryParse(userAddress.longitude!);
+      if (lat != null && lng != null && lat != 0 && lng != 0) {
+        return (latitude: lat, longitude: lng);
+      }
+    }
+
+    try {
+      final locations = await locationFromAddress(
+          '${userAddress.deliveryAddrLine1}, ${userAddress.deliveryAddrLine2}, ${userAddress.deliveryAddrCity}, ${userAddress.deliveryAddrPincode}');
+      if (locations.isNotEmpty) {
+        return (
+          latitude: locations.first.latitude,
+          longitude: locations.first.longitude
+        );
+      }
+    } catch (e) {
+      _logger.error('Error geocoding address: $e');
+    }
+    return null;
   }
 
   /// Calculate the distance between a user's address and the store

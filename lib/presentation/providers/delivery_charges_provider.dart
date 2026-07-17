@@ -87,36 +87,39 @@ class DeliveryChargesNotifier extends StateNotifier<DeliveryChargesState> {
       
       // If order amount is not provided, get it from the cart
       final double calculatedOrderAmount = orderAmount ?? _ref.read(cartTotalProvider);
-      
-      // Calculate distance between user address and store
-      final distance = await _deliveryChargesService.calculateDistance(
-        userAddress: userAddress,
-        store: selectedOutlet,
-      );
-      
-      logger.log('Calculated distance: $distance km (exact value preserved)');
-      
-      // Fetch delivery charges from the API using exact distance
-      final deliveryCharge = await _deliveryChargesService.getDeliveryCharges(
-        distance: distance, // Use exact distance, not rounded
+
+      // The universal backend computes road distance server-side from the
+      // address coordinates — resolve them (stored lat/lng, else geocode).
+      final coords =
+          await _deliveryChargesService.resolveAddressCoordinates(userAddress);
+      if (coords == null) {
+        throw Exception(
+            'Could not locate this address on the map. Please edit the address and set its location.');
+      }
+
+      final quote = await _deliveryChargesService.getDeliveryChargesForCoordinates(
+        addressLatitude: coords.latitude,
+        addressLongitude: coords.longitude,
         storeCode: selectedOutlet.storeCode,
         orderAmount: calculatedOrderAmount,
       );
-      
-      logger.log('Delivery charge for distance $distance km: ₹$deliveryCharge');
-      
-      // Check if free delivery is eligible (if delivery charge is 0)
-      final isFreeDelivery = deliveryCharge <= 0;
-      
+
+      if (!quote.available) {
+        throw Exception(quote.reason.isNotEmpty
+            ? quote.reason
+            : 'Delivery is not available to this address.');
+      }
+
       // Update state with the calculated values
       state = state.copyWith(
         isLoading: false,
-        deliveryCharge: deliveryCharge,
-        freeDeliveryEligible: isFreeDelivery,
-        distance: distance,
+        deliveryCharge: quote.charge,
+        freeDeliveryEligible: quote.freeDelivery || quote.charge <= 0,
+        distance: quote.distanceKm,
       );
-      
-      logger.log('Delivery charges updated - Distance: ${distance}km, Charge: ₹${deliveryCharge}, Free: $isFreeDelivery');
+
+      logger.log(
+          'Delivery charges updated - Distance: ${quote.distanceKm}km, Charge: ₹${quote.charge}, Free: ${quote.freeDelivery}');
     } catch (e) {
       logger.error('Error calculating delivery charges: $e');
       state = state.copyWith(
@@ -126,61 +129,17 @@ class DeliveryChargesNotifier extends StateNotifier<DeliveryChargesState> {
     }
   }
 
-  // Method to recalculate with different rounding strategy if needed
+  // Kept for call-site compatibility — the server computes distance now, so
+  // rounding no longer applies.
   Future<void> calculateDeliveryChargesWithRounding({
     required Address userAddress,
     double? orderAmount,
     bool roundDistance = false,
   }) async {
-    final logger = _ref.read(loggerProvider);
-    
-    state = state.copyWith(isLoading: true, error: null);
-    
-    try {
-      final selectedOutletAsync = _ref.read(selectedOutletProvider);
-      final selectedOutlet = selectedOutletAsync.valueOrNull;
-      if (selectedOutlet == null) {
-        throw Exception('No outlet selected');
-      }
-      
-      final double calculatedOrderAmount = orderAmount ?? _ref.read(cartTotalProvider);
-      
-      // Calculate distance
-      var distance = await _deliveryChargesService.calculateDistance(
-        userAddress: userAddress,
-        store: selectedOutlet,
-      );
-      
-      // Apply rounding if requested
-      if (roundDistance) {
-        distance = distance.roundToDouble();
-        logger.log('Distance rounded from original to: $distance km');
-      }
-      
-      // Fetch delivery charges
-      final deliveryCharge = await _deliveryChargesService.getDeliveryCharges(
-        distance: distance,
-        storeCode: selectedOutlet.storeCode,
-        orderAmount: calculatedOrderAmount,
-      );
-      
-      final isFreeDelivery = deliveryCharge <= 0;
-      
-      state = state.copyWith(
-        isLoading: false,
-        deliveryCharge: deliveryCharge,
-        freeDeliveryEligible: isFreeDelivery,
-        distance: distance,
-      );
-    } catch (e) {
-      logger.error('Error calculating delivery charges: $e');
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Failed to calculate delivery charges: $e',
-      );
-    }
+    await calculateDeliveryCharges(
+        userAddress: userAddress, orderAmount: orderAmount);
   }
-  
+
   // Reset delivery charges state
   void reset() {
     state = DeliveryChargesState(

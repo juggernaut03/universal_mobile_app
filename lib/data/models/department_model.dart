@@ -19,11 +19,13 @@ class DepartmentModel {
 
   factory DepartmentModel.fromJson(Map<String, dynamic> json) {
     return DepartmentModel(
-      id: json['_id'] ?? '',
-      departmentId: json['department_id'] ?? '',
+      id: (json['id'] ?? json['_id'] ?? '').toString(),
+      departmentId: (json['department_id'] ?? '').toString(),
       departmentName: json['department_name'] ?? '',
       imageLink: json['image_link'] ?? '',
-      sequenceId: json['sequence_id'] ?? 0,
+      sequenceId: json['sequence_id'] is int
+          ? json['sequence_id']
+          : int.tryParse(json['sequence_id']?.toString() ?? '') ?? 0,
     );
   }
 

@@ -1,104 +1,43 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:patelmart/core/widgets/back_button_wrapper.dart';
+import 'package:patelmart/data/services/content_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../providers/launch_flow_provider.dart';
 
-// Provider for refund policy content
+// Provider for refund policy content (GET /api/content/refund-policy)
 final refundPolicyContentProvider = FutureProvider<String>((ref) async {
   final logger = ref.read(loggerProvider);
   try {
     logger.log('Fetching refund policy content from API');
-    final response = await http.get(
-      Uri.parse('https://newtech.shalviadvision.com/api/refund_policy'),
-    );
-    
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body);
-      
-      if (data.containsKey('message')) {
-        return data['message'] as String;
-      } else if (data.containsKey('content')) {
-        return data['content'] as String;
-      } else if (data is String) {
-        return data;
-      } else {
-        logger.error('Unexpected response format: $data');
-        return 'Refund policy information will be available soon. Please contact customer support for assistance.';
-      }
-    }
-    
-    logger.error('Failed to load refund policy content: ${response.statusCode}');
-    throw Exception('Failed to load refund policy content: ${response.statusCode}');
+    return await ContentService().fetchContentPage('refund-policy');
   } catch (e) {
     logger.error('Error fetching refund policy content: $e');
     throw Exception('Unable to load content. Please check your connection and try again.');
   }
 });
 
-// Provider for terms and conditions content
+// Provider for terms and conditions content (GET /api/content/terms)
 final termsConditionsContentProvider = FutureProvider<String>((ref) async {
   final logger = ref.read(loggerProvider);
   try {
     logger.log('Fetching terms and conditions content from API');
-    final response = await http.get(
-      Uri.parse('https://newtech.shalviadvision.com/api/terms_and_conditions'),
-    );
-    
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body);
-      
-      if (data.containsKey('message')) {
-        return data['message'] as String;
-      } else if (data.containsKey('content')) {
-        return data['content'] as String;
-      } else if (data is String) {
-        return data;
-      } else {
-        logger.error('Unexpected T&C response format: $data');
-        return 'Terms and conditions information will be available soon. Please contact customer support for assistance.';
-      }
-    }
-    
-    logger.error('Failed to load terms and conditions content: ${response.statusCode}');
-    throw Exception('Failed to load terms and conditions content: ${response.statusCode}');
+    return await ContentService().fetchContentPage('terms');
   } catch (e) {
     logger.error('Error fetching terms and conditions content: $e');
     throw Exception('Unable to load content. Please check your connection and try again.');
   }
 });
 
-// Provider for privacy policy content
+// Provider for privacy policy content (GET /api/content/privacy-policy)
 final privacyPolicyContentProvider = FutureProvider<String>((ref) async {
   final logger = ref.read(loggerProvider);
   try {
     logger.log('Fetching privacy policy content from API');
-    final response = await http.get(
-      Uri.parse('https://newtech.shalviadvision.com/api/privacy_policy'),
-    );
-    
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      final data = jsonDecode(response.body);
-      
-      if (data.containsKey('message')) {
-        return data['message'] as String;
-      } else if (data.containsKey('content')) {
-        return data['content'] as String;
-      } else if (data is String) {
-        return data;
-      } else {
-        logger.error('Unexpected privacy policy response format: $data');
-        return 'Privacy policy information will be available soon. Please contact customer support for assistance.';
-      }
-    }
-    
-    logger.error('Failed to load privacy policy content: ${response.statusCode}');
-    throw Exception('Failed to load privacy policy content: ${response.statusCode}');
+    return await ContentService().fetchContentPage('privacy-policy');
   } catch (e) {
     logger.error('Error fetching privacy policy content: $e');
     throw Exception('Unable to load content. Please check your connection and try again.');

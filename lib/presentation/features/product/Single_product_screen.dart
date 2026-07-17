@@ -55,16 +55,16 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
       final logger = ref.read(loggerProvider);
       logger.log('Fetching product details - p_code: ${widget.pCode}, store_code: ${widget.storeCode}');
       
-      // Convert pCode to integer if possible
-      final pCodeValue = int.tryParse(widget.pCode) ?? widget.pCode;
-      
-      final url = Uri.parse('https://newtech.shalviadvision.com/api/getpcodeproducts');
-      
+      final url = Uri.parse(ApiConstants.productDetails);
+
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+        },
         body: json.encode({
-          'p_code': pCodeValue,
+          'p_code': widget.pCode,
           'store_code': widget.storeCode,
           'project_code': ApiConstants.projectCode,
         }),
@@ -74,15 +74,19 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
           throw Exception('Request timeout');
         },
       );
-      
+
       logger.log('API Response Status: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        
-        if (data.isNotEmpty) {
+        final decoded = json.decode(response.body);
+        // Universal backend: {success, data: {product}}
+        final data = decoded is Map<String, dynamic> ? decoded['data'] : decoded;
+
+        if (data is Map<String, dynamic> ||
+            (data is List && data.isNotEmpty)) {
           setState(() {
-            _product = ProductModel.fromJson(data[0]);
+            _product = ProductModel.fromJson(
+                data is List ? data[0] : data as Map<String, dynamic>);
             _isLoading = false;
           });
           logger.log('Successfully loaded product: ${_product?.productName}');
@@ -133,11 +137,14 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
     });
     
     try {
-      final url = Uri.parse('https://newtech.shalviadvision.com/api/get_active_products_list');
-      
+      final url = Uri.parse(ApiConstants.getProducts);
+
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+        },
         body: json.encode({
           'dept_id': _product!.deptId,
           'category_id': _product!.categoryId,
@@ -151,9 +158,12 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
           throw Exception('Request timeout');
         },
       );
-      
+
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final decodedSuggestions = json.decode(response.body);
+        final List<dynamic> data = decodedSuggestions is Map
+            ? (decodedSuggestions['data'] as List? ?? [])
+            : (decodedSuggestions as List);
         
         // Convert to product models and filter out the current product
         final suggestions = data

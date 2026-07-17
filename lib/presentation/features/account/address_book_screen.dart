@@ -4,8 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -13,140 +11,20 @@ import '../../../core/utils/logger.dart';
 import '../../../core/widgets/back_button_wrapper.dart';
 import '../../../core/widgets/error_widgets.dart';
 import '../../../data/models/address_model.dart';
+import '../../../data/repositories/address_repository.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/location_provider.dart';
 
-// Updated address list provider using centralized access key management
+// Address list provider backed by the universal backend via AddressRepository
 final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) async {
   final logger = ref.read(loggerProvider);
-  final accessKeyManager = ref.read(auth.centralizedAuthManagerProvider);
-  
-  logger.log('Fetching addresses with centralized access key management...');
-  
-  try {
-    // Get access key using centralized manager
-    final accessKey = await accessKeyManager.getValidAccessKey();
-    
-    if (accessKey == null || accessKey.isEmpty) {
-      logger.error('No valid access key found for address fetching');
-      throw Exception('Access key not found. Please log in again.');
-    }
-    
-    logger.log('Access key retrieved successfully: ${accessKey.substring(0, 8)}...');
-    
-    // Create request body exactly as in Postman
-    final requestBody = {
-      "access_key": accessKey,
-      "project_code": "RET5890" // Hardcoded to match Postman exactly
-    };
-    
-    logger.log('Request body: ${jsonEncode(requestBody)}');
-    
-    // Make direct HTTP request to fetch addresses
-    final client = http.Client();
-    try {
-      final response = await client.post(
-        Uri.parse('https://newtech.shalviadvision.com/api/get_address_list'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(requestBody),
-      );
-      
-      logger.log('Get address list response status: ${response.statusCode}');
-      logger.log('Get address list response body: ${response.body}');
-      
-      if (response.statusCode == 200) {
-        // Try to parse the response as a list first
-        try {
-          List<dynamic> addressesJson = jsonDecode(response.body);
-          final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
-          logger.log('Successfully fetched ${addresses.length} addresses');
-          return addresses;
-        } catch (e) {
-          // If list parsing fails, try to parse as a map with a data/addresses field
-          final Map<String, dynamic> responseMap = jsonDecode(response.body);
-          
-          if (responseMap.containsKey('data') && responseMap['data'] is List) {
-            List<dynamic> addressesJson = responseMap['data'];
-            final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
-            logger.log('Successfully fetched ${addresses.length} addresses from data field');
-            return addresses;
-          } else if (responseMap.containsKey('addresses') && responseMap['addresses'] is List) {
-            List<dynamic> addressesJson = responseMap['addresses'];
-            final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
-            logger.log('Successfully fetched ${addresses.length} addresses from addresses field');
-            return addresses;
-          } else if (responseMap.containsKey('insertedItems') && responseMap['insertedItems'] is List) {
-            List<dynamic> addressesJson = responseMap['insertedItems'];
-            final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
-            logger.log('Successfully fetched ${addresses.length} addresses from insertedItems field');
-            return addresses;
-          }
-          
-          logger.error('Unexpected response format: $responseMap');
-          return [];
-        }
-      } else {
-        logger.error('Failed to load addresses: ${response.statusCode} - ${response.body}');
-        throw Exception('Failed to load addresses: ${response.statusCode}');
-      }
-    } finally {
-      client.close();
-    }
-  } catch (e) {
-    logger.error('Error fetching addresses: $e');
-    
-    // If access key issue, try force refresh
-    if (e.toString().contains('access_key') || e.toString().contains('Access key')) {
-      logger.log('Attempting to force refresh access key...');
-      
-      try {
-        await accessKeyManager.refreshValidation();
-        final refreshedKey = await accessKeyManager.getValidAccessKey();
-        if (refreshedKey != null && refreshedKey.isNotEmpty) {
-          logger.log('Access key refreshed, retrying address fetch...');
-          
-          // Retry the request with refreshed key
-          final requestBody = {
-            "access_key": refreshedKey,
-            "project_code": "RET5890"
-          };
-          
-          final client = http.Client();
-          try {
-            final response = await client.post(
-              Uri.parse('https://newtech.shalviadvision.com/api/get_address_list'),
-              headers: {'Content-Type': 'application/json'},
-              body: jsonEncode(requestBody),
-            );
-            
-            if (response.statusCode == 200) {
-              try {
-                List<dynamic> addressesJson = jsonDecode(response.body);
-                final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
-                logger.log('Successfully fetched ${addresses.length} addresses after refresh');
-                return addresses;
-              } catch (e) {
-                final Map<String, dynamic> responseMap = jsonDecode(response.body);
-                if (responseMap.containsKey('data') && responseMap['data'] is List) {
-                  List<dynamic> addressesJson = responseMap['data'];
-                  final addresses = addressesJson.map((json) => Address.fromJson(json)).toList();
-                  return addresses;
-                }
-                return [];
-              }
-            }
-          } finally {
-            client.close();
-          }
-        }
-      } catch (refreshError) {
-        logger.error('Failed to refresh access key: $refreshError');
-      }
-    }
-    
-    rethrow;
-  }
+  final repository = ref.read(addressRepositoryProvider);
+
+  logger.log('Fetching addresses from universal backend...');
+  final addresses = await repository.getAddresses();
+  logger.log('Fetched ${addresses.length} address(es)');
+  return addresses;
 });
 
 // Provider to refresh addresses when needed
@@ -494,153 +372,45 @@ class AddressBookScreen extends ConsumerWidget {
   }
 
   // Updated implementation using centralized access key management
+  // Set default via the universal backend (update-address with is_default Yes)
   void _setAsDefault(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Setting address as default: ${address.id}');
-    
+
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
-    
+
     try {
-      // Get access key using centralized manager
-      final accessKeyManager = ref.read(auth.centralizedAuthManagerProvider);
-      final accessKey = await accessKeyManager.getValidAccessKey();
-      
-      if (accessKey == null || accessKey.isEmpty) {
-        throw Exception('Access key not found. Please log in again.');
-      }
-      
-      // Get current app data for consistency
-      String currentPincode = address.deliveryAddrPincode; // fallback
-      String currentMobile = address.mobileNumber; // fallback
-      
-      // Get current selected pincode from the app
-      try {
-        final selectedPincode = ref.read(selectedPincodeProvider);
-        if (selectedPincode != null && selectedPincode.isNotEmpty) {
-          currentPincode = selectedPincode;
-        }
-      } catch (e) {
-        logger.error('Error getting current pincode for default update: $e');
-      }
-      
-      // Get current user mobile from auth provider
-      try {
-        final userProfile = await ref.read(userProfileProvider.future);
-        if (userProfile != null && userProfile.mobile.isNotEmpty) {
-          currentMobile = userProfile.mobile;
-        }
-      } catch (e) {
-        logger.error('Error getting current user mobile for default update: $e');
-      }
-      
-      // Create a new address with isDefault set to "Yes" and current app data
-      final updatedAddress = address.copyWith(
-        isDefault: 'Yes',
-        deliveryAddrPincode: currentPincode,
-        mobileNumber: currentMobile,
-      );
-      
-      // Create request body exactly as in Postman
-      final requestBody = {
-        "idaddress_book": updatedAddress.id,
-        "project_code": "RET5890",
-        "full_name": updatedAddress.fullName.trim(),
-        "access_key": accessKey,
-        "mobile_number": currentMobile.trim(),
-        "email_id": updatedAddress.emailId.trim(),
-        "delivery_addr_line_1": updatedAddress.deliveryAddrLine1.trim(),
-        "delivery_addr_line_2": updatedAddress.deliveryAddrLine2.trim(),
-        "delivery_addr_city": updatedAddress.deliveryAddrCity.trim(),
-        "delivery_addr_pincode": currentPincode.trim(),
-        "is_default": "Yes", // Set as default
-        "latitude": updatedAddress.latitude ?? "",
-        "longitude": updatedAddress.longitude ?? "",
-        "area_id": updatedAddress.areaId.isEmpty ? "1" : updatedAddress.areaId,
-      };
-      
-      logger.log('Request body: ${jsonEncode(requestBody)}');
-      
-      // Make direct HTTP request
-      final client = http.Client();
-      bool success = false;
-      
-      try {
-        final response = await client.post(
-          Uri.parse('https://newtech.shalviadvision.com/api/update_address/${address.id}'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(requestBody),
-        );
-        
-        logger.log('Update address response status: ${response.statusCode}');
-        logger.log('Update address response body: ${response.body}');
-        
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          final responseData = jsonDecode(response.body);
-          if (responseData.containsKey('message') && 
-              responseData['message'].toString().toLowerCase().contains('success')) {
-            logger.log('Address updated successfully');
-            success = true;
-          }
-        }
-        
-        // If first attempt fails, try the add_address endpoint
-        if (!success) {
-          logger.log('First update attempt failed, trying add_address endpoint');
-          final addResponse = await client.post(
-            Uri.parse('https://newtech.shalviadvision.com/api/add_address'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(requestBody),
-          );
-          
-          logger.log('Alternative update response status: ${addResponse.statusCode}');
-          logger.log('Alternative update response body: ${addResponse.body}');
-          
-          if (addResponse.statusCode == 200 || addResponse.statusCode == 201) {
-            final responseData = jsonDecode(addResponse.body);
-            if (responseData.containsKey('message') && 
-                responseData['message'].toString().toLowerCase().contains('success')) {
-              logger.log('Address updated successfully via add_address');
-              success = true;
-            }
-          }
-        }
-        
-        // Close loading dialog
-        if (context.mounted) {
-          Navigator.pop(context);
-          
-          // Show result message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                success 
-                    ? 'Address set as default' 
-                    : 'Failed to set address as default',
-              ),
-              backgroundColor: success ? Colors.green : Colors.red,
+      final repository = ref.read(addressRepositoryProvider);
+      final success = await repository.setDefaultAddress(address.id);
+
+      if (context.mounted) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Address set as default'
+                  : 'Failed to set address as default',
             ),
-          );
-          
-          // Refresh addresses
-          if (success) {
-            ref.refresh(addressListProvider);
-          }
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+
+        if (success) {
+          ref.refresh(addressListProvider);
         }
-      } finally {
-        client.close();
       }
     } catch (e) {
       logger.error('Error setting address as default: $e');
-      
-      // Close loading dialog
+
       if (context.mounted) {
         Navigator.pop(context);
-        
-        // Show error message
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error setting address as default: $e'),
@@ -679,89 +449,45 @@ class AddressBookScreen extends ConsumerWidget {
     );
   }
 
-  // Updated implementation using centralized access key management
+  // Delete via the universal backend (DELETE /api/address-crud/delete-address/:id)
   void _deleteAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Deleting address: ${address.id}');
-    
+
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
-    
+
     try {
-      // Get access key using centralized manager
-      final accessKeyManager = ref.read(auth.centralizedAuthManagerProvider);
-      final accessKey = await accessKeyManager.getValidAccessKey();
-      
-      if (accessKey == null || accessKey.isEmpty) {
-        throw Exception('Access key not found. Please log in again.');
-      }
-      
-      // Create request body exactly as in Postman
-      final requestBody = {
-        "access_key": accessKey,
-        "project_code": "RET5890"
-      };
-      
-      logger.log('Request body: ${jsonEncode(requestBody)}');
-      
-      // Make direct HTTP request
-      final client = http.Client();
-      try {
-        final response = await client.post(
-          Uri.parse('https://newtech.shalviadvision.com/api/delete_address/${address.id}'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(requestBody),
-        );
-        
-        logger.log('Delete address response status: ${response.statusCode}');
-        logger.log('Delete address response body: ${response.body}');
-        
-        bool success = false;
-        
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          final responseData = jsonDecode(response.body);
-          if (responseData.containsKey('message') && 
-              responseData['message'].toString().toLowerCase().contains('success')) {
-            logger.log('Address deleted successfully');
-            success = true;
-          }
-        }
-        
-        // Close loading dialog
-        if (context.mounted) {
-          Navigator.pop(context);
-          
-          // Show result message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                success 
-                    ? 'Address deleted successfully' 
-                    : 'Failed to delete address',
-              ),
-              backgroundColor: success ? Colors.green : Colors.red,
+      final repository = ref.read(addressRepositoryProvider);
+      final success = await repository.deleteAddress(address.id);
+
+      if (context.mounted) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Address deleted successfully'
+                  : 'Failed to delete address',
             ),
-          );
-          
-          // Refresh addresses list if successful
-          if (success) {
-            ref.refresh(addressListProvider);
-          }
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+
+        if (success) {
+          ref.refresh(addressListProvider);
         }
-      } finally {
-        client.close();
       }
     } catch (e) {
       logger.error('Error deleting address: $e');
-      
-      // Close loading dialog
+
       if (context.mounted) {
         Navigator.pop(context);
-        
-        // Show error message
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error deleting address: $e'),

@@ -23,13 +23,15 @@ class CategoryModel {
 
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
     return CategoryModel(
-      id: json['_id'] ?? '',
-      categoryId: json['idcategory_master'] ?? '',
+      id: (json['id'] ?? json['_id'] ?? '').toString(),
+      categoryId: (json['idcategory_master'] ?? '').toString(),
       categoryName: json['category_name'] ?? '',
-      departmentId: json['dept_id'] ?? '',
-      sequenceId: json['sequence_id'] ?? 0,
+      departmentId: (json['dept_id'] ?? '').toString(),
+      sequenceId: json['sequence_id'] is int
+          ? json['sequence_id']
+          : int.tryParse(json['sequence_id']?.toString() ?? '') ?? 0,
       storeCode: json['store_code'] ?? '',
-      numberOfColumns: json['no_of_col'] ?? '',
+      numberOfColumns: (json['no_of_col'] ?? '').toString(),
       imageLink: json['image_link'] ?? '',
     );
   }

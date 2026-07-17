@@ -40,28 +40,16 @@ class AuthService {
       _logger.log('Requesting OTP for mobile: $mobileNumber');
       
       final response = await _apiClient.post(
-        '${ApiConstants.baseUrl}/get_otp',
+        ApiConstants.authSendOtp,
         body: {
-          'mobileNo': mobileNumber,
-          'project_code': ApiConstants.projectCode,
+          'mobile': mobileNumber,
         },
       );
-      
+
       _logger.log('OTP request response: $response');
-      
-      // The response is valid if it contains any of these fields
-      if (response is Map<String, dynamic> && 
-          (response.containsKey('reason') || response.containsKey('type'))) {
-        // If response contains "OTP successfully generated", consider it a success
-        if (response.containsKey('reason') && 
-            response['reason'].toString().contains('successfully')) {
-          return OtpRequestResponse.fromJson(response);
-        }
-      }
-      
-      // If we reach here, there might be an unexpected response format
-      // But we'll still try to parse it as our model with defaults
-      return OtpRequestResponse.fromJson(response is Map<String, dynamic> ? response : {});
+
+      return OtpRequestResponse.fromJson(
+          response is Map<String, dynamic> ? response : {});
     } catch (e) {
       _logger.error('Error requesting OTP: $e');
       rethrow;
@@ -74,11 +62,10 @@ class AuthService {
       _logger.log('Validating OTP for mobile: $mobileNumber, OTP: $otp');
       
       final response = await _apiClient.post(
-        '${ApiConstants.baseUrl}/validate_otp',
+        ApiConstants.authVerifyOtp,
         body: {
-          'mobileNo': mobileNumber,
+          'mobile': mobileNumber,
           'otp': otp,
-          'project_code': ApiConstants.projectCode,
         },
       );
       
@@ -214,52 +201,33 @@ class AuthService {
       }
 
       _logger.log('Saving FCM token for mobile: $mobileNumber');
-      
-      // Prepare request body exactly as specified
-      final requestBody = {
-        "mobile_no": mobileNumber,
-        "access_key": accessKey,
-        "fcm_token": tokenToSave,
-      };
-      
-      _logger.log('FCM token save request: ${jsonEncode(requestBody)}');
-      
-      // Make API call using the correct base URL
+
+      // The JWT is passed explicitly because this fires during login, before
+      // the profile lands in CentralizedAuthManager storage.
       final response = await _httpClient.post(
-        Uri.parse('${ApiConstants.baseUrl}/save_fcm_token'),
+        Uri.parse(ApiConstants.authSaveFcmToken),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+          'Authorization': 'Bearer $accessKey',
         },
-        body: jsonEncode(requestBody),
+        body: jsonEncode({'fcmToken': tokenToSave}),
       ).timeout(const Duration(seconds: 15));
-      
+
       _logger.log('FCM token save response status: ${response.statusCode}');
-      _logger.log('FCM token save response body: ${response.body}');
-      
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         try {
           final responseData = jsonDecode(response.body);
-          
-          // Check for success message
-          if (responseData.containsKey('message') && 
-              responseData['message'].toString().contains('Successfully')) {
+          if (responseData is Map && responseData['success'] == true) {
             _logger.log('FCM token saved successfully');
-            
-            // Store the token locally for future reference
             await _storeFcmTokenLocally(tokenToSave);
             return true;
           }
-        } catch (e) {
-          // If response is not JSON, check if it contains success message
-          if (response.body.toLowerCase().contains('successfully')) {
-            _logger.log('FCM token saved successfully (non-JSON response)');
-            await _storeFcmTokenLocally(tokenToSave);
-            return true;
-          }
-        }
+        } catch (_) {}
       }
-      
+
       _logger.error('Failed to save FCM token: ${response.statusCode} - ${response.body}');
       return false;
     } catch (e) {
@@ -443,26 +411,4 @@ class AuthService {
     }
   }
 
-  // Helper methods for encoding/decoding user profile
-  String _encodeUserProfile(UserProfile profile) {
-    return '${profile.mobile}:${profile.accessKey}:${profile.loginTime.toIso8601String()}';
-  }
-
-  UserProfile _decodeUserProfile(String encoded) {
-    final parts = encoded.split(':');
-    if (parts.length >= 3) {
-      return UserProfile(
-        mobile: parts[0],
-        accessKey: parts[1],
-        loginTime: DateTime.parse(parts[2]),
-      );
-    }
-    
-    // Fallback
-    return UserProfile(
-      mobile: parts.isNotEmpty ? parts[0] : '',
-      accessKey: parts.length > 1 ? parts[1] : '',
-      loginTime: DateTime.now(),
-    );
-  }
 }
