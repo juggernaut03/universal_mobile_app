@@ -10,6 +10,7 @@ import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/cached_network_image_widget.dart';
+import 'package:patelmart/core/widgets/brand_logo.dart';
 
 // Provider for about us content (GET /api/content/about-us)
 final aboutUsContentProvider = FutureProvider<String>((ref) async {
@@ -109,10 +110,7 @@ class AboutUsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(vertical: 24),
                   child: Column(
                     children: [
-                      Image.asset(
-                        'assets/images/patelLogo.png',
-                        height: 60,
-                      ),
+                      const BrandLogo(height: 60),
                       const SizedBox(height: 16),
                       Text(
                         'Your daily partner!',

@@ -566,7 +566,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Turn on Location Services in your device settings to continue.',
                         style: TextStyle(

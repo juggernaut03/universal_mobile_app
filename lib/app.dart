@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:patelmart/core/branding/app_branding.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/presentation/routes/app_router.dart';
@@ -45,11 +46,13 @@ class _MyAppState extends ConsumerState<MyApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
-    // Runtime branding from the tenant's project config; falls back to the
-    // built-in brand while loading or when unset.
-    final projectConfig = ref.watch(projectConfigProvider).valueOrNull;
-    final brandPrimary = projectConfig?.primarySeedColor ?? AppColors.primary;
-    final appTitle = projectConfig?.displayName ?? 'Patel Mart';
+    // Runtime branding: watching projectConfigProvider rebuilds this widget
+    // when the fresh config lands; fetchProjectConfig has already applied it
+    // to AppBranding, which AppColors/AppTextStyles read.
+    ref.watch(projectConfigProvider);
+    final branding = AppBranding.instance;
+    final brandPrimary = branding.primary;
+    final appTitle = branding.appName;
 
     return MaterialApp.router(
       title: appTitle,
@@ -61,7 +64,12 @@ class _MyAppState extends ConsumerState<MyApp> {
         colorScheme: ColorScheme.fromSeed(
           seedColor: brandPrimary,
           brightness: Brightness.light,
+        ).copyWith(
+          primary: brandPrimary,
+          secondary: branding.secondary,
         ),
+        scaffoldBackgroundColor: AppColors.background,
+        fontFamily: AppTextStyles.fontFamily,
         textTheme: TextTheme(
           displayLarge: AppTextStyles.h1,
           displayMedium: AppTextStyles.h2,

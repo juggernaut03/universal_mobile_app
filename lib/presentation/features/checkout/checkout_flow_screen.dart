@@ -873,7 +873,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                       color: AppColors.primary,
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.arrow_forward_ios,
                     size: 12,
                     color: AppColors.primary,

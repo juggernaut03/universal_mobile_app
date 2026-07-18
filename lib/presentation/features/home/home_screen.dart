@@ -39,6 +39,7 @@ import '../../../core/handlers/app_lifecycle_handler.dart';
 // FORCE UPDATE IMPORTS
 import '../../providers/force_update_providers.dart';
 import '../../../core/widgets/force_update_dialog.dart';
+import 'package:patelmart/core/widgets/brand_logo.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -606,12 +607,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           scale: _headerScale.value,
                           child: Opacity(
                             opacity: _headerOpacity.value,
-                            child: Image.asset(
-                              'assets/images/patelLogo.png',
+                            child: const BrandLogo(
                               height: 42,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => 
-                                  const Icon(Icons.store, color: Colors.white, size: 42),
+                              fallbackColor: Colors.white,
                             ),
                           ),
                         );

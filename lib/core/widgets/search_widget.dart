@@ -181,8 +181,8 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
 
   Widget _buildSuggestionsList() {
     if (_isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Center(
           child: SizedBox(
             width: 20,

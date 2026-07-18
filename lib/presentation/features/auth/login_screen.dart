@@ -11,6 +11,7 @@ import '../../../core/utils/responsive_utils.dart';
 import '../../providers/auth_providers.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
+import 'package:patelmart/core/widgets/brand_logo.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String? redirectRoute;
@@ -171,13 +172,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Logo
-                  Image.asset(
-                    'assets/images/patelLogo.png',
-                    height: isSmallScreen ? 120 : 150,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => 
-                        const Icon(Icons.store, size: 120, color: AppColors.primary),
-                  ),
+                  BrandLogo(height: isSmallScreen ? 120 : 150),
                   
                   const SizedBox(height: 40),
                   
@@ -269,11 +264,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                            borderSide: BorderSide(color: AppColors.primary, width: 2),
                           ),
                           errorBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: AppColors.error, width: 1),
+                            borderSide: BorderSide(color: AppColors.error, width: 1),
                           ),
                         ),
                         inputFormatters: [

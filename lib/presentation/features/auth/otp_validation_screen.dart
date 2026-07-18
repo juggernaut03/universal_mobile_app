@@ -16,6 +16,7 @@ import '../../providers/auth_providers.dart';
 import 'package:patelmart/data/models/auth_models.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
+import 'package:patelmart/core/widgets/brand_logo.dart';
 
 class OtpValidationScreen extends ConsumerStatefulWidget {
   final String mobileNumber;
@@ -96,8 +97,8 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
       _startResendTimer();
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('OTP sent successfully'),
+        SnackBar(
+          content: const Text('OTP sent successfully'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -241,11 +242,7 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Logo
-                  Image.asset(
-                    'assets/images/patelLogo.png',
-                    height: isSmallScreen ? 100 : 120,
-                    fit: BoxFit.contain,
-                  ),
+                  BrandLogo(height: isSmallScreen ? 100 : 120),
                   
                   const SizedBox(height: 40),
                   

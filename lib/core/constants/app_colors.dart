@@ -1,26 +1,32 @@
 // lib/core/constants/app_colors.dart
 import 'package:flutter/material.dart';
+import '../branding/app_branding.dart';
 
-/// App color palette constants
+/// App color palette. Brand-driven tokens are getters backed by AppBranding
+/// so every tenant themes the whole app from the admin panel at runtime —
+/// no hardcoded brand colors, no rebuild. Grayscale scaffolding (neutrals,
+/// borders, shadows) stays constant.
 class AppColors {
-  // Primary Colors - Updated to match the screenshot (deep purple)
-  static const Color primary = Color(0xFF77318B);
-  static const Color primaryLight = Color(0xFF9B4FB0);
-  static const Color primaryLighter = Color(0xFFBF7DD0);
-  static const Color primaryDark = Color(0xFF5A2269);
-  static const Color primaryDarker = Color(0xFF3D1647);
+  static AppBranding get _b => AppBranding.instance;
 
-  // Secondary Colors - Complementary to purple
-  static const Color secondary = Color(0xFF428B31);
-  static const Color secondaryLight = Color(0xFF6AB04C);
-  static const Color secondaryLighter = Color(0xFF97D07D);
-  static const Color secondaryDark = Color(0xFF2F6923);
-  static const Color secondaryDarker = Color(0xFF1C4614);
+  // Primary colors (tenant brand)
+  static Color get primary => _b.primary;
+  static Color get primaryLight => _b.primaryLight;
+  static Color get primaryLighter => _b.primaryLighter;
+  static Color get primaryDark => _b.primaryDark;
+  static Color get primaryDarker => _b.primaryDarker;
 
-  // Accent color - For highlights and CTAs
-  static const Color accent = Color(0xFFFFAB40); 
-  static const Color accentLight = Color(0xFFFFBF6F);
-  static const Color accentDark = Color(0xFFE59323);
+  // Secondary colors (tenant brand)
+  static Color get secondary => _b.secondary;
+  static Color get secondaryLight => _b.secondaryLight;
+  static Color get secondaryLighter => _b.secondaryLighter;
+  static Color get secondaryDark => _b.secondaryDark;
+  static Color get secondaryDarker => _b.secondaryDarker;
+
+  // Accent color - for highlights and CTAs (tenant brand)
+  static Color get accent => _b.accent;
+  static Color get accentLight => _b.accentLight;
+  static Color get accentDark => _b.accentDark;
 
   // Neutral Colors
   static const Color neutral900 = Color(0xFF212121); // For primary text
@@ -35,25 +41,25 @@ class AppColors {
   static const Color neutral50 = Color(0xFFFAFAFA);  // For page backgrounds
   static const Color white = Color(0xFFFFFFFF);
 
-  // Semantic Colors
-  static const Color success = Color(0xFF4CAF50);
-  static const Color successLight = Color(0xFFD8F3D9);
-  static const Color warning = Color(0xFFFFC107);
-  static const Color warningLight = Color(0xFFFFF3D6);
-  static const Color error = Color(0xFFF44336);
-  static const Color errorLight = Color(0xFFFFE5E3);
-  static const Color info = Color(0xFF2196F3);
-  static const Color infoLight = Color(0xFFD1ECFF);
+  // Semantic Colors (tenant overridable)
+  static Color get success => _b.success;
+  static Color get successLight => _b.successLight;
+  static Color get warning => _b.warning;
+  static Color get warningLight => _b.warningLight;
+  static Color get error => _b.error;
+  static Color get errorLight => _b.errorLight;
+  static Color get info => _b.info;
+  static Color get infoLight => _b.infoLight;
 
   // Background Colors
-  static const Color background = neutral50;
+  static Color get background => _b.background;
   static const Color cardBackground = white;
   static const Color surfaceBackground = white;
   static const Color disabledBackground = neutral200;
 
-  // Text Colors
-  static const Color textPrimary = neutral900;
-  static const Color textSecondary = neutral700;
+  // Text Colors (tenant overridable)
+  static Color get textPrimary => _b.textPrimary;
+  static Color get textSecondary => _b.textSecondary;
   static const Color textHint = neutral500;
   static const Color textDisabled = neutral400;
   static const Color textOnPrimary = white;
@@ -67,17 +73,17 @@ class AppColors {
 
   // Shadow Colors
   static const Color shadow = Color(0x40000000);
-  
-  // Gradients
-  static const LinearGradient primaryGradient = LinearGradient(
-    colors: [primary, primaryDark],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  static const LinearGradient accentGradient = LinearGradient(
-    colors: [accent, accentDark],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
+
+  // Gradients (derived from tenant brand)
+  static LinearGradient get primaryGradient => LinearGradient(
+        colors: [primary, primaryDark],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+
+  static LinearGradient get accentGradient => LinearGradient(
+        colors: [accent, accentDark],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
 }

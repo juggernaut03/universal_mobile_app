@@ -643,7 +643,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Please choose from our list of serviceable pincodes.',
                         style: TextStyle(
@@ -716,7 +716,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Please enable location services in your device settings.',
                         style: TextStyle(
@@ -807,7 +807,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Please grant location permission in app settings.',
                         style: TextStyle(
@@ -898,7 +898,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
                       size: 18,
                     ),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Please check your internet connection and try again.',
                         style: TextStyle(

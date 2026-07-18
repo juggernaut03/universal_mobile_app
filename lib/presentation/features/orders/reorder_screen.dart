@@ -15,6 +15,7 @@ import '../../providers/outlet_status_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../features/cart/widgets/persistent_cart_widget.dart';
+import 'package:patelmart/core/widgets/brand_logo.dart';
 
 // Define ReorderItem at the top level
 class ReorderItem {
@@ -701,15 +702,7 @@ class _ReorderScreenState extends ConsumerState<ReorderScreen>
                     ),
                   ],
                 ),
-                Image.asset(
-                  'assets/images/patelLogo.png',
-                  height: 40,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    logger.error('Error loading drawer logo: $error');
-                    return const Icon(Icons.store, color: Colors.white, size: 40);
-                  },
-                ),
+                const BrandLogo(height: 40, fallbackColor: Colors.white),
               ],
             ),
           ),

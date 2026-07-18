@@ -200,7 +200,7 @@ class AddressBookScreen extends ConsumerWidget {
               children: [
                 CircleAvatar(
                   backgroundColor: AppColors.primary.withOpacity(0.1),
-                  child: const Icon(
+                  child: Icon(
                     Icons.location_on,
                     color: AppColors.primary,
                   ),
