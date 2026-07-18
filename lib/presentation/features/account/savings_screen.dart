@@ -142,7 +142,7 @@ class SavingsScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         shadowColor: Colors.transparent,
-        systemOverlayStyle: const SystemUiOverlayStyle(
+        systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: AppColors.primary,
           statusBarIconBrightness: Brightness.light,
         ),
@@ -153,7 +153,7 @@ class SavingsScreen extends ConsumerWidget {
       ),
       body: orderHistoryAsync.when(
         data: (_) => _buildSavingsContent(context, savingsStats, userProfileDetailsAsync),
-        loading: () => const Center(
+        loading: () => Center(
           child: CircularProgressIndicator(
             strokeWidth: 2,
             valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
@@ -564,8 +564,8 @@ class SavingsScreen extends ConsumerWidget {
         width: double.infinity,
         height: 56,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.primary, Color(0xFF1976D2)],
+          gradient: LinearGradient(
+            colors: [AppColors.primary, const Color(0xFF1976D2)],
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [

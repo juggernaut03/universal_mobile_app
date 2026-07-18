@@ -3,63 +3,57 @@
 // Runtime branding for the universal multi-tenant app: fetches the tenant's
 // public config (GET /api/project-config) at boot and caches it in
 // SharedPreferences so the app can brand itself offline on later launches.
+// Every apply also updates the AppBranding singleton, which AppColors /
+// AppTextStyles read — so the whole design system follows the admin panel.
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/branding/app_branding.dart';
 import '../../core/constants/app_constants.dart';
 
 class ProjectConfig {
   final String projectCode;
   final String clientName;
-  final String appName;
-  final String logoUrl;
-  final String primaryColor;
-  final String secondaryColor;
-  final String contactEmail;
-  final String contactPhone;
+
+  /// Raw backend config map — cached verbatim so newly added backend fields
+  /// survive the cache round-trip without app changes.
+  final Map<String, dynamic> config;
 
   const ProjectConfig({
     required this.projectCode,
     required this.clientName,
-    required this.appName,
-    required this.logoUrl,
-    required this.primaryColor,
-    required this.secondaryColor,
-    required this.contactEmail,
-    required this.contactPhone,
+    required this.config,
   });
 
   factory ProjectConfig.fromJson(Map<String, dynamic> json) {
-    final config = json['config'] is Map
-        ? Map<String, dynamic>.from(json['config'] as Map)
-        : <String, dynamic>{};
     return ProjectConfig(
       projectCode: (json['project_code'] ?? '').toString(),
       clientName: (json['client_name'] ?? '').toString(),
-      appName: (config['app_name'] ?? '').toString(),
-      logoUrl: (config['logo_url'] ?? '').toString(),
-      primaryColor: (config['primary_color'] ?? '').toString(),
-      secondaryColor: (config['secondary_color'] ?? '').toString(),
-      contactEmail: (config['contact_email'] ?? '').toString(),
-      contactPhone: (config['contact_phone'] ?? '').toString(),
+      config: json['config'] is Map
+          ? Map<String, dynamic>.from(json['config'] as Map)
+          : <String, dynamic>{},
     );
   }
 
   Map<String, dynamic> toJson() => {
         'project_code': projectCode,
         'client_name': clientName,
-        'config': {
-          'app_name': appName,
-          'logo_url': logoUrl,
-          'primary_color': primaryColor,
-          'secondary_color': secondaryColor,
-          'contact_email': contactEmail,
-          'contact_phone': contactPhone,
-        },
+        'config': config,
       };
+
+  String _str(String key) => (config[key] ?? '').toString();
+
+  String get appName => _str('app_name');
+  String get logoUrl => _str('logo_url');
+  String get splashLogoUrl => _str('splash_logo_url');
+  String get primaryColor => _str('primary_color');
+  String get secondaryColor => _str('secondary_color');
+  String get fontFamily => _str('font_family');
+  String get contactEmail => _str('contact_email');
+  String get contactPhone => _str('contact_phone');
 
   /// Display title with build-time fallback
   String get displayName => appName.isNotEmpty
@@ -79,6 +73,10 @@ class ProjectConfig {
         radix: 16);
     return value == null ? null : Color(value);
   }
+
+  /// Push this config into the AppBranding singleton (design system).
+  void applyBranding() =>
+      AppBranding.applyConfig(config, clientName: clientName);
 }
 
 class ProjectConfigRepository {
@@ -89,6 +87,7 @@ class ProjectConfigRepository {
       : _client = client ?? http.Client();
 
   /// Fetch config from the backend, falling back to the cached copy.
+  /// Applies branding as a side effect.
   Future<ProjectConfig?> fetchProjectConfig() async {
     try {
       final response = await _client.get(
@@ -105,6 +104,7 @@ class ProjectConfigRepository {
         if (decoded is Map && decoded['data'] is Map) {
           final config = ProjectConfig.fromJson(
               Map<String, dynamic>.from(decoded['data'] as Map));
+          config.applyBranding();
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_cacheKey, jsonEncode(config.toJson()));
           return config;
@@ -117,12 +117,31 @@ class ProjectConfigRepository {
   }
 
   /// Cached copy for offline/instant start (null if never fetched).
+  /// Applies branding as a side effect.
   Future<ProjectConfig?> readCachedConfig() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_cacheKey);
       if (raw == null) return null;
-      return ProjectConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final config =
+          ProjectConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      config.applyBranding();
+      return config;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Synchronous variant for main() — SharedPreferences must already be
+  /// initialized. Brands the very first frame from the cached config.
+  static ProjectConfig? applyCachedBranding(SharedPreferences prefs) {
+    try {
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null) return null;
+      final config =
+          ProjectConfig.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      config.applyBranding();
+      return config;
     } catch (_) {
       return null;
     }

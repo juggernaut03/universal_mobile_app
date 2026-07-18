@@ -297,7 +297,7 @@ class FavoritesScreen extends ConsumerWidget {
               },
               
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary),
+                side: BorderSide(color: AppColors.primary),
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),

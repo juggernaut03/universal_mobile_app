@@ -15,6 +15,7 @@ import '../../providers/cart_provider.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/best_seller_providers.dart';
+import 'package:patelmart/core/widgets/brand_logo.dart';
 
 class AccountScreen extends ConsumerStatefulWidget {
   const AccountScreen({Key? key}) : super(key: key);
@@ -280,15 +281,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Image.asset(
-            'assets/images/patelLogo.png',
-            height: 42, // Increased from 32 to 40
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              logger.error('Error loading logo: $error');
-              return const Icon(Icons.store, color: Colors.white, size: 40);
-            },
-          ),
+          const BrandLogo(height: 42, fallbackColor: Colors.white),
         ],
       ),
       titleSpacing: 0, // Reduce spacing to move logo closer to drawer icon

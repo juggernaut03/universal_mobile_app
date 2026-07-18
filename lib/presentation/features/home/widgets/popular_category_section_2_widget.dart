@@ -90,7 +90,7 @@ class _PopularCategorySection2WidgetState extends ConsumerState<PopularCategoryS
                           },
                           child: Text(
                             _expanded ? 'Show Less' : 'View All',
-                            style: const TextStyle(color: AppColors.primary),
+                            style: TextStyle(color: AppColors.primary),
                           ),
                         ),
                     ],

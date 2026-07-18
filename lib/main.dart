@@ -17,6 +17,7 @@ import 'core/utils/logger.dart';
 import 'core/handlers/app_lifecycle_handler.dart';
 import 'presentation/providers/popup_providers.dart';
 // NOTIFICATION IMPORTS
+import 'data/repositories/project_config_repository.dart';
 import 'data/services/firebase_notification_service.dart';
 // FCM TOKEN IMPORTS
 import 'presentation/providers/auth_providers.dart';
@@ -73,7 +74,12 @@ void main() async {
     // Initialize SharedPreferences EARLY (this is safe)
     final sharedPreferences = await SharedPreferences.getInstance();
     final logger = Logger();
-    
+
+    // Brand the very first frame from the cached tenant config (colors,
+    // font, app name, logos). projectConfigProvider fetches a fresh config
+    // right after boot and re-applies it.
+    ProjectConfigRepository.applyCachedBranding(sharedPreferences);
+
     logger.log('🚀 Starting app initialization...');
     
     // Initialize Firebase with enhanced error handling and iOS-specific configuration

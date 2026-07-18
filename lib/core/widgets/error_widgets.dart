@@ -188,7 +188,7 @@ class ErrorToast extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline,
               color: AppColors.error,
             ),

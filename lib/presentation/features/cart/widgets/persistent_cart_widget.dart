@@ -6,9 +6,9 @@ import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
 import 'package:patelmart/presentation/providers/steal_deals_provider.dart';
 
-// Offer slab colors — mapped to AppColors
-const Color _offerGreen = AppColors.secondary;
-const Color _offerGreenBorder = AppColors.secondaryLight;
+// Offer slab colors — mapped to AppColors (dynamic tenant branding)
+Color get _offerGreen => AppColors.secondary;
+Color get _offerGreenBorder => AppColors.secondaryLight;
 
 class PersistentCartWidget extends ConsumerStatefulWidget {
   const PersistentCartWidget({Key? key}) : super(key: key);

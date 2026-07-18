@@ -53,7 +53,7 @@ class OrderDetailScreen extends ConsumerWidget {
             onPressed: () {
               context.push('/help-support');
             },
-            child: const Text(
+            child: Text(
               'NEED HELP?',
               style: TextStyle(
                 color: AppColors.primary,

@@ -7,6 +7,7 @@ import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../providers/splash_provider.dart';
+import 'package:patelmart/core/widgets/brand_logo.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   final String logoAsset;
@@ -119,11 +120,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                   );
                 },
-                child: Image.asset(
-                  widget.logoAsset,
-                  width: 300,
-                  height: 300,
-                ),
+                child: const BrandLogo(height: 300, splash: true),
               ),
               
               const SizedBox(height: 24),
