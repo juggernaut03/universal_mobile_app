@@ -425,11 +425,3 @@ final cartValidationStateProvider = StateNotifierProvider<CartValidationStateNot
     logger: logger,
   );
 });
-
-
-
-
-final sessionDebugInfoProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final enhancedValidator = ref.watch(enhancedCartValidatorProvider);
-  return await enhancedValidator.getSessionDebugInfo();
-});
