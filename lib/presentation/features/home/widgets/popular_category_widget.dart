@@ -114,24 +114,6 @@ class _PopularCategoryWidgetState extends ConsumerState<PopularCategoryWidget> {
     );
   }
 
-  Widget _buildHorizontalList(BuildContext context, List<dynamic> categories) {
-    return Container(
-      height: 130,
-      padding: EdgeInsets.symmetric(
-        horizontal: widget.padding.horizontal / 2,
-      ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (context, index) => SizedBox(width: widget.spacing),
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          return _buildCategoryCard(context, category);
-        },
-      ),
-    );
-  }
-
   Widget _buildExpandedGrid(BuildContext context, List<dynamic> categories) {
     const int fixedColumns = 4;
     return GridView.builder(

@@ -22,7 +22,6 @@ class AccountScreen extends ConsumerStatefulWidget {
 class _AccountScreenState extends ConsumerState<AccountScreen> {
   // Add loading state for auth check
   bool _isCheckingAuth = true;
-  bool _isLoggedIn = false;
 
   @override
   void initState() {
@@ -44,7 +43,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       
       if (mounted) {
         setState(() {
-          _isLoggedIn = isLoggedIn;
           _isCheckingAuth = false;
         });
         
@@ -60,7 +58,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       if (mounted) {
         setState(() {
           _isCheckingAuth = false;
-          _isLoggedIn = false;
         });
         // Redirect to login on error
         if (mounted) {

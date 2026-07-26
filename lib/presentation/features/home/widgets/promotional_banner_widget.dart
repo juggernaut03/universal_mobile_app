@@ -224,11 +224,6 @@ class _PromotionalBannerWidgetState extends ConsumerState<PromotionalBannerWidge
     }
   }
 
-  EdgeInsets _getResponsivePadding(BuildContext context) {
-    // Return zero padding since we want full width
-    return EdgeInsets.zero;
-  }
-
   BorderRadius _getResponsiveBorderRadius(BuildContext context) {
   if (widget.borderRadius != null) return widget.borderRadius!;
   

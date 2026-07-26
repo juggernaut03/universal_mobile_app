@@ -154,7 +154,6 @@ final sortedProductsProvider = Provider.family<List<ProductModel>, List<ProductM
       sortedProducts.sort((a, b) => b.ourPrice.compareTo(a.ourPrice));
       break;
     case SortOption.none:
-    default:
       // Keep original order
       break;
   }

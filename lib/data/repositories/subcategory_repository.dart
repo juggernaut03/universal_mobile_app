@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../models/subcategory_model.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
@@ -11,7 +10,6 @@ class SubcategoryRepository {
   final http.Client _client;
   final String _baseUrl;
   final Logger _logger;
-  final DefaultCacheManager _cacheManager;
   
   static const int _cacheDurationHours = 20; // Cache duration of 20 hours
   static const String _subcategoriesKeyPrefix = 'subcategories_cache_cat_';
@@ -22,11 +20,9 @@ class SubcategoryRepository {
     http.Client? client,
     String? baseUrl,
     Logger? logger,
-    DefaultCacheManager? cacheManager,
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl ?? ApiConstants.baseUrl,
-       _logger = logger ?? Logger(),
-       _cacheManager = cacheManager ?? DefaultCacheManager();
+       _logger = logger ?? Logger();
 
   Future<List<SubcategoryModel>> getSubcategories(String categoryId) async {
     try {

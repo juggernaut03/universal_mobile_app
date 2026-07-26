@@ -79,6 +79,6 @@ final outletStatusMessageProvider = Provider<String?>((ref) {
 // Provider to refresh outlet status manually
 final refreshOutletStatusProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    ref.refresh(currentOutletStatusProvider);
+    ref.invalidate(currentOutletStatusProvider);
   };
 });

@@ -356,7 +356,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
           }
           
           // 2. Refresh the address list provider (used by checkout flow)
-          ref.refresh(address_book.addressListProvider);
+          ref.invalidate(address_book.addressListProvider);
           
           // 3. Refresh the main address providers
           ref.invalidate(addressesProvider);

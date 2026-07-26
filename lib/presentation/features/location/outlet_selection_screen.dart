@@ -25,6 +25,12 @@ class OutletSelectionScreen extends ConsumerStatefulWidget {
 
 class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
   bool _isLoading = true;
+
+  /// Guards against a double tap on an outlet.
+  ///
+  /// This was a local inside _selectOutlet, so it was false on every call and
+  /// the `if (isProcessing) return;` check never fired — the guard did nothing.
+  bool _isSelectingOutlet = false;
   
   @override
   void initState() {
@@ -490,7 +496,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
                 children: [
                   ElevatedButton(
                     onPressed: () {
-                      ref.refresh(availableOutletsProvider(widget.pincode));
+                      ref.invalidate(availableOutletsProvider(widget.pincode));
                     },
                     child: const Text('Retry'),
                   ),
@@ -511,9 +517,9 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
   }
 
   Future<void> _selectOutlet(BuildContext context, WidgetRef ref, OutletModel outlet) async {
-    // Track if we're already processing the selection
-    bool isProcessing = false;
-    
+    if (_isSelectingOutlet) return; // Prevent double-selection
+    _isSelectingOutlet = true;
+
     // Show loading indicator
     showDialog(
       context: context,
@@ -524,9 +530,6 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
     );
 
     try {
-      if (isProcessing) return; // Prevent double-selection
-      isProcessing = true;
-      
       // Save the selected outlet
       final result = await ref.read(selectedOutletProvider.notifier).selectOutlet(outlet);
       
@@ -617,7 +620,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
         );
       }
     } finally {
-      isProcessing = false;
+      _isSelectingOutlet = false;
     }
   }
 }

@@ -43,6 +43,7 @@ final promotionalBannerRefreshProvider = Provider<Future<void> Function()>((ref)
     ref.read(refreshPromotionalBannersProvider.notifier).state = true;
     
     // Refresh the promotional banners provider
+    // ignore: unused_result — awaited for completion; the value is not needed.
     await ref.refresh(promotionalBannersProvider.future);
   };
 });

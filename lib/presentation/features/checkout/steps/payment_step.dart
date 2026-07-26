@@ -47,7 +47,6 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
   final TextEditingController _instructionsController = TextEditingController();
   final TextEditingController _pickupNameController = TextEditingController();
   bool _isPlacingOrder = false;
-  final bool _showSuccessDialog = false;
 
   @override
   void initState() {
@@ -567,7 +566,7 @@ Future<void> _placeOrder() async {
     
     logger.log('=== STEP 3: UPDATING DATABASE WITH FINAL STATUS ===');
     logger.log('Using Temp Order ID: $tempOrderId');
-    logger.log('Payment Success: ${paymentResult.success ?? false}');
+    logger.log('Payment Success: ${paymentResult.success}');
     logger.log('Transaction ID: ${transactionId ?? "None"}');
     
     // Determine what the final status should be
@@ -589,7 +588,7 @@ Future<void> _placeOrder() async {
     
     if (kDebugMode) print('\n📋 === STEP 3: UPDATING ORDER WITH FINAL STATUS === 📋');
     if (kDebugMode) print('Temp Order ID: $tempOrderId');
-    if (kDebugMode) print('Payment Success: ${paymentResult.success ?? false}');
+    if (kDebugMode) print('Payment Success: ${paymentResult.success}');
     if (kDebugMode) print('Expected Order Status: $expectedOrderStatus');
     if (kDebugMode) print('Expected Payment Status: $expectedPaymentStatus');
     if (kDebugMode) print('Transaction ID: ${transactionId ?? "None"}');
@@ -1170,7 +1169,7 @@ Future<void> _placeOrder() async {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
-                        ref.refresh(paymentMethodsProvider);
+                        ref.invalidate(paymentMethodsProvider);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,

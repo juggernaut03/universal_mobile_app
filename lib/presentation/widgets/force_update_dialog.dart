@@ -262,7 +262,6 @@ class _ForceUpdateDialogState extends ConsumerState<ForceUpdateDialog> {
 /// Helper function to show force update dialog as full-screen blocking modal
 void showForceUpdateDialog(BuildContext context, UpdateCheckResponse updateInfo) {
   debugPrint('🎬 SHOW FORCE UPDATE DIALOG CALLED:');
-  debugPrint('   └─ Context: ${context != null}');
   debugPrint('   └─ Force Update: ${updateInfo.forceUpdate}');
   debugPrint('   └─ Platform: ${Platform.isAndroid ? "Android" : "iOS"}');
   debugPrint('   └─ Android URL: ${updateInfo.androidDownloadUrl}');

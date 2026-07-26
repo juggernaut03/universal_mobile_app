@@ -319,7 +319,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
       }
       
       // Force refresh the current pincode provider
-      ref.refresh(currentPincodeProvider);
+      ref.invalidate(currentPincodeProvider);
       
       final currentPin = await ref.read(currentPincodeProvider.future);
       logger.log('Retrieved pincode from location: $currentPin');
@@ -354,7 +354,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
   ) async {
     try {
       // Force refresh to get the latest data
-      ref.refresh(isPincodeServiceableProvider(pincode));
+      ref.invalidate(isPincodeServiceableProvider(pincode));
       
       final isServiceable = await ref.read(
         isPincodeServiceableProvider(pincode).future,

@@ -66,8 +66,11 @@ class _BestSellerScreenState extends ConsumerState<BestSellerScreen> {
             onPressed: () async {
               // Force refresh the best seller data
               ref.read(refreshBestSellerProvider.notifier).state = true;
+              // ignore: unused_result — awaited for completion; the value is not needed.
               await ref.refresh(bestSellerBannerProvider(widget.bestSellerId).future);
+              // ignore: unused_result — awaited for completion; the value is not needed.
               await ref.refresh(bestSellerProductsProvider(widget.bestSellerId).future);
+              // ignore: unused_result — awaited for completion; the value is not needed.
               await ref.refresh(bestSellerTitleProvider(widget.bestSellerId).future); // Also refresh title
             },
           ),
