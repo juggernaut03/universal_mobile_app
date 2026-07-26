@@ -9,7 +9,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../di/infrastructure_providers.dart';
 
 class FAQScreen extends ConsumerStatefulWidget {
-  const FAQScreen({Key? key}) : super(key: key);
+  const FAQScreen({super.key});
 
   @override
   ConsumerState<FAQScreen> createState() => _FAQScreenState();

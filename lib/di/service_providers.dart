@@ -15,7 +15,6 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/services/advanced_notification_service.dart';
 import '../data/services/api_service.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/firebase_notification_service.dart';
@@ -35,8 +34,11 @@ import '../data/services/outlet_status_service.dart';
 import '../data/services/payment_method_service.dart';
 import '../data/services/payment_service.dart';
 import '../data/services/popup_service.dart';
+import '../data/services/razorpay_payment_gateway.dart';
 import '../data/services/storage_service.dart';
 import '../core/constants/app_constants.dart';
+import '../domain/repositories/i_notification_service.dart';
+import '../domain/repositories/i_payment_gateway.dart';
 import '../presentation/providers/cart_validator_provider.dart'
     show cartValidatorProvider;
 import '../presentation/providers/splash_provider.dart'
@@ -178,16 +180,10 @@ final authServiceProvider = Provider<AuthService>((ref) {
 });
 
 // ---- notifications ----
-//
-// TODO(phase-8): four notification services survive. Phase 8 collapses them
-// behind a single INotificationService with platform strategies.
 
+/// Typed to the interface so nothing depends on the concrete service.
 final firebaseNotificationServiceProvider =
-    Provider<FirebaseNotificationService>((ref) => FirebaseNotificationService());
-
-final advancedNotificationServiceProvider =
-    Provider<AdvancedNotificationService>(
-        (ref) => AdvancedNotificationService(ref: ref));
+    Provider<INotificationService>((ref) => FirebaseNotificationService());
 
 // ---- orders ----
 
@@ -202,3 +198,16 @@ final orderPaymentProcessingServiceProvider =
 /// Static content pages. Was constructed inline as `ContentService()` in four
 /// separate screen-level providers.
 final contentServiceProvider = Provider<ContentService>((ref) => ContentService());
+
+// ---- payments ----
+
+/// Razorpay behind the domain interface, so checkout can be driven by a fake.
+///
+/// Typed to IPaymentGateway: nothing may depend on the concrete adapter.
+final paymentGatewayProvider = Provider<IPaymentGateway>((ref) {
+  final gateway = RazorpayPaymentGateway(logger: ref.watch(loggerProvider));
+  // The SDK holds native resources and an open sheet would otherwise never
+  // resolve; disposing completes it as cancelled.
+  ref.onDispose(gateway.dispose);
+  return gateway;
+});

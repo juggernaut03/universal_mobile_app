@@ -101,12 +101,12 @@ class PerformanceOptimizedWidget extends StatelessWidget {
   final String? debugLabel;
 
   const PerformanceOptimizedWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.repaintBoundary = true,
     this.keepAlive = false,
     this.debugLabel,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +147,7 @@ class _KeepAliveWrapperState extends State<_KeepAliveWrapper>
 
 /// Optimized scroll physics for better performance
 class OptimizedScrollPhysics extends ClampingScrollPhysics {
-  const OptimizedScrollPhysics({ScrollPhysics? parent}) : super(parent: parent);
+  const OptimizedScrollPhysics({super.parent});
 
   @override
   OptimizedScrollPhysics applyTo(ScrollPhysics? ancestor) {
@@ -174,14 +174,14 @@ class OptimizedImageWidget extends StatelessWidget {
   final Widget? errorWidget;
 
   const OptimizedImageWidget({
-    Key? key,
+    super.key,
     required this.imageUrl,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
     this.placeholder,
     this.errorWidget,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -224,10 +224,10 @@ class ViewportAwareBuilder extends StatefulWidget {
   final double threshold;
 
   const ViewportAwareBuilder({
-    Key? key,
+    super.key,
     required this.builder,
     this.threshold = 0.1,
-  }) : super(key: key);
+  });
 
   @override
   State<ViewportAwareBuilder> createState() => _ViewportAwareBuilderState();
@@ -270,11 +270,11 @@ class LazyLoadingWidget extends StatefulWidget {
   final double triggerOffset;
 
   const LazyLoadingWidget({
-    Key? key,
+    super.key,
     required this.child,
     required this.placeholder,
     this.triggerOffset = 200.0,
-  }) : super(key: key);
+  });
 
   @override
   State<LazyLoadingWidget> createState() => _LazyLoadingWidgetState();
@@ -305,12 +305,12 @@ class SmartRefreshIndicator extends StatefulWidget {
   final Color? color;
 
   const SmartRefreshIndicator({
-    Key? key,
+    super.key,
     required this.child,
     required this.onRefresh,
     this.minRefreshInterval = const Duration(seconds: 5),
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   State<SmartRefreshIndicator> createState() => _SmartRefreshIndicatorState();
@@ -367,7 +367,7 @@ class OptimizedListTile extends StatelessWidget {
   final bool dense;
 
   const OptimizedListTile({
-    Key? key,
+    super.key,
     this.leading,
     this.title,
     this.subtitle,
@@ -375,7 +375,7 @@ class OptimizedListTile extends StatelessWidget {
     this.onTap,
     this.contentPadding,
     this.dense = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

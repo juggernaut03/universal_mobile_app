@@ -13,12 +13,12 @@ class BackButtonWrapper extends ConsumerWidget {
   final Duration exitConfirmTime;
 
   const BackButtonWrapper({
-    Key? key,
+    super.key,
     required this.child,
     this.alternateRoute,
     this.customExitMessage,
     this.exitConfirmTime = const Duration(seconds: 2),
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

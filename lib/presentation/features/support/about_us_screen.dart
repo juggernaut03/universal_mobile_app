@@ -12,7 +12,7 @@ import '../../../di/infrastructure_providers.dart';
 
 
 class AboutUsScreen extends ConsumerWidget {
-  const AboutUsScreen({Key? key}) : super(key: key);
+  const AboutUsScreen({super.key});
 
   // Custom back navigation handler
   Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {

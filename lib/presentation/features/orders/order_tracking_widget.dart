@@ -10,12 +10,12 @@ class OrderTrackingWidget extends StatelessWidget {
   final VoidCallback onViewOrderTap;
 
   const OrderTrackingWidget({
-    Key? key,
+    super.key,
     required this.orderId,
     required this.title,
     required this.imageUrl,
     required this.onViewOrderTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

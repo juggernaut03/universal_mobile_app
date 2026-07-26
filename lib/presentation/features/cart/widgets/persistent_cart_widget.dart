@@ -11,7 +11,7 @@ Color get _offerGreen => AppColors.secondary;
 Color get _offerGreenBorder => AppColors.secondaryLight;
 
 class PersistentCartWidget extends ConsumerStatefulWidget {
-  const PersistentCartWidget({Key? key}) : super(key: key);
+  const PersistentCartWidget({super.key});
 
   @override
   ConsumerState<PersistentCartWidget> createState() => _PersistentCartWidgetState();

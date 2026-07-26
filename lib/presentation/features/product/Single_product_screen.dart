@@ -23,10 +23,10 @@ class SingleProductScreen extends ConsumerStatefulWidget {
   final String storeCode;
   
   const SingleProductScreen({
-    Key? key,
+    super.key,
     required this.pCode,
     required this.storeCode,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<SingleProductScreen> createState() => _SingleProductScreenState();
@@ -695,7 +695,7 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
                         ],
                       ),
                       child: Text(
-                        "${discountPercent}% OFF",
+                        "$discountPercent% OFF",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,

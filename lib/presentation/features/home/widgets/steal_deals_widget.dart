@@ -6,7 +6,7 @@ import 'single_offer_section_widget.dart';
 /// Renders all offers as separate sections.
 /// Used by cart screen to show all offers in one block.
 class StealDealsWidget extends ConsumerWidget {
-  const StealDealsWidget({Key? key}) : super(key: key);
+  const StealDealsWidget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

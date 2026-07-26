@@ -23,7 +23,7 @@ class HomeCategoriesWidget extends ConsumerWidget {
   final bool showError;
 
   const HomeCategoriesWidget({
-    Key? key,
+    super.key,
     this.sections = const [
       SectionData(title: 'Bite Into Biscuits', keywords: ['biscuit', 'cookie', 'bakery' , 'ghee','Grocery ' , 'staples']),
       SectionData(title: 'Munch On Snacks', keywords: ['beverages', 'bakery', 'food', 'biscuit', 'cookie', ]),
@@ -34,7 +34,7 @@ class HomeCategoriesWidget extends ConsumerWidget {
     this.onDepartmentTap,
     this.showShimmerLoading = true,
     this.showError = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

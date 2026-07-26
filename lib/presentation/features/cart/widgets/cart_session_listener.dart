@@ -13,9 +13,9 @@ class CartSessionListener extends ConsumerStatefulWidget {
   final Widget child;
 
   const CartSessionListener({
-    Key? key,
+    super.key,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<CartSessionListener> createState() => _CartSessionListenerState();

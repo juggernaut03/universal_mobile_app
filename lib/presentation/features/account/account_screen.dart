@@ -13,7 +13,7 @@ import '../../../di/auth_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 
 class AccountScreen extends ConsumerStatefulWidget {
-  const AccountScreen({Key? key}) : super(key: key);
+  const AccountScreen({super.key});
 
   @override
   ConsumerState<AccountScreen> createState() => _AccountScreenState();

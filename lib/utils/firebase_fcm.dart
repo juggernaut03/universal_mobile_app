@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/features/home/home_screen.dart';
 import 'package:patelmart/presentation/routes/route_names.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 class FirebaseApi {
   final firebaseMessaging = FirebaseMessaging.instance;
@@ -22,16 +23,16 @@ class FirebaseApi {
 
   static Future<void> handleMessage(RemoteMessage? message) async {
     if (message == null) {
-     print("No message data received");
+     if (kDebugMode) print("No message data received");
       return;
     }
 
-   print("Handling message with data: ${message.data}");
+   if (kDebugMode) print("Handling message with data: ${message.data}");
 
     // Extract URL from message data
     final String? url = message.data["url"];
     if (url == null) {
-     print("No URL in message data");
+     if (kDebugMode) print("No URL in message data");
       return;
     }
 
@@ -44,10 +45,10 @@ class FirebaseApi {
   }
 
   static Future<void> handleBgMsg(RemoteMessage message) async {
-   print("Handling a background message: ${message.messageId}");
-   print("Message title: ${message.notification?.title}");
-   print("Message body: ${message.notification?.body}");
-   print("Message data: ${message.data}");
+   if (kDebugMode) print("Handling a background message: ${message.messageId}");
+   if (kDebugMode) print("Message title: ${message.notification?.title}");
+   if (kDebugMode) print("Message body: ${message.notification?.body}");
+   if (kDebugMode) print("Message data: ${message.data}");
   }
 
   Future<void> initPushNotification() async {
@@ -123,11 +124,11 @@ class FirebaseApi {
       provisional: false,
       sound: true,
     );
-   print(
+   if (kDebugMode) print(
       'User granted permission: ${settings.authorizationStatus}',
     );
     final fcmToken = await firebaseMessaging.getToken();
-  print("Token $fcmToken");
+  if (kDebugMode) print("Token $fcmToken");
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString("fcmToken", fcmToken!);
     initPushNotification();
@@ -156,7 +157,7 @@ void onDidReceiveBackgroundNotificationResponse(NotificationResponse details) {
         RemoteMessage.fromMap(jsonDecode(details.payload!)),
       );
     } catch (e) {
-      print(
+      if (kDebugMode) print(
         "Error processing background notification response: $e",
       );
     }

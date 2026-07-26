@@ -18,7 +18,7 @@ import '../../../domain/entities/delivery_location.dart';
 import '../../../di/infrastructure_providers.dart';
 
 class PincodeSelectionScreen extends ConsumerStatefulWidget {
-  const PincodeSelectionScreen({Key? key}) : super(key: key);
+  const PincodeSelectionScreen({super.key});
 
   @override
   ConsumerState<PincodeSelectionScreen> createState() => _PincodeSelectionScreenState();

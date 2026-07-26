@@ -17,7 +17,7 @@ import '../../providers/category_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
-  const CategoryScreen({Key? key}) : super(key: key);
+  const CategoryScreen({super.key});
 
   @override
   ConsumerState<CategoryScreen> createState() => _CategoryScreenState();

@@ -20,9 +20,9 @@ class BestSellerScreen extends ConsumerStatefulWidget {
   final int bestSellerId;
   
   const BestSellerScreen({
-    Key? key, 
+    super.key, 
     required this.bestSellerId,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<BestSellerScreen> createState() => _BestSellerScreenState();

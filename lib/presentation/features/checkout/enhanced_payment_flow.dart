@@ -20,6 +20,7 @@ import '../../../facebook_pixel/facebook_pixel_integration.dart';
 import '../../../di/service_providers.dart';
 import '../../../di/auth_providers.dart';
 import '../../../di/infrastructure_providers.dart';
+import 'package:flutter/foundation.dart';
 
 /// Enhanced Payment Processing Flow that follows the exact requirements:
 /// 1. On "Place Order" click → Call payment processing API → Database entry with status "Payment Processing"
@@ -95,13 +96,13 @@ class EnhancedPaymentFlow {
         logger.log('Order ID: ${paymentProcessingResult.orderId ?? "Generated"}');
         logger.log('Database Record Status: Payment Processing');
         
-        print('\n✅ === DATABASE ENTRY SUCCESSFUL === ✅');
-        print('Order ID: ${paymentProcessingResult.orderId ?? "Generated"}');
-        print('Database Status: Payment Processing');
-        print('Customer: ${deliveryAddress.fullName}');
-        print('Amount: ₹${finalAmount.toStringAsFixed(2)}');
-        print('Payment Mode: $paymentMode');
-        print('✅ === READY FOR PAYMENT === ✅\n');
+        if (kDebugMode) print('\n✅ === DATABASE ENTRY SUCCESSFUL === ✅');
+        if (kDebugMode) print('Order ID: ${paymentProcessingResult.orderId ?? "Generated"}');
+        if (kDebugMode) print('Database Status: Payment Processing');
+        if (kDebugMode) print('Customer: ${deliveryAddress.fullName}');
+        if (kDebugMode) print('Amount: ₹${finalAmount.toStringAsFixed(2)}');
+        if (kDebugMode) print('Payment Mode: $paymentMode');
+        if (kDebugMode) print('✅ === READY FOR PAYMENT === ✅\n');
         
         return true;
       } else {
@@ -169,13 +170,13 @@ class EnhancedPaymentFlow {
       // Set UI status to show payment is being processed
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.processingPayment;
       
-      print('\n💳 === INITIATING ONLINE PAYMENT === 💳');
-      print('Amount: ₹${amount.toStringAsFixed(2)}');
-      print('Customer: ${deliveryAddress.fullName}');
-      print('Phone: ${deliveryAddress.mobileNumber}');
-      print('Email: ${deliveryAddress.emailId}');
-      print('Environment: LIVE');
-      print('💳 === OPENING RAZORPAY === 💳\n');
+      if (kDebugMode) print('\n💳 === INITIATING ONLINE PAYMENT === 💳');
+      if (kDebugMode) print('Amount: ₹${amount.toStringAsFixed(2)}');
+      if (kDebugMode) print('Customer: ${deliveryAddress.fullName}');
+      if (kDebugMode) print('Phone: ${deliveryAddress.mobileNumber}');
+      if (kDebugMode) print('Email: ${deliveryAddress.emailId}');
+      if (kDebugMode) print('Environment: LIVE');
+      if (kDebugMode) print('💳 === OPENING RAZORPAY === 💳\n');
       
       // Initialize payment service
       final paymentService = ref.read(paymentServiceProvider);
@@ -199,23 +200,23 @@ class EnhancedPaymentFlow {
         logger.log('Transaction Status: ${paymentResult.status}');
         logger.log('Payment Method: ${paymentResult.method}');
         
-        print('\n💳 === PAYMENT SUCCESSFUL === 💳');
-        print('Payment ID: ${paymentResult.paymentId}');
-        print('Status: ${paymentResult.status}');
-        print('Method: ${paymentResult.method}');
-        print('Amount: ₹${paymentResult.amount?.toStringAsFixed(2)}');
-        print('💳 === READY FOR ORDER UPDATE === 💳\n');
+        if (kDebugMode) print('\n💳 === PAYMENT SUCCESSFUL === 💳');
+        if (kDebugMode) print('Payment ID: ${paymentResult.paymentId}');
+        if (kDebugMode) print('Status: ${paymentResult.status}');
+        if (kDebugMode) print('Method: ${paymentResult.method}');
+        if (kDebugMode) print('Amount: ₹${paymentResult.amount?.toStringAsFixed(2)}');
+        if (kDebugMode) print('💳 === READY FOR ORDER UPDATE === 💳\n');
         
         return paymentResult;
       } else {
         logger.error('❌ PAYMENT FAILED');
         logger.error('Error: ${paymentResult.message}');
         
-        print('\n❌ === PAYMENT FAILED === ❌');
-        print('Payment Error: ${paymentResult.message}');
-        print('Error Code: ${paymentResult.error}');
-        print('Still proceeding to update database with failure status');
-        print('❌ === CONTINUING TO ORDER UPDATE === ❌\n');
+        if (kDebugMode) print('\n❌ === PAYMENT FAILED === ❌');
+        if (kDebugMode) print('Payment Error: ${paymentResult.message}');
+        if (kDebugMode) print('Error Code: ${paymentResult.error}');
+        if (kDebugMode) print('Still proceeding to update database with failure status');
+        if (kDebugMode) print('❌ === CONTINUING TO ORDER UPDATE === ❌\n');
         
         // Return the failed payment result to update database with failure
         return paymentResult;
@@ -224,9 +225,9 @@ class EnhancedPaymentFlow {
       final logger = ref.read(loggerProvider);
       logger.error('❌ PAYMENT PROCESSING EXCEPTION: $e');
       
-      print('\n💥 === PAYMENT PROCESSING ERROR === 💥');
-      print('Error: $e');
-      print('💥 === END ERROR === 💥\n');
+      if (kDebugMode) print('\n💥 === PAYMENT PROCESSING ERROR === 💥');
+      if (kDebugMode) print('Error: $e');
+      if (kDebugMode) print('💥 === END ERROR === 💥\n');
       
       // Return a failed payment result
       return PaymentResult(
@@ -295,14 +296,14 @@ class EnhancedPaymentFlow {
       // Set UI status to show order is being confirmed
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.confirmingOrder;
       
-      print('\n📋 === UPDATING ORDER WITH PAYMENT DETAILS === 📋');
-      print('Temp Order ID: $tempOrderId');
-      print('Payment Success: ${paymentResult?.success ?? false}');
-      print('Expected Order Status: $expectedOrderStatus');
-      print('Expected Payment Status: $expectedPaymentStatus');
-      print('Transaction ID: ${paymentResult?.paymentId ?? "None"}');
-      print('Status Update: Payment Processing → $expectedOrderStatus');
-      print('📋 === CALLING ORDER CONFIRMATION API === 📋\n');
+      if (kDebugMode) print('\n📋 === UPDATING ORDER WITH PAYMENT DETAILS === 📋');
+      if (kDebugMode) print('Temp Order ID: $tempOrderId');
+      if (kDebugMode) print('Payment Success: ${paymentResult?.success ?? false}');
+      if (kDebugMode) print('Expected Order Status: $expectedOrderStatus');
+      if (kDebugMode) print('Expected Payment Status: $expectedPaymentStatus');
+      if (kDebugMode) print('Transaction ID: ${paymentResult?.paymentId ?? "None"}');
+      if (kDebugMode) print('Status Update: Payment Processing → $expectedOrderStatus');
+      if (kDebugMode) print('📋 === CALLING ORDER CONFIRMATION API === 📋\n');
       
       // Call order confirmation service to update the database
       // UPDATED to match your OrderService implementation
@@ -360,13 +361,13 @@ class EnhancedPaymentFlow {
           // Track successful purchase with Facebook Pixel
           _trackSuccessfulPurchase(ref, orderResult.orderId ?? 'unknown', cartItems, finalAmount);
           
-          print('\n🎉 === ORDER SUCCESSFULLY COMPLETED === 🎉');
-          print('Order ID: ${orderResult.orderId}');
-          print('Database Status: Order Confirmed');
-          print('Payment Status: Payment Confirmed');
-          print('Transaction ID: ${paymentResult.paymentId}');
-          print('Payment Processing → Order Confirmed ✅');
-          print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
+          if (kDebugMode) print('\n🎉 === ORDER SUCCESSFULLY COMPLETED === 🎉');
+          if (kDebugMode) print('Order ID: ${orderResult.orderId}');
+          if (kDebugMode) print('Database Status: Order Confirmed');
+          if (kDebugMode) print('Payment Status: Payment Confirmed');
+          if (kDebugMode) print('Transaction ID: ${paymentResult.paymentId}');
+          if (kDebugMode) print('Payment Processing → Order Confirmed ✅');
+          if (kDebugMode) print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
           
           return true;
           
@@ -380,12 +381,12 @@ class EnhancedPaymentFlow {
           logger.log('Database Status: Order Confirmed');
           logger.log('Payment Status: Pending');
           
-          print('\n🎉 === COD ORDER SUCCESSFULLY COMPLETED === 🎉');
-          print('Order ID: ${orderResult.orderId}');
-          print('Database Status: Order Confirmed');
-          print('Payment Status: Pending');
-          print('Payment Processing → Order Confirmed ✅');
-          print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
+          if (kDebugMode) print('\n🎉 === COD ORDER SUCCESSFULLY COMPLETED === 🎉');
+          if (kDebugMode) print('Order ID: ${orderResult.orderId}');
+          if (kDebugMode) print('Database Status: Order Confirmed');
+          if (kDebugMode) print('Payment Status: Pending');
+          if (kDebugMode) print('Payment Processing → Order Confirmed ✅');
+          if (kDebugMode) print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
           
           return true;
           
@@ -400,13 +401,13 @@ class EnhancedPaymentFlow {
           logger.log('Database Status: Payment Failed');
           logger.log('Payment Status: Payment Failed');
           
-          print('\n❌ === PAYMENT FAILED BUT DATABASE UPDATED === ❌');
-          print('Order ID: ${orderResult.orderId}');
-          print('Database Status: Payment Failed');
-          print('Payment Status: Payment Failed');
-          print('Payment Processing → Payment Failed ✅');
-          print('Database Updated: ✅');
-          print('❌ === ORDER MARKED AS FAILED === ❌\n');
+          if (kDebugMode) print('\n❌ === PAYMENT FAILED BUT DATABASE UPDATED === ❌');
+          if (kDebugMode) print('Order ID: ${orderResult.orderId}');
+          if (kDebugMode) print('Database Status: Payment Failed');
+          if (kDebugMode) print('Payment Status: Payment Failed');
+          if (kDebugMode) print('Payment Processing → Payment Failed ✅');
+          if (kDebugMode) print('Database Updated: ✅');
+          if (kDebugMode) print('❌ === ORDER MARKED AS FAILED === ❌\n');
           
           return false;
         }
@@ -448,10 +449,10 @@ class EnhancedPaymentFlow {
         ref.read(orderErrorMessageProvider.notifier).state = 
           'Failed to confirm order: ${orderResult.message}';
         
-        print('\n❌ === ORDER CONFIRMATION API FAILED === ❌');
-        print('Error: ${orderResult.message}');
-        print('Database Status: Payment Processing (may be unchanged)');
-        print('❌ === ORDER FLOW FAILED === ❌\n');
+        if (kDebugMode) print('\n❌ === ORDER CONFIRMATION API FAILED === ❌');
+        if (kDebugMode) print('Error: ${orderResult.message}');
+        if (kDebugMode) print('Database Status: Payment Processing (may be unchanged)');
+        if (kDebugMode) print('❌ === ORDER FLOW FAILED === ❌\n');
         
         return false;
       }
@@ -467,9 +468,9 @@ class EnhancedPaymentFlow {
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
       ref.read(orderErrorMessageProvider.notifier).state = 'Order confirmation error: $e';
       
-      print('\n💥 === ORDER CONFIRMATION ERROR === 💥');
-      print('Error: $e');
-      print('💥 === END ERROR === 💥\n');
+      if (kDebugMode) print('\n💥 === ORDER CONFIRMATION ERROR === 💥');
+      if (kDebugMode) print('Error: $e');
+      if (kDebugMode) print('💥 === END ERROR === 💥\n');
       
       return false;
     }
@@ -567,18 +568,18 @@ class EnhancedPaymentFlow {
           ? "Home Delivery" : "Self Pickup";
       final paymentMode = selectedPaymentMethod.paymentModeName;
       
-      print('\n🚀 === PAYMENT FLOW OVERVIEW === 🚀');
-      print('Step 1: Create database entry with status "Payment Processing"');
-      print('Step 2: Process payment (if online)');
-      print('Step 3: Update database with payment details and final status');
-      print('');
-      print('Order Details:');
-      print('- Temp Order ID: $tempOrderId');
-      print('- Amount: ₹${finalAmount.toStringAsFixed(2)}');
-      print('- Payment: $paymentMode');
-      print('- Delivery: $deliveryMode');
-      print('- Customer: ${deliveryAddress.fullName}');
-      print('🚀 === STARTING EXECUTION === 🚀\n');
+      if (kDebugMode) print('\n🚀 === PAYMENT FLOW OVERVIEW === 🚀');
+      if (kDebugMode) print('Step 1: Create database entry with status "Payment Processing"');
+      if (kDebugMode) print('Step 2: Process payment (if online)');
+      if (kDebugMode) print('Step 3: Update database with payment details and final status');
+      if (kDebugMode) print('');
+      if (kDebugMode) print('Order Details:');
+      if (kDebugMode) print('- Temp Order ID: $tempOrderId');
+      if (kDebugMode) print('- Amount: ₹${finalAmount.toStringAsFixed(2)}');
+      if (kDebugMode) print('- Payment: $paymentMode');
+      if (kDebugMode) print('- Delivery: $deliveryMode');
+      if (kDebugMode) print('- Customer: ${deliveryAddress.fullName}');
+      if (kDebugMode) print('🚀 === STARTING EXECUTION === 🚀\n');
       
       // STEP 1: Mark order as Payment Processing (creates database entry)
       final step1Success = await markOrderAsPaymentProcessing(

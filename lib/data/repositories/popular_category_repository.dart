@@ -35,14 +35,14 @@ class PopularCategoryRepository {
       // Check if cache should be cleared (2 AM daily)
       await _checkAndClearCacheIfNeeded();
       
-      final cacheKey = '${_categoryCacheKeyPrefix}${sectionId}_${departmentId}_$storeCode';
+      final cacheKey = '$_categoryCacheKeyPrefix${sectionId}_${departmentId}_$storeCode';
       
       final prefs = await SharedPreferences.getInstance();
       
       // Skip cache check if forceRefresh is true - always fetch from API
       if (!forceRefresh) {
         final cachedData = prefs.getString(cacheKey);
-        final cachedTimestamp = prefs.getInt('${_timestampKeyPrefix}$cacheKey') ?? 0;
+        final cachedTimestamp = prefs.getInt('$_timestampKeyPrefix$cacheKey') ?? 0;
         final currentTime = DateTime.now().millisecondsSinceEpoch;
         
         // Check if cache is valid (not older than cache duration)
@@ -77,7 +77,7 @@ class PopularCategoryRepository {
       if (categoryResponse.categoriesDetails.isNotEmpty) {
         // Cache the response (legacy shape so cached reads keep working)
         await prefs.setString(cacheKey, jsonEncode(legacyJson));
-        await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
+        await prefs.setInt('$_timestampKeyPrefix$cacheKey', currentTime);
 
         // Pre-cache category images for better user experience
         _preCacheCategoryImages(categoryResponse.categoriesDetails);
@@ -89,7 +89,7 @@ class PopularCategoryRepository {
       
       // Try to get data from cache even if it's expired
       final prefs = await SharedPreferences.getInstance();
-      final cacheKey = '${_categoryCacheKeyPrefix}${sectionId}_${departmentId}_$storeCode';
+      final cacheKey = '$_categoryCacheKeyPrefix${sectionId}_${departmentId}_$storeCode';
       final cachedData = prefs.getString(cacheKey);
       
       if (cachedData != null) {

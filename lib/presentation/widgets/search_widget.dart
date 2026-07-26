@@ -19,13 +19,13 @@ class SearchWidget extends ConsumerStatefulWidget {
   final bool enabled;
 
   const SearchWidget({
-    Key? key,
+    super.key,
     this.onSearch,
     this.controller,
     this.showSuggestions = true,
     this.hintText = 'Search for products',
     this.enabled = true,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<SearchWidget> createState() => _SearchWidgetState();

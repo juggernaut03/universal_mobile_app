@@ -11,13 +11,13 @@ class SectionHeaderWidget extends StatelessWidget {
   final ValueChanged<bool>? onToggle; // Changed from VoidCallback to ValueChanged<bool>
 
   const SectionHeaderWidget({
-    Key? key,
+    super.key,
     required this.title,
     this.trailing,
     required this.isExpanded,
     this.backgroundColor,
     this.onToggle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -13,9 +13,9 @@ class OutletStatusBanner extends ConsumerWidget {
   final bool showOnlyIfUnavailable;
 
   const OutletStatusBanner({
-    Key? key,
+    super.key,
     this.showOnlyIfUnavailable = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

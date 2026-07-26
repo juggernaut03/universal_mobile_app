@@ -10,13 +10,13 @@ class CategorySection extends StatelessWidget {
   final double spacing;
 
   const CategorySection({
-    Key? key,
+    super.key,
     required this.title,
     required this.items,
     this.onViewAllTap,
     this.padding = const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
     this.spacing = 8.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

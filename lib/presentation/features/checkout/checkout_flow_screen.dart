@@ -34,6 +34,7 @@ import '../../../di/service_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../../di/auth_providers.dart';
 import '../../../domain/entities/auth_session.dart';
+import 'package:flutter/foundation.dart';
 
 // Checkout step enum to track progress
 enum CheckoutStep {
@@ -133,9 +134,9 @@ class CheckoutData {
 // Main checkout flow screen that handles all steps
 class CheckoutFlowScreen extends ConsumerStatefulWidget {
   const CheckoutFlowScreen({
-    Key? key,
+    super.key,
     this.initialStep = CheckoutStep.delivery,
-  }) : super(key: key);
+  });
 
   final CheckoutStep initialStep;
 
@@ -970,11 +971,11 @@ class DeliveryMethodStep extends ConsumerStatefulWidget {
   final VoidCallback? onSelfPickupSelected;
 
   const DeliveryMethodStep({
-    Key? key,
+    super.key,
     required this.checkoutData,
     required this.onContinue,
     this.onSelfPickupSelected,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<DeliveryMethodStep> createState() => _DeliveryMethodStepState();
@@ -1449,10 +1450,10 @@ class DeliveryAddressStep extends ConsumerStatefulWidget {
   final VoidCallback onContinue;
 
   const DeliveryAddressStep({
-    Key? key,
+    super.key,
     required this.checkoutData,
     required this.onContinue,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<DeliveryAddressStep> createState() => _DeliveryAddressStepState();
@@ -2127,10 +2128,10 @@ class DeliveryTimeStep extends ConsumerStatefulWidget {
   final VoidCallback onContinue;
 
   const DeliveryTimeStep({
-    Key? key,
+    super.key,
     required this.checkoutData,
     required this.onContinue,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<DeliveryTimeStep> createState() => _DeliveryTimeStepState();
@@ -2140,7 +2141,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
   DateTime? _selectedDate;
   DeliverySlot? _selectedSlot;
   List<DateTime> _availableDates = [];
-  Map<String, List<DeliverySlot>> _timeSlots = {};
+  final Map<String, List<DeliverySlot>> _timeSlots = {};
   bool _isLoadingSlots = false;
   bool _isLoadingDates = true;
 
@@ -2842,9 +2843,9 @@ class PaymentStep extends ConsumerStatefulWidget {
   final CheckoutData checkoutData;
 
   const PaymentStep({
-    Key? key,
+    super.key,
     required this.checkoutData,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<PaymentStep> createState() => _PaymentStepState();
@@ -2855,7 +2856,7 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
   final TextEditingController _instructionsController = TextEditingController();
   final TextEditingController _pickupNameController = TextEditingController();
   bool _isPlacingOrder = false;
-  bool _showSuccessDialog = false;
+  final bool _showSuccessDialog = false;
 
   @override
   void initState() {
@@ -3212,13 +3213,13 @@ Future<void> _placeOrder() async {
     
     await enhancedCartValidator.markOrderAsPaymentProcessing(tempOrderId);
     
-    print('\n🔄 === STEP 1: CREATING DATABASE ENTRY === 🔄');
-    print('Temp Order ID: $tempOrderId');
-    print('Payment Mode: $paymentMode');
-    print('Amount: ₹${finalAmount.toStringAsFixed(2)}');
-    print('Customer: ${deliveryAddress.fullName}');
-    print('Database Status: Payment Processing');
-    print('🔄 === CALLING PAYMENT PROCESSING API === 🔄\n');
+    if (kDebugMode) print('\n🔄 === STEP 1: CREATING DATABASE ENTRY === 🔄');
+    if (kDebugMode) print('Temp Order ID: $tempOrderId');
+    if (kDebugMode) print('Payment Mode: $paymentMode');
+    if (kDebugMode) print('Amount: ₹${finalAmount.toStringAsFixed(2)}');
+    if (kDebugMode) print('Customer: ${deliveryAddress.fullName}');
+    if (kDebugMode) print('Database Status: Payment Processing');
+    if (kDebugMode) print('🔄 === CALLING PAYMENT PROCESSING API === 🔄\n');
     
     // Call the order payment processing API to create database entry
     final paymentProcessingService = ref.read(orderPaymentProcessingServiceProvider);
@@ -3266,10 +3267,10 @@ Future<void> _placeOrder() async {
     logger.log('Order ID: ${paymentProcessingResult.orderId ?? "Generated"}');
     logger.log('Database Status: Payment Processing');
     
-    print('\n✅ === STEP 1 COMPLETED: DATABASE ENTRY CREATED === ✅');
-    print('Order ID: ${paymentProcessingResult.orderId ?? "Generated"}');
-    print('Database Status: Payment Processing');
-    print('✅ === PROCEEDING TO PAYMENT === ✅\n');
+    if (kDebugMode) print('\n✅ === STEP 1 COMPLETED: DATABASE ENTRY CREATED === ✅');
+    if (kDebugMode) print('Order ID: ${paymentProcessingResult.orderId ?? "Generated"}');
+    if (kDebugMode) print('Database Status: Payment Processing');
+    if (kDebugMode) print('✅ === PROCEEDING TO PAYMENT === ✅\n');
     
     String? transactionId;
     PaymentResult? paymentResult;
@@ -3282,12 +3283,12 @@ Future<void> _placeOrder() async {
       logger.log('Payment Method: ${_selectedPaymentMethod!.displayName}');
       logger.log('Final Amount: ₹${finalAmount.toStringAsFixed(2)}');
       
-      print('\n💳 === STEP 2: INITIATING ONLINE PAYMENT === 💳');
-      print('Amount: ₹${finalAmount.toStringAsFixed(2)}');
-      print('Customer: ${deliveryAddress.fullName}');
-      print('Phone: ${deliveryAddress.mobileNumber}');
-      print('Email: ${deliveryAddress.emailId}');
-      print('💳 === OPENING RAZORPAY CHECKOUT === 💳\n');
+      if (kDebugMode) print('\n💳 === STEP 2: INITIATING ONLINE PAYMENT === 💳');
+      if (kDebugMode) print('Amount: ₹${finalAmount.toStringAsFixed(2)}');
+      if (kDebugMode) print('Customer: ${deliveryAddress.fullName}');
+      if (kDebugMode) print('Phone: ${deliveryAddress.mobileNumber}');
+      if (kDebugMode) print('Email: ${deliveryAddress.emailId}');
+      if (kDebugMode) print('💳 === OPENING RAZORPAY CHECKOUT === 💳\n');
       
       // Initialize payment service
       final paymentService = ref.read(paymentServiceProvider);
@@ -3315,23 +3316,23 @@ Future<void> _placeOrder() async {
       if (paymentResult.success) {
         transactionId = paymentResult.paymentId;
         
-        print('\n💳 === STEP 2: PAYMENT SUCCESSFUL === 💳');
-        print('Payment ID: ${paymentResult.paymentId}');
-        print('Status: ${paymentResult.status}');
-        print('Method: ${paymentResult.method}');
-        print('💳 === PROCEEDING TO ORDER CONFIRMATION === 💳\n');
+        if (kDebugMode) print('\n💳 === STEP 2: PAYMENT SUCCESSFUL === 💳');
+        if (kDebugMode) print('Payment ID: ${paymentResult.paymentId}');
+        if (kDebugMode) print('Status: ${paymentResult.status}');
+        if (kDebugMode) print('Method: ${paymentResult.method}');
+        if (kDebugMode) print('💳 === PROCEEDING TO ORDER CONFIRMATION === 💳\n');
       } else {
         // Payment failed - but continue to Step 3 to update database with failure
         logger.log('❌ PAYMENT FAILED - CONTINUING TO UPDATE DATABASE WITH FAILURE STATUS');
         logger.log('Payment Error: ${paymentResult.message}');
         logger.log('Will update order status to "Payment Failed"');
         
-        print('\n❌ === STEP 2: PAYMENT FAILED === ❌');
-        print('Payment Error: ${paymentResult.message}');
-        print('Error Code: ${paymentResult.error}');
-        print('Still proceeding to update database with failure status');
-        print('Database will be updated: Payment Processing → Payment Failed');
-        print('❌ === CONTINUING TO ORDER UPDATE === ❌\n');
+        if (kDebugMode) print('\n❌ === STEP 2: PAYMENT FAILED === ❌');
+        if (kDebugMode) print('Payment Error: ${paymentResult.message}');
+        if (kDebugMode) print('Error Code: ${paymentResult.error}');
+        if (kDebugMode) print('Still proceeding to update database with failure status');
+        if (kDebugMode) print('Database will be updated: Payment Processing → Payment Failed');
+        if (kDebugMode) print('❌ === CONTINUING TO ORDER UPDATE === ❌\n');
         
         // Continue to Step 3 with failed payment result
         // transactionId remains null for failed payments
@@ -3350,11 +3351,11 @@ Future<void> _placeOrder() async {
         },
       );
       
-      print('\n💰 === STEP 2: CASH ON DELIVERY === 💰');
-      print('Payment Method: Cash on Delivery');
-      print('No online payment required');
-      print('Database will be updated: Payment Processing → Order Confirmed');
-      print('💰 === PROCEEDING TO ORDER CONFIRMATION === 💰\n');
+      if (kDebugMode) print('\n💰 === STEP 2: CASH ON DELIVERY === 💰');
+      if (kDebugMode) print('Payment Method: Cash on Delivery');
+      if (kDebugMode) print('No online payment required');
+      if (kDebugMode) print('Database will be updated: Payment Processing → Order Confirmed');
+      if (kDebugMode) print('💰 === PROCEEDING TO ORDER CONFIRMATION === 💰\n');
     }
     
     // STEP 3: Update order with proper status based on payment result (ALWAYS CALLED)
@@ -3382,14 +3383,14 @@ Future<void> _placeOrder() async {
       expectedPaymentStatus = "Pending";
     }
     
-    print('\n📋 === STEP 3: UPDATING ORDER WITH FINAL STATUS === 📋');
-    print('Temp Order ID: $tempOrderId');
-    print('Payment Success: ${paymentResult?.success ?? false}');
-    print('Expected Order Status: $expectedOrderStatus');
-    print('Expected Payment Status: $expectedPaymentStatus');
-    print('Transaction ID: ${transactionId ?? "None"}');
-    print('Status Update: Payment Processing → $expectedOrderStatus');
-    print('📋 === CALLING ORDER CONFIRMATION API === 📋\n');
+    if (kDebugMode) print('\n📋 === STEP 3: UPDATING ORDER WITH FINAL STATUS === 📋');
+    if (kDebugMode) print('Temp Order ID: $tempOrderId');
+    if (kDebugMode) print('Payment Success: ${paymentResult?.success ?? false}');
+    if (kDebugMode) print('Expected Order Status: $expectedOrderStatus');
+    if (kDebugMode) print('Expected Payment Status: $expectedPaymentStatus');
+    if (kDebugMode) print('Transaction ID: ${transactionId ?? "None"}');
+    if (kDebugMode) print('Status Update: Payment Processing → $expectedOrderStatus');
+    if (kDebugMode) print('📋 === CALLING ORDER CONFIRMATION API === 📋\n');
     
     // CRITICAL: Call order confirmation API with the payment result (success or failure)
     // The updated OrderService will automatically handle the status based on paymentResult
@@ -3443,13 +3444,13 @@ Future<void> _placeOrder() async {
         logger.log('Database Status: Order Confirmed');
         logger.log('Payment Status: Payment Confirmed');
 
-        print('\n🎉 === ORDER SUCCESSFULLY COMPLETED === 🎉');
-        print('Order ID: ${orderResult.orderId}');
-        print('Database Status: Order Confirmed');
-        print('Payment Status: Payment Confirmed');
-        print('Transaction ID: $transactionId');
-        print('Payment Processing → Order Confirmed ✅');
-        print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
+        if (kDebugMode) print('\n🎉 === ORDER SUCCESSFULLY COMPLETED === 🎉');
+        if (kDebugMode) print('Order ID: ${orderResult.orderId}');
+        if (kDebugMode) print('Database Status: Order Confirmed');
+        if (kDebugMode) print('Payment Status: Payment Confirmed');
+        if (kDebugMode) print('Transaction ID: $transactionId');
+        if (kDebugMode) print('Payment Processing → Order Confirmed ✅');
+        if (kDebugMode) print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
 
         // Stop checkout timer on successful order completion
         ref.read(checkoutTimerProvider.notifier).stopTimer();
@@ -3472,12 +3473,12 @@ Future<void> _placeOrder() async {
         logger.log('Database Status: Order Confirmed');
         logger.log('Payment Status: Pending');
         
-        print('\n🎉 === COD ORDER SUCCESSFULLY COMPLETED === 🎉');
-        print('Order ID: ${orderResult.orderId}');
-        print('Database Status: Order Confirmed');
-        print('Payment Status: Pending');
-        print('Payment Processing → Order Confirmed ✅');
-        print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
+        if (kDebugMode) print('\n🎉 === COD ORDER SUCCESSFULLY COMPLETED === 🎉');
+        if (kDebugMode) print('Order ID: ${orderResult.orderId}');
+        if (kDebugMode) print('Database Status: Order Confirmed');
+        if (kDebugMode) print('Payment Status: Pending');
+        if (kDebugMode) print('Payment Processing → Order Confirmed ✅');
+        if (kDebugMode) print('🎉 === ORDER FLOW COMPLETED === 🎉\n');
 
         // Stop checkout timer on successful order completion
         ref.read(checkoutTimerProvider.notifier).stopTimer();
@@ -3501,13 +3502,13 @@ Future<void> _placeOrder() async {
         logger.log('Database Status: Payment Failed');
         logger.log('Payment Status: Payment Failed');
         
-        print('\n❌ === PAYMENT FAILED BUT DATABASE UPDATED === ❌');
-        print('Order ID: ${orderResult.orderId}');
-        print('Database Status: Payment Failed');
-        print('Payment Status: Payment Failed');
-        print('Payment Processing → Payment Failed ✅');
-        print('Database Updated: ✅');
-        print('❌ === ORDER MARKED AS FAILED === ❌\n');
+        if (kDebugMode) print('\n❌ === PAYMENT FAILED BUT DATABASE UPDATED === ❌');
+        if (kDebugMode) print('Order ID: ${orderResult.orderId}');
+        if (kDebugMode) print('Database Status: Payment Failed');
+        if (kDebugMode) print('Payment Status: Payment Failed');
+        if (kDebugMode) print('Payment Processing → Payment Failed ✅');
+        if (kDebugMode) print('Database Updated: ✅');
+        if (kDebugMode) print('❌ === ORDER MARKED AS FAILED === ❌\n');
         
         setState(() {
           _isPlacingOrder = false;
@@ -3527,10 +3528,10 @@ Future<void> _placeOrder() async {
       await enhancedCartValidator.markOrderAsFailed(tempOrderId);
       
       logger.error('❌ Order confirmation API call failed: ${orderResult.message}');
-      print('\n❌ === ORDER CONFIRMATION API FAILED === ❌');
-      print('Error: ${orderResult.message}');
-      print('Database Status: Payment Processing (may be unchanged)');
-      print('❌ === ORDER FLOW FAILED === ❌\n');
+      if (kDebugMode) print('\n❌ === ORDER CONFIRMATION API FAILED === ❌');
+      if (kDebugMode) print('Error: ${orderResult.message}');
+      if (kDebugMode) print('Database Status: Payment Processing (may be unchanged)');
+      if (kDebugMode) print('❌ === ORDER FLOW FAILED === ❌\n');
       
       _showErrorSnackBar('Order confirmation failed: ${orderResult.message}');
     }
@@ -3553,9 +3554,9 @@ Future<void> _placeOrder() async {
     final logger = ref.read(loggerProvider);
     logger.error('Unexpected error during order placement: $e');
     
-    print('\n💥 === UNEXPECTED ERROR === 💥');
-    print('Error: $e');
-    print('💥 === ORDER FLOW FAILED === 💥\n');
+    if (kDebugMode) print('\n💥 === UNEXPECTED ERROR === 💥');
+    if (kDebugMode) print('Error: $e');
+    if (kDebugMode) print('💥 === ORDER FLOW FAILED === 💥\n');
     
     _showErrorSnackBar('An unexpected error occurred. Please try again.');
   }
@@ -4256,7 +4257,7 @@ String _formatDate(DateTime date) {
                         const Divider(height: 1),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             );
           },

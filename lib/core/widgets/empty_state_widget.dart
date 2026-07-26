@@ -7,11 +7,11 @@ class EmptyStateWidget extends StatelessWidget {
   final IconData icon;
 
   const EmptyStateWidget({
-    Key? key,
+    super.key,
     required this.title,
     required this.subtitle,
     this.icon = Icons.shopping_bag_outlined,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

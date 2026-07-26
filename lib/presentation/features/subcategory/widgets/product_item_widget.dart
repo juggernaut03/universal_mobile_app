@@ -18,11 +18,11 @@ class ProductItemWidget extends ConsumerStatefulWidget {
   final VoidCallback onToggleFavorite;
 
   const ProductItemWidget({
-    Key? key,
+    super.key,
     required this.product,
     required this.onAddToCart,
     required this.onToggleFavorite,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ProductItemWidget> createState() => _ProductItemWidgetState();

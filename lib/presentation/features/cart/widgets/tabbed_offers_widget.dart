@@ -10,7 +10,7 @@ import '../../home/widgets/single_offer_section_widget.dart';
 /// Each offer becomes a tab instead of being stacked vertically.
 /// Auto-advances through tabs on a 4-second timer.
 class TabbedOffersWidget extends ConsumerStatefulWidget {
-  const TabbedOffersWidget({Key? key}) : super(key: key);
+  const TabbedOffersWidget({super.key});
 
   @override
   ConsumerState<TabbedOffersWidget> createState() => _TabbedOffersWidgetState();

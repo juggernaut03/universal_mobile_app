@@ -183,7 +183,7 @@ class _MaxQuantityInputFormatter extends TextInputFormatter {
 }
 
 class ReorderScreen extends ConsumerStatefulWidget {
-  const ReorderScreen({Key? key}) : super(key: key);
+  const ReorderScreen({super.key});
 
   @override
   ConsumerState<ReorderScreen> createState() => _ReorderScreenState();

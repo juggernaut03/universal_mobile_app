@@ -6,7 +6,7 @@ import '../../../providers/checkout_timer_provider.dart';
 
 // Main timer widget for checkout screen
 class CheckoutTimerWidget extends ConsumerWidget {
-  const CheckoutTimerWidget({Key? key}) : super(key: key);
+  const CheckoutTimerWidget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -184,7 +184,7 @@ class CheckoutTimerWidget extends ConsumerWidget {
 
 // Compact timer for app bar display
 class CheckoutTimerCompactWidget extends ConsumerWidget {
-  const CheckoutTimerCompactWidget({Key? key}) : super(key: key);
+  const CheckoutTimerCompactWidget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

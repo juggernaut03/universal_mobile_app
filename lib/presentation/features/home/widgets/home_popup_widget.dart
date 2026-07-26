@@ -8,7 +8,7 @@ import 'package:patelmart/presentation/providers/popup_providers.dart';
 import '../../../../di/infrastructure_providers.dart';
 
 class HomePopupWidget extends ConsumerStatefulWidget {
-  const HomePopupWidget({Key? key}) : super(key: key);
+  const HomePopupWidget({super.key});
 
   @override
   ConsumerState<HomePopupWidget> createState() => _HomePopupWidgetState();

@@ -9,7 +9,7 @@ import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
 
 class StoreInfoScreen extends ConsumerWidget {
-  const StoreInfoScreen({Key? key}) : super(key: key);
+  const StoreInfoScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

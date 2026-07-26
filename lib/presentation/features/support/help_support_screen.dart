@@ -62,7 +62,7 @@ class StoreDetails {
 
 
 class HelpSupportScreen extends ConsumerWidget {
-  const HelpSupportScreen({Key? key}) : super(key: key);
+  const HelpSupportScreen({super.key});
 
   // Custom back navigation handler
   Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {

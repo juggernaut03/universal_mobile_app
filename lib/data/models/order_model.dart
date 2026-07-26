@@ -5,6 +5,7 @@ import 'package:patelmart/data/models/product_model.dart';
 import 'cart_item.dart';
 import '../../domain/entities/order_status.dart';
 import '../../domain/entities/order_summary.dart';
+import 'package:flutter/foundation.dart';
 
 class Order {
   final String orderId;
@@ -93,13 +94,13 @@ class Order {
       // Convert UTC to local timezone
       DateTime localDateTime = utcDateTime.toLocal();
       
-      print('Original UTC: $dateTimeString');
-      print('Parsed UTC: $utcDateTime');
-      print('Local time: $localDateTime');
+      if (kDebugMode) print('Original UTC: $dateTimeString');
+      if (kDebugMode) print('Parsed UTC: $utcDateTime');
+      if (kDebugMode) print('Local time: $localDateTime');
       
       return localDateTime;
     } catch (e) {
-      print('Error parsing order_date_time: $e');
+      if (kDebugMode) print('Error parsing order_date_time: $e');
       return null;
     }
   }
@@ -151,7 +152,7 @@ class Order {
                 : int.tryParse(item['quantity']?.toString() ?? '') ?? 1,
           ));
         } catch (e) {
-          print('Error parsing order item: $e');
+          if (kDebugMode) print('Error parsing order item: $e');
         }
       }
     }
@@ -268,7 +269,7 @@ class Order {
 
   // Helper method to get full formatted date and time
   String get formattedOrderDateTime {
-    return '${formattedOrderDate} at ${formattedOrderTime}';
+    return '$formattedOrderDate at $formattedOrderTime';
   }
 
   // Helper method to check if order is recent (within last 24 hours)

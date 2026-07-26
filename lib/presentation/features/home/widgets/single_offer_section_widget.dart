@@ -14,8 +14,7 @@ import '../../../providers/outlet_status_provider.dart';
 class SingleOfferSectionWidget extends ConsumerWidget {
   final StealDealOffer offer;
 
-  const SingleOfferSectionWidget({Key? key, required this.offer})
-      : super(key: key);
+  const SingleOfferSectionWidget({super.key, required this.offer});
 
   Color _parseColor(String hex, Color fallback) {
     try {

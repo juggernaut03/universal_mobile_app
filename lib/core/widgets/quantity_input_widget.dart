@@ -21,7 +21,7 @@ class QuantityInputWidget extends StatefulWidget {
   final BorderRadius? borderRadius;
 
   const QuantityInputWidget({
-    Key? key,
+    super.key,
     required this.initialQuantity,
     required this.onQuantityChanged,
     required this.onDecrement,
@@ -37,7 +37,7 @@ class QuantityInputWidget extends StatefulWidget {
     this.enabled = true,
     this.showBorder = true,
     this.borderRadius,
-  }) : super(key: key);
+  });
 
   @override
   State<QuantityInputWidget> createState() => _QuantityInputWidgetState();
@@ -275,7 +275,7 @@ class AdvancedQuantityInputWidget extends StatefulWidget {
   final EdgeInsetsGeometry? padding;
 
   const AdvancedQuantityInputWidget({
-    Key? key,
+    super.key,
     required this.initialQuantity,
     required this.onQuantityChanged,
     this.onDecrement,
@@ -300,7 +300,7 @@ class AdvancedQuantityInputWidget extends StatefulWidget {
     this.decrementIcon = Icons.remove,
     this.incrementIcon = Icons.add,
     this.padding,
-  }) : super(key: key);
+  });
 
   @override
   State<AdvancedQuantityInputWidget> createState() => _AdvancedQuantityInputWidgetState();

@@ -20,7 +20,7 @@ import '../../../di/infrastructure_providers.dart';
 
 // Main Address Book Screen
 class AddressBookScreen extends ConsumerWidget {
-  const AddressBookScreen({Key? key}) : super(key: key);
+  const AddressBookScreen({super.key});
 
   // Custom back navigation handler - matches the pattern from other screens
   Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {

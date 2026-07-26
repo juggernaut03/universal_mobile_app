@@ -7,10 +7,10 @@ class BottomNavigationWidget extends StatelessWidget {
   final Function(int) onTap;
 
   const BottomNavigationWidget({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +35,7 @@ class BottomNavigationWidget extends StatelessWidget {
       // Apply the calculated padding at the bottom instead of relying on SafeArea,
       // which can sometimes fail on specific Android OEM implementations
       padding: EdgeInsets.only(bottom: effectiveBottomPadding),
-      child: Container(
+      child: SizedBox(
         height: 64, // Slightly increased from 60 for better touch targets
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,

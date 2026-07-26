@@ -17,13 +17,13 @@ class FavoriteButton extends ConsumerWidget {
   final bool showSnackbarMessages;
 
   const FavoriteButton({
-    Key? key,
+    super.key,
     required this.product,
     this.activeColor,
     this.inactiveColor,
     this.size = 24,
     this.showSnackbarMessages = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

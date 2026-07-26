@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'facebook_pixel_provider.dart';
+import 'package:flutter/foundation.dart';
 
 /// Facebook Pixel Integration
 /// Provides easy integration methods for Facebook Pixel tracking
@@ -15,9 +16,9 @@ class FacebookPixelIntegration {
       final tracking = ref.read(facebookPixelTrackingProvider);
       await tracking.trackAppLaunch();
       
-      print('✅ Facebook Pixel initialized and app launch tracked');
+      if (kDebugMode) print('✅ Facebook Pixel initialized and app launch tracked');
     } catch (e) {
-      print('❌ Facebook Pixel initialization failed: $e');
+      if (kDebugMode) print('❌ Facebook Pixel initialization failed: $e');
     }
   }
   
@@ -38,10 +39,10 @@ class FacebookPixelIntegration {
           await tracking.trackUserSignUp(userId: userId, method: method);
           break;
         default:
-          print('⚠️ Unknown auth event type: $eventType');
+          if (kDebugMode) print('⚠️ Unknown auth event type: $eventType');
       }
     } catch (e) {
-      print('❌ Failed to track auth event: $e');
+      if (kDebugMode) print('❌ Failed to track auth event: $e');
     }
   }
   
@@ -84,10 +85,10 @@ class FacebookPixelIntegration {
           );
           break;
         default:
-          print('⚠️ Unknown product event type: $eventType');
+          if (kDebugMode) print('⚠️ Unknown product event type: $eventType');
       }
     } catch (e) {
-      print('❌ Failed to track product event: $e');
+      if (kDebugMode) print('❌ Failed to track product event: $e');
     }
   }
   
@@ -121,14 +122,14 @@ class FacebookPixelIntegration {
               numItems: numItems,
             );
           } else {
-            print('⚠️ Order ID and total value required for purchase tracking');
+            if (kDebugMode) print('⚠️ Order ID and total value required for purchase tracking');
           }
           break;
         default:
-          print('⚠️ Unknown checkout event type: $eventType');
+          if (kDebugMode) print('⚠️ Unknown checkout event type: $eventType');
       }
     } catch (e) {
-      print('❌ Failed to track checkout event: $e');
+      if (kDebugMode) print('❌ Failed to track checkout event: $e');
     }
   }
   
@@ -156,10 +157,10 @@ class FacebookPixelIntegration {
           );
           break;
         default:
-          print('⚠️ Unknown discovery event type: $eventType');
+          if (kDebugMode) print('⚠️ Unknown discovery event type: $eventType');
       }
     } catch (e) {
-      print('❌ Failed to track discovery event: $e');
+      if (kDebugMode) print('❌ Failed to track discovery event: $e');
     }
   }
   
@@ -179,7 +180,7 @@ class FacebookPixelIntegration {
         currency: currency,
       );
     } catch (e) {
-      print('❌ Failed to track custom event: $e');
+      if (kDebugMode) print('❌ Failed to track custom event: $e');
     }
   }
 } 

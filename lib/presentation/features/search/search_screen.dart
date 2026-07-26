@@ -166,9 +166,9 @@ class SearchScreen extends ConsumerStatefulWidget {
   final String? initialQuery;
   
   const SearchScreen({
-    Key? key,
+    super.key,
     this.initialQuery,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -510,7 +510,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           ],
                         ),
                       ),
-                    )).toList(),
+                    )),
                   ],
                 ),
               );

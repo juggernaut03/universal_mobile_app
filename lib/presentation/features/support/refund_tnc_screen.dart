@@ -11,7 +11,7 @@ import '../../../di/infrastructure_providers.dart';
 
 
 class RefundTncScreen extends ConsumerStatefulWidget {
-  const RefundTncScreen({Key? key}) : super(key: key);
+  const RefundTncScreen({super.key});
 
   @override
   ConsumerState<RefundTncScreen> createState() => _RefundTncScreenState();

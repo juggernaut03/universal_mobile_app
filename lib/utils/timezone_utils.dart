@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 // lib/core/utils/timezone_utils.dart
 
 class TimezoneUtils {
@@ -15,15 +17,15 @@ class TimezoneUtils {
       DateTime localDateTime = utcDateTime.toLocal();
       
       // Debug logging
-      print('TimezoneUtils: UTC input: $utcDateTimeString');
-      print('TimezoneUtils: Parsed UTC: $utcDateTime');
-      print('TimezoneUtils: Local output: $localDateTime');
-      print('TimezoneUtils: Local timezone: ${localDateTime.timeZoneName}');
-      print('TimezoneUtils: Timezone offset: ${localDateTime.timeZoneOffset}');
+      if (kDebugMode) print('TimezoneUtils: UTC input: $utcDateTimeString');
+      if (kDebugMode) print('TimezoneUtils: Parsed UTC: $utcDateTime');
+      if (kDebugMode) print('TimezoneUtils: Local output: $localDateTime');
+      if (kDebugMode) print('TimezoneUtils: Local timezone: ${localDateTime.timeZoneName}');
+      if (kDebugMode) print('TimezoneUtils: Timezone offset: ${localDateTime.timeZoneOffset}');
       
       return localDateTime;
     } catch (e) {
-      print('TimezoneUtils: Error parsing datetime: $e');
+      if (kDebugMode) print('TimezoneUtils: Error parsing datetime: $e');
       return null;
     }
   }
@@ -38,19 +40,19 @@ class TimezoneUtils {
     final serverTime = parseUtcToLocal(serverTimeString);
     final currentTime = getCurrentLocalTime();
     
-    print('=== TIMEZONE DEBUG ===');
-    print('Server time (converted to local): $serverTime');
-    print('Current local time: $currentTime');
+    if (kDebugMode) print('=== TIMEZONE DEBUG ===');
+    if (kDebugMode) print('Server time (converted to local): $serverTime');
+    if (kDebugMode) print('Current local time: $currentTime');
     
     if (serverTime != null) {
       final difference = currentTime.difference(serverTime);
-      print('Time difference: ${difference.inHours} hours, ${difference.inMinutes % 60} minutes');
+      if (kDebugMode) print('Time difference: ${difference.inHours} hours, ${difference.inMinutes % 60} minutes');
       
       if (difference.inHours.abs() > 12) {
-        print('WARNING: Large time difference detected - possible timezone issue');
+        if (kDebugMode) print('WARNING: Large time difference detected - possible timezone issue');
       }
     }
-    print('=== END DEBUG ===');
+    if (kDebugMode) print('=== END DEBUG ===');
   }
   
   /// Format datetime for Indian locale (IST)

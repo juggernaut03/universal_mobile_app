@@ -196,7 +196,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   final double imageHeight;
 
   const SeasonalCategoryWidget({
-    Key? key,
+    super.key,
     this.departmentId = 2, // Default department ID from your example
     this.itemWidth = 120,
     this.itemHeight = 120,
@@ -207,7 +207,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     this.spacing = 12,
     this.enablePullToRefresh = true,
     this.imageHeight = 80,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
