@@ -19,9 +19,38 @@ import '../../domain/usecases/catalogue/get_subcategories.dart';
 // Provider to force refresh subcategories and products (ignoring cache)
 final refreshSubcategoryProvider = StateProvider<bool>((ref) => false);
 
+/// Browse context for a subcategory lookup.
+///
+/// Carries the department and store alongside the category so the backend can
+/// answer for that category alone; a bare category id forces a fetch of the
+/// tenant's entire subcategory table.
+class SubcategoryQuery {
+  final String categoryId;
+  final String deptId;
+  final String storeCode;
+
+  const SubcategoryQuery({
+    required this.categoryId,
+    required this.deptId,
+    required this.storeCode,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is SubcategoryQuery &&
+        other.categoryId == categoryId &&
+        other.deptId == deptId &&
+        other.storeCode == storeCode;
+  }
+
+  @override
+  int get hashCode => Object.hash(categoryId, deptId, storeCode);
+}
+
 // Subcategories provider with refresh capability
 final subcategoriesProvider =
-    FutureProvider.family<List<Subcategory>, String>((ref, categoryId) async {
+    FutureProvider.family<List<Subcategory>, SubcategoryQuery>((ref, query) async {
   // The refresh flag is deliberately not reset here — products still need to
   // see it before it clears.
   if (ref.watch(refreshSubcategoryProvider)) {
@@ -29,7 +58,11 @@ final subcategoriesProvider =
   }
 
   final result = await ref.watch(getSubcategoriesUseCaseProvider)(
-    GetSubcategoriesParams(categoryCode: categoryId),
+    GetSubcategoriesParams(
+      categoryCode: query.categoryId,
+      departmentCode: query.deptId,
+      storeCode: query.storeCode,
+    ),
   );
   return switch (result) {
     Ok(:final value) => value,

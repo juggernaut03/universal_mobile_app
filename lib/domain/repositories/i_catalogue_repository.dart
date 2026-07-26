@@ -19,7 +19,14 @@ abstract interface class ICatalogueRepository {
   });
 
   /// Subcategories within a category.
-  Future<Result<List<Subcategory>>> subcategories(String categoryCode);
+  ///
+  /// [departmentCode] and [storeCode] let the backend answer for this category
+  /// alone; without them the whole taxonomy has to be fetched and filtered.
+  Future<Result<List<Subcategory>>> subcategories(
+    String categoryCode, {
+    String? departmentCode,
+    String? storeCode,
+  });
 
   /// Drops cached taxonomy data.
   Future<Result<void>> clearCache();

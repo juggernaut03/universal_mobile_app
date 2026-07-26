@@ -9,7 +9,10 @@ import '../models/popular_category_models.dart';
 class PopularCategoryRepository {
   final ApiClient _apiClient;
   final Logger _logger;
-  final DefaultCacheManager _cacheManager;
+
+  /// Typed to the interface, not DefaultCacheManager: the concrete one opens a
+  /// path_provider-backed store in its constructor, which no unit test can do.
+  final BaseCacheManager _cacheManager;
 
   static const int _cacheDurationHours = 20; // Cache duration of 20 hours
   static const String _categoryCacheKeyPrefix = 'popular_category_';
@@ -34,7 +37,7 @@ class PopularCategoryRepository {
   PopularCategoryRepository({
     required ApiClient apiClient,
     Logger? logger,
-    DefaultCacheManager? cacheManager,
+    BaseCacheManager? cacheManager,
   })  : _apiClient = apiClient,
         _logger = logger ?? Logger(),
         _cacheManager = cacheManager ?? DefaultCacheManager();
@@ -50,7 +53,7 @@ class PopularCategoryRepository {
       // Check if cache should be cleared (2 AM daily)
       await _checkAndClearCacheIfNeeded();
 
-      final sections = await _loadSections(
+      final (sections, fromNetwork) = await _loadSections(
         storeCode: storeCode,
         forceRefresh: forceRefresh,
       );
@@ -58,8 +61,10 @@ class PopularCategoryRepository {
       final categoryResponse =
           PopularCategoryResponse.fromJson(_sectionToLegacyJson(sections, sectionId));
 
-      if (categoryResponse.categoriesDetails.isNotEmpty) {
-        // Pre-cache category images for better user experience
+      // Pre-cache category images for better user experience. Only worth doing
+      // for a response that just came off the wire — every downloadFile call
+      // hits the network, so running it on a cache hit would undo the saving.
+      if (fromNetwork && categoryResponse.categoriesDetails.isNotEmpty) {
         _preCacheCategoryImages(categoryResponse.categoriesDetails);
       }
 
@@ -83,9 +88,12 @@ class PopularCategoryRepository {
     }
   }
 
-  /// Returns every section for [storeCode], from memory, disk or the network —
-  /// in that order — collapsing concurrent callers onto one request.
-  Future<List<dynamic>> _loadSections({
+  /// Returns every section for [storeCode], from disk or the network — in that
+  /// order — collapsing concurrent callers onto one request.
+  ///
+  /// The second field says whether the sections came off the wire, which
+  /// callers use to decide whether image pre-caching is worth running.
+  Future<(List<dynamic>, bool)> _loadSections({
     required String storeCode,
     required bool forceRefresh,
   }) async {
@@ -94,20 +102,20 @@ class PopularCategoryRepository {
     final running = _inFlightSections;
     if (running != null && _inFlightStoreCode == storeCode) {
       _logger.log('Joining in-flight popular-categories request for $storeCode');
-      return running;
+      return (await running, true);
     }
 
     if (!forceRefresh) {
       final cached = await _readCachedSections(storeCode);
       if (cached != null) {
         _logger.log('Using cached popular category sections for $storeCode');
-        return cached;
+        return (cached, false);
       }
       // The disk read above yields; a concurrent caller may have started the
       // request while we waited on it.
       final startedWhileReading = _inFlightSections;
       if (startedWhileReading != null && _inFlightStoreCode == storeCode) {
-        return startedWhileReading;
+        return (await startedWhileReading, true);
       }
     } else {
       _logger.log('Force refresh enabled - bypassing cache for $storeCode');
@@ -117,7 +125,7 @@ class PopularCategoryRepository {
     _inFlightSections = request;
     _inFlightStoreCode = storeCode;
     try {
-      return await request;
+      return (await request, true);
     } finally {
       if (identical(_inFlightSections, request)) {
         _inFlightSections = null;

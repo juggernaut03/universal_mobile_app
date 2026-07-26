@@ -48,9 +48,17 @@ final class CatalogueRepositoryImpl implements ICatalogueRepository {
   }
 
   @override
-  Future<Result<List<domain.Subcategory>>> subcategories(String categoryCode) {
+  Future<Result<List<domain.Subcategory>>> subcategories(
+    String categoryCode, {
+    String? departmentCode,
+    String? storeCode,
+  }) {
     return guard(() async {
-      final models = await _subcategoryRepository.getSubcategories(categoryCode);
+      final models = await _subcategoryRepository.getSubcategories(
+        categoryCode,
+        departmentId: departmentCode,
+        storeCode: storeCode,
+      );
       return models.map((m) => m.toEntity()).toList(growable: false);
     });
   }
