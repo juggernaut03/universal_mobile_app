@@ -770,7 +770,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  /// Home content.
+  ///
+  /// With the feed enabled the section list and its order come from the
+  /// backend; the legacy path below is the layout the app shipped with and
+  /// stays compiled in so the rollout flag can be flipped back without a
+  /// release.
   Widget _buildScrollableContent() {
+    if (ref.watch(homeFeedEnabledProvider)) {
+      return _buildFeedContent();
+    }
+    return _buildLegacyContent();
+  }
+
+  Widget _buildFeedContent() {
+    final sections = ref.watch(homeSectionsProvider);
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          _buildOrderTracking(),
+          const SizedBox(height: 4),
+          for (final section in sections)
+            Consumer(
+              builder: (context, ref, _) =>
+                  HomeSectionRegistry.build(context, ref, section),
+            ),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegacyContent() {
     return SingleChildScrollView(
       // Performance optimization: Use cacheExtent to pre-render nearby widgets
       child: Column(
