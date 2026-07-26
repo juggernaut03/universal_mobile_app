@@ -10,9 +10,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/result/result.dart';
+import '../../data/models/home_feed_mappers.dart';
+import '../../data/models/home_feed_models.dart';
 import '../../di/promotion_providers.dart';
 import '../../domain/entities/promo_section.dart';
 import '../../domain/usecases/promotion/get_promo_section.dart';
+import 'home_feed_providers.dart';
 import 'outlet_provider.dart';
 
 /// Sections rendered on the home screen, in order.
@@ -31,6 +34,16 @@ final promoSectionProvider =
     FutureProvider.family<PromoSection, int>((ref, sectionId) async {
   final storeCode = ref.watch(selectedOutletProvider).valueOrNull?.storeCode;
   if (storeCode == null) return PromoSection.empty(sectionId);
+
+  // The home feed already carries this strip's tiles, so serve them rather
+  // than issuing a second request for content we have. Falls through to the
+  // section's own fetch when the feed is off, still loading, or does not
+  // contain this section.
+  final fromFeed = ref.watch(homeFeedProvider).valueOrNull
+      ?.bySequence(HomeSectionType.categoryGrid, sectionId);
+  if (fromFeed != null && fromFeed.items.isNotEmpty) {
+    return fromFeed.toPromoSection(sectionId);
+  }
 
   final result = await ref.watch(getPromoSectionUseCaseProvider)(
     GetPromoSectionParams(

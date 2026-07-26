@@ -3,8 +3,11 @@
 // Home-screen promotional banners. Moved out of promotional_banner_widget.dart.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/home_feed_mappers.dart';
+import '../../data/models/home_feed_models.dart';
 import '../../data/services/banner_service.dart';
 import '../../di/service_providers.dart';
+import 'home_feed_providers.dart';
 import 'outlet_provider.dart';
 
 final refreshPromotionalBannersProvider = StateProvider<bool>((ref) => false);
@@ -20,6 +23,14 @@ final promotionalBannersProvider = FutureProvider<List<PromotionalBanner>>((ref)
         return [];
       }
       
+      // Served from the home feed when it carries the hero section — one
+      // response for the whole screen instead of a call per section.
+      final fromFeed = ref.watch(homeFeedProvider).valueOrNull
+          ?.bySequence(HomeSectionType.heroCarousel, 0);
+      if (!forceRefresh && fromFeed != null && fromFeed.items.isNotEmpty) {
+        return fromFeed.toPromotionalBanners(outlet.storeCode);
+      }
+
       final bannerService = ref.read(bannerServiceProvider);
       
       // If force refresh is true, clear cache before fetching

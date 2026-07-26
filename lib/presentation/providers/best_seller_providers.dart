@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/models/best_seller_models.dart';
 import '../../../../data/models/product_model.dart';
 import '../../di/repository_providers.dart';
+import '../../data/models/home_feed_mappers.dart';
+import '../../data/models/home_feed_models.dart';
+import 'home_feed_providers.dart';
 
 // Cache manager provider
 
@@ -32,6 +35,14 @@ final bestSellerBannerProvider = FutureProvider.family<List<BestSellerBanner>, i
 
 // Provider for best seller products with family parameter for different section IDs
 final bestSellerProductsProvider = FutureProvider.family<List<ProductModel>, int>((ref, bestSellerId) async {
+  // Served from the home feed when it carries this rail; see the note on
+  // promoSectionProvider.
+  final fromFeed = ref.watch(homeFeedProvider).valueOrNull
+      ?.bySequence(HomeSectionType.productRail, bestSellerId);
+  if (fromFeed != null && fromFeed.items.isNotEmpty) {
+    return fromFeed.toProducts();
+  }
+
   final repository = ref.watch(bestSellerRepositoryProvider);
   // Subscription kept deliberately: the binding was unused but the
   // watch is what rebuilds this on change.
@@ -45,6 +56,10 @@ final bestSellerProductsProvider = FutureProvider.family<List<ProductModel>, int
 
 // NEW: Provider for best seller title with family parameter for different section IDs
 final bestSellerTitleProvider = FutureProvider.family<String, int>((ref, bestSellerId) async {
+  final fromFeed = ref.watch(homeFeedProvider).valueOrNull
+      ?.bySequence(HomeSectionType.productRail, bestSellerId);
+  if (fromFeed != null && fromFeed.title.isNotEmpty) return fromFeed.title;
+
   final repository = ref.watch(bestSellerRepositoryProvider);
   return repository.getBestSellerTitle(bestSellerId);
 });
