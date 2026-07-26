@@ -53,6 +53,9 @@ class ApiConstants {
   /// Server-defined home layout: ordered, typed sections.
   static const String homeFeed = '$baseUrl/home/feed';
 
+  /// Batched section impressions/taps. Fire-and-forget.
+  static const String homeEvents = '$baseUrl/home/events';
+
   // ---- Home content ----
   static const String banners = '$baseUrl/banners';
   static const String popularCategoriesList = '$baseUrl/popular-categories/list';

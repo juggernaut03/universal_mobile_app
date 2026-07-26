@@ -210,4 +210,86 @@ void main() {
       expect(offers.map((s) => s.sourceIndex), [0, 1, 2, 3]);
     });
   });
+
+  group('campaign metadata', () {
+    test('ends_at, audience and config survive the round trip', () async {
+      final repository = _build(MockClient((_) async => http.Response(
+            jsonEncode({
+              'success': true,
+              'schema_version': 1,
+              'data': [
+                {
+                  'id': 'flash-1',
+                  'type': HomeSectionType.flashSale,
+                  'slot': 0,
+                  'title': 'Weekend deals',
+                  'source': {'sequence': 1},
+                  'personalized': false,
+                  'ends_at': '2030-01-01T10:00:00.000Z',
+                  'audience': HomeSectionAudience.hasCart,
+                  'config': {'label': 'Ends in'},
+                  'items': const [],
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          )));
+
+      final section = (await repository.getFeed(storeCode: 'KLK')).sections.single;
+
+      expect(section.endsAt, DateTime.parse('2030-01-01T10:00:00.000Z').toLocal());
+      expect(section.audience, HomeSectionAudience.hasCart);
+      expect(section.config['label'], 'Ends in');
+    });
+
+    test('a section with no window never counts as expired', () {
+      const section = HomeSection(id: 'a', type: HomeSectionType.productRail, slot: 0);
+      expect(const HomeFeed().sectionHasExpired(section), isFalse);
+    });
+
+    test('a closed window is expired, an open one is not', () {
+      final past = HomeSection(
+        id: 'a',
+        type: HomeSectionType.flashSale,
+        slot: 0,
+        endsAt: DateTime(2020, 1, 1),
+      );
+      final future = HomeSection(
+        id: 'b',
+        type: HomeSectionType.flashSale,
+        slot: 1,
+        endsAt: DateTime(2030, 1, 1),
+      );
+
+      const feed = HomeFeed();
+      expect(feed.sectionHasExpired(past), isTrue);
+      expect(feed.sectionHasExpired(future), isFalse);
+    });
+
+    test('a cached feed does not resurrect a finished campaign', () async {
+      // The window closes between the response being cached and being read.
+      final endsAt = DateTime.now().subtract(const Duration(minutes: 1));
+      final repository = _build(MockClient((_) async => http.Response(
+            jsonEncode({
+              'success': true,
+              'data': [
+                {
+                  'id': 'flash-1',
+                  'type': HomeSectionType.flashSale,
+                  'slot': 0,
+                  'source': {'sequence': 1},
+                  'ends_at': endsAt.toUtc().toIso8601String(),
+                  'items': const [],
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          )));
+
+      final feed = await repository.getFeed(storeCode: 'KLK');
+      expect(feed.sectionHasExpired(feed.sections.single), isTrue);
+    });
+  });
 }
