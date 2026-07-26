@@ -35,6 +35,9 @@ class ApiConstants {
   static const String productDetails = '$baseUrl/products/productdetails';
   static const String searchProducts = '$baseUrl/products/search-products';
 
+  // ---- Onboarding ----
+  static const String onboardingList = '$baseUrl/onboarding/list';
+
   // ---- Home content ----
   static const String banners = '$baseUrl/banners';
   static const String popularCategoriesList = '$baseUrl/popular-categories/list';
