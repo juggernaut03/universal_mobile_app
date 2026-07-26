@@ -758,7 +758,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
                 
                 // Open location settings
                 final opened = await Geolocator.openLocationSettings();
-                if (!opened && mounted && !_isDisposed) {
+                if (!opened && context.mounted && !_isDisposed) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
@@ -849,7 +849,7 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
                 
                 // Open app settings
                 final opened = await Geolocator.openAppSettings();
-                if (!opened && mounted && !_isDisposed) {
+                if (!opened && context.mounted && !_isDisposed) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(

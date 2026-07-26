@@ -101,7 +101,8 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
       
       // Start the countdown timer again
       _startResendTimer();
-      
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('OTP sent successfully'),

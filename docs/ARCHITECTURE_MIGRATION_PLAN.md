@@ -462,7 +462,13 @@ Phase 8 is the only one that can run in parallel with others.
 
 ### Known remaining work
 
-- 21 `use_build_context_synchronously` needing per-site control-flow judgement
+- ~~21 `use_build_context_synchronously`~~ — **all cleared**, and the lint is
+  now an `error` so a new one fails the build. Three distinct causes:
+  a guard on the State's `mounted` where the used object was a passed-in
+  `BuildContext` parameter (different objects); a guard on `context.mounted`
+  where the context *was* the State's own; and a `BuildContext` captured into a
+  `Future.microtask` in the router, fixed by resolving the container
+  synchronously instead of re-reading it after the gap.
 - `payment_step.dart` is 1,901 lines — over the 400-line exit criterion
 - `checkout_models.dart` declares its own `CheckoutStep` enum, distinct from
   `domain/entities/checkout_step.dart`; reconciling them is a behaviour change

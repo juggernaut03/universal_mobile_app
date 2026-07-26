@@ -371,6 +371,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
           availableOutletsProvider(pincode).future
         );
         
+        if (!context.mounted) return;
         await _handleOutletSelection(context, ref, logger, outlets);
       } else {
         logger.log('Pincode is not serviceable, showing serviceable pincodes');
@@ -408,7 +409,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
       // Add small delay to ensure provider state is fully updated
       await Future.delayed(const Duration(milliseconds: 100));
       
-      if (mounted && !_isNavigating) {
+      if (context.mounted && !_isNavigating) {
         _safeSetState(() {
           _isNavigating = true;
         });
@@ -461,10 +462,9 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
           availableOutletsProvider(selectedPincode).future
         );
         
-        if (context.mounted) {
-          Navigator.pop(context);
-        }
-        
+        if (!context.mounted) return;
+        Navigator.pop(context);
+
         if (outlets.isEmpty) {
           _showErrorSnackBar(
             context,
@@ -478,7 +478,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
           // Add small delay to ensure provider state is fully updated
           await Future.delayed(const Duration(milliseconds: 100));
           
-          if (!_isNavigating) {
+          if (context.mounted && !_isNavigating) {
             _safeSetState(() {
               _isNavigating = true;
             });
@@ -591,7 +591,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
                 Navigator.pop(dialogContext);
                 
                 final opened = await Geolocator.openLocationSettings();
-                if (!opened && mounted) {
+                if (!opened && context.mounted) {
                   _showErrorSnackBar(
                     context,
                     'Please enable location services in your device settings.',
@@ -637,7 +637,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
               Navigator.pop(dialogContext);
               
               final opened = await Geolocator.openAppSettings();
-              if (!opened && mounted) {
+              if (!opened && context.mounted) {
                 _showErrorSnackBar(
                   context,
                   'Please enable location permissions in your device settings.',
@@ -734,9 +734,12 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
               await Future.delayed(const Duration(milliseconds: 100));
               
               // Set the selected pincode
-              if (mounted && !_isDisposed) {
+              if (context.mounted && !_isDisposed) {
                 await ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
-                
+
+                // Re-check: the guard above ran before this await.
+                if (!context.mounted) return;
+
                 // Show feedback that pincode has been selected
                 _showSuccessSnackBar(context, 'Pincode $pincode selected. Please choose your store.');
                 
@@ -744,7 +747,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
                 await Future.delayed(const Duration(milliseconds: 100));
                 
                 // Navigate to outlet selection
-                if (mounted && !_isNavigating) {
+                if (context.mounted && !_isNavigating) {
                   _safeSetState(() {
                     _isNavigating = true;
                   });
@@ -752,7 +755,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
                 }
               }
             } catch (e) {
-              if (mounted && !_isDisposed) {
+              if (context.mounted && !_isDisposed) {
                 _showErrorSnackBar(context, 'Error selecting pincode: $e');
               }
             }

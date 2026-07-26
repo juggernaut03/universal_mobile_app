@@ -91,7 +91,8 @@ class FavoriteButton extends ConsumerWidget {
               try {
                 final authManager = ref.read(centralizedAuthManagerProvider);
                 final freshLoginStatus = await authManager.isLoggedIn();
-                
+                if (!context.mounted) return;
+
                 if (!freshLoginStatus) {
                   // Show login modal prompt
                   _showLoginPromptModal(context);
@@ -110,6 +111,7 @@ class FavoriteButton extends ConsumerWidget {
                 await Future.delayed(const Duration(milliseconds: 100));
               } catch (e) {
                 debugPrint('Failed to check login status: $e');
+                if (!context.mounted) return;
                 _showLoginPromptModal(context);
                 return;
               }

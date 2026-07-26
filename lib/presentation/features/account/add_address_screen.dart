@@ -382,7 +382,9 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
           
           // Small delay to ensure providers are refreshed before navigation
           await Future.delayed(const Duration(milliseconds: 300));
-          
+
+          if (!mounted) return;
+
           // Navigate based on where we came from
           if (widget.returnToCheckout) {
             logger.log('Navigating back to checkout flow');

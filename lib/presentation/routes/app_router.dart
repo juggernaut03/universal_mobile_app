@@ -208,12 +208,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: RouteNames.pincodeSelection,
         builder: (context, state) {
           // Check if we're in location fetching state and show loading
-          final launchState = ProviderScope.containerOf(context).read(launchFlowProvider);
+          // Resolved once, synchronously. The microtask below used to call
+          // ProviderScope.containerOf(context) again after the async gap, by
+          // which point the element could be gone.
+          final container = ProviderScope.containerOf(context);
+          final launchState = container.read(launchFlowProvider);
           if (launchState == AppLaunchState.needLocationPermission) {
             // If we're in this state, trigger the location fetching
             // This ensures location fetching happens even if we navigate directly here
             Future.microtask(() {
-              ProviderScope.containerOf(context)
+              container
                   .read(launchFlowProvider.notifier)
                   .fetchLocationAndCheckPincode();
             });

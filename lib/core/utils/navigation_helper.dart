@@ -19,6 +19,11 @@ class NavigationHelper {
     if (!requiresAuth) return false;
     
     final isLoggedIn = await isLoggedInCheck();
+
+    // The widget may be gone by the time the auth check resolves. Report
+    // "handled" so the caller does not navigate with a dead context either.
+    if (!context.mounted) return true;
+
     if (!isLoggedIn) {
       navigateToLogin(context, route);
       return true;
@@ -71,6 +76,7 @@ class NavigationHelper {
     Future<bool> Function() isLoggedInCheck,
   ) async {
     final requiresRedirect = await requiresAuthentication(context, route, isLoggedInCheck);
+    if (!context.mounted) return;
     if (!requiresRedirect) {
       context.go(route);
     }
