@@ -958,7 +958,7 @@ class _ReorderProductItemWidgetState extends ConsumerState<_ReorderProductItemWi
   }
 
   void _incrementQuantity() {
-    final cartItems = ref.read(cartProvider);
+    final cartItems = ref.read(cartItemsProvider);
     final cartItem =
         cartItems.where((item) => item.product.pCode == widget.reorderItem.product.pCode).toList();
     final currentQuantity = cartItem.isNotEmpty ? cartItem.first.quantity : 0;
@@ -1017,7 +1017,7 @@ class _ReorderProductItemWidgetState extends ConsumerState<_ReorderProductItemWi
 
   @override
   Widget build(BuildContext context) {
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     final cartItem =
         cartItems.where((item) => item.product.pCode == widget.reorderItem.product.pCode).toList();
     final isCartEnabled = ref.watch(isCartEnabledProvider);

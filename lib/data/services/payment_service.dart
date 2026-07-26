@@ -7,6 +7,8 @@ import '../../core/utils/logger.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/network/api_client.dart';
 import 'package:flutter/foundation.dart';
+import '../../domain/entities/payment.dart';
+import '../../domain/repositories/i_payment_gateway.dart';
 
 class PaymentResult {
   final bool success;
@@ -78,9 +80,24 @@ class PaymentResult {
       'captured_at': capturedAt,
     };
   }
+  /// Whether the customer dismissed the Razorpay sheet rather than the payment
+  /// being refused.
+  ///
+  /// Razorpay reports a dismissal through its *error* callback, so `success`
+  /// is false for both. Treating them the same marks the order "Payment
+  /// Failed" for someone who simply changed their mind.
+  bool get wasCancelledByUser {
+    if (success) return false;
+    final code = '${fullPaymentData?['error_code'] ?? ''}';
+    final text = (message ?? '').toLowerCase();
+    return code == '2' ||
+        text.contains('cancelled by user') ||
+        text.contains('payment cancelled');
+  }
+
 }
 
-class PaymentService {
+class PaymentService implements IPaymentGateway {
   final Logger _logger;
   late Razorpay _razorpay;
   Completer<PaymentResult>? _paymentCompleter;
@@ -612,6 +629,7 @@ class PaymentService {
     };
   }
 
+  @override
   void dispose() {
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
       _paymentCompleter!.complete(PaymentResult(
@@ -632,4 +650,45 @@ class PaymentService {
     _razorpay.clear();
     _logger.log('Razorpay instance disposed');
   }
+  // ---- IPaymentGateway ----
+
+  /// Collects a payment, expressed as the domain's sealed outcome.
+  ///
+  /// Wraps [startPayment] rather than replacing it: that method creates the
+  /// Razorpay order server-side before opening the sheet, and dropping that
+  /// step would break payment collection.
+  ///
+  /// The mapping adds one thing PaymentResult cannot express — a dismissed
+  /// sheet. Razorpay reports that through its *error* callback, so
+  /// `success: false` previously covered both a declined card and a customer
+  /// who simply closed the sheet. The latter must not mark the order failed.
+  @override
+  Future<PaymentOutcome> collect(PaymentRequest request) async {
+    final result = await startPayment(
+      amount: request.amount,
+      description: 'Order ${request.orderReference}',
+      customerName: request.customerName,
+      customerEmail: request.customerEmail,
+      customerPhone: request.customerPhone,
+      tempOrderId: request.orderReference,
+    );
+
+    if (result.success) {
+      return PaymentSucceeded(
+        paymentId: result.paymentId ?? '',
+        orderReference: result.orderId ?? request.orderReference,
+        signature: result.signature ?? '',
+      );
+    }
+
+    final code = '${result.fullPaymentData?['error_code'] ?? ''}';
+    final message = result.message ?? '';
+
+    if (result.wasCancelledByUser) {
+      _logger.log('Payment cancelled by the customer');
+      return const PaymentCancelled();
+    }
+    return PaymentFailed(code: code, message: message);
+  }
+
 }

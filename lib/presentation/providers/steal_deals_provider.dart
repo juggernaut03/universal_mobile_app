@@ -15,11 +15,11 @@ final _debouncedCartProvider =
     StateNotifierProvider.autoDispose<_DebouncedCartNotifier, _CartSnapshot>(
         (ref) {
   final notifier = _DebouncedCartNotifier();
-  ref.listen(cartProvider, (_, cartItems) {
+  ref.listen(cartItemsProvider, (_, cartItems) {
     final cartTotal = ref.read(cartTotalProvider);
     notifier.update(cartItems, cartTotal);
   });
-  final cartItems = ref.watch(cartProvider);
+  final cartItems = ref.watch(cartItemsProvider);
   final cartTotal = ref.watch(cartTotalProvider);
   notifier.setInitial(cartItems, cartTotal);
   return notifier;

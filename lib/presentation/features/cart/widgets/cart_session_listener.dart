@@ -69,7 +69,7 @@ class _CartSessionListenerState extends ConsumerState<CartSessionListener> with 
     final logger = ref.read(loggerProvider);
     
     // Only refresh if there are items in the cart
-    if (ref.read(cartProvider).isNotEmpty) {
+    if (ref.read(cartItemsProvider).isNotEmpty) {
       cartNotifier.refreshSession().then((success) {
         if (success) {
           logger.log('Cart session refreshed successfully');

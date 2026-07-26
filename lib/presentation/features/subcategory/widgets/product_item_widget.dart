@@ -34,7 +34,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
   }
 
   void _incrementQuantity() {
-    final cartItems = ref.read(cartProvider);
+    final cartItems = ref.read(cartItemsProvider);
     final cartItem = cartItems.where((item) => 
       item.product.pCode == widget.product.pCode).toList();
     final currentQuantity = cartItem.isNotEmpty ? cartItem.first.quantity : 0;
@@ -144,7 +144,7 @@ class _ProductItemWidgetState extends ConsumerState<ProductItemWidget> {
   @override
   Widget build(BuildContext context) {
     // Get cart information from provider to check if this product is in cart
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     final cartItem = cartItems.where((item) => 
       item.product.pCode == widget.product.pCode).toList();
     

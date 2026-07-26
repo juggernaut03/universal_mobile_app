@@ -12,6 +12,8 @@ import 'steal_deals_provider.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../facebook_pixel/facebook_pixel_provider.dart';
 import '../../di/infrastructure_providers.dart';
+import '../../domain/entities/cart.dart';
+import 'outlet_provider.dart';
 
 export '../../data/models/cart_item.dart' show CartItem;
 
@@ -24,14 +26,35 @@ export '../../data/models/cart_item.dart' show CartItem;
 // cartSessionManagerProvider moved to lib/di/service_providers.dart
 
 // Cart state notifier with enhanced session management
-class CartNotifier extends StateNotifier<List<CartItem>> {
+/// Holds the cart as a domain [Cart].
+///
+/// The state was `List<CartItem>` mutated in place, with the add/update rules
+/// re-implemented in each method. Those rules now live on the entity, which
+/// also fixes two of them:
+///
+///   * quantity was clamped to `maxQuantityAllowed` but not to actual stock,
+///     so a cart could hold more than the store could supply;
+///   * `quantity.clamp(1, maxQuantityAllowed)` throws ArgumentError when the
+///     cap is 0, because Dart's clamp asserts upper >= lower.
+///
+/// Method signatures still take ProductModel so the 61 existing call sites are
+/// unchanged; conversion happens here.
+class CartNotifier extends StateNotifier<Cart> {
   // Store a reference to Ref for accessing other providers
   final Ref _ref;
   final CartStorageService _cartStorage;
   late final CartSessionManager _sessionManager;
   late final Logger _logger;
+
+  /// Store the cart belongs to.
+  ///
+  /// Prices and stock are per-outlet, so a Cart is only meaningful for one
+  /// store. Empty until an outlet is chosen, which is also when the cart is
+  /// necessarily empty.
+  String get _storeCode =>
+      _ref.read(selectedOutletProvider).valueOrNull?.storeCode ?? '';
   
-  CartNotifier(this._ref, this._cartStorage) : super([]) {
+  CartNotifier(this._ref, this._cartStorage) : super(const Cart.empty('')) {
     // Initialize session manager and logger
     _sessionManager = _ref.read(cartSessionManagerProvider);
     _logger = _ref.read(loggerProvider);
@@ -44,7 +67,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   Future<void> _loadCart() async {
     try {
       final items = await _cartStorage.loadCart();
-      state = items;
+      state = items.toCart(_storeCode);
       
       // FIXED: Ensure we have a valid session when cart is loaded
       if (items.isNotEmpty) {
@@ -72,7 +95,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   // Save current cart state to persistent storage
   Future<void> _saveCart() async {
     try {
-      await _cartStorage.saveCart(state);
+      await _cartStorage.saveCart(state.lines.map(CartItem.fromLine).toList());
     } catch (e) {
       _logger.error('Error saving cart: $e');
     }
@@ -80,132 +103,83 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   // ENHANCED: Add item to cart with session management
   void addItem(ProductModel product) {
-    // Mark cart as modified for session management
     _markCartAsModifiedAsync();
-    
-    final index = state.indexWhere((item) => item.product.pCode == product.pCode);
-    if (index >= 0) {
-      // Product exists, increment quantity if below max allowed
-      final existingItem = state[index];
-      if (existingItem.quantity < product.maxQuantityAllowed) {
-        final updatedItems = [...state];
-        updatedItems[index] = existingItem.copyWith(
-          quantity: existingItem.quantity + 1,
-        );
-        state = updatedItems;
-        _saveCart(); // Save cart after update
-        _logger.log('Incremented quantity for ${product.productName} to ${existingItem.quantity + 1}');
-      } else {
-        _logger.log('Cannot add more ${product.productName} - max quantity reached');
-      }
-    } else {
-      // Product doesn't exist, add it
-      state = [...state, CartItem(product: product, quantity: 1)];
-      _saveCart(); // Save cart after update
-      _logger.log('Added new item to cart: ${product.productName}');
-      
-      // Track add to cart with Facebook Pixel
-      _trackAddToCart(product, 1);
+
+    final before = state.quantityOf(product.pCode);
+    state = state.add(product.toEntity());
+    final after = state.quantityOf(product.pCode);
+
+    if (after == before) {
+      _logger.log('Cannot add more ${product.productName} — limit reached');
+      return;
     }
+    _saveCart();
+    _logger.log('Cart now holds $after x ${product.productName}');
+    if (before == 0) _trackAddToCart(product, 1);
   }
 
   // ENHANCED: Add item with specific quantity with session management
   void addItemWithQuantity(ProductModel product, int quantity) {
-    // Mark cart as modified for session management
     _markCartAsModifiedAsync();
-    
-    final index = state.indexWhere((item) => item.product.pCode == product.pCode);
-    if (index >= 0) {
-      // Product exists, update with new quantity (limited by max allowed)
-      final existingItem = state[index];
-      final actualQuantity = quantity.clamp(1, product.maxQuantityAllowed);
-      
-      final updatedItems = [...state];
-      updatedItems[index] = existingItem.copyWith(
-        product: product,
-        quantity: actualQuantity,
-      );
-      state = updatedItems;
-      _logger.log('Updated ${product.productName} quantity to $actualQuantity');
-    } else {
-      // Product doesn't exist, add it with the specified quantity
-      final actualQuantity = quantity.clamp(1, product.maxQuantityAllowed);
-      state = [...state, CartItem(product: product, quantity: actualQuantity)];
-      _logger.log('Added ${product.productName} with quantity $actualQuantity');
-      
-      // Track add to cart with Facebook Pixel
-      _trackAddToCart(product, actualQuantity);
-    }
-    _saveCart(); // Save cart after update
+
+    final before = state.quantityOf(product.pCode);
+    // setQuantity clamps to what is purchasable and removes the line at zero,
+    // rather than clamp(1, max) which throws when max is 0.
+    state = state.setQuantity(product.toEntity(), quantity);
+    final after = state.quantityOf(product.pCode);
+
+    _saveCart();
+    _logger.log('Set ${product.productName} to $after');
+    if (before == 0 && after > 0) _trackAddToCart(product, after);
   }
 
   // Update product (used for price changes)
   void updateProduct(ProductModel oldProduct, ProductModel newProduct) {
-    final index = state.indexWhere((item) => item.product.pCode == oldProduct.pCode);
-    if (index >= 0) {
-      final existingItem = state[index];
-      final updatedItems = [...state];
-      updatedItems[index] = existingItem.copyWith(
-        product: newProduct,
-      );
-      state = updatedItems;
-      _saveCart(); // Save cart after update
-      _logger.log('Updated product info for ${newProduct.productName}');
-    }
+    final quantity = state.quantityOf(oldProduct.pCode);
+    if (quantity == 0) return;
+
+    state = state
+        .remove(oldProduct.pCode)
+        .setQuantity(newProduct.toEntity(), quantity);
+    _saveCart();
+    _logger.log('Updated product info for ${newProduct.productName}');
   }
 
   // ENHANCED: Increment quantity with session management
   void incrementQuantity(ProductModel product) {
-    // Mark cart as modified for session management
     _markCartAsModifiedAsync();
-    
-    final index = state.indexWhere((item) => item.product.pCode == product.pCode);
-    if (index >= 0) {
-      final existingItem = state[index];
-      if (existingItem.quantity < product.maxQuantityAllowed) {
-        final updatedItems = [...state];
-        updatedItems[index] = existingItem.copyWith(
-          quantity: existingItem.quantity + 1,
-        );
-        state = updatedItems;
-        _saveCart(); // Save cart after update
-        _logger.log('Incremented ${product.productName} to ${existingItem.quantity + 1}');
-      } else {
-        _logger.log('Cannot increment ${product.productName} - max quantity reached');
-      }
+
+    final before = state.quantityOf(product.pCode);
+    if (before == 0) return;
+
+    state = state.setQuantity(product.toEntity(), before + 1);
+    final after = state.quantityOf(product.pCode);
+    if (after == before) {
+      _logger.log('Cannot increment ${product.productName} — limit reached');
+      return;
     }
+    _saveCart();
+    _logger.log('Incremented ${product.productName} to $after');
   }
 
   // ENHANCED: Decrement quantity with session management
   void decrementQuantity(ProductModel product) {
-    // Mark cart as modified for session management
     _markCartAsModifiedAsync();
-    
-    final index = state.indexWhere((item) => item.product.pCode == product.pCode);
-    if (index >= 0) {
-      final existingItem = state[index];
-      if (existingItem.quantity > 1) {
-        final updatedItems = [...state];
-        updatedItems[index] = existingItem.copyWith(
-          quantity: existingItem.quantity - 1,
-        );
-        state = updatedItems;
-        _saveCart(); // Save cart after update
-        _logger.log('Decremented ${product.productName} to ${existingItem.quantity - 1}');
-      } else {
-        // Remove item if quantity becomes 0
-        removeItem(product);
-      }
-    }
+
+    if (state.quantityOf(product.pCode) == 0) return;
+
+    // decrement drops the line when it would reach zero.
+    state = state.decrement(product.pCode);
+    _saveCart();
+    _logger.log('Decremented ${product.productName}');
   }
 
   // ENHANCED: Remove item with session management
   void removeItem(ProductModel product) {
-    // Mark cart as modified for session management
     _markCartAsModifiedAsync();
-    
-    state = state.where((item) => item.product.pCode != product.pCode).toList();
-    _saveCart(); // Save cart after update
+
+    state = state.remove(product.pCode);
+    _saveCart();
     _logger.log('Removed ${product.productName} from cart');
   }
 
@@ -216,7 +190,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       await _markCartAsModified();
       
       // Clear cart items in state
-      state = [];
+      state = state.clear();
       
       // Clear cart data from persistent storage
       await _cartStorage.clearCart();
@@ -246,38 +220,25 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     required List<ProductModel> removeItems,
     required Map<String, double> priceUpdates,
   }) {
-    // Create a new list to hold updated items
-    List<CartItem> updatedCart = [];
-    
-    // Process each item in the cart
-    for (final item in state) {
-      // Check if this item should be removed (out of stock)
-      if (removeItems.any((product) => product.pCode == item.product.pCode)) {
-        // Skip this item (effectively removing it)
-        _logger.log('Removing ${item.product.productName} due to validation');
-        continue;
-      }
-      
-      // Check if this item needs a price update
-      if (priceUpdates.containsKey(item.product.pCode)) {
-        final newPrice = priceUpdates[item.product.pCode]!;
-        // Create updated product with new price
-        final updatedProduct = item.product.copyWith(ourPrice: newPrice);
-        // Add to updated cart with the new product but same quantity
-        updatedCart.add(CartItem(
-          product: updatedProduct,
-          quantity: item.quantity,
-        ));
-        _logger.log('Updated price for ${item.product.productName} to ₹$newPrice');
-      } else {
-        // No changes needed, keep as is
-        updatedCart.add(item);
-      }
+    var updated = state;
+
+    for (final product in removeItems) {
+      _logger.log('Removing ${product.productName} due to validation');
+      updated = updated.remove(product.pCode);
     }
-    
-    // Update the state with the new cart
-    state = updatedCart;
-    _saveCart(); // Save cart after update
+
+    priceUpdates.forEach((pCode, newPrice) {
+      final line = updated.lineFor(pCode);
+      if (line == null) return;
+      updated = updated.setQuantity(
+        line.product.copyWith(sellingPrice: newPrice),
+        line.quantity,
+      );
+      _logger.log('Updated price for ${line.product.name} to ₹$newPrice');
+    });
+
+    state = updated;
+    _saveCart();
     _logger.log('Applied validation changes to cart');
   }
   
@@ -292,32 +253,20 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     
     // 2. Handle Price Changes
     for (final changed in result.priceChangedItems) {
-      final index = state.indexWhere((item) => item.product.pCode == changed.product.pCode);
-      if (index >= 0) {
-        final existingItem = state[index];
-        final updatedItems = [...state];
-        updatedItems[index] = existingItem.copyWith(
-          product: existingItem.product.copyWith(ourPrice: changed.newPrice),
-        );
-        state = updatedItems;
-      }
+      final line = state.lineFor(changed.product.pCode);
+      if (line == null) continue;
+      state = state.setQuantity(
+        line.product.copyWith(sellingPrice: changed.newPrice),
+        line.quantity,
+      );
     }
-    
+
     // 3. Handle Quantity Changes
     for (final changed in result.quantityChangedItems) {
-      final index = state.indexWhere((item) => item.product.pCode == changed.product.pCode);
-       if (index >= 0) {
-          if (changed.newQuantity > 0) {
-               final existingItem = state[index];
-               final updatedItems = [...state];
-               updatedItems[index] = existingItem.copyWith(
-                  quantity: changed.newQuantity
-               );
-               state = updatedItems;
-          } else {
-              removeItem(changed.product);
-          }
-       }
+      final line = state.lineFor(changed.product.pCode);
+      if (line == null) continue;
+      // setQuantity removes the line at zero, so the two cases collapse.
+      state = state.setQuantity(line.product, changed.newQuantity);
     }
     
     _saveCart();
@@ -512,7 +461,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       final deviceId = prefs.getString('device_id');
       
       _logger.log('Cart prepared for new order:');
-      _logger.log('- Items: ${state.length}');
+      _logger.log('- Items: ${state.lineCount}');
       _logger.log('- Fresh Temp Order ID: $tempOrderId');
       _logger.log('- Fresh Cart Key: $cartKey');
       _logger.log('- Device ID: $deviceId');
@@ -573,14 +522,14 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
       
       return {
         ...sessionInfo,
-        'cart_items_count': state.length,
-        'cart_total': state.fold(0.0, (sum, item) => sum + item.totalPrice),
-        'cart_savings': state.fold(0.0, (sum, item) => sum + item.savings),
-        'cart_items': state.map((item) => {
-          'product_name': item.product.productName,
-          'quantity': item.quantity,
-          'price': item.product.ourPrice,
-          'total': item.totalPrice,
+        'cart_items_count': state.lineCount,
+        'cart_total': state.subtotal,
+        'cart_savings': state.savings,
+        'cart_items': state.lines.map((line) => {
+          'product_name': line.product.name,
+          'quantity': line.quantity,
+          'price': line.product.sellingPrice,
+          'total': line.total,
         }).toList(),
       };
     } catch (e) {
@@ -591,25 +540,26 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   // Get cart summary for order placement
   Map<String, dynamic> getCartSummary() {
-    final total = state.fold(0.0, (sum, item) => sum + item.totalPrice);
-    final totalMrp = state.fold(0.0, (sum, item) => sum + item.totalMrp);
-    final savings = totalMrp - total;
-    final itemCount = state.fold(0, (sum, item) => sum + item.quantity);
+    // Totals come from the entity now; each of these was its own fold.
+    final total = state.subtotal;
+    final totalMrp = state.subtotalAtMrp;
+    final savings = state.savings;
+    final itemCount = state.itemCount;
     
     return {
-      'total_items': state.length,
+      'total_items': state.lineCount,
       'total_quantity': itemCount,
       'total_price': total,
       'total_mrp': totalMrp,
       'total_savings': savings,
       'formatted_total': '₹${total.toStringAsFixed(2)}',
       'formatted_savings': '₹${savings.toStringAsFixed(2)}',
-      'items': state.map((item) => {
-        'pcode': item.product.pCode,
-        'name': item.product.productName,
-        'quantity': item.quantity,
-        'price': item.product.ourPrice,
-        'total': item.totalPrice,
+      'items': state.lines.map((line) => {
+        'pcode': line.product.code,
+        'name': line.product.name,
+        'quantity': line.quantity,
+        'price': line.product.sellingPrice,
+        'total': line.total,
       }).toList(),
     };
   }
@@ -633,40 +583,36 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 }
 
 // Cart provider - updated to pass Ref and CartStorageService to CartNotifier
-final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
+final cartProvider = StateNotifierProvider<CartNotifier, Cart>((ref) {
   final cartStorage = ref.watch(cartStorageServiceProvider);
   return CartNotifier(ref, cartStorage);
 });
 
-// Cart total provider
-final cartTotalProvider = Provider<double>((ref) {
-  final cartItems = ref.watch(cartProvider);
-  return cartItems.fold(0, (total, item) => total + item.totalPrice);
+/// The cart's lines as DTOs.
+///
+/// Compatibility view for the screens still typed to `List<CartItem>`. They
+/// read this instead of `cartProvider`, which now holds a domain [Cart].
+final cartItemsProvider = Provider<List<CartItem>>((ref) {
+  return ref.watch(cartProvider).lines.map(CartItem.fromLine).toList();
 });
 
-// Cart MRP total provider
-final cartMrpTotalProvider = Provider<double>((ref) {
-  final cartItems = ref.watch(cartProvider);
-  return cartItems.fold(0, (total, item) => total + item.totalMrp);
-});
+// Totals are computed on the entity, so there is one definition of each.
+final cartTotalProvider =
+    Provider<double>((ref) => ref.watch(cartProvider).subtotal);
 
-// Cart savings provider
-final cartSavingsProvider = Provider<double>((ref) {
-  final cartItems = ref.watch(cartProvider);
-  return cartItems.fold(0, (total, item) => total + item.savings);
-});
+final cartMrpTotalProvider =
+    Provider<double>((ref) => ref.watch(cartProvider).subtotalAtMrp);
 
-// Cart count provider
-final cartCountProvider = Provider<int>((ref) {
-  final cartItems = ref.watch(cartProvider);
-  return cartItems.length;
-});
+final cartSavingsProvider =
+    Provider<double>((ref) => ref.watch(cartProvider).savings);
 
-// Cart item count provider (total quantity)
-final cartItemCountProvider = Provider<int>((ref) {
-  final cartItems = ref.watch(cartProvider);
-  return cartItems.fold(0, (total, item) => total + item.quantity);
-});
+/// Distinct products in the cart.
+final cartCountProvider =
+    Provider<int>((ref) => ref.watch(cartProvider).lineCount);
+
+/// Total units — the badge number.
+final cartItemCountProvider =
+    Provider<int>((ref) => ref.watch(cartProvider).itemCount);
 
 // Cart validator provider
 final cartValidatorProvider = Provider((ref) {
@@ -848,7 +794,7 @@ final offerSlabsStatusProvider = Provider<List<OfferSlabStatus>>((ref) {
 final offerProductAutoRemovalProvider = Provider<void>((ref) {
   final unlockedCodes = ref.watch(offerProductCodesProvider);
   final allOfferCodes = ref.watch(allOfferProductCodesProvider);
-  final cartItems = ref.read(cartProvider);
+  final cartItems = ref.read(cartItemsProvider);
 
   // Find cart items that are offer products but no longer unlocked
   final toRemove = cartItems.where((item) {

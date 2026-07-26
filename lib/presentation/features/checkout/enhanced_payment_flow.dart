@@ -507,7 +507,7 @@ class EnhancedPaymentFlow {
       }
       
       // Get required data
-      final cartItems = ref.read(cartProvider);
+      final cartItems = ref.read(cartItemsProvider);
       final selectedOutlet = ref.read(selectedOutletProvider).value!;
       final userProfile = (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
       

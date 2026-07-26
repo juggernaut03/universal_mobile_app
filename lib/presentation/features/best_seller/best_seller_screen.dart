@@ -214,7 +214,7 @@ class _BestSellerProductCard extends ConsumerWidget {
         : 0;
     
     // Get cart information
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     final cartItem = cartItems.where((item) => 
       item.product.pCode == product.pCode).toList();
     

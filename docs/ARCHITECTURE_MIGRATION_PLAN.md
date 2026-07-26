@@ -432,21 +432,52 @@ Phase 8 is the only one that can run in parallel with others.
 - `toggleFavorite(addToFavorites:)` renamed to `setFavorite(isFavorite:)` — it
   never toggled; callers had to know the current state and pass the opposite.
 
+### Follow-up round 2 — all tracked tasks closed
+
+- **`checkout_flow_screen.dart` split 4,709 -> 855 lines.** Steps now in
+  `checkout/steps/`; `git diff` on the original shows 5 insertions (the wiring
+  imports) and 3,859 deletions — a pure move.
+- **`cart_provider` holds a domain `Cart`.** Totals, add/remove and quantity
+  rules come from the entity; `cartItemsProvider` is the DTO view for screens
+  not yet migrated. Two bugs fixed by the swap:
+  `quantity.clamp(1, maxQuantityAllowed)` threw `ArgumentError` when the cap
+  was 0 (Dart's clamp asserts upper >= lower), and quantity was capped by the
+  per-order limit but never by actual stock.
+- **`PaymentService` implements `IPaymentGateway`.** The separate
+  `RazorpayPaymentGateway` adapter was deleted: it opened the sheet without
+  creating the server-side Razorpay order that `PaymentService` creates, so
+  adopting it would have broken collection. One implementation, as everywhere
+  else in this migration.
+- **A dismissed payment sheet no longer marks the order "Payment Failed".**
+  Razorpay reports a dismissal through its error callback, so `success: false`
+  covered both that and a declined card, and `payment_step`'s else-branch wrote
+  a failure to the database for a customer who simply changed their mind.
+- **Screen-declared providers: 25 -> 0**, after extracting the model and
+  notifier classes those files also held.
+- **The four "popular category section" provider families** — sixteen providers
+  differing only by a section number — collapsed to one family keyed by section
+  id (182 -> 82 lines), behind a `PromoSection` entity.
+- `addressListProvider` duplicated `addressesProvider`; both fetched the same
+  list. Now one fetch, one cache.
+
 ### Known remaining work
 
 - 21 `use_build_context_synchronously` needing per-site control-flow judgement
-- `checkout_flow_screen.dart` is still 4,708 lines; `paymentGatewayProvider` is
-  wired but unused
-- `cart_provider` still holds `List<CartItem>`; two legacy validators remain
-- `best_seller`, `popular_category`, `seasonal` and `steal_deals` still use the
-  old repositories
-- Feature-state providers still declared inside screen/widget files, blocked on
-  extracting the model classes those files also hold
+- `payment_step.dart` is 1,901 lines — over the 400-line exit criterion
+- `checkout_models.dart` declares its own `CheckoutStep` enum, distinct from
+  `domain/entities/checkout_step.dart`; reconciling them is a behaviour change
 - `avoid_dynamic_calls` reports 193 sites — enable once they are typed
 
 ### Not verified
 
-**Nothing in phases 0-9 has been run on a device.** At minimum, before release:
-login → FCM registration → 401 → logout; cold start and every launch-flow branch;
-pincode serviceability offline; cart checkout gate; and the full payment matrix
-(COD, UPI, card, netbanking, wallet, failure, cancellation, webhook).
+**Nothing in this migration has been run on a device.** Required before release:
+
+- login → FCM registration → 401 → logout
+- cold start and every launch-flow branch (permission denied, denied forever,
+  location off, unserviceable pincode, serviceable pincode with no outlets)
+- pincode serviceability while offline
+- **cart:** add/increment/decrement/remove, a product with `max_quantity_allowed`
+  of 0, a product whose stock is below the requested quantity, kill-and-restore
+- **payment, the highest risk:** COD, UPI, card, netbanking, wallet, decline,
+  **sheet dismissal** (must NOT record Payment Failed), and webhook
+  reconciliation

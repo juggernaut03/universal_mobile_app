@@ -29,7 +29,7 @@ class _PersistentCartWidgetState extends ConsumerState<PersistentCartWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     if (cartItems.isEmpty) return const SizedBox.shrink();
 
     final cartTotal = ref.watch(cartTotalProvider);
@@ -372,7 +372,7 @@ class _OffersBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final slabs = ref.watch(offerSlabsStatusProvider);
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     final panelColors = ref.watch(offerPanelColorsProvider);
 
     // Auto-close if cart becomes empty

@@ -48,7 +48,7 @@ class CartScreen extends ConsumerWidget {
     // Auto-remove offer products when their offer locks back
     ref.watch(offerProductAutoRemovalProvider);
 
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     final cartTotal = ref.watch(cartTotalProvider);
     final cartSavings = ref.watch(cartSavingsProvider);
     final cartValidationState = ref.watch(cartValidationStateProvider);
@@ -440,7 +440,7 @@ class CartScreen extends ConsumerWidget {
 
   void _showClearCartDialog(BuildContext context, WidgetRef ref) {
     // Store the current cart items in case the user decides to undo
-    final currentCartItems = List<CartItem>.from(ref.read(cartProvider));
+    final currentCartItems = List<CartItem>.from(ref.read(cartItemsProvider));
     
     showDialog(
       context: context,
@@ -578,7 +578,7 @@ class CartScreen extends ConsumerWidget {
   }
   
   Future<void> _proceedToCheckout(BuildContext context, WidgetRef ref) async {
-    final cartItems = ref.read(cartProvider);
+    final cartItems = ref.read(cartItemsProvider);
     if (cartItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -685,7 +685,7 @@ class CartScreen extends ConsumerWidget {
     final cartNotifier = ref.read(cartProvider.notifier);
     
     // Take more drastic action - remove items or reduce quantities
-    final cartItems = ref.read(cartProvider);
+    final cartItems = ref.read(cartItemsProvider);
     if (cartItems.isEmpty) return;
     
     // Start with reducing quantities of all items
@@ -787,7 +787,7 @@ class CartScreen extends ConsumerWidget {
       // Retry saving the cart
        final cartValidator = ref.read(validator.cartValidatorProvider);
        final saveSuccess = await cartValidator.retrySaveCart(
-        ref.read(cartProvider), 
+        ref.read(cartItemsProvider), 
         storeCode
       );
       

@@ -34,7 +34,6 @@ import '../data/services/outlet_status_service.dart';
 import '../data/services/payment_method_service.dart';
 import '../data/services/payment_service.dart';
 import '../data/services/popup_service.dart';
-import '../data/services/razorpay_payment_gateway.dart';
 import '../data/services/storage_service.dart';
 import '../core/constants/app_constants.dart';
 import '../domain/repositories/i_notification_service.dart';
@@ -201,13 +200,16 @@ final contentServiceProvider = Provider<ContentService>((ref) => ContentService(
 
 // ---- payments ----
 
-/// Razorpay behind the domain interface, so checkout can be driven by a fake.
+/// The payment gateway, behind the domain interface.
 ///
-/// Typed to IPaymentGateway: nothing may depend on the concrete adapter.
+/// PaymentService itself implements IPaymentGateway. A separate
+/// RazorpayPaymentGateway adapter was written first, but it opened the Razorpay
+/// sheet without creating the server-side order that PaymentService creates —
+/// swapping to it would have broken collection. Keeping one implementation is
+/// also the point: this migration spent most of its effort deleting second
+/// implementations of things.
 final paymentGatewayProvider = Provider<IPaymentGateway>((ref) {
-  final gateway = RazorpayPaymentGateway(logger: ref.watch(loggerProvider));
-  // The SDK holds native resources and an open sheet would otherwise never
-  // resolve; disposing completes it as cancelled.
+  final gateway = ref.watch(paymentServiceProvider);
   ref.onDispose(gateway.dispose);
   return gateway;
 });

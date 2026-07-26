@@ -169,7 +169,7 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
     }
     
     // Check cart not empty
-    final cartItems = ref.read(cartProvider);
+    final cartItems = ref.read(cartItemsProvider);
     if (cartItems.isEmpty) {
       _showErrorSnackBar('Your cart is empty');
       return false;
@@ -302,7 +302,7 @@ Future<void> _placeOrder() async {
     logger.log('- Device ID: $deviceId');
     
     // Get required data
-    final cartItems = ref.read(cartProvider);
+    final cartItems = ref.read(cartItemsProvider);
     final selectedOutlet = ref.read(selectedOutletProvider).value!;
     
     // Get the user profile to access the access key and mobile number
@@ -512,6 +512,19 @@ Future<void> _placeOrder() async {
         if (kDebugMode) print('Status: ${paymentResult.status}');
         if (kDebugMode) print('Method: ${paymentResult.method}');
         if (kDebugMode) print('💳 === PROCEEDING TO ORDER CONFIRMATION === 💳\n');
+      } else if (paymentResult.wasCancelledByUser) {
+        // The customer closed the Razorpay sheet. Nothing went wrong, so the
+        // order must not be recorded as "Payment Failed" — leave them on the
+        // payment step to try again or change method.
+        logger.log('Payment cancelled by customer — leaving order open');
+        ref.read(orderProcessStatusProvider.notifier).state =
+            OrderProcessStatus.initial;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment cancelled.')),
+          );
+        }
+        return;
       } else {
         // Payment failed - but continue to Step 3 to update database with failure
         logger.log('❌ PAYMENT FAILED - CONTINUING TO UPDATE DATABASE WITH FAILURE STATUS');
@@ -1524,7 +1537,7 @@ String _formatDate(DateTime date) {
   Widget _buildCompactOrderSummary() {
     return Consumer(
       builder: (context, ref, _) {
-        final cartItems = ref.watch(cartProvider);
+        final cartItems = ref.watch(cartItemsProvider);
         final cartTotal = ref.watch(cartTotalProvider);
         final cartSavings = ref.watch(cartSavingsProvider);
         

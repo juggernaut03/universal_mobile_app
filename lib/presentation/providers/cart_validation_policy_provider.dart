@@ -30,7 +30,7 @@ final cartValidationProvider = Provider<CartValidation?>((ref) {
   final outlet = ref.watch(selectedOutletProvider).valueOrNull;
   if (outlet == null) return null;
 
-  final cart = ref.watch(cartProvider).toCart(outlet.storeCode);
+  final cart = ref.watch(cartItemsProvider).toCart(outlet.storeCode);
 
   return ref.watch(cartValidationPolicyProvider).validate(
         cart: cart,

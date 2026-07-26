@@ -67,7 +67,7 @@ class _CartSessionInfoWidgetState extends ConsumerState<CartSessionInfoWidget> {
   
   @override
   Widget build(BuildContext context) {
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     
     // Don't show anything if the cart is empty
     if (cartItems.isEmpty) {

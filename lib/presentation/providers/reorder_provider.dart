@@ -162,7 +162,7 @@ final createOrderFromCartProvider = Provider<Future<Order?> Function(
       final logger = ref.read(loggerProvider);
       
       // Get the current cart
-      final cartItems = ref.read(cartProvider);
+      final cartItems = ref.read(cartItemsProvider);
       if (cartItems.isEmpty) {
         logger.error('Cannot create order from empty cart');
         return null;

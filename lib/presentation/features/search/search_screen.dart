@@ -606,7 +606,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final savingsPercent = productMrp > 0 ? ((savings / productMrp) * 100).round() : 0;
     
     // Get cart information
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     final cartItem = cartItems.where((item) => 
       item.product.pCode == pCode).toList();
     
