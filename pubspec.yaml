@@ -43,7 +43,10 @@ dependencies:
   geocoding: ^3.0.0
   connectivity_plus: ^6.1.4
   geolocator: ^14.0.0
-  app_settings: ^6.1.1
+  # Held at 7.x: 8.x dropped its podspec and is Swift Package Manager only,
+  # which conflicts with the CocoaPods-based Firebase setup below. 7.0.0 has
+  # the @preconcurrency FlutterPlugin fix that Xcode 26 requires.
+  app_settings: ^7.0.0
   google_maps_flutter: ^2.12.1
   shimmer: ^3.0.0
   lottie: ^3.3.1
@@ -84,6 +87,15 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+
+  # Firebase is declared as a CocoaPod in ios/Podfile, and five plugins
+  # (razorpay_flutter, google_maps_flutter_ios, flutter_secure_storage,
+  # fluttertoast, geocoding_ios) have no SPM support, so CocoaPods is
+  # required regardless. Letting SPM run alongside it resolves Firebase
+  # twice, via the Podfile and via firebase_core/firebase_messaging, and
+  # breaks the iOS build with duplicate-module errors.
+  config:
+    enable-swift-package-manager: false
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

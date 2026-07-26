@@ -15,6 +15,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// How the splash logo enters. Mirrors the options in the admin panel's
+/// Mobile App > App Settings page.
+enum SplashAnimation { fade, scale, fadeScale, none }
+
 class AppBranding {
   AppBranding._();
 
@@ -33,6 +37,9 @@ class AppBranding {
   static const Color _defInfo = Color(0xFF2196F3);
   static const String _defFontFamily = 'Poppins';
   static const String _defAppName = 'Patel Mart';
+  static const double _defSplashLogoSize = 300;
+  static const int _defSplashDurationMs = 2000;
+  static const SplashAnimation _defSplashAnimation = SplashAnimation.fadeScale;
 
   // ---- Current values (mutated by applyConfig) ----
   Color primary = _defPrimary;
@@ -50,7 +57,34 @@ class AppBranding {
   String fontFamily = '';
   String appName = _defAppName;
   String logoUrl = '';
+
+  // ---- Splash screen (admin panel: Mobile App > App Settings) ----
+
+  /// Logo shown on the splash screen; falls back to [logoUrl] when empty.
   String splashLogoUrl = '';
+
+  /// Logo height in logical pixels.
+  double splashLogoSize = _defSplashLogoSize;
+
+  /// Splash background; null means "use [background]".
+  Color? splashBackgroundColor;
+
+  /// Optional full-bleed image drawn behind the logo.
+  String splashBackgroundImageUrl = '';
+
+  /// Optional line of text under the logo.
+  String splashTagline = '';
+
+  /// Tagline colour; null means "use [textSecondary]".
+  Color? splashTaglineColor;
+
+  SplashAnimation splashAnimation = _defSplashAnimation;
+
+  /// Minimum time the splash is held, even when startup finishes sooner.
+  Duration splashMinimumDuration =
+      const Duration(milliseconds: _defSplashDurationMs);
+
+  bool splashShowLoader = true;
 
   /// Apply a project-config `config` map (raw backend keys). Unset/invalid
   /// values fall back to the built-in defaults so a partially configured
@@ -71,7 +105,34 @@ class AppBranding {
     b.info = _hex(config['info_color']) ?? _defInfo;
     b.fontFamily = (config['font_family'] ?? '').toString().trim();
     b.logoUrl = (config['logo_url'] ?? '').toString().trim();
+
     b.splashLogoUrl = (config['splash_logo_url'] ?? '').toString().trim();
+    b.splashLogoSize = _clampedDouble(
+          config['splash_logo_size'],
+          min: 40,
+          max: 600,
+        ) ??
+        _defSplashLogoSize;
+    // Null rather than a default: the splash falls back to the tenant's
+    // background colour, which is itself configurable.
+    b.splashBackgroundColor = _hex(config['splash_background_color']);
+    b.splashBackgroundImageUrl =
+        (config['splash_background_image_url'] ?? '').toString().trim();
+    b.splashTagline = (config['splash_tagline'] ?? '').toString().trim();
+    b.splashTaglineColor = _hex(config['splash_tagline_color']);
+    b.splashAnimation = _splashAnimation(config['splash_animation']);
+    b.splashMinimumDuration = Duration(
+      milliseconds: _clampedDouble(
+            config['splash_duration_ms'],
+            min: 0,
+            max: 10000,
+          )?.round() ??
+          _defSplashDurationMs,
+    );
+    // Defaults on, so a tenant that has never opened App Settings keeps the
+    // spinner the splash has always shown.
+    b.splashShowLoader =
+        (config['splash_show_loader'] ?? '').toString().trim() != 'false';
 
     final name = (config['app_name'] ?? '').toString().trim();
     b.appName = name.isNotEmpty
@@ -122,6 +183,32 @@ class AppBranding {
       return GoogleFonts.getFont(family).fontFamily ?? _defFontFamily;
     } catch (_) {
       return _defFontFamily;
+    }
+  }
+
+  /// Parses a numeric config value, returning null when unset or outside the
+  /// range the panel enforces — an out-of-range value falls back to the
+  /// built-in default rather than rendering something unusable.
+  static double? _clampedDouble(dynamic raw, {required double min, required double max}) {
+    final text = (raw ?? '').toString().trim();
+    if (text.isEmpty) return null;
+    final value = double.tryParse(text);
+    if (value == null || value < min || value > max) return null;
+    return value;
+  }
+
+  static SplashAnimation _splashAnimation(dynamic raw) {
+    switch ((raw ?? '').toString().trim()) {
+      case 'fade':
+        return SplashAnimation.fade;
+      case 'scale':
+        return SplashAnimation.scale;
+      case 'none':
+        return SplashAnimation.none;
+      case 'fade_scale':
+        return SplashAnimation.fadeScale;
+      default:
+        return _defSplashAnimation;
     }
   }
 
