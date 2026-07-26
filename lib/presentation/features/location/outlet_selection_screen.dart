@@ -575,7 +575,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
             if (context.mounted) {
               context.go('/location-change');
             }
-          } else {
+          } else if (context.mounted) {
             // User is in initial setup flow, go to home
             context.go('/home');
           }

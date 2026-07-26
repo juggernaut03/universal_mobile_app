@@ -18,9 +18,9 @@ analyzer:
     avoid_print: error
 
     # Using a BuildContext after an await when the widget may be gone. These
-    # are crashes, not style. 21 known occurrences remain — see the migration
-    # plan — so this stays a warning until they are cleared, then becomes error.
-    use_build_context_synchronously: warning
+    # are crashes, not style. All 21 known occurrences are cleared, so this is
+    # an error now — a new one fails the build rather than joining a backlog.
+    use_build_context_synchronously: error
 
   exclude:
     - "**/*.g.dart"

@@ -106,6 +106,7 @@ class _CartSessionInfoWidgetState extends ConsumerState<CartSessionInfoWidget> {
             onPressed: () {
               cartNotifier.refreshSession().then((_) {
                 _updateRemainingTime();
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Cart session refreshed'),
