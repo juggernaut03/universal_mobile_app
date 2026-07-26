@@ -8,12 +8,14 @@ import 'package:patelmart/core/utils/location_utils.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/error_widgets.dart';
-import '../../../core/widgets/back_button_wrapper.dart';
+import '../../../presentation/widgets/back_button_wrapper.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/models/pincode_model.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/outlet_provider.dart';
+import '../../../domain/entities/delivery_location.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class PincodeSelectionScreen extends ConsumerStatefulWidget {
   const PincodeSelectionScreen({Key? key}) : super(key: key);
@@ -88,28 +90,43 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
           _showNonServiceableAreaModal(context);
         }
       });
-    } else if (locationInfo.locationError != null) {
+    } else if (locationInfo.issue != null) {
       // Handle location errors in next frame
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_isDisposed) {
-          _handleLocationError(locationInfo.locationError!);
+          _handleLocationError(locationInfo.issue!);
         }
       });
     }
   }
   
-  void _handleLocationError(String errorType) {
+  /// Routes a detection failure to the right recovery affordance.
+  ///
+  /// Was an if/else chain comparing magic strings, and it handled only three of
+  /// the five codes the launch flow could emit — 'pincode_not_found' and
+  /// 'no_outlets' fell through silently, leaving the user on the picker with no
+  /// explanation. Switching over the enum with no `default:` means the compiler
+  /// now rejects any unhandled case.
+  void _handleLocationError(LocationIssue issue) {
     if (_isDisposed || !mounted) return;
-    
-    final logger = ref.read(loggerProvider);
-    logger.log('Handling location error: $errorType');
-    
-    if (errorType == 'location_disabled') {
-      _showLocationServicesDialog(context);
-    } else if (errorType == 'permission_denied') {
-      _showLocationPermissionDialog(context);
-    } else if (errorType == 'network_error') {
-      _showNetworkErrorDialog(context);
+
+    ref.read(loggerProvider).log('Handling location issue: $issue');
+
+    switch (issue) {
+      case LocationIssue.locationServicesDisabled:
+        _showLocationServicesDialog(context);
+      case LocationIssue.permissionDenied:
+      case LocationIssue.permissionPermanentlyDenied:
+        _showLocationPermissionDialog(context);
+      case LocationIssue.networkError:
+        _showNetworkErrorDialog(context);
+      case LocationIssue.pincodeNotDetected:
+      case LocationIssue.noOutletsForPincode:
+        // Previously unhandled. No dialog is right here — the user is already
+        // on the manual picker — but they need to be told why.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(issue.userMessage)),
+        );
     }
   }
 

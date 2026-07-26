@@ -2,7 +2,7 @@
 
 import 'dart:math';
 import 'package:patelmart/data/models/product_model.dart';
-import '../../presentation/providers/cart_provider.dart';
+import 'cart_item.dart';
 
 class Order {
   final String orderId;

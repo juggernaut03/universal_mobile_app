@@ -1,10 +1,6 @@
 // lib/data/repositories/profile_repository.dart
 
-import 'dart:convert';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import '../../core/constants/app_constants.dart';
-import '../../core/utils/logger.dart';
 import 'base_repository.dart';
 
 class ProfileRepository extends BaseRepository {
@@ -91,13 +87,4 @@ class ProfileRepository extends BaseRepository {
   }
 }
 
-/// Provider for ProfileRepository using centralized dependencies
-final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  final dependencies = ref.watch(baseRepositoryDependenciesProvider);
-  
-  return ProfileRepository(
-    authManager: dependencies.authManager,
-    apiClient: dependencies.apiClient,
-    logger: dependencies.logger,
-  );
-});
+// profileRepositoryProvider now declared in lib/di/repository_providers.dart

@@ -1,29 +1,15 @@
 // lib/presentation/features/orders/providers/order_history_provider.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import 'package:patelmart/presentation/providers/auth_providers.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
-import '../../../../core/utils/logger.dart';
 import '../../../../data/models/order_model.dart';
 import '../../../../data/models/last_order_status_model.dart';
-import '../../../../data/repositories/order_repository.dart';
 import 'cart_provider.dart';
+import '../../di/repository_providers.dart';
+import '../../di/auth_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider for the OrderRepository instance
-final orderRepositoryProvider = Provider<OrderRepository>((ref) {
-  final logger = ref.read(loggerProvider);
-  final authRepository = ref.read(authRepositoryProvider);
-  
-  // Create a standard client for production use
-  final client = http.Client();
-  
-  return OrderRepository(
-    client: client,
-    authRepository: authRepository,
-    logger: logger,
-  );
-});
+// orderRepositoryProvider now declared in lib/di/repository_providers.dart
 
 // Provider to fetch all orders
 final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
@@ -32,8 +18,7 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async
   
   try {
     // Check if user is logged in
-    final authRepository = ref.read(authRepositoryProvider);
-    final isLoggedIn = await authRepository.isLoggedIn();
+    final isLoggedIn = await ref.read(authRepositoryProvider).isSignedIn();
     logger.log('User login status: $isLoggedIn');
     
     if (!isLoggedIn) {
@@ -42,7 +27,8 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async
     }
     
     // Get user profile
-    final userProfile = await authRepository.getUserProfile();
+    final userProfile =
+        (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
     if (userProfile == null) {
       logger.log('User profile is null, possibly missing access key');
       return [];

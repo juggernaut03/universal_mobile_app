@@ -2,15 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/back_handler.dart';
-import '../utils/logger.dart';
-import '../../presentation/providers/launch_flow_provider.dart';
+import '../../core/utils/back_handler.dart';
+import '../../di/infrastructure_providers.dart';
 
-// Provider for the BackButtonHandler
-final backButtonHandlerProvider = Provider<BackButtonHandler>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return BackButtonHandler(logger: logger);
-});
 
 class BackButtonWrapper extends ConsumerWidget {
   final Widget child;
@@ -41,3 +35,8 @@ class BackButtonWrapper extends ConsumerWidget {
     );
   }
 }
+
+final backButtonHandlerProvider = Provider<BackButtonHandler>((ref) {
+  final logger = ref.watch(loggerProvider);
+  return BackButtonHandler(logger: logger);
+});

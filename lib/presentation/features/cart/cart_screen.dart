@@ -3,24 +3,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/presentation/features/cart/widgets/cart_session_info_widget.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/utils/responsive_utils.dart';
-import '../../../core/widgets/back_button_wrapper.dart';
+import '../../../presentation/widgets/back_button_wrapper.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/services/cart_validator.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/auth_providers.dart';
 import '../../providers/cart_validator_provider.dart';
 import '../../providers/outlet_provider.dart';
 import 'widgets/cart_item_widget.dart';
 import 'widgets/tabbed_offers_widget.dart';
-import 'widgets/section_header_widget.dart';
 import 'widgets/cart_validation_dialog.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
+import '../../../di/auth_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -745,7 +741,7 @@ class CartScreen extends ConsumerWidget {
     ref.read(validationRetryCountProvider.notifier).state = 0;
     
     // Check if user is logged in
-    final isLoggedIn = await ref.read(authRepositoryProvider).isLoggedIn();
+    final isLoggedIn = await ref.read(authRepositoryProvider).isSignedIn();
     
     if (context.mounted) {
       if (isLoggedIn) {

@@ -2,12 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:patelmart/core/widgets/back_button_wrapper.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+import 'package:patelmart/presentation/widgets/back_button_wrapper.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
 import '../../providers/splash_provider.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   final String logoAsset;

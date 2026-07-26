@@ -7,17 +7,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/product_model.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/cached_network_image_widget.dart';
 import '../../../core/widgets/empty_state_widget.dart';
 import '../../../core/widgets/error_widgets.dart';
-import '../../../core/widgets/favorite_button.dart';
+import '../../../presentation/widgets/favorite_button.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/launch_flow_provider.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/search_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
 // Search state model
 class SearchState {
@@ -52,10 +51,6 @@ class SearchState {
   }
 }
 
-// Search provider
-final searchProvider = StateNotifierProvider<SearchNotifier, SearchState>((ref) {
-  return SearchNotifier(ref);
-});
 
 class SearchNotifier extends StateNotifier<SearchState> {
   final Ref _ref;
@@ -1346,3 +1341,7 @@ class _MaxQuantityInputFormatter extends TextInputFormatter {
     return newValue;
   }
 }
+
+final searchProvider = StateNotifierProvider<SearchNotifier, SearchState>((ref) {
+  return SearchNotifier(ref);
+});

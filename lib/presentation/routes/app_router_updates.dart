@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import '../features/orders/my_orders_screen.dart';
 
 // This class contains updates that need to be added to your existing app_router.dart file

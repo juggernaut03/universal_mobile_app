@@ -2,29 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../../data/models/best_seller_models.dart';
 import '../../../../data/models/product_model.dart';
-import '../../../../data/repositories/best_seller_repository.dart';
+import '../../di/repository_providers.dart';
 
 // Cache manager provider
-final bestSellerCacheManagerProvider = Provider<DefaultCacheManager>((ref) {
-  return DefaultCacheManager();
-});
 
 // Repository provider
-final bestSellerRepositoryProvider = Provider<BestSellerRepository>((ref) {
-  final apiClient = ApiClient(logger: ref.watch(loggerProvider));
-  final cacheManager = ref.watch(bestSellerCacheManagerProvider);
-  
-  return BestSellerRepository(
-    apiClient: apiClient,
-    logger: ref.watch(loggerProvider),
-    cacheManager: cacheManager,
-  );
-});
 
 // Provider to force refresh best seller data (ignoring cache)
 final refreshBestSellerProvider = StateProvider<bool>((ref) => false);

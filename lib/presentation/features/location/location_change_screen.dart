@@ -13,6 +13,7 @@ import '../../providers/location_provider.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/home_refresh_provider.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class LocationChangeScreen extends ConsumerStatefulWidget {
   const LocationChangeScreen({Key? key}) : super(key: key);

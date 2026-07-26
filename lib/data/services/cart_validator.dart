@@ -5,7 +5,7 @@ import 'package:patelmart/data/models/product_model.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
-import '../../presentation/providers/cart_provider.dart';
+import '../models/cart_item.dart';
 
 /// CartValidator pushes the local cart to the universal backend and validates
 /// it against live stock/prices before checkout.

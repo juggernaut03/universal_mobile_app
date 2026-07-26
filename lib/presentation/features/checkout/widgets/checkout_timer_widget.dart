@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/checkout_timer_provider.dart';
-import '../../../../core/constants/app_colors.dart';
 
 // Main timer widget for checkout screen
 class CheckoutTimerWidget extends ConsumerWidget {

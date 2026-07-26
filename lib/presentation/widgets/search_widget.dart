@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:patelmart/core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/providers/search_providers.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../di/infrastructure_providers.dart';
 
 
 class SearchWidget extends ConsumerStatefulWidget {

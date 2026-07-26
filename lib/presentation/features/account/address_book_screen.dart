@@ -8,32 +8,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/logger.dart';
-import '../../../core/widgets/back_button_wrapper.dart';
+import '../../../presentation/widgets/back_button_wrapper.dart';
 import '../../../core/widgets/error_widgets.dart';
 import '../../../data/models/address_model.dart';
-import '../../../data/repositories/address_repository.dart';
 import '../../providers/auth_providers.dart';
-import '../../providers/launch_flow_provider.dart';
 import '../../providers/location_provider.dart';
+import '../../../di/repository_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
-// Address list provider backed by the universal backend via AddressRepository
-final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) async {
-  final logger = ref.read(loggerProvider);
-  final repository = ref.read(addressRepositoryProvider);
 
-  logger.log('Fetching addresses from universal backend...');
-  final addresses = await repository.getAddresses();
-  logger.log('Fetched ${addresses.length} address(es)');
-  return addresses;
-});
-
-// Provider to refresh addresses when needed
-final refreshAddressListProvider = Provider<Future<void> Function()>((ref) {
-  return () async {
-    ref.invalidate(addressListProvider);
-    await ref.read(addressListProvider.future);
-  };
-});
 
 // Main Address Book Screen
 class AddressBookScreen extends ConsumerWidget {
@@ -498,3 +481,21 @@ class AddressBookScreen extends ConsumerWidget {
     }
   }
 }
+
+final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) async {
+  final logger = ref.read(loggerProvider);
+  final repository = ref.read(addressRepositoryProvider);
+
+  logger.log('Fetching addresses from universal backend...');
+  final addresses = await repository.getAddresses();
+  logger.log('Fetched ${addresses.length} address(es)');
+  return addresses;
+});
+
+// Provider to refresh addresses when needed
+final refreshAddressListProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    ref.invalidate(addressListProvider);
+    await ref.read(addressListProvider.future);
+  };
+});

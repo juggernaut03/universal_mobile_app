@@ -2,15 +2,13 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/core/utils/logger.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/services/cart_session_manager.dart';
+import '../../di/service_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider for cart session manager
-final cartSessionManagerProvider = Provider<CartSessionManager>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return CartSessionManager(logger: logger);
-});
+// cartSessionManagerProvider moved to lib/di/service_providers.dart
 
 // Enhanced cart validator service provider
 final enhancedCartValidatorProvider = Provider<EnhancedCartValidatorService>((ref) {

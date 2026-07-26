@@ -12,11 +12,10 @@ import 'package:patelmart/presentation/features/account/address_book_screen.dart
 import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
-import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import 'package:patelmart/utils/ascii_only_input_formatter.dart';
 import 'package:patelmart/core/utils/input_formatters.dart';
+import '../../../di/infrastructure_providers.dart';
 
 
 class AddAddressScreen extends ConsumerStatefulWidget {
@@ -122,7 +121,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
       // If all retries failed, try direct access to auth manager
       try {
         logger.log('All retries failed, trying direct auth manager access...');
-        final authManager = ref.read(auth.centralizedAuthManagerProvider);
+        final authManager = ref.read(centralizedAuthManagerProvider);
         final userProfile = await authManager.getCurrentUserProfile();
       
       if (userProfile != null && userProfile.mobile.isNotEmpty) {

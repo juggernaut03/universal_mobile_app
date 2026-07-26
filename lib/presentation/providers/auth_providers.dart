@@ -1,57 +1,22 @@
 // lib/presentation/providers/auth_providers.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:http/http.dart' as http;
-import '../../core/network/api_client.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/models/auth_models.dart';
-import '../../core/auth/centralized_auth_manager.dart' as auth;
-import 'launch_flow_provider.dart';
+import '../../di/infrastructure_providers.dart';
+import '../../di/service_providers.dart';
 
-// Provider for FlutterSecureStorage
-final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
-  return const FlutterSecureStorage();
-});
 
-// Provider for HTTP Client (new - for FCM token API calls)
-final httpClientProvider = Provider<http.Client>((ref) {
-  return http.Client();
-});
+// authServiceProvider now declared in lib/di/service_providers.dart
 
-// Provider for Firebase Messaging (new - for FCM token functionality)
-final firebaseMessagingProvider = Provider<FirebaseMessaging>((ref) {
-  return FirebaseMessaging.instance;
-});
-
-// Enhanced AuthService provider with FCM integration
-final authServiceProvider = Provider<AuthService>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  final secureStorage = ref.watch(secureStorageProvider);
-  final logger = ref.watch(loggerProvider);
-  final httpClient = ref.watch(httpClientProvider);
-  final firebaseMessaging = ref.watch(firebaseMessagingProvider);
-  
-  return AuthService(
-    apiClient: apiClient,
-    secureStorage: secureStorage,
-    logger: logger,
-    httpClient: httpClient,
-    firebaseMessaging: firebaseMessaging,
-  );
-});
-
-// Provider for ApiClient
-final apiClientProvider = Provider<ApiClient>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return ApiClient(logger: logger);
-});
-
-// Provider for AuthRepository
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
+// TODO(phase-3a): superseded by `authRepositoryProvider` in lib/di/auth_providers.dart,
+// which is typed to the domain interface IAuthRepository and returns Result<T>.
+// 35 call sites across 20 files still read this one — including 9 auth guards in
+// app_router.dart. Renamed rather than deleted so the remaining debt is visible
+// and the compiler points at every site that still needs moving.
+final legacyAuthRepositoryProvider = Provider<AuthRepository>((ref) {
   final authService = ref.watch(authServiceProvider);
-  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  final authManager = ref.watch(centralizedAuthManagerProvider);
   final logger = ref.watch(loggerProvider);
   
   return AuthRepository(
@@ -63,24 +28,24 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 // Provider to check if user is logged in using centralized auth
 final isLoggedInProvider = FutureProvider<bool>((ref) async {
-  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  final authManager = ref.watch(centralizedAuthManagerProvider);
   return await authManager.isLoggedIn();
 });
 
 // Provider for user profile using centralized auth
 final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
-  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  final authManager = ref.watch(centralizedAuthManagerProvider);
   return await authManager.getCurrentUserProfile();
 });
 
 // Reactive stream providers for immediate UI updates
 final userProfileStreamProvider = StreamProvider<UserProfile?>((ref) {
-  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  final authManager = ref.watch(centralizedAuthManagerProvider);
   return authManager.profileStream;
 });
 
 final loginStatusStreamProvider = StreamProvider<bool>((ref) {
-  final authManager = ref.watch(auth.centralizedAuthManagerProvider);
+  final authManager = ref.watch(centralizedAuthManagerProvider);
   return authManager.loginStatusStream;
 });
 
@@ -97,7 +62,7 @@ final loginStateProvider = StateProvider<LoginState>((ref) => LoginState.initial
 
 // OTP request provider
 final otpRequestProvider = FutureProvider.autoDispose((ref) async {
-  final repository = ref.watch(authRepositoryProvider);
+  final repository = ref.watch(legacyAuthRepositoryProvider);
   final mobileNumber = ref.watch(mobileNumberProvider);
   
   // Validate mobile number
@@ -110,7 +75,7 @@ final otpRequestProvider = FutureProvider.autoDispose((ref) async {
 
 // OTP validation provider
 final otpValidationProvider = FutureProvider.autoDispose((ref) async {
-  final repository = ref.watch(authRepositoryProvider);
+  final repository = ref.watch(legacyAuthRepositoryProvider);
   final mobileNumber = ref.watch(mobileNumberProvider);
   final otp = ref.watch(otpProvider);
   
@@ -132,12 +97,12 @@ class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationRespon
     state = const AsyncValue.loading();
     
     try {
-      final repository = _ref.read(authRepositoryProvider);
+      final repository = _ref.read(legacyAuthRepositoryProvider);
       final response = await repository.validateOtp(mobileNumber, otp);
       
       if (response.authentication == 1) {
         // Save to centralized auth manager as well
-        final authManager = _ref.read(auth.centralizedAuthManagerProvider);
+        final authManager = _ref.read(centralizedAuthManagerProvider);
         final userProfile = UserProfile(
           mobile: mobileNumber,
           accessKey: response.accessKey,
@@ -178,11 +143,11 @@ final otpValidationNotifierProvider = StateNotifierProvider<OtpValidationNotifie
 // Enhanced logout provider that clears favorites
 final logoutProvider = Provider((ref) {
   return () async {
-    final repository = ref.read(authRepositoryProvider);
+    final repository = ref.read(legacyAuthRepositoryProvider);
     await repository.logout();
     
     // Clear centralized auth manager as well
-    final authManager = ref.read(auth.centralizedAuthManagerProvider);
+    final authManager = ref.read(centralizedAuthManagerProvider);
     await authManager.logout();
     
     // Clear login state

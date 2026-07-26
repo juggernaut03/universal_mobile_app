@@ -1,15 +1,11 @@
 // lib/presentation/features/checkout/enhanced_payment_flow.dart
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/data/models/payment_method_model.dart';
 import 'package:patelmart/data/services/payment_service.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/providers/order_providers.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart';
@@ -17,12 +13,13 @@ import 'package:patelmart/presentation/providers/delivery_charges_provider.dart'
 import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:patelmart/utils/payment_data_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
 // Import CheckoutData and DeliveryMethod from your existing file
 import 'checkout_flow_screen.dart' show CheckoutData, DeliveryMethod;
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
+import '../../../di/service_providers.dart';
+import '../../../di/auth_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
 /// Enhanced Payment Processing Flow that follows the exact requirements:
 /// 1. On "Place Order" click → Call payment processing API → Database entry with status "Payment Processing"
@@ -511,8 +508,7 @@ class EnhancedPaymentFlow {
       // Get required data
       final cartItems = ref.read(cartProvider);
       final selectedOutlet = ref.read(selectedOutletProvider).value!;
-      final authRepository = ref.read(authRepositoryProvider);
-      final userProfile = await authRepository.getUserProfile();
+      final userProfile = (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
       
       // Prepare completely fresh identifiers for this new order
       final cartNotifier = ref.read(cartProvider.notifier);
@@ -600,7 +596,7 @@ class EnhancedPaymentFlow {
         cartTotal: cartTotal,
         cartSavings: cartSavings,
         deliveryCharge: deliveryCharge,
-        accessKey: userProfile?.accessKey,
+        accessKey: userProfile?.accessToken,
         mobileNo: userProfile?.mobile,
         specialNotes: specialInstructions,
       );
@@ -642,7 +638,7 @@ class EnhancedPaymentFlow {
         cartTotal: cartTotal,
         cartSavings: cartSavings,
         deliveryCharge: deliveryCharge,
-        accessKey: userProfile?.accessKey,
+        accessKey: userProfile?.accessToken,
         specialNotes: specialInstructions,
         paymentResult: paymentResult,
         deliverySlotId: checkoutData.deliverySlotId,

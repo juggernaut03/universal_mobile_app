@@ -7,7 +7,7 @@ import 'package:patelmart/presentation/providers/favorites_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../data/models/product_model.dart';
-import '../../core/auth/centralized_auth_manager.dart' hide isLoggedInProvider, userProfileProvider;
+import '../../di/infrastructure_providers.dart';
 
 class FavoriteButton extends ConsumerWidget {
   final ProductModel product;

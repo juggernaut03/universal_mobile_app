@@ -1,6 +1,5 @@
 // lib/data/repositories/favorites_repository.dart
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
 import '../models/product_model.dart';
 import 'base_repository.dart';
@@ -171,13 +170,4 @@ class FavoritesRepository extends BaseRepository {
   }
 }
 
-/// Provider for FavoritesRepository using centralized dependencies
-final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
-  final dependencies = ref.watch(baseRepositoryDependenciesProvider);
-  
-  return FavoritesRepository(
-    authManager: dependencies.authManager,
-    apiClient: dependencies.apiClient,
-    logger: dependencies.logger,
-  );
-});
+// favoritesRepositoryProvider now declared in lib/di/repository_providers.dart

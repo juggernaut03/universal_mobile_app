@@ -1,8 +1,8 @@
 // lib/core/handlers/app_lifecycle_handler.dart
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../presentation/providers/popup_providers.dart';
-import '../../presentation/providers/launch_flow_provider.dart';
+import '../providers/popup_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 /// Handles app lifecycle events to manage popup behavior
 /// This ensures popup shows on every app launch/resume

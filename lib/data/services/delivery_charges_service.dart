@@ -2,7 +2,6 @@
 
 import 'dart:convert';
 import 'dart:math' show sin, cos, sqrt, atan2, pi;
-import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:geocoding/geocoding.dart' show locationFromAddress;

@@ -4,25 +4,12 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:patelmart/data/services/content_service.dart';
-import 'package:patelmart/core/widgets/back_button_wrapper.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/widgets/cached_network_image_widget.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
+import '../../providers/support_content_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
-// Provider for about us content (GET /api/content/about-us)
-final aboutUsContentProvider = FutureProvider<String>((ref) async {
-  final logger = ref.read(loggerProvider);
-  try {
-    logger.log('Fetching about us content from API');
-    return await ContentService().fetchContentPage('about-us');
-  } catch (e) {
-    logger.error('Error fetching about us content: $e');
-    throw Exception('Unable to load content. Please check your connection and try again.');
-  }
-});
 
 class AboutUsScreen extends ConsumerWidget {
   const AboutUsScreen({Key? key}) : super(key: key);

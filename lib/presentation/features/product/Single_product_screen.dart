@@ -1,22 +1,22 @@
 // lib/presentation/features/product/single_product_screen.dart
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/constants/app_text_styles.dart';
-import '../../../core/widgets/cached_network_image_widget.dart';
 import '../../../data/models/product_model.dart';
+import '../../../core/result/result.dart';
+import '../../../di/product_providers.dart';
+import '../../../domain/usecases/product/get_product_by_code.dart';
+import '../../../domain/usecases/product/get_products.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/launch_flow_provider.dart';
 import '../../providers/outlet_status_provider.dart'; // Add this import for outlet status
 import 'widgets/suggested_product_card.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class SingleProductScreen extends ConsumerStatefulWidget {
   final String pCode;
@@ -44,156 +44,102 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
     super.initState();
     _fetchProductDetails();
   }
-  
+  /// Loads the product through the GetProductByCode use case.
+  ///
+  /// Previously this method issued its own http.post, decoded the envelope,
+  /// unwrapped `data`, handled the timeout and called ProductModel.fromJson —
+  /// all inside a widget. That parsing now lives in ProductRemoteDataSource,
+  /// and every failure arrives here already classified.
   Future<void> _fetchProductDetails() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-    
-    try {
-      final logger = ref.read(loggerProvider);
-      logger.log('Fetching product details - p_code: ${widget.pCode}, store_code: ${widget.storeCode}');
-      
-      final url = Uri.parse(ApiConstants.productDetails);
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Project-Code': ApiConstants.projectCode,
-        },
-        body: json.encode({
-          'p_code': widget.pCode,
-          'store_code': widget.storeCode,
-          'project_code': ApiConstants.projectCode,
-        }),
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('Request timeout');
-        },
-      );
+    final result = await ref.read(getProductByCodeUseCaseProvider)(
+      GetProductByCodeParams(
+        code: widget.pCode,
+        storeCode: widget.storeCode,
+      ),
+    );
 
-      logger.log('API Response Status: ${response.statusCode}');
+    if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        final decoded = json.decode(response.body);
-        // Universal backend: {success, data: {product}}
-        final data = decoded is Map<String, dynamic> ? decoded['data'] : decoded;
+    switch (result) {
+      case Ok(:final value):
+        setState(() {
+          // Converted back to the DTO because cartProvider still takes a
+          // ProductModel. TODO(phase-5): hold the Product entity directly.
+          _product = ProductModel.fromEntity(value);
+          _isLoading = false;
+        });
 
-        if (data is Map<String, dynamic> ||
-            (data is List && data.isNotEmpty)) {
-          setState(() {
-            _product = ProductModel.fromJson(
-                data is List ? data[0] : data as Map<String, dynamic>);
-            _isLoading = false;
-          });
-          logger.log('Successfully loaded product: ${_product?.productName}');
-          
-                      // Track product view with Facebook Pixel
-            if (_product != null) {
-              await FacebookPixelIntegration.trackProductEvent(
-                ref,
-                eventType: 'view',
-                productId: _product!.pCode,
-                productName: _product!.productName,
-                price: _product!.ourPrice,
-                category: _product!.categoryId,
-              );
-            }
-          
-          // After successfully loading the product, fetch suggested products
-          if (_product != null) {
-            _fetchSuggestedProducts();
-          }
-        } else {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = 'Product not found';
-          });
-        }
-      } else {
+        await FacebookPixelIntegration.trackProductEvent(
+          ref,
+          eventType: 'view',
+          productId: value.code,
+          productName: value.name,
+          price: value.sellingPrice,
+          category: value.categoryId,
+        );
+
+        if (mounted) _fetchSuggestedProducts();
+
+      case Err(:final failure):
+        ref.read(loggerProvider).error(
+              'Product ${widget.pCode} failed to load: ${failure.message}',
+            );
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Failed to load product: ${response.statusCode}';
+          // userMessage, not the raw exception. The old code rendered
+          // 'Error: $e' straight to the user.
+          _errorMessage = failure.userMessage;
         });
-      }
-    } catch (e) {
-      final logger = ref.read(loggerProvider);
-      logger.error('Error fetching product: $e');
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Error: $e';
-      });
     }
   }
+
   
+  /// Loads related products through the GetProducts use case.
+  ///
+  /// Was a second inline http.post with its own envelope handling and
+  /// ProductModel.fromJson loop. The current product is filtered out and the
+  /// list capped at six, as before.
   Future<void> _fetchSuggestedProducts() async {
-    if (_product == null) return;
-    
-    setState(() {
-      _isLoadingSuggestions = true;
-    });
-    
-    try {
-      final url = Uri.parse(ApiConstants.getProducts);
+    final current = _product;
+    if (current == null) return;
 
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Project-Code': ApiConstants.projectCode,
-        },
-        body: json.encode({
-          'dept_id': _product!.deptId,
-          'category_id': _product!.categoryId,
-          'sub_category_id': _product!.subCategoryId,
-          'store_code': widget.storeCode,
-          'project_code': ApiConstants.projectCode,
-        }),
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw Exception('Request timeout');
-        },
-      );
+    setState(() => _isLoadingSuggestions = true);
 
-      if (response.statusCode == 200) {
-        final decodedSuggestions = json.decode(response.body);
-        final List<dynamic> data = decodedSuggestions is Map
-            ? (decodedSuggestions['data'] as List? ?? [])
-            : (decodedSuggestions as List);
-        
-        // Convert to product models and filter out the current product
-        final suggestions = data
-            .map((json) => ProductModel.fromJson(json))
-            .where((p) => p.pCode != _product!.pCode) // Filter out current product
+    final result = await ref.read(getProductsUseCaseProvider)(
+      GetProductsParams(
+        storeCode: widget.storeCode,
+        departmentId: current.deptId,
+        categoryId: current.categoryId,
+        subCategoryId: current.subCategoryId,
+      ),
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case Ok(:final value):
+        final suggestions = value
+            .where((p) => p.code != current.pCode)
+            .take(6)
+            .map(ProductModel.fromEntity)
             .toList();
-        
-        // Limit to 6 suggested products for better display
-        final limitedSuggestions = suggestions.length > 6 
-            ? suggestions.sublist(0, 6) 
-            : suggestions;
-        
         setState(() {
-          _suggestedProducts = limitedSuggestions;
+          _suggestedProducts = suggestions;
           _isLoadingSuggestions = false;
         });
-        
-        final logger = ref.read(loggerProvider);
-        logger.log('Loaded ${_suggestedProducts.length} suggested products');
-      } else {
-        setState(() {
-          _isLoadingSuggestions = false;
-        });
-      }
-    } catch (e) {
-      final logger = ref.read(loggerProvider);
-      logger.error('Error fetching suggested products: $e');
-      setState(() {
-        _isLoadingSuggestions = false;
-      });
+
+      case Err(:final failure):
+        // Suggestions are supplementary: log and show nothing rather than
+        // failing the product page the user actually asked for.
+        ref.read(loggerProvider).error(
+              'Suggested products unavailable: ${failure.message}',
+            );
+        setState(() => _isLoadingSuggestions = false);
     }
   }
   

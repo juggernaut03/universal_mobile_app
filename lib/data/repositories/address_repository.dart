@@ -1,6 +1,5 @@
 // lib/data/repositories/address_repository.dart
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
 import '../models/address_model.dart';
 import 'base_repository.dart';
@@ -154,12 +153,3 @@ class AddressRepository extends BaseRepository {
 }
 
 /// Provider for AddressRepository using centralized dependencies
-final addressRepositoryProvider = Provider<AddressRepository>((ref) {
-  final dependencies = ref.watch(baseRepositoryDependenciesProvider);
-
-  return AddressRepository(
-    authManager: dependencies.authManager,
-    apiClient: dependencies.apiClient,
-    logger: dependencies.logger,
-  );
-});

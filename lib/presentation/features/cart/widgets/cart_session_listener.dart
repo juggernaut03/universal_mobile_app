@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+import '../../../../di/infrastructure_providers.dart';
 
 
 /// A widget that listens for app activity and refreshes the cart session

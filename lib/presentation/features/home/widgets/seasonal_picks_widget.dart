@@ -133,61 +133,8 @@ class SeasonalApi {
   }
 }
 
-/// Provider for the API service
-final seasonalApiProvider = Provider<SeasonalApi>((ref) => SeasonalApi());
 
-/// Provider to force refresh seasonal picks data
-final refreshSeasonalPicksProvider = StateProvider<bool>((ref) => false);
 
-/// Provider for the banner data with refresh capability
-final bannerProvider = FutureProvider.family<List<SeasonalBanner>, String>((ref, storeCode) async {
-  final api = ref.watch(seasonalApiProvider);
-  final forceRefresh = ref.watch(refreshSeasonalPicksProvider);
-  
-  return api.getBanner(storeCode, forceRefresh: forceRefresh);
-});
-
-/// Provider for the category data with refresh capability
-final categoriesProvider = FutureProvider.family<List<SeasonalCategory>, String>((ref, storeCode) async {
-  final api = ref.watch(seasonalApiProvider);
-  final forceRefresh = ref.watch(refreshSeasonalPicksProvider);
-  
-  return api.getCategories(storeCode, forceRefresh: forceRefresh);
-});
-
-/// Provider for refreshing seasonal picks data
-final seasonalPicksRefreshProvider = Provider<Future<void> Function()>((ref) {
-  return () async {
-    try {
-      // Set the refresh flag to true
-      ref.read(refreshSeasonalPicksProvider.notifier).state = true;
-      
-      // Get the current outlet
-      final outletAsync = ref.read(selectedOutletProvider);
-      
-      await outletAsync.when(
-        data: (outlet) async {
-          if (outlet != null) {
-            // Refresh both providers
-            await Future.wait([
-              ref.refresh(bannerProvider(outlet.storeCode).future),
-              ref.refresh(categoriesProvider(outlet.storeCode).future),
-            ]);
-          }
-        },
-        loading: () => Future.value(),
-        error: (_, __) => Future.value(),
-      );
-      
-      // Reset the refresh flag
-      ref.read(refreshSeasonalPicksProvider.notifier).state = false;
-    } catch (e) {
-      // Reset the refresh flag even on error
-      ref.read(refreshSeasonalPicksProvider.notifier).state = false;
-      rethrow;
-    }
-  };
-});
 
 /// The main seasonal picks widget
 class SeasonalPicksWidget extends ConsumerWidget {
@@ -446,3 +393,58 @@ class SeasonalPicksWidget extends ConsumerWidget {
     );
   }
 }
+
+final seasonalApiProvider = Provider<SeasonalApi>((ref) => SeasonalApi());
+
+/// Provider to force refresh seasonal picks data
+final refreshSeasonalPicksProvider = StateProvider<bool>((ref) => false);
+
+/// Provider for the banner data with refresh capability
+final bannerProvider = FutureProvider.family<List<SeasonalBanner>, String>((ref, storeCode) async {
+  final api = ref.watch(seasonalApiProvider);
+  final forceRefresh = ref.watch(refreshSeasonalPicksProvider);
+  
+  return api.getBanner(storeCode, forceRefresh: forceRefresh);
+});
+
+/// Provider for the category data with refresh capability
+final categoriesProvider = FutureProvider.family<List<SeasonalCategory>, String>((ref, storeCode) async {
+  final api = ref.watch(seasonalApiProvider);
+  final forceRefresh = ref.watch(refreshSeasonalPicksProvider);
+  
+  return api.getCategories(storeCode, forceRefresh: forceRefresh);
+});
+
+/// Provider for refreshing seasonal picks data
+final seasonalPicksRefreshProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    try {
+      // Set the refresh flag to true
+      ref.read(refreshSeasonalPicksProvider.notifier).state = true;
+      
+      // Get the current outlet
+      final outletAsync = ref.read(selectedOutletProvider);
+      
+      await outletAsync.when(
+        data: (outlet) async {
+          if (outlet != null) {
+            // Refresh both providers
+            await Future.wait([
+              ref.refresh(bannerProvider(outlet.storeCode).future),
+              ref.refresh(categoriesProvider(outlet.storeCode).future),
+            ]);
+          }
+        },
+        loading: () => Future.value(),
+        error: (_, __) => Future.value(),
+      );
+      
+      // Reset the refresh flag
+      ref.read(refreshSeasonalPicksProvider.notifier).state = false;
+    } catch (e) {
+      // Reset the refresh flag even on error
+      ref.read(refreshSeasonalPicksProvider.notifier).state = false;
+      rethrow;
+    }
+  };
+});

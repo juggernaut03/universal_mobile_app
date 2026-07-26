@@ -4,17 +4,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:patelmart/data/models/auth_models.dart';
+import 'di/product_providers.dart';
 import 'package:patelmart/firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'app.dart';
 import 'presentation/providers/launch_flow_provider.dart';
-import 'core/widgets/back_button_wrapper.dart';
+import 'presentation/widgets/back_button_wrapper.dart';
 import 'core/utils/back_handler.dart';
 import 'core/utils/logger.dart';
 // POPUP LIFECYCLE IMPORTS
-import 'core/handlers/app_lifecycle_handler.dart';
+import 'presentation/handlers/app_lifecycle_handler.dart';
 import 'presentation/providers/popup_providers.dart';
 // NOTIFICATION IMPORTS
 import 'data/repositories/project_config_repository.dart';
@@ -24,8 +24,9 @@ import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/favorites_provider.dart';
 // FACEBOOK PIXEL IMPORTS
 import 'facebook_pixel/facebook_pixel_integration.dart';
+import 'di/service_providers.dart';
+import 'di/infrastructure_providers.dart';
 // PRODUCT CACHE IMPORTS
-import 'presentation/providers/subcategory_providers.dart';
 
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -647,8 +648,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
     try {
       final logger = ref.read(loggerProvider);
       logger.log('🗑️ Clearing product cache for fresh price fetch...');
-      final productRepo = ref.read(productRepositoryProvider);
-      await productRepo.clearCache();
+      await ref.read(productRepositoryProvider).clearCache();
       logger.log('✅ Product cache cleared — fresh prices will be fetched from API');
     } catch (e) {
       ref.read(loggerProvider).error('⚠️ Could not clear product cache: $e');

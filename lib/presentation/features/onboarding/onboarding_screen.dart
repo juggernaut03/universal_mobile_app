@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
-import '../../../core/widgets/back_button_wrapper.dart';
+import '../../../presentation/widgets/back_button_wrapper.dart';
 import '../../providers/onboarding_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 

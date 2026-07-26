@@ -5,91 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:patelmart/presentation/providers/reorder_provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
-import '../../../core/utils/logger.dart';
 import '../../../data/models/order_model.dart';
-import '../../../data/repositories/profile_repository.dart';
-import '../../providers/auth_providers.dart';
+import '../../../di/repository_providers.dart';
+import '../../../di/auth_providers.dart';
 
 // Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
 
-// Provider to fetch user profile details from API
-final userProfileDetailsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final authRepository = ref.read(authRepositoryProvider);
-  final userProfile = await authRepository.getUserProfile();
-  
-  if (userProfile == null) {
-    return {};
-  }
-  
-  final profileRepository = ref.read(profileRepositoryProvider);
-  try {
-    final profileData = await profileRepository.getUserProfile();
-    return profileData;
-  } catch (e) {
-    // Return basic info if API call fails
-    return {
-      'mobile_number': userProfile.mobile,
-      'first_name': '',
-      'last_name': '',
-    };
-  }
-});
 
-// Provider to fetch all orders for calculating savings
-final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
-  final authRepository = ref.read(authRepositoryProvider);
-  final userProfile = await authRepository.getUserProfile();
-  
-  if (userProfile == null) {
-    return [];
-  }
-  
-  final orderRepository = ref.read(orderRepositoryProvider);
-  final orders = await orderRepository.getOrderHistory();
-  
-  // Filter out orders with "In Cart" status
-  return orders.where((order) => 
-    order.status.toLowerCase() != 'in cart' && 
-    order.status.toLowerCase() != 'pending'
-  ).toList();
-});
 
-// Provider for calculating savings statistics
-final savingsStatsProvider = Provider.autoDispose<SavingsStats>((ref) {
-  final ordersAsyncValue = ref.watch(orderHistoryProvider);
-  
-  return ordersAsyncValue.when(
-    data: (orders) {
-      if (orders.isEmpty) {
-        return SavingsStats.empty();
-      }
-      
-      double totalSpent = 0;
-      double totalMrp = 0;
-      
-      for (final order in orders) {
-        totalSpent += order.totalAmount;
-        totalMrp += order.totalMrp;
-      }
-      
-      final totalSavings = totalMrp - totalSpent;
-      final double avgSavingsPerOrder = orders.isEmpty ? 0 : totalSavings / orders.length;
-      
-      return SavingsStats(
-        totalSavings: totalSavings,
-        totalSpent: totalSpent,
-        totalMrp: totalMrp,
-        orderCount: orders.length,
-        avgSavingsPerOrder: avgSavingsPerOrder,
-      );
-    },
-    loading: () => SavingsStats.empty(),
-    error: (_, __) => SavingsStats.empty(),
-  );
-});
 
 // Model to hold savings statistics
 class SavingsStats {
@@ -597,3 +521,76 @@ class SavingsScreen extends ConsumerWidget {
     );
   }
 }
+
+final userProfileDetailsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final userProfile = (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
+  
+  if (userProfile == null) {
+    return {};
+  }
+  
+  final profileRepository = ref.read(profileRepositoryProvider);
+  try {
+    final profileData = await profileRepository.getUserProfile();
+    return profileData;
+  } catch (e) {
+    // Return basic info if API call fails
+    return {
+      'mobile_number': userProfile.mobile,
+      'first_name': '',
+      'last_name': '',
+    };
+  }
+});
+
+// Provider to fetch all orders for calculating savings
+final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
+  final userProfile = (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
+  
+  if (userProfile == null) {
+    return [];
+  }
+  
+  final orderRepository = ref.read(orderRepositoryProvider);
+  final orders = await orderRepository.getOrderHistory();
+  
+  // Filter out orders with "In Cart" status
+  return orders.where((order) => 
+    order.status.toLowerCase() != 'in cart' && 
+    order.status.toLowerCase() != 'pending'
+  ).toList();
+});
+
+// Provider for calculating savings statistics
+final savingsStatsProvider = Provider.autoDispose<SavingsStats>((ref) {
+  final ordersAsyncValue = ref.watch(orderHistoryProvider);
+  
+  return ordersAsyncValue.when(
+    data: (orders) {
+      if (orders.isEmpty) {
+        return SavingsStats.empty();
+      }
+      
+      double totalSpent = 0;
+      double totalMrp = 0;
+      
+      for (final order in orders) {
+        totalSpent += order.totalAmount;
+        totalMrp += order.totalMrp;
+      }
+      
+      final totalSavings = totalMrp - totalSpent;
+      final double avgSavingsPerOrder = orders.isEmpty ? 0 : totalSavings / orders.length;
+      
+      return SavingsStats(
+        totalSavings: totalSavings,
+        totalSpent: totalSpent,
+        totalMrp: totalMrp,
+        orderCount: orders.length,
+        avgSavingsPerOrder: avgSavingsPerOrder,
+      );
+    },
+    loading: () => SavingsStats.empty(),
+    error: (_, __) => SavingsStats.empty(),
+  );
+});

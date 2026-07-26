@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/result/result.dart';
+import '../../di/product_providers.dart';
+import '../../domain/usecases/product/get_product_by_code.dart';
 import '../../data/models/product_model.dart';
-import '../../core/auth/centralized_auth_manager.dart';
-import 'launch_flow_provider.dart';
 import 'outlet_provider.dart';
 import 'cart_provider.dart';
-import 'subcategory_providers.dart';
+import '../../di/service_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 /// Debounced cart state that only updates after 800ms of inactivity.
 /// This prevents rapid API calls when user is adding/removing items quickly.
@@ -141,7 +143,7 @@ final stealDealsOffersProvider =
     logger.log('StealDeals: get_offer API returned ${offers.length} offers');
     if (offers.isEmpty) return [];
 
-    final productRepository = ref.watch(productRepositoryProvider);
+    final getProductByCode = ref.watch(getProductByCodeUseCaseProvider);
     final List<StealDealOffer> stealDeals = [];
 
     for (final offer in offers) {
@@ -165,18 +167,22 @@ final stealDealsOffersProvider =
         continue;
       }
 
-      // Fetch all products for this offer
+      // Fetch all products for this offer.
+      // A failure on one code must not abandon the whole offer, so each Err is
+      // logged and skipped — but now with a typed reason instead of a bare null.
       final List<ProductModel> products = [];
       for (final pCode in pCodes) {
-        try {
-          final product =
-              await productRepository.getProductByCode(pCode, storeCode);
-          if (product != null && product.isAvailable) {
-            products.add(product);
-          }
-        } catch (e) {
-          logger.error(
-              'StealDeals: Error fetching product pCode $pCode: $e');
+        final result = await getProductByCode(
+          GetProductByCodeParams(code: pCode, storeCode: storeCode),
+        );
+        switch (result) {
+          case Ok(:final value):
+            if (value.isAvailable) {
+              products.add(ProductModel.fromEntity(value));
+            }
+          case Err(:final failure):
+            logger.error(
+                'StealDeals: could not fetch pCode $pCode: ${failure.message}');
         }
       }
 

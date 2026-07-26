@@ -2,59 +2,26 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/product_model.dart';
+import '../../data/models/cart_item.dart';
 import '../../data/services/cart_storage_service.dart';
 import '../../data/services/cart_validator.dart';
 import '../../data/services/cart_session_manager.dart';
+import '../../di/service_providers.dart';
 import '../../core/utils/logger.dart';
-import 'auth_providers.dart';
-import 'launch_flow_provider.dart';
 import 'steal_deals_provider.dart';
 // FACEBOOK PIXEL IMPORTS
-import '../../facebook_pixel/facebook_pixel_integration.dart';
 import '../../facebook_pixel/facebook_pixel_provider.dart';
+import '../../di/infrastructure_providers.dart';
 
-// Cart item model
-class CartItem {
-  final ProductModel product;
-  final int quantity;
- 
-  CartItem({
-    required this.product,
-    required this.quantity,
-  });
+export '../../data/models/cart_item.dart' show CartItem;
 
-  CartItem copyWith({
-    ProductModel? product,
-    int? quantity,
-  }) {
-    return CartItem(
-      product: product ?? this.product,
-      quantity: quantity ?? this.quantity,
-    );
-  }
-
-  // Calculate total price for this item
-  double get totalPrice => product.ourPrice * quantity;
-  
-  // Calculate total MRP for this item
-  double get totalMrp => product.productMrp * quantity;
-  
-  // Calculate savings for this item
-  double get savings => totalMrp - totalPrice;
-}
+// CartItem moved to lib/data/models/cart_item.dart and re-exported below, so
+// the many files importing it from here keep resolving.
 
 // Provider for CartStorageService
-final cartStorageServiceProvider = Provider<CartStorageService>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  final logger = ref.watch(loggerProvider);
-  return CartStorageService(prefs: prefs, logger: logger);
-});
 
 // Provider for cart session manager
-final cartSessionManagerProvider = Provider<CartSessionManager>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return CartSessionManager(logger: logger);
-});
+// cartSessionManagerProvider moved to lib/di/service_providers.dart
 
 // Cart state notifier with enhanced session management
 class CartNotifier extends StateNotifier<List<CartItem>> {

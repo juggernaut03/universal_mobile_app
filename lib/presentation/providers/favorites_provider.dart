@@ -2,11 +2,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/favorites_repository.dart';
 import '../providers/auth_providers.dart';
-import '../providers/launch_flow_provider.dart';
 import '../providers/outlet_provider.dart';
 import '../../data/models/product_model.dart';
 import '../../data/models/auth_models.dart';
-import '../../core/auth/centralized_auth_manager.dart' as auth;
+import '../../di/repository_providers.dart';
+import '../../di/infrastructure_providers.dart';
+import '../../di/auth_providers.dart';
 
 // Import the repository provider from the repository file
 // (The favoritesRepositoryProvider is now defined in favorites_repository.dart)
@@ -67,8 +68,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
     
     try {
       // Enhanced authentication check similar to other features
-      final authRepository = _ref.read(authRepositoryProvider);
-      final isLoggedIn = await authRepository.isLoggedIn();
+      final isLoggedIn = await _ref.read(authRepositoryProvider).isSignedIn();
       
       if (!isLoggedIn) {
         state = state.copyWith(isInitialized: true);
@@ -80,7 +80,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       UserProfile? userProfile = await _ref.read(userProfileProvider.future);
       if (userProfile == null) {
         // Fallback: check auth manager directly
-        final authManager = _ref.read(auth.centralizedAuthManagerProvider);
+        final authManager = _ref.read(centralizedAuthManagerProvider);
         userProfile = await authManager.getCurrentUserProfile();
         if (userProfile == null) {
           state = state.copyWith(isInitialized: true);
@@ -132,8 +132,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
   Future<void> refreshFavorites() async {
     try {
       // Enhanced authentication check similar to other features
-      final authRepository = _ref.read(authRepositoryProvider);
-      final isLoggedIn = await authRepository.isLoggedIn();
+      final isLoggedIn = await _ref.read(authRepositoryProvider).isSignedIn();
       
       if (!isLoggedIn) {
         state = state.copyWith(
@@ -148,7 +147,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       UserProfile? userProfile = await _ref.read(userProfileProvider.future);
       if (userProfile == null) {
         // Fallback: check auth manager directly
-        final authManager = _ref.read(auth.centralizedAuthManagerProvider);
+        final authManager = _ref.read(centralizedAuthManagerProvider);
         userProfile = await authManager.getCurrentUserProfile();
         if (userProfile == null) {
           state = state.copyWith(
@@ -207,8 +206,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       }
       
       // Enhanced authentication check similar to other features
-      final authRepository = _ref.read(authRepositoryProvider);
-      final isLoggedIn = await authRepository.isLoggedIn();
+      final isLoggedIn = await _ref.read(authRepositoryProvider).isSignedIn();
         
         if (!isLoggedIn) {
         logger.log('❌ User not logged in per auth repository');
@@ -224,7 +222,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       if (userProfile == null) {
         logger.log('🔥 No user profile from provider, checking auth manager directly...');
         // Fallback: check auth manager directly
-        final authManager = _ref.read(auth.centralizedAuthManagerProvider);
+        final authManager = _ref.read(centralizedAuthManagerProvider);
         userProfile = await authManager.getCurrentUserProfile();
         
         if (userProfile == null) {

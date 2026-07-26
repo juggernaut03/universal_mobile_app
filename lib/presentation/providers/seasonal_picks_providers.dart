@@ -4,7 +4,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider to force refresh seasonal picks data (ignoring cache)
 final refreshSeasonalPicksProvider = StateProvider<bool>((ref) => false);

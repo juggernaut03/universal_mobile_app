@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:patelmart/core/widgets/favorite_button.dart';
+import 'package:patelmart/presentation/widgets/favorite_button.dart';
 import 'package:patelmart/data/models/product_model.dart';
 import 'package:patelmart/presentation/features/orders/my_orders_screen.dart';
 import '../../../core/constants/app_colors.dart';
@@ -13,9 +13,8 @@ import '../../providers/cart_provider.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/outlet_status_provider.dart';
 import '../../providers/location_provider.dart';
-import '../../providers/launch_flow_provider.dart';
-import '../../features/cart/widgets/persistent_cart_widget.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
+import '../../../di/infrastructure_providers.dart';
 
 // Define ReorderItem at the top level
 class ReorderItem {

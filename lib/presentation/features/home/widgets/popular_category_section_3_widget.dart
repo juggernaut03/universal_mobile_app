@@ -5,8 +5,8 @@ import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/core/widgets/cached_network_image_widget.dart';
 import 'package:patelmart/core/widgets/error_widgets.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
+import '../../../../di/infrastructure_providers.dart';
 
 class PopularCategorySection3Widget extends ConsumerStatefulWidget {
   final int sectionId = 3;

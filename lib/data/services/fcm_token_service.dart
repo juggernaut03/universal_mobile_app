@@ -1,14 +1,11 @@
 // lib/data/services/fcm_token_service.dart
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/auth/centralized_auth_manager.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
 import '../../core/constants/app_constants.dart';
-import '../../presentation/providers/launch_flow_provider.dart';
-import '../../presentation/providers/auth_providers.dart';
 
 class FcmTokenService {
   final CentralizedAuthManager _authManager;
@@ -239,15 +236,4 @@ class FcmTokenService {
   }
 }
 
-/// Provider for FcmTokenService using centralized dependencies
-final fcmTokenServiceProvider = Provider<FcmTokenService>((ref) {
-  final authManager = ref.watch(centralizedAuthManagerProvider);
-  final apiClient = ref.watch(apiClientProvider);
-  final logger = ref.watch(loggerProvider);
-  
-  return FcmTokenService(
-    authManager: authManager,
-    apiClient: apiClient,
-    logger: logger,
-  );
-});
+// fcmTokenServiceProvider now declared in lib/di/service_providers.dart

@@ -1,4 +1,6 @@
 // lib/data/models/subcategory_model.dart
+
+import '../../domain/entities/catalogue.dart';
 class SubcategoryModel {
   final String id;
   final String subCategoryId;
@@ -33,4 +35,13 @@ class SubcategoryModel {
       'main_category_name': mainCategoryName,
     };
   }
+
+  /// Converts to the domain entity.
+  Subcategory toEntity() => Subcategory(
+        id: id,
+        code: subCategoryId,
+        name: subCategoryName,
+        categoryCode: categoryId,
+        categoryName: mainCategoryName,
+      );
 }

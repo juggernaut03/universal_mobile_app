@@ -1,37 +1,19 @@
 // lib/presentation/providers/subcategory_providers.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../../data/models/subcategory_model.dart';
 import '../../data/models/product_model.dart';
-import '../../data/repositories/subcategory_repository.dart';
-import '../../data/repositories/product_repository.dart';
-import 'launch_flow_provider.dart';
+import '../../core/result/result.dart';
+import '../../di/product_providers.dart';
+import '../../domain/usecases/product/get_products.dart';
+import '../../di/repository_providers.dart';
 
 // Cache manager provider (reuse from category providers if available)
-final subcategoryCacheManagerProvider = Provider<DefaultCacheManager>((ref) {
-  return DefaultCacheManager();
-});
 
 // Repository providers with cache manager
-final subcategoryRepositoryProvider = Provider<SubcategoryRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  final cacheManager = ref.watch(subcategoryCacheManagerProvider);
-  
-  return SubcategoryRepository(
-    logger: logger,
-    cacheManager: cacheManager,
-  );
-});
 
-final productRepositoryProvider = Provider<ProductRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  final cacheManager = ref.watch(subcategoryCacheManagerProvider);
-  
-  return ProductRepository(
-    logger: logger,
-    cacheManager: cacheManager,
-  );
-});
+// productRepositoryProvider used to be declared here — a product dependency
+// living in the subcategory feature's provider file. It is now wired in
+// lib/di/product_providers.dart, typed to the domain interface.
 
 // Provider to force refresh subcategories and products (ignoring cache)
 final refreshSubcategoryProvider = StateProvider<bool>((ref) => false);
@@ -82,44 +64,56 @@ class ProductFilterParams {
       storeCode.hashCode;
 }
 
-// Products provider with refresh capability
-final productsProvider = FutureProvider.family<List<ProductModel>, ProductFilterParams>((ref, params) async {
-  final repository = ref.watch(productRepositoryProvider);
-  final forceRefresh = ref.watch(refreshSubcategoryProvider);
-  
-  // If force refresh is true, clear cache before fetching
-  if (forceRefresh) {
-    await repository.clearCache();
-    // Now reset the refresh flag since all data has been refreshed
-    ref.read(refreshSubcategoryProvider.notifier).state = false;
-  }
-  
-  return repository.getProducts(
-    deptId: params.deptId,
-    categoryId: params.categoryId,
-    subCategoryId: params.subCategoryId,
-    storeCode: params.storeCode,
-  );
-});
 
-// All products provider (subCategoryId = "0" for all products in a category)
-final allProductsProvider = FutureProvider.family<List<ProductModel>, ProductFilterParams>((ref, params) async {
-  final repository = ref.watch(productRepositoryProvider);
+/// Runs the GetProducts use case and adapts the result for callers that still
+/// expect `List<ProductModel>`.
+///
+/// TODO(phase-4): the catalogue screens still consume ProductModel because
+/// `product_item_widget` hands the model straight to
+/// `cartProvider.addItemWithQuantity`, and CartItem holds a ProductModel until
+/// Phase 5. Once cart is migrated, these providers expose `List<Product>` and
+/// this adapter is deleted.
+Future<List<ProductModel>> _runGetProducts(
+  Ref ref,
+  ProductFilterParams params, {
+  required String subCategoryId,
+}) async {
   final forceRefresh = ref.watch(refreshSubcategoryProvider);
-  
-  // If force refresh is true, clear cache before fetching
   if (forceRefresh) {
-    await repository.clearCache();
+    await ref.read(productRepositoryProvider).clearCache();
     ref.read(refreshSubcategoryProvider.notifier).state = false;
   }
-  
-  return repository.getProducts(
-    deptId: params.deptId,
-    categoryId: params.categoryId,
-    subCategoryId: "0", // "0" means all products in the category
-    storeCode: params.storeCode,
+
+  final result = await ref.watch(getProductsUseCaseProvider)(
+    GetProductsParams(
+      storeCode: params.storeCode,
+      departmentId: params.deptId,
+      categoryId: params.categoryId,
+      subCategoryId: subCategoryId,
+    ),
   );
-});
+
+  // FutureProvider models failure as a thrown error, so the Err branch rethrows
+  // to preserve the existing AsyncValue.error handling in the screens. The
+  // failure keeps its type all the way here, unlike the previous `null`.
+  return switch (result) {
+    Ok(:final value) => value.map(ProductModel.fromEntity).toList(),
+    Err(:final failure) => throw Exception(failure.userMessage),
+  };
+}
+
+// Products provider with refresh capability
+final productsProvider =
+    FutureProvider.family<List<ProductModel>, ProductFilterParams>(
+  (ref, params) => _runGetProducts(ref, params,
+      subCategoryId: params.subCategoryId),
+);
+
+// All products provider ("0" means every product in the category)
+final allProductsProvider =
+    FutureProvider.family<List<ProductModel>, ProductFilterParams>(
+  (ref, params) => _runGetProducts(ref, params, subCategoryId: '0'),
+);
 
 // Provider for controlling pull-to-refresh functionality
 final subcategoryRefreshProvider = Provider<Future<void> Function()>((ref) {

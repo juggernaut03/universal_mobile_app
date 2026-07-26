@@ -4,14 +4,11 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import '../../../core/constants/app_colors.dart';
-import '../../../core/utils/logger.dart';
-import '../../../core/widgets/back_button_wrapper.dart';
-import '../../../data/models/auth_models.dart';
-import '../../../data/repositories/profile_repository.dart';
 import '../../providers/auth_providers.dart';
-import '../../providers/launch_flow_provider.dart';
+import '../../../di/repository_providers.dart';
+import '../../../di/infrastructure_providers.dart';
+import '../../../di/auth_providers.dart';
 
 // Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
 
@@ -71,10 +68,6 @@ class ProfileEditState {
   }
 }
 
-// Provider to store profile editing state
-final profileEditingProvider = StateProvider.autoDispose<ProfileEditState>((ref) {
-  return ProfileEditState();
-});
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -118,8 +111,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   // Reliable authentication check
   Future<bool> _checkAuthentication() async {
     try {
-      final authRepository = ref.read(authRepositoryProvider);
-      return await authRepository.isLoggedIn();
+      return await ref.read(authRepositoryProvider).isSignedIn();
     } catch (e) {
       ref.read(loggerProvider).error('Authentication check failed: $e');
       return false;
@@ -157,7 +149,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       logger.log('User is logged in, proceeding to load profile');
       
       // Use centralized auth manager to get access key
-      final authManager = ref.read(auth.centralizedAuthManagerProvider);
+      final authManager = ref.read(centralizedAuthManagerProvider);
       _accessKey = await authManager.getValidAccessKey();
       
       if (_accessKey == null || _accessKey!.isEmpty) {
@@ -263,7 +255,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
 
     // Check if we have access key and mobile using centralized manager
-    final authManager = ref.read(auth.centralizedAuthManagerProvider);
+    final authManager = ref.read(centralizedAuthManagerProvider);
     final currentAccessKey = await authManager.getValidAccessKey();
     
     if (currentAccessKey == null || _mobileNumber == null) {
@@ -704,3 +696,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     );
   }
 }
+
+final profileEditingProvider = StateProvider.autoDispose<ProfileEditState>((ref) {
+  return ProfileEditState();
+});

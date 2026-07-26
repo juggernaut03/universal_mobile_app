@@ -3,16 +3,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/branding/app_branding.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/presentation/routes/app_router.dart';
 import 'data/repositories/project_config_repository.dart';
-import 'presentation/providers/launch_flow_provider.dart';
 // POPUP IMPORTS
 import 'presentation/providers/popup_providers.dart';
-import 'core/handlers/app_lifecycle_handler.dart';
+import 'presentation/handlers/app_lifecycle_handler.dart';
+import 'di/infrastructure_providers.dart';
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});

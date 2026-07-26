@@ -1,14 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../data/services/popup_service.dart';
 import '../../data/models/popup_model.dart';
-import 'launch_flow_provider.dart';
+import '../../di/service_providers.dart';
 
 // Service provider
-final popupServiceProvider = Provider<PopupService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return PopupService(logger: logger);
-});
 
 // Popup data provider
 final popupDataProvider = FutureProvider.family<PopupResponse?, String>((ref, storeCode) async {

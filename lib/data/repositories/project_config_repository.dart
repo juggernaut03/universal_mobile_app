@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/branding/app_branding.dart';
 import '../../core/constants/app_constants.dart';
+import '../../di/repository_providers.dart';
 
 class ProjectConfig {
   final String projectCode;
@@ -148,9 +149,6 @@ class ProjectConfigRepository {
   }
 }
 
-final projectConfigRepositoryProvider = Provider<ProjectConfigRepository>((ref) {
-  return ProjectConfigRepository();
-});
 
 /// Tenant branding config, fetched at boot with SharedPreferences fallback.
 final projectConfigProvider = FutureProvider<ProjectConfig?>((ref) async {
