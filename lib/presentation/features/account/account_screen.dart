@@ -93,9 +93,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final logger = ref.read(loggerProvider);
     // We still observe the async provider for UI updates, but don't use it for navigation decisions
-    final isLoggedInAsync = ref.watch(isLoggedInProvider);
+    // Subscription kept deliberately: the binding was unused but the
+    // watch is what rebuilds this on change.
+    ref.watch(isLoggedInProvider);
     final int navIndex = 4; // Account tab selected by default
 
     // Show loading indicator while checking auth

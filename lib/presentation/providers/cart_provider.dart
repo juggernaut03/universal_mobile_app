@@ -517,7 +517,6 @@ class CartNotifier extends StateNotifier<Cart> {
   // FIXED: Enhanced session debug info
   Future<Map<String, dynamic>> getSessionDebugInfo() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final sessionInfo = await _sessionManager.getSessionInfo();
       
       return {

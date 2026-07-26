@@ -67,7 +67,6 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
   Future<void> _checkLocationServiceability() async {
     if (_isDisposed || !mounted) return;
     
-    final logger = ref.read(loggerProvider);
     
     // Only check if we haven't shown a modal yet
     if (_hasShownLocationModal) {

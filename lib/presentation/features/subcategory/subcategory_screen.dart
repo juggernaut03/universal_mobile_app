@@ -288,7 +288,9 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
   @override
   Widget build(BuildContext context) {
     final subcategoriesAsync = ref.watch(subcategoriesProvider(widget.categoryId));
-    final selectedPincode = ref.watch(selectedPincodeProvider);
+    // Subscription kept deliberately: the binding was unused but the
+    // watch is what rebuilds this on change.
+    ref.watch(selectedPincodeProvider);
     final logger = ref.read(loggerProvider);
     
     // Setup tab controller when data is available
@@ -335,7 +337,9 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
           );
     
     final productsAsync = ref.watch(productsProvider(filterParams));
-    final cartTotal = ref.watch(cartTotalProvider);
+    // Subscription kept deliberately: the binding was unused but the
+    // watch is what rebuilds this on change.
+    ref.watch(cartTotalProvider);
     final cartCount = ref.watch(cartCountProvider);
     final currentSortOption = ref.watch(sortOptionProvider);
     

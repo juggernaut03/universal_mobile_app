@@ -732,9 +732,15 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
 
   // Build order summary section
   Widget _buildOrderSummary() {
-  final cartItems = ref.watch(cartItemsProvider);
-  final cartTotal = ref.watch(cartTotalProvider);
-  final cartSavings = ref.watch(cartSavingsProvider);
+  // Subscription kept deliberately: the binding was unused but the
+  // watch is what rebuilds this on change.
+  ref.watch(cartItemsProvider);
+  // Subscription kept deliberately: the binding was unused but the
+  // watch is what rebuilds this on change.
+  ref.watch(cartTotalProvider);
+  // Subscription kept deliberately: the binding was unused but the
+  // watch is what rebuilds this on change.
+  ref.watch(cartSavingsProvider);
   
   // Only show "View Order details" in payment step (step 4)
   if (_currentStep == CheckoutStep.payment) {

@@ -190,7 +190,9 @@ class FavoritesScreen extends ConsumerWidget {
     
     // Get outlet status to check if cart is enabled
     final isCartEnabled = ref.watch(isCartEnabledProvider);
-    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
+    // Subscription kept deliberately: the binding was unused but the
+    // watch is what rebuilds this on change.
+    ref.watch(currentOutletStatusProvider);
 
     // Show favorites list
     return RefreshIndicator(

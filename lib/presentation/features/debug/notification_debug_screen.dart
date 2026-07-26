@@ -39,7 +39,6 @@ class _NotificationDebugScreenState extends ConsumerState<NotificationDebugScree
   Future<void> _testLocalNotification() async {
     setState(() => _isLoading = true);
     try {
-      final notificationService = ref.read(firebaseNotificationServiceProvider);
       // You can add a test method to the service or create a test notification here
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Test notification triggered')),

@@ -40,7 +40,9 @@ class _BestSellerScreenState extends ConsumerState<BestSellerScreen> {
     final productsAsync = ref.watch(bestSellerProductsProvider(widget.bestSellerId));
     
     // Get the background color too - for consistency in the UI
-    final backgroundColor = ref.watch(bestSellerBackgroundColorProvider(widget.bestSellerId));
+    // Subscription kept deliberately: the binding was unused but the
+    // watch is what rebuilds this on change.
+    ref.watch(bestSellerBackgroundColorProvider(widget.bestSellerId));
     
     return Scaffold(
       appBar: AppBar(
