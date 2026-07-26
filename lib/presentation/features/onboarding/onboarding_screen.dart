@@ -1,102 +1,99 @@
 // lib/presentation/features/onboarding/onboarding_screen.dart
+//
+// Slides come from the backend (POST /api/onboarding/list), managed in the
+// admin panel under Mobile App > Screens > Onboarding. The repository falls
+// back to its cache and then to a bundled set, so this screen always has
+// something to render — it never shows an error state.
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
+import '../../../data/models/onboarding_slide_model.dart';
 import '../../../presentation/widgets/back_button_wrapper.dart';
 import '../../providers/onboarding_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/app_shell_providers.dart';
 
-// Provider to track the current onboarding page
-
-class OnboardingScreen extends ConsumerWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentPage = ref.watch(onboardingPageProvider);
-    final pageController = PageController(initialPage: currentPage);
-    
-    // Onboarding content data
-    final onboardingData = [
-      OnboardingPageData(
-        title: 'Shop with Ease ',
-        description: 'Browse and add your favorite products to the cart effortlessly. Your next purchase is just a few taps away!',
-        imagePath: 'assets/images/cart.webp',
-      ),
-      OnboardingPageData(
-        title: 'Fast & Reliable Delivery',
-        description: 'Get your orders delivered quickly and safely right to your doorstep.',
-        imagePath: 'assets/images/delivery.webp',
-      ),
-      OnboardingPageData(
-        title: 'Reorder with Just One Tap',
-        description: 'Loved your last purchase? Quickly reorder your favorite items anytime without the hassle of searching again.',
-        imagePath: 'assets/images/reorder.webp',
-      ),
-    ];
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
+}
 
-    // Handler for page changes
-    void onPageChanged(int page) {
-      ref.read(onboardingPageProvider.notifier).state = page;
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  // Held for the lifetime of the screen. It used to be constructed inside
+  // build(), which produced a fresh controller on every rebuild — so
+  // animateToPage ran against a discarded one and the page never moved.
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: ref.read(onboardingPageProvider));
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _completeOnboarding() async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Mark onboarding as completed
+      await ref.read(onboardingProvider.notifier).completeOnboarding();
+
+      // Update the launch flow state - critical for proper flow continuation
+      ref.read(launchFlowProvider.notifier).onboardingCompleted();
+
+      // Try to fetch location and check pincode
+      await ref.read(launchFlowProvider.notifier).fetchLocationAndCheckPincode();
+
+      // Navigation will be handled by the router based on the updated launch state
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading indicator
+        context.go('/home'); // The router will redirect as needed
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Dismiss loading indicator
+        // Go to pincode selection as fallback
+        context.go('/pincode-selection');
+      }
     }
+  }
 
-    // Function to complete onboarding and navigate to home
-    Future<void> completeOnboarding() async {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
+  void _goToNextPage(int currentPage, int slideCount) {
+    final nextPage = currentPage + 1;
+    if (nextPage < slideCount) {
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
       );
-
-      try {
-        // Mark onboarding as completed
-        await ref.read(onboardingProvider.notifier).completeOnboarding();
-        
-        // Update the launch flow state - critical for proper flow continuation
-        ref.read(launchFlowProvider.notifier).onboardingCompleted();
-        
-        // Try to fetch location and check pincode
-        await ref.read(launchFlowProvider.notifier).fetchLocationAndCheckPincode();
-        
-        // Navigation will be handled by the router based on the updated launch state
-        if (context.mounted) {
-          Navigator.pop(context); // Dismiss loading indicator
-          context.go('/home'); // The router will redirect as needed
-        }
-      } catch (e) {
-        if (context.mounted) {
-          Navigator.pop(context); // Dismiss loading indicator
-          // Go to pincode selection as fallback
-          context.go('/pincode-selection');
-        }
-      }
+    } else {
+      _completeOnboarding();
     }
+  }
 
-    // Function to go to next page
-    void goToNextPage() {
-      final nextPage = currentPage + 1;
-      if (nextPage < onboardingData.length) {
-        pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      } else {
-        completeOnboarding();
-      }
-    }
-
-    // Function to skip onboarding
-    void skipOnboarding() {
-      completeOnboarding();
-    }
+  @override
+  Widget build(BuildContext context) {
+    final currentPage = ref.watch(onboardingPageProvider);
+    final slidesAsync = ref.watch(onboardingSlidesProvider);
 
     // Use BackButtonWrapper with custom handling for onboarding
     // For onboarding screen, pressing back on first page shows exit confirmation
@@ -106,112 +103,130 @@ class OnboardingScreen extends ConsumerWidget {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: Column(
-            children: [
-              // Skip button
-              Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: TextButton(
-                    onPressed: skipOnboarding,
-                    child: Text(
-                      'Skip',
-                      style: AppTextStyles.buttonMedium.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Page content (illustrations and text)
-              Expanded(
-                child: PageView.builder(
-                  controller: pageController,
-                  onPageChanged: onPageChanged,
-                  itemCount: onboardingData.length,
-                  itemBuilder: (context, index) {
-                    return OnboardingPage(
-                      data: onboardingData[index],
-                      responsivePadding: ResponsiveUtils.getResponsivePadding(context),
-                    );
-                  },
-                ),
-              ),
-              
-              // Bottom navigation (indicators and next/start button)
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 24.0,
-                  vertical: ResponsiveUtils.isSmall(context) ? 16.0 : 24.0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Page indicators
-                    Row(
-                      children: List.generate(
-                        onboardingData.length,
-                        (index) => PageIndicator(
-                          isActive: currentPage == index,
-                          activeColor: AppColors.primary,
-                          inactiveColor: AppColors.primaryLighter,
-                        ),
-                      ),
-                    ),
-                    
-                    // Next/Get Started button
-                    ElevatedButton(
-                      onPressed: goToNextPage,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        currentPage == onboardingData.length - 1
-                            ? 'Get Started'
-                            : 'Next',
-                        style: AppTextStyles.buttonMedium,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          child: slidesAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            // The repository already falls back to bundled slides, so an error
+            // here means something unexpected — move the user along rather
+            // than trapping them on a dead screen.
+            error: (_, __) => _buildContent(
+              context,
+              OnboardingSlideModel.bundledDefaults,
+              currentPage,
+            ),
+            data: (slides) => _buildContent(context, slides, currentPage),
           ),
         ),
       ),
     );
   }
-}
 
-// Data class to hold onboarding page content
-class OnboardingPageData {
-  final String title;
-  final String description;
-  final String imagePath;
+  Widget _buildContent(
+    BuildContext context,
+    List<OnboardingSlideModel> slides,
+    int currentPage,
+  ) {
+    if (slides.isEmpty) {
+      // A tenant may deactivate every slide; skipping straight through is the
+      // sensible reading of "no onboarding configured".
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _completeOnboarding();
+      });
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  OnboardingPageData({
-    required this.title,
-    required this.description,
-    required this.imagePath,
-  });
+    // Clamp: the slide list can shrink between launches while a stale page
+    // index is still in state.
+    final safePage = currentPage.clamp(0, slides.length - 1);
+
+    return Column(
+      children: [
+        // Skip button
+        Align(
+          alignment: Alignment.topRight,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextButton(
+              onPressed: _completeOnboarding,
+              child: Text(
+                'Skip',
+                style: AppTextStyles.buttonMedium.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // Page content (illustrations and text)
+        Expanded(
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (page) =>
+                ref.read(onboardingPageProvider.notifier).state = page,
+            itemCount: slides.length,
+            itemBuilder: (context, index) {
+              return OnboardingPage(
+                slide: slides[index],
+                responsivePadding: ResponsiveUtils.getResponsivePadding(context),
+              );
+            },
+          ),
+        ),
+
+        // Bottom navigation (indicators and next/start button)
+        Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: 24.0,
+            vertical: ResponsiveUtils.isSmall(context) ? 16.0 : 24.0,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Page indicators
+              Row(
+                children: List.generate(
+                  slides.length,
+                  (index) => PageIndicator(
+                    isActive: safePage == index,
+                    activeColor: AppColors.primary,
+                    inactiveColor: AppColors.primaryLighter,
+                  ),
+                ),
+              ),
+
+              // Next/Get Started button
+              ElevatedButton(
+                onPressed: () => _goToNextPage(safePage, slides.length),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  safePage == slides.length - 1 ? 'Get Started' : 'Next',
+                  style: AppTextStyles.buttonMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // Individual onboarding page
 class OnboardingPage extends StatelessWidget {
-  final OnboardingPageData data;
+  final OnboardingSlideModel slide;
   final EdgeInsets responsivePadding;
 
   const OnboardingPage({
     super.key,
-    required this.data,
+    required this.slide,
     required this.responsivePadding,
   });
 
@@ -234,13 +249,13 @@ class OnboardingPage extends StatelessWidget {
           // Image with animation - REMOVED BORDER AND INCREASED SIZE
           AnimatedImageContainer(
             size: imageSize,
-            imagePath: data.imagePath,
+            slide: slide,
           ),
           const SizedBox(height: 48),
-          
+
           // Title
           Text(
-            data.title,
+            slide.title,
             style: AppTextStyles.h3.copyWith(
               color: AppColors.primary,
               fontWeight: FontWeight.bold,
@@ -248,10 +263,10 @@ class OnboardingPage extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          
+
           // Description
           Text(
-            data.description,
+            slide.description,
             style: AppTextStyles.bodyLarge.copyWith(
               color: AppColors.textSecondary,
             ),
@@ -263,15 +278,15 @@ class OnboardingPage extends StatelessWidget {
   }
 }
 
-// Animated container for WebP images - REMOVED BORDER AND BACKGROUND COLOR
+// Animated container for slide images - REMOVED BORDER AND BACKGROUND COLOR
 class AnimatedImageContainer extends StatefulWidget {
   final double size;
-  final String imagePath;
+  final OnboardingSlideModel slide;
 
   const AnimatedImageContainer({
     super.key,
     required this.size,
-    required this.imagePath,
+    required this.slide,
   });
 
   @override
@@ -305,6 +320,27 @@ class _AnimatedImageContainerState extends State<AnimatedImageContainer>
     super.dispose();
   }
 
+  /// Admin-managed slides are remote URLs; the bundled fallback set ships as
+  /// assets. Both render at the same size through this one widget.
+  Widget _buildImage() {
+    if (widget.slide.isAsset) {
+      return Image.asset(widget.slide.imageUrl, fit: BoxFit.contain);
+    }
+
+    return CachedNetworkImage(
+      imageUrl: widget.slide.imageUrl,
+      fit: BoxFit.contain,
+      placeholder: (context, _) => const Center(
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      errorWidget: (context, _, __) => Icon(
+        Icons.image_not_supported_outlined,
+        size: widget.size * 0.4,
+        color: AppColors.textSecondary,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -312,18 +348,16 @@ class _AnimatedImageContainerState extends State<AnimatedImageContainer>
       builder: (context, child) {
         return Transform.scale(
           scale: _scaleAnimation.value,
-          // REMOVED: Container with border and background color
-          // CHANGED: Direct image without container wrapper
-          child: SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: Image.asset(
-              widget.imagePath,
-              fit: BoxFit.contain,
-            ),
-          ),
+          child: child,
         );
       },
+      // Outside the builder: the image should not be rebuilt 60 times a second
+      // just because the scale changed.
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: _buildImage(),
+      ),
     );
   }
 }
