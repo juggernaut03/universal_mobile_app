@@ -770,6 +770,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  /// Live order tracker.
+  ///
+  /// Deliberately not a feed section: it is app chrome, not merchandising, and
+  /// a layout change must never be able to hide the user's in-flight order.
+  Widget _buildOrderTracking() {
+    return Consumer(
+            builder: (context, ref, child) {
+              final lastOrderStatusAsync = ref.watch(lastOrderStatusProvider);
+              
+              return lastOrderStatusAsync.when(
+                data: (orderStatus) {
+                  if (orderStatus == null || !orderStatus.isVisible || orderStatus.orderStatusTxt.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: OrderTrackingWidget(
+                      orderId: orderStatus.actualOrderNo,
+                      title: orderStatus.orderStatusTxt,
+                      imageUrl: orderStatus.orderStatusImg,
+                      onViewOrderTap: () {
+                        if (orderStatus.lastOrder != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OrderDetailScreen(
+                                order: orderStatus.lastOrder!,
+                              ),
+                            ),
+                          );
+                        } else {
+                          // Fallback to orders list if order details not available
+                          context.push('/my-orders');
+                        }
+                      },
+                    ),
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              );
+            },
+          );
+  }
+
   /// Home content.
   ///
   /// With the feed enabled the section list and its order come from the
@@ -812,45 +858,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           const SizedBox(height: 8), // Reduced from 16 to 8
 
           // Order Tracking Widget Positioned AFTER Search Bar
-          Consumer(
-            builder: (context, ref, child) {
-              final lastOrderStatusAsync = ref.watch(lastOrderStatusProvider);
-              
-              return lastOrderStatusAsync.when(
-                data: (orderStatus) {
-                  if (orderStatus == null || !orderStatus.isVisible || orderStatus.orderStatusTxt.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: OrderTrackingWidget(
-                      orderId: orderStatus.actualOrderNo,
-                      title: orderStatus.orderStatusTxt,
-                      imageUrl: orderStatus.orderStatusImg,
-                      onViewOrderTap: () {
-                        if (orderStatus.lastOrder != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OrderDetailScreen(
-                                order: orderStatus.lastOrder!,
-                              ),
-                            ),
-                          );
-                        } else {
-                          // Fallback to orders list if order details not available
-                          context.push('/my-orders');
-                        }
-                      },
-                    ),
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              );
-            },
-          ),
+          _buildOrderTracking(),
           const SizedBox(height: 4),
 
           // Popular Categories - using RepaintBoundary for better performance
