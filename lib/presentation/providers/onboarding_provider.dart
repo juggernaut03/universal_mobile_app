@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../data/models/onboarding_slide_model.dart';
+import '../../di/repository_providers.dart';
+
 // Onboarding state model
 class OnboardingState {
   final bool isCompleted;
@@ -72,4 +75,13 @@ final onboardingProvider = StateNotifierProvider<OnboardingNotifier, OnboardingS
 // Simple provider to check if onboarding is completed
 final hasCompletedOnboardingProvider = Provider<bool>((ref) {
   return ref.watch(onboardingProvider).isCompleted;
+});
+
+/// Slides for the first-launch carousel, managed in the admin panel.
+///
+/// The repository already falls back to cache and then to the bundled slides,
+/// so this never surfaces an error state to the screen.
+final onboardingSlidesProvider =
+    FutureProvider<List<OnboardingSlideModel>>((ref) async {
+  return ref.watch(onboardingRepositoryProvider).getSlides();
 });
