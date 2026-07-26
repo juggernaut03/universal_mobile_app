@@ -45,7 +45,7 @@ class OnboardingScreen extends ConsumerWidget {
     }
 
     // Function to complete onboarding and navigate to home
-    void completeOnboarding() async {
+    Future<void> completeOnboarding() async {
       // Show loading indicator
       showDialog(
         context: context,

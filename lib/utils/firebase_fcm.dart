@@ -37,7 +37,7 @@ class FirebaseApi {
     }
 
     // Use the NotificationRouter to handle navigation
-    await GoRoute(
+    GoRoute(
         path: '/home',
         name: RouteNames.home,
         builder: (context, state) => const HomeScreen(),
@@ -124,9 +124,11 @@ class FirebaseApi {
       provisional: false,
       sound: true,
     );
-   if (kDebugMode) print(
+   if (kDebugMode) {
+     print(
       'User granted permission: ${settings.authorizationStatus}',
     );
+   }
     final fcmToken = await firebaseMessaging.getToken();
   if (kDebugMode) print("Token $fcmToken");
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -158,9 +160,11 @@ void onDidReceiveBackgroundNotificationResponse(NotificationResponse details) {
         RemoteMessage.fromMap(jsonDecode(details.payload!)),
       );
     } catch (e) {
-      if (kDebugMode) print(
+      if (kDebugMode) {
+        print(
         "Error processing background notification response: $e",
       );
+      }
     }
   }
 }

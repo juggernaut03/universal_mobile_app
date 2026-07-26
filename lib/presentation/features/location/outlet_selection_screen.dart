@@ -510,7 +510,7 @@ class _OutletSelectionScreenState extends ConsumerState<OutletSelectionScreen> {
     );
   }
 
-  void _selectOutlet(BuildContext context, WidgetRef ref, OutletModel outlet) async {
+  Future<void> _selectOutlet(BuildContext context, WidgetRef ref, OutletModel outlet) async {
     // Track if we're already processing the selection
     bool isProcessing = false;
     

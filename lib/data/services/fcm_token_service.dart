@@ -205,7 +205,7 @@ class FcmTokenService {
   }
 
   /// Set up FCM token refresh listener for automatic updates
-  void setupFcmTokenRefreshListener() async {
+  Future<void> setupFcmTokenRefreshListener() async {
     try {
       if (!await _authManager.isLoggedIn()) {
         _logger.log('User not logged in, skipping FCM token refresh listener setup');

@@ -10,7 +10,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../providers/cart_provider.dart';
 // FACEBOOK PIXEL IMPORTS
-import 'package:flutter/foundation.dart';
 import '../checkout_models.dart';
 
 // Checkout step enum to track progress

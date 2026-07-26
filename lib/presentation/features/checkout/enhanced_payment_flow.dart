@@ -417,7 +417,7 @@ class EnhancedPaymentFlow {
         logger.error('Error: ${orderResult.message}');
         
   // Track successful purchase with Facebook Pixel
-  void _trackSuccessfulPurchase(
+  void trackSuccessfulPurchase(
     WidgetRef ref,
     String? orderId,
     List<CartItem> cartItems,

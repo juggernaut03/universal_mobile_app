@@ -113,11 +113,6 @@ class ProductModel {
     return 0.0;
   }
 
-  /// Private method for internal use (kept for backward compatibility)
-  static double _parseDecimal128OrNumber(dynamic value) {
-    return parseDecimal128OrNumber(value);
-  }
-
   static int _parseInt(dynamic value) {
     if (value == null) return 0;
     if (value is int) return value;

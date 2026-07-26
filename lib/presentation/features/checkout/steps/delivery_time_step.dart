@@ -12,7 +12,6 @@ import '../../../../core/utils/responsive_utils.dart';
 import '../../../providers/cart_provider.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../../../di/infrastructure_providers.dart';
-import 'package:flutter/foundation.dart';
 import '../checkout_models.dart';
 
 // Checkout step enum to track progress

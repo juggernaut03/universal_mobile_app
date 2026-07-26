@@ -96,7 +96,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final logger = ref.read(loggerProvider);
     // We still observe the async provider for UI updates, but don't use it for navigation decisions
     final isLoggedInAsync = ref.watch(isLoggedInProvider);
-    final int _navIndex = 4; // Account tab selected by default
+    final int navIndex = 4; // Account tab selected by default
 
     // Show loading indicator while checking auth
     if (_isCheckingAuth) {
@@ -235,9 +235,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           ),
           
           bottomNavigationBar: BottomNavigationWidget(
-            currentIndex: _navIndex,
+            currentIndex: navIndex,
             onTap: (index) {
-              if (_navIndex == index) return; // Don't navigate if already on this tab
+              if (navIndex == index) return; // Don't navigate if already on this tab
               
               switch (index) {
                 case 0: // Home

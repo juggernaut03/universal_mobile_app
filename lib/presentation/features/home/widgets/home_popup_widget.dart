@@ -483,7 +483,7 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
     }
   }
 
-  void _closePopup() async {
+  Future<void> _closePopup() async {
     if (mounted && _overlayEntry != null) {
       // Animate out
       await _animationController.reverse();

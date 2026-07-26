@@ -60,7 +60,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final logger = ref.read(loggerProvider);
   
   // Helper function to get address to edit from shared preferences
-  Address _getAddressToEdit(BuildContext context) {
+  Address getAddressToEdit(BuildContext context) {
     try {
       final prefs = ProviderScope.containerOf(context).read(sharedPreferencesProvider);
       final addressJson = prefs.getString('address_to_edit');

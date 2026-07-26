@@ -85,7 +85,7 @@ void main() {
             (target.startsWith('.') && _resolve(path, target).startsWith(rule.to));
         if (hits) {
           violations.add(
-              '${path}:${i + 1}\n    imports ${rule.to} — ${rule.why}\n    $line');
+              '$path:${i + 1}\n    imports ${rule.to} — ${rule.why}\n    $line');
         }
       }
 
@@ -94,7 +94,7 @@ void main() {
         for (final pkg in forbiddenDomainPackages) {
           if (target.startsWith(pkg)) {
             violations.add(
-                '${path}:${i + 1}\n    imports $target — domain must be pure Dart\n    $line');
+                '$path:${i + 1}\n    imports $target — domain must be pure Dart\n    $line');
           }
         }
       }
