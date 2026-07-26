@@ -8,10 +8,9 @@ import 'package:patelmart/core/widgets/header_widget.dart';
 import 'package:patelmart/presentation/widgets/search_widget.dart';
 import 'package:patelmart/presentation/features/cart/widgets/persistent_cart_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/home_popup_widget.dart';
-import 'package:patelmart/presentation/features/home/widgets/popular_category_section_2_widget.dart';
-import 'package:patelmart/presentation/features/home/widgets/popular_category_section_3_widget.dart';
-import 'package:patelmart/presentation/features/home/widgets/popular_category_section_4_widget.dart';
-import 'package:patelmart/presentation/features/home/widgets/popular_category_section_5_widget.dart';
+import 'package:patelmart/presentation/features/home/widgets/popular_category_section_widget.dart';
+import 'package:patelmart/presentation/features/home/sections/home_section_registry.dart';
+import 'package:patelmart/presentation/providers/home_feed_providers.dart';
 import 'package:patelmart/presentation/features/home/widgets/promotional_banner_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/best_seller_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
@@ -867,9 +866,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   for (int i = 0; i < maxPairs; i++) ...[
                     // Popular Category sections interleaved (Rendered FIRST)
                     if (i == 0)
-                      const RepaintBoundary(
-                        key: ValueKey('popular_category_section_2'),
-                        child: PopularCategorySection2Widget(
+                      RepaintBoundary(
+                        key: const ValueKey('popular_category_section_2'),
+                        child: const PopularCategorySectionWidget(
+                          sectionId: 2,
                           showTitle: true,
                           showViewAll: true,
                           itemWidth: 80,
@@ -879,9 +879,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                     if (i == 1)
-                      const RepaintBoundary(
-                        key: ValueKey('popular_category_section_3'),
-                        child: PopularCategorySection3Widget(
+                      RepaintBoundary(
+                        key: const ValueKey('popular_category_section_3'),
+                        child: const PopularCategorySectionWidget(
+                          sectionId: 3,
                           showTitle: true,
                           showViewAll: true,
                           itemWidth: 80,
@@ -891,9 +892,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                     if (i == 2)
-                      const RepaintBoundary(
-                        key: ValueKey('popular_category_section_4'),
-                        child: PopularCategorySection4Widget(
+                      RepaintBoundary(
+                        key: const ValueKey('popular_category_section_4'),
+                        child: const PopularCategorySectionWidget(
+                          sectionId: 4,
                           showTitle: true,
                           showViewAll: true,
                           itemWidth: 80,
@@ -903,9 +905,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                     if (i == 3)
-                      const RepaintBoundary(
-                        key: ValueKey('popular_category_section_5'),
-                        child: PopularCategorySection5Widget(
+                      RepaintBoundary(
+                        key: const ValueKey('popular_category_section_5'),
+                        child: const PopularCategorySectionWidget(
+                          sectionId: 5,
                           showTitle: true,
                           showViewAll: true,
                           itemWidth: 80,
