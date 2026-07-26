@@ -197,7 +197,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       if (updateInfo.forceUpdate && mounted) {
         debugPrint('🚨 FORCE UPDATE REQUIRED - Showing blocking dialog');
         debugPrint('   └─ Widget mounted: $mounted');
-        debugPrint('   └─ Context available: ${context != null}');
         debugPrint('   └─ Download URL: "${updateInfo.downloadUrl}"');
         debugPrint('   └─ URL Empty: ${updateInfo.downloadUrl.isEmpty}');
         

@@ -89,7 +89,9 @@ final categoryRefreshProvider = Provider<Future<void> Function()>((ref) {
     ref.read(categoryRefreshLoadingProvider.notifier).state = true;
     try {
       ref.read(refreshCategoriesProvider.notifier).state = true;
+      // ignore: unused_result — awaited for completion; the value is not needed.
       await ref.refresh(departmentsProvider.future);
+      // ignore: unused_result — awaited for completion; the value is not needed.
       await ref.refresh(allCategoriesProvider.future);
     } finally {
       ref.read(categoryRefreshLoadingProvider.notifier).state = false;

@@ -8,8 +8,6 @@ import 'package:patelmart/presentation/providers/steal_deals_provider.dart';
 
 // Offer slab colors — mapped to AppColors (dynamic tenant branding)
 Color get _offerGreen => AppColors.secondary;
-Color get _offerGreenBorder => AppColors.secondaryLight;
-
 class PersistentCartWidget extends ConsumerStatefulWidget {
   const PersistentCartWidget({super.key});
 

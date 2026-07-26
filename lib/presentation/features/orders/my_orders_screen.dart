@@ -294,7 +294,7 @@ class MyOrdersScreen extends ConsumerWidget {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () {
-              ref.refresh(ordersProvider);
+              ref.invalidate(ordersProvider);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,

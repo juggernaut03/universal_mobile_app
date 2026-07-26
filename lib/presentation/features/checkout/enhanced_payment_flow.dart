@@ -416,29 +416,6 @@ class EnhancedPaymentFlow {
         logger.error('❌ ORDER CONFIRMATION API CALL FAILED');
         logger.error('Error: ${orderResult.message}');
         
-  // Track successful purchase with Facebook Pixel
-  void trackSuccessfulPurchase(
-    WidgetRef ref,
-    String? orderId,
-    List<CartItem> cartItems,
-    double totalAmount,
-  ) {
-    try {
-      final productIds = cartItems.map((item) => item.product.pCode).toList();
-      
-      FacebookPixelIntegration.trackCheckoutEvent(
-        ref,
-        eventType: 'purchase',
-        productIds: productIds,
-        totalValue: totalAmount,
-        numItems: cartItems.length,
-        orderId: orderId ?? 'unknown',
-        currency: 'INR',
-      );
-    } catch (e) {
-      ref.read(loggerProvider).error('Failed to track purchase event: $e');
-    }
-  }
         
         // Mark order as failed
         final enhancedCartValidator = ref.read(enhancedCartValidatorProvider);

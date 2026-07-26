@@ -124,7 +124,6 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
       case SortOption.priceHighToLow:
         return "Price: High to Low";
       case SortOption.none:
-      default:
         return "Default";
     }
   }
@@ -139,6 +138,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     
     try {
       ref.read(refreshSubcategoryProvider.notifier).state = true;
+      // ignore: unused_result — awaited for completion; the value is not needed.
       await ref.refresh(subcategoriesProvider(widget.categoryId).future);
       
       final subcategoriesAsync = ref.read(subcategoriesProvider(widget.categoryId));
@@ -162,6 +162,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         storeCode: storeCode,
       );
       
+      // ignore: unused_result — awaited for completion; the value is not needed.
       await ref.refresh(productsProvider(filterParams).future);
     } catch (e) {
       if (mounted) {
@@ -178,16 +179,6 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
           _isRefreshing = false;
         });
       }
-    }
-  }
-
-  void _handleSearch(String query) {
-    ref.read(loggerProvider).log('Search query submitted: $query');
-    
-    if (query.isEmpty) return;
-    
-    if (mounted) {
-      context.push('/search?query=$query');
     }
   }
 

@@ -386,7 +386,7 @@ class AddressBookScreen extends ConsumerWidget {
         );
 
         if (success) {
-          ref.refresh(addressListProvider);
+          ref.invalidate(addressListProvider);
         }
       }
     } catch (e) {
@@ -463,7 +463,7 @@ class AddressBookScreen extends ConsumerWidget {
         );
 
         if (success) {
-          ref.refresh(addressListProvider);
+          ref.invalidate(addressListProvider);
         }
       }
     } catch (e) {

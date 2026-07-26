@@ -332,7 +332,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
       if (success) {
         try {
           // Import the updated address list provider from address_book_screen
-          ref.refresh(addressListProvider);
+          ref.invalidate(addressListProvider);
           logger.log('Address list provider refreshed');
         } catch (e) {
           logger.warning('Could not refresh address list provider: $e');

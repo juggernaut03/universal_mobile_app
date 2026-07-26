@@ -53,6 +53,7 @@ final promoSectionRefreshProvider =
     await ref.read(promotionRepositoryProvider).clearCache();
     ref.read(promoSectionRefreshFlagProvider(sectionId).notifier).state = true;
     try {
+      // ignore: unused_result — awaited for completion; the value is not needed.
       await ref.refresh(promoSectionProvider(sectionId).future);
     } finally {
       ref.read(promoSectionRefreshFlagProvider(sectionId).notifier).state = false;

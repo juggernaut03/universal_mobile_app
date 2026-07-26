@@ -135,7 +135,7 @@ final storeOrderProvider = Provider<Future<bool> Function(Order)>((ref) {
       logger.log('Order saved successfully at the top of the list: ${order.orderId}');
       
       // Refresh the orders provider
-      ref.refresh(userOrdersProvider);
+      ref.invalidate(userOrdersProvider);
       
       return true;
     } catch (e) {

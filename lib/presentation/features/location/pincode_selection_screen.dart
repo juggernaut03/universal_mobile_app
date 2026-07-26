@@ -13,7 +13,6 @@ import '../../../data/services/location_service.dart';
 import '../../../data/models/pincode_model.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/launch_flow_provider.dart';
-import '../../providers/outlet_provider.dart';
 import '../../../domain/entities/delivery_location.dart';
 import '../../../di/infrastructure_providers.dart';
 
@@ -507,87 +506,6 @@ class _PincodeSelectionScreenState extends ConsumerState<PincodeSelectionScreen>
             ),
           ),
         );
-      }
-    } finally {
-      _safeSetState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _detectCurrentLocation() async {
-    if (_isDisposed || !mounted) return;
-    
-    final logger = ref.read(loggerProvider);
-    logger.log('Manual location detection triggered');
-    
-    _safeSetState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Refresh the current location provider to force a new location fetch
-      ref.refresh(currentPincodeProvider);
-      
-      // Get the pincode from current location
-      final pincode = await ref.read(currentPincodeProvider.future);
-      
-      if (pincode == null) {
-        logger.log('Could not detect location, showing error');
-        _showErrorSnackBar('Could not detect your location. Please select a pincode manually.');
-        return;
-      }
-      
-      // Check if the pincode is serviceable
-      final isServiceable = await ref.read(isPincodeServiceableProvider(pincode).future);
-      logger.log('Pincode $pincode serviceable: $isServiceable');
-      
-      if (isServiceable) {
-        // Save the pincode
-        await ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
-        
-        // Check if there are outlets available
-        final outlets = await ref.read(availableOutletsProvider(pincode).future);
-        
-        if (outlets.isEmpty) {
-          _showErrorSnackBar('No stores available in your area. Please select another pincode.');
-        } else {
-          // Always show outlet selection screen, even for single outlets
-          // This ensures users can see the store details and make an informed choice
-          logger.log('Found ${outlets.length} outlet(s), navigating to outlet selection');
-          
-          // Update launch flow state
-          ref.read(launchFlowProvider.notifier).pincodeSelected();
-          
-          // Add small delay to ensure provider state is fully updated
-          await Future.delayed(const Duration(milliseconds: 100));
-          
-          // Navigate to outlet selection
-          if (mounted && !_isDisposed && !_isNavigating) {
-            _safeSetState(() {
-              _isNavigating = true;
-            });
-            context.go('/outlet-selection');
-          }
-        }
-      } else {
-        _showErrorSnackBar('Sorry! We currently do not serve in your area: $pincode');
-      }
-    } catch (e) {
-      logger.error('Error detecting location: $e');
-      
-      if (mounted && !_isDisposed) {
-        if (e is LocationPermissionException) {
-          await LocationService.handleLocationError(
-            context, 
-            e,
-            onCancel: () {
-              // Just continue with manual selection
-            }
-          );
-        } else {
-          _showErrorSnackBar('Error detecting location: ${e.toString()}');
-        }
       }
     } finally {
       _safeSetState(() {

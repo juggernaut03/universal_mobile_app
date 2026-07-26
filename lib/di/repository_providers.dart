@@ -71,10 +71,7 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
 });
 
 final subcategoryRepositoryProvider = Provider<SubcategoryRepository>((ref) {
-  return SubcategoryRepository(
-    logger: ref.watch(loggerProvider),
-    cacheManager: ref.watch(cacheManagerProvider),
-  );
+  return SubcategoryRepository(logger: ref.watch(loggerProvider));
 });
 
 final bestSellerRepositoryProvider = Provider<BestSellerRepository>((ref) {
@@ -116,7 +113,6 @@ final outletRepositoryProvider = Provider<OutletRepository>((ref) {
   return OutletRepository(
     apiService: ref.watch(apiServiceProvider),
     storageService: ref.watch(storageServiceProvider),
-    logger: ref.watch(loggerProvider),
   );
 });
 

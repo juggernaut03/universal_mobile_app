@@ -90,9 +90,9 @@ final selfPickupDeliverySlotsProvider = FutureProvider<List<DeliverySlot>>((ref)
 // Provider to refresh delivery slots manually
 final refreshDeliverySlotsProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    ref.refresh(deliverySlotsProvider);
-    ref.refresh(deliverySlotsGroupedProvider);
-    ref.refresh(deliveryDatesProvider);
-    ref.refresh(selfPickupDeliverySlotsProvider);
+    ref.invalidate(deliverySlotsProvider);
+    ref.invalidate(deliverySlotsGroupedProvider);
+    ref.invalidate(deliveryDatesProvider);
+    ref.invalidate(selfPickupDeliverySlotsProvider);
   };
 });

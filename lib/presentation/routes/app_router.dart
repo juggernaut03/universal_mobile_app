@@ -1,11 +1,9 @@
 // lib/presentation/routes/app_router.dart
 
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/data/models/order_model.dart';
 import 'package:patelmart/presentation/features/account/savings_screen.dart';
 import 'package:patelmart/presentation/features/best_seller/best_seller_screen.dart';
@@ -61,33 +59,6 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.watch(selectedPincodeProvider);
   final logger = ref.read(loggerProvider);
   
-  // Helper function to get address to edit from shared preferences
-  Address getAddressToEdit(BuildContext context) {
-    try {
-      final prefs = ProviderScope.containerOf(context).read(sharedPreferencesProvider);
-      final addressJson = prefs.getString('address_to_edit');
-      if (addressJson != null) {
-        final addressMap = jsonDecode(addressJson);
-        return Address.fromJson(addressMap);
-      }
-    } catch (e) {
-      logger.error('Error getting address to edit: $e');
-    }
-    
-    // Return a default empty address if something fails
-    return Address(
-      id: '',
-      fullName: '',
-      mobileNumber: '',
-      emailId: '',
-      deliveryAddrLine1: '',
-      deliveryAddrLine2: '',
-      deliveryAddrCity: '',
-      deliveryAddrPincode: '',
-      isDefault: 'No',
-      areaId: '1',
-    );
-  }
   
   return GoRouter(
     navigatorKey: navigatorKey, // ADD GLOBAL NAVIGATOR KEY HERE
