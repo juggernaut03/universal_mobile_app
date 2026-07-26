@@ -45,11 +45,11 @@ class _PopularCategorySection4WidgetState extends ConsumerState<PopularCategoryS
 
     return categoriesAsync.when(
       data: (categoryResponse) {
-        if (categoryResponse.categoriesDetails.isEmpty) {
+        if (categoryResponse.displayableItems.isEmpty) {
           return const SizedBox.shrink();
         }
 
-        final categories = categoryResponse.categoriesDetails;
+        final categories = categoryResponse.displayableItems;
         const int firstRowCount = 4;
         final displayCategories = _expanded
             ? categories

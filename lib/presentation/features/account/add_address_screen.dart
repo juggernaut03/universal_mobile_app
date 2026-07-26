@@ -8,14 +8,15 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
-import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address_book;
-import 'package:patelmart/data/models/address_model.dart';
+import 'package:patelmart/presentation/providers/address_provider.dart' as address_book;
 import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:patelmart/utils/ascii_only_input_formatter.dart';
 import 'package:patelmart/core/utils/input_formatters.dart';
 import '../../../di/infrastructure_providers.dart';
+import '../../../domain/entities/customer_address.dart';
+import '../../../domain/entities/outlet.dart' show GeoPoint;
 
 
 class AddAddressScreen extends ConsumerStatefulWidget {
@@ -320,29 +321,27 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
         mobileNumber = mobileNumber.replaceAll('+91 | ', '');
       }
       
-      // Create address model
-      final newAddress = Address(
-        id: '', // Will be set by backend
+      // Build the domain entity. Field validation lives in the SaveAddress use
+      // case, so this screen no longer re-implements the pincode and mobile
+      // rules that edit_address_screen also had its own copy of.
+      final newAddress = CustomerAddress(
+        id: '', // assigned by the backend
         fullName: _fullNameController.text.trim(),
         mobileNumber: mobileNumber.trim(),
-        emailId: '', // Using empty email as per existing pattern
-        deliveryAddrLine1: _wingFloorController.text.trim(),
-        deliveryAddrLine2: _localityController.text.trim(),
-        deliveryAddrCity: _cityController.text.trim(),
-        deliveryAddrPincode: _pincodeController.text.trim(),
-        isDefault: _isDefault ? "Yes" : "No",
-        latitude: _latitude.isNotEmpty ? _latitude : null,
-        longitude: _longitude.isNotEmpty ? _longitude : null,
-        areaId: _areaController.text.isEmpty ? "1" : _areaController.text.trim(),
+        line1: _wingFloorController.text.trim(),
+        line2: _localityController.text.trim(),
+        city: _cityController.text.trim(),
+        pincode: _pincodeController.text.trim(),
+        isDefault: _isDefault,
+        areaId: _areaController.text.isEmpty ? '1' : _areaController.text.trim(),
+        location: GeoPoint.tryParse(_latitude, _longitude),
       );
-      
-      logger.log('Saving address: ${newAddress.toString()}');
-      
-      // Use the repository to add the address
-      final addressOperations = ref.read(addressOperationsProvider);
-      final success = await addressOperations.addAddress(newAddress);
-      
-      if (success) {
+
+      logger.log('Saving address for ${newAddress.city} ${newAddress.pincode}');
+
+      final failure = await ref.read(addressOperationsProvider).add(newAddress);
+
+      if (failure == null) {
         // Address saved successfully
         logger.log('Address added successfully');
         
@@ -360,12 +359,7 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
           ref.refresh(address_book.addressListProvider);
           
           // 3. Refresh the main address providers
-          try {
-            ref.refresh(addressesProvider);
-            ref.refresh(directAddressListProvider);
-          } catch (e) {
-            logger.warning('Some address providers not found, skipping: $e');
-          }
+          ref.invalidate(addressesProvider);
           
           logger.log('Address providers refreshed successfully');
         } catch (e) {

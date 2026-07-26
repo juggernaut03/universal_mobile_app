@@ -6,7 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
-import '../../../core/utils/location_utils.dart';
+import '../../../data/utils/location_utils.dart';
 import '../../../core/utils/back_handler.dart';
 import '../../../data/models/outlet_model.dart';
 import '../../providers/location_provider.dart';

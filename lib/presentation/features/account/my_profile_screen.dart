@@ -9,64 +9,11 @@ import '../../providers/auth_providers.dart';
 import '../../../di/repository_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../../di/auth_providers.dart';
+import '../../providers/profile_edit_providers.dart';
 
 // Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
 
 // State class for profile editing form
-class ProfileEditState {
-  final String firstName;
-  final String lastName;
-  final String email;
-  final String mobileNumber;
-  final bool isLoading;
-  final String? errorMessage;
-  final bool isSuccess;
-  final bool isAuthenticated; // Added to track authentication status
-
-  ProfileEditState({
-    this.firstName = '',
-    this.lastName = '',
-    this.email = '',
-    this.mobileNumber = '',
-    this.isLoading = false,
-    this.errorMessage,
-    this.isSuccess = false,
-    this.isAuthenticated = true, // Default to true
-  });
-
-  ProfileEditState copyWith({
-    String? firstName,
-    String? lastName,
-    String? email,
-    String? mobileNumber,
-    bool? isLoading,
-    String? errorMessage,
-    bool? isSuccess,
-    bool? isAuthenticated,
-  }) {
-    return ProfileEditState(
-      firstName: firstName ?? this.firstName,
-      lastName: lastName ?? this.lastName,
-      email: email ?? this.email,
-      mobileNumber: mobileNumber ?? this.mobileNumber,
-      isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage,
-      isSuccess: isSuccess ?? this.isSuccess,
-      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-    );
-  }
-
-  // Create from API response
-  factory ProfileEditState.fromJson(Map<String, dynamic> json) {
-    return ProfileEditState(
-      firstName: json['first_name'] ?? '',
-      lastName: json['last_name'] ?? '',
-      email: json['email_id'] ?? '',
-      mobileNumber: json['mobile_number'] ?? '',
-      isAuthenticated: true,
-    );
-  }
-}
 
 
 class MyProfileScreen extends ConsumerStatefulWidget {
@@ -697,6 +644,3 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   }
 }
 
-final profileEditingProvider = StateProvider.autoDispose<ProfileEditState>((ref) {
-  return ProfileEditState();
-});

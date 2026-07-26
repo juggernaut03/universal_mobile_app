@@ -37,6 +37,9 @@ final class _FakeOutletRepo implements IOutletRepository {
       const Err(NotFoundFailure('none'));
 
   @override
+  Future<Result<void>> clearSelection() async => const Ok(null);
+
+  @override
   Future<Result<Outlet>> refreshStatus(String storeCode) async =>
       const Err(NotFoundFailure('none'));
 }
@@ -69,6 +72,9 @@ final class _FakeLocationRepo implements ILocationRepository {
 
   @override
   Future<Result<List<Pincode>>> serviceablePincodes() async => const Ok([]);
+
+  @override
+  Future<Result<void>> clearSelectedPincode() async => const Ok(null);
 
   @override
   Future<Result<Pincode>> selectedPincode() async =>

@@ -121,6 +121,15 @@ final class LocationRepositoryImpl implements ILocationRepository {
   }
 
   @override
+  Future<Result<void>> clearSelectedPincode() => guard(() async {
+        final cleared = await _storageService.clearSelectedPincode();
+        if (!cleared) {
+          throw const CacheException('Could not clear the selected pincode');
+        }
+        _logger.log('Cleared pincode selection');
+      });
+
+  @override
   Future<Result<Pincode>> selectedPincode() {
     return guard(() async {
       final pincode = Pincode.tryParse(_storageService.getSelectedPincode());

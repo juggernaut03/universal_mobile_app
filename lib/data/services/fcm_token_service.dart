@@ -2,7 +2,7 @@
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../core/auth/centralized_auth_manager.dart';
+import '../../data/auth/centralized_auth_manager.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
 import '../../core/constants/app_constants.dart';

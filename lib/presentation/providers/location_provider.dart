@@ -2,38 +2,59 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/utils/logger.dart';
-import '../../data/repositories/location_repository.dart';
 import '../../data/models/pincode_model.dart';
-import 'splash_provider.dart';
 import '../../di/repository_providers.dart';
 import '../../core/result/result.dart';
 import '../../di/location_providers.dart';
 import '../../domain/usecases/location/check_pincode_serviceability.dart';
 import '../../domain/entities/delivery_location.dart';
 import '../../di/infrastructure_providers.dart';
+import '../../core/usecase/usecase.dart';
+import '../../domain/entities/pincode.dart';
+import '../../domain/repositories/i_location_repository.dart';
 
 // Provider for the Location Repository
 
 // Current Location provider - refreshable
 final currentLocationProvider = FutureProvider<Position?>((ref) async {
-  final repository = ref.watch(locationRepositoryProvider);
-  return await repository.getCurrentPosition();
+  final result =
+      await ref.watch(locationRepositoryDomainProvider).currentPosition();
+  return switch (result) {
+    Ok(:final value) =>
+      Position(
+        latitude: value.latitude,
+        longitude: value.longitude,
+        timestamp: DateTime.fromMillisecondsSinceEpoch(0),
+        accuracy: 0,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      ),
+    // Permission and location-services problems arrive as distinct failures;
+    // this provider's contract is still nullable, so callers that need the
+    // reason should read the repository directly.
+    Err() => null,
+  };
 });
 
 // Current Pincode provider - refreshable
 final currentPincodeProvider = FutureProvider<String?>((ref) async {
-  final repository = ref.watch(locationRepositoryProvider);
   final logger = ref.watch(loggerProvider);
-  final isGoogleMapsInitialized = ref.watch(googleMapsInitializedProvider);
-  
-  try {
-    final pincode = await repository.getPincodeFromCurrentLocation();
-    logger.log('Retrieved pincode from location: $pincode (Google Maps initialized: $isGoogleMapsInitialized)');
-    return pincode;
-  } catch (e) {
-    logger.error('Error getting pincode from location: $e');
-    return null;
-  }
+
+  final result = await ref.watch(detectPincodeFromLocationUseCaseProvider)(
+    const NoParams(),
+  );
+
+  return switch (result) {
+    Ok(:final value) => value.value,
+    Err(:final failure) => () {
+        logger.log('Could not detect pincode: ${failure.message}');
+        return null;
+      }(),
+  };
 });
 
 // Provider to check if a pincode is serviceable
@@ -78,15 +99,21 @@ final allPincodesProvider = FutureProvider<List<PincodeModel>>((ref) async {
 });
 
 // Selected pincode provider (cached)
-final selectedPincodeProvider = StateNotifierProvider<SelectedPincodeNotifier, String?>((ref) {
-  final repository = ref.watch(locationRepositoryProvider);
-  final logger = ref.watch(loggerProvider);
-  return SelectedPincodeNotifier(repository, logger);
+final selectedPincodeProvider =
+    StateNotifierProvider<SelectedPincodeNotifier, String?>((ref) {
+  return SelectedPincodeNotifier(
+    ref.watch(locationRepositoryDomainProvider),
+    ref.watch(loggerProvider),
+  );
 });
 
 // Selected pincode notifier
+/// Holds the selected pincode.
+///
+/// Exposes String because the launch flow and several screens key off it; the
+/// repository underneath is the domain interface.
 class SelectedPincodeNotifier extends StateNotifier<String?> {
-  final LocationRepository _repository;
+  final ILocationRepository _repository;
   final Logger _logger;
 
   SelectedPincodeNotifier(this._repository, this._logger) : super(null) {
@@ -94,47 +121,54 @@ class SelectedPincodeNotifier extends StateNotifier<String?> {
   }
 
   Future<void> _loadSavedPincode() async {
-    try {
-      final pincode = _repository.getSelectedPincode();
-      _logger.log('Loaded saved pincode: $pincode');
-      state = pincode;
-    } catch (e) {
-      _logger.error('Error loading saved pincode: $e');
+    final result = await _repository.selectedPincode();
+    switch (result) {
+      case Ok(:final value):
+        _logger.log('Loaded saved pincode: ${value.value}');
+        state = value.value;
+      case Err():
+        // Nothing selected yet is the normal first-run state.
+        state = null;
     }
   }
 
+  /// Persists an already-validated pincode.
+  ///
+  /// Deliberately does not run the SelectPincode use case: callers reach here
+  /// after serviceability has been checked, and re-checking would double the
+  /// network call on every launch.
   Future<bool> selectPincode(String pincode) async {
-    try {
-      _logger.log('Saving pincode: $pincode');
-      final result = await _repository.saveSelectedPincode(pincode);
-      if (result) {
-        state = pincode;
-        _logger.log('Pincode saved successfully');
-      } else {
-        _logger.error('Failed to save pincode');
-      }
-      return result;
-    } catch (e) {
-      _logger.error('Error selecting pincode: $e');
+    final parsed = Pincode.tryParse(pincode);
+    if (parsed == null) {
+      _logger.error('Refusing to persist malformed pincode "$pincode"');
       return false;
+    }
+
+    final result = await _repository.selectPincode(parsed);
+    switch (result) {
+      case Ok():
+        state = parsed.value;
+        _logger.log('Pincode saved successfully');
+        return true;
+      case Err(:final failure):
+        _logger.error('Failed to save pincode: ${failure.message}');
+        return false;
     }
   }
   
   // Clear the selected pincode
   Future<bool> clearPincode() async {
-    try {
-      _logger.log('Clearing pincode');
-      final result = await _repository.saveSelectedPincode('');
-      if (result) {
+    // Was implemented by saving an empty string, which then loaded back as a
+    // selected pincode of ''.
+    final result = await _repository.clearSelectedPincode();
+    switch (result) {
+      case Ok():
         state = null;
         _logger.log('Pincode cleared successfully');
-      } else {
-        _logger.error('Failed to clear pincode');
-      }
-      return result;
-    } catch (e) {
-      _logger.error('Error clearing pincode: $e');
-      return false;
+        return true;
+      case Err(:final failure):
+        _logger.error('Failed to clear pincode: ${failure.message}');
+        return false;
     }
   }
 }

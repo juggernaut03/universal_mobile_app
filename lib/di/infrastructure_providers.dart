@@ -18,7 +18,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/auth/centralized_auth_manager.dart';
+import '../data/auth/centralized_auth_manager.dart';
 import '../core/network/api_client.dart';
 import '../core/utils/logger.dart';
 
@@ -84,8 +84,10 @@ final centralizedAuthManagerProvider = Provider<CentralizedAuthManager>((ref) {
 /// such auth-less declarations previously existed and every consumer resolved
 /// one of them — see docs/ARCHITECTURE_MIGRATION_PLAN.md, Phase 1.
 final apiClientProvider = Provider<ApiClient>((ref) {
+  final authManager = ref.watch(centralizedAuthManagerProvider);
   return ApiClient(
     logger: ref.watch(loggerProvider),
-    authManager: ref.watch(centralizedAuthManagerProvider),
+    readToken: authManager.getValidAccessKey,
+    onUnauthorized: authManager.logout,
   );
 });

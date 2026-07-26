@@ -1,7 +1,7 @@
 // lib/data/repositories/base_repository.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/auth/centralized_auth_manager.dart';
+import '../../data/auth/centralized_auth_manager.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
 import '../../di/infrastructure_providers.dart';

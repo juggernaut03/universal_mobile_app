@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:patelmart/di/infrastructure_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/logger.dart';
-import '../../data/models/auth_models.dart';
+import '../../core/utils/logger.dart';
+import '../models/auth_models.dart';
 
 /// Centralized authentication manager for access key and user data
 class CentralizedAuthManager {

@@ -19,6 +19,12 @@ abstract interface class IOutletRepository {
   /// The currently selected outlet, or `Err(NotFoundFailure)` when none is set.
   Future<Result<Outlet>> selectedOutlet();
 
+  /// Forgets the current selection.
+  ///
+  /// Distinct from selecting an empty outlet, which is how this used to be
+  /// approximated.
+  Future<Result<void>> clearSelection();
+
   /// Re-reads an outlet's live trading state.
   ///
   /// Separate from [outletsForPincode] because it is polled while the user

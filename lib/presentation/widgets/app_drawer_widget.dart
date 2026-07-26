@@ -8,8 +8,7 @@ import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../di/repository_providers.dart';
-import '../../di/auth_providers.dart';
+import '../providers/app_shell_providers.dart';
 
 // Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
 
@@ -396,43 +395,4 @@ class _DrawerItem {
   });
 }
 
-final userDisplayNameProvider = FutureProvider.autoDispose<String>((ref) async {
-  final userProfile = (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
-  
-  if (userProfile == null) {
-    return 'Guest';
-  }
-  
-  // Try to get cached profile data first from secure storage or local cache
-  // If not available, fetch from API
-  final profileRepository = ref.read(profileRepositoryProvider);
-  try {
-    final profileData = await profileRepository.getUserProfile();
-    
-    // Extract and format display name
-    final firstName = profileData['first_name']?.toString().trim() ?? '';
-    final lastName = profileData['last_name']?.toString().trim() ?? '';
-    
-    if (firstName.isNotEmpty && lastName.isNotEmpty) {
-      return '$firstName $lastName';
-    } else if (firstName.isNotEmpty) {
-      return firstName;
-    } else if (lastName.isNotEmpty) {
-      return lastName;
-    } else {
-      // Fallback to masked mobile number
-      final mobile = userProfile.mobile;
-      return mobile.length > 4 ? '***${mobile.substring(mobile.length - 4)}' : mobile;
-    }
-  } catch (e) {
-    // On error, return mobile-based fallback
-    final mobile = userProfile.mobile;
-    return mobile.length > 4 ? '***${mobile.substring(mobile.length - 4)}' : mobile;
-  }
-});
 
-// Simple login status provider for immediate UI updates
-final quickLoginStatusProvider = Provider<bool>((ref) {
-  final userProfileAsync = ref.watch(userProfileProvider);
-  return userProfileAsync.valueOrNull != null;
-});

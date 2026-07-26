@@ -23,8 +23,7 @@ import '../data/repositories/popular_category_repository.dart';
 import '../data/repositories/profile_repository.dart';
 import '../data/repositories/project_config_repository.dart';
 import '../data/repositories/subcategory_repository.dart';
-import '../presentation/providers/auth_providers.dart'
-    show legacyAuthRepositoryProvider;
+import 'auth_providers.dart';
 import 'infrastructure_providers.dart';
 import 'service_providers.dart';
 
@@ -130,7 +129,7 @@ final outletRepositoryProvider = Provider<OutletRepository>((ref) {
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   return OrderRepository(
     client: ref.watch(httpClientProvider),
-    authRepository: ref.watch(legacyAuthRepositoryProvider),
+    tokenStore: ref.watch(tokenStoreProvider),
     logger: ref.watch(loggerProvider),
   );
 });

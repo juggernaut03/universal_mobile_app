@@ -12,6 +12,7 @@ import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widg
     show bannerProvider, categoriesProvider, seasonalPicksRefreshProvider;
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 import '../../di/infrastructure_providers.dart';
+import 'promotional_banner_providers.dart';
 
 // Provider to track overall home screen refresh state
 final homeScreenRefreshStateProvider = StateProvider<bool>((ref) => false);

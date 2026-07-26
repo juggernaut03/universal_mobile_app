@@ -8,9 +8,9 @@ import '../../../core/utils/responsive_utils.dart';
 import '../../../presentation/widgets/back_button_wrapper.dart';
 import '../../providers/onboarding_provider.dart';
 import '../../providers/launch_flow_provider.dart';
+import '../../providers/app_shell_providers.dart';
 
 // Provider to track the current onboarding page
-final onboardingPageProvider = StateProvider<int>((ref) => 0);
 
 class OnboardingScreen extends ConsumerWidget {
   const OnboardingScreen({super.key});

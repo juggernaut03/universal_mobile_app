@@ -4,8 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:math' show atan2, cos, sin, sqrt, pi;
 import 'package:geocoding/geocoding.dart' as geocoding;
-import '../utils/logger.dart';
-import '../../data/services/google_maps_service.dart';
+import '../../core/utils/logger.dart';
+import '../services/google_maps_service.dart';
 
 class LocationPermissionException implements Exception {
   final String message;

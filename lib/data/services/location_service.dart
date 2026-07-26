@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../core/utils/location_utils.dart';
+import '../../data/utils/location_utils.dart';
 import '../../core/utils/logger.dart';
 import '../../data/services/google_maps_service.dart';
 
