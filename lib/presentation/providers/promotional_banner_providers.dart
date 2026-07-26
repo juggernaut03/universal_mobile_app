@@ -4,7 +4,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/services/banner_service.dart';
-import '../../di/infrastructure_providers.dart';
 import '../../di/service_providers.dart';
 import 'outlet_provider.dart';
 

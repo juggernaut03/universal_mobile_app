@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/app_constants.dart';
-import '../../di/infrastructure_providers.dart';
+import 'outlet_provider.dart';
 
 /// Model for seasonal category data
 class SeasonalCategory {

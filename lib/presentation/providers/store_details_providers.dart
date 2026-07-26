@@ -1,14 +1,12 @@
 // lib/presentation/providers/store_details_providers.dart
 //
 // Store contact details, moved out of help_support_screen.dart.
-import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
-import '../../core/constants/app_constants.dart';
 import '../../di/infrastructure_providers.dart';
 import 'outlet_provider.dart';
+import '../../di/service_providers.dart';
 
 // Store details model
 class StoreDetails {

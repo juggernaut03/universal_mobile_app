@@ -14,13 +14,13 @@ import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:patelmart/utils/payment_data_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // Import CheckoutData and DeliveryMethod from your existing file
-import 'checkout_flow_screen.dart' show CheckoutData, DeliveryMethod;
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
 import '../../../di/service_providers.dart';
 import '../../../di/auth_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 import 'package:flutter/foundation.dart';
+import 'checkout_models.dart';
 
 /// Enhanced Payment Processing Flow that follows the exact requirements:
 /// 1. On "Place Order" click → Call payment processing API → Database entry with status "Payment Processing"

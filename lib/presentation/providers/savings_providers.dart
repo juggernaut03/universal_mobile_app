@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/order_model.dart';
 import '../../di/auth_providers.dart';
-import '../../di/infrastructure_providers.dart';
 import '../../di/repository_providers.dart';
 
 // Model to hold savings statistics

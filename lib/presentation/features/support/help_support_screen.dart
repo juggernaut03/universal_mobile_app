@@ -5,8 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../providers/outlet_provider.dart';
-import '../../../di/service_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../providers/store_details_providers.dart';
 

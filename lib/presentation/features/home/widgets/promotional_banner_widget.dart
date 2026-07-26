@@ -7,8 +7,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/data/services/banner_service.dart';
-import 'package:patelmart/di/service_providers.dart';
-import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../di/infrastructure_providers.dart';
 import '../../../providers/promotional_banner_providers.dart';
