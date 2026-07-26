@@ -17,6 +17,7 @@ import 'widgets/cart_validation_dialog.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
 import '../../../di/auth_providers.dart';
 import '../../../di/infrastructure_providers.dart';
+import '../../providers/cart_validation_policy_provider.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({Key? key}) : super(key: key);
@@ -53,14 +54,16 @@ class CartScreen extends ConsumerWidget {
     final cartValidationState = ref.watch(cartValidationStateProvider);
     final selectedOutletAsync = ref.watch(selectedOutletProvider);
     
-    // Get minimum order value dynamically from the selected outlet
-    final minimumOrderValue = selectedOutletAsync.maybeWhen(
-      data: (outlet) => outlet?.minOrderAmount.toDouble() ?? 499.0, // Default to 499 if outlet is null
-      orElse: () => 499.0, // Default to 499 if loading or error
-    );
-    
-    // Check if cart meets minimum value requirement
-    final canCheckout = cartTotal >= minimumOrderValue;
+    // Minimum order value comes from the outlet. There is no default: a cart
+    // cannot be judged before its store is known, and the previous fallback of
+    // 499.0 was a threshold invented in this widget.
+    final minimumOrderValue =
+        selectedOutletAsync.valueOrNull?.minOrderAmount.toDouble() ?? 0.0;
+
+    // Checkout eligibility now comes from the single CartValidationPolicy,
+    // which also covers stock, outlet trading state and an empty cart — none of
+    // which this screen used to check.
+    final canCheckout = ref.watch(canCheckoutProvider);
     
     // Back in stock items (mock data for demonstration)
     final backInStockItems = 2;

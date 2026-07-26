@@ -13,6 +13,7 @@
 // ProductModel DTO. Phase 5 (Cart) promotes it to a true domain entity holding
 // a Product entity, with value equality and a const constructor.
 
+import '../../domain/entities/cart.dart';
 import 'product_model.dart';
 
 /// A product plus the quantity of it the user has added to their cart.
@@ -43,4 +44,24 @@ class CartItem {
 
   /// Amount saved on this line versus MRP.
   double get savings => totalMrp - totalPrice;
+
+  /// Converts to the domain line.
+  ///
+  /// Bridge for the migration: cart_provider, checkout and orders still hold
+  /// `List<CartItem>`. Once they hold a Cart, this and [fromLine] go away
+  /// along with this class.
+  CartLine toLine() => CartLine(product: product.toEntity(), quantity: quantity);
+
+  factory CartItem.fromLine(CartLine line) => CartItem(
+        product: ProductModel.fromEntity(line.product),
+        quantity: line.quantity,
+      );
+}
+
+/// Builds a domain [Cart] from the legacy item list.
+extension CartItemListToCart on List<CartItem> {
+  Cart toCart(String storeCode) => Cart(
+        storeCode: storeCode,
+        lines: List.unmodifiable(map((i) => i.toLine())),
+      );
 }

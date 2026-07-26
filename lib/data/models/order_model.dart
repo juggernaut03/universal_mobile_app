@@ -3,6 +3,8 @@
 import 'dart:math';
 import 'package:patelmart/data/models/product_model.dart';
 import 'cart_item.dart';
+import '../../domain/entities/order_status.dart';
+import '../../domain/entities/order_summary.dart';
 
 class Order {
   final String orderId;
@@ -305,4 +307,26 @@ class Order {
     final displayDate = orderDateTime ?? orderDate;
     return 'Local: $displayDate, Timezone: ${displayDate.timeZoneName}, Offset: ${displayDate.timeZoneOffset}';
   }
+  /// Converts to the domain entity.
+  ///
+  /// Collapses the DTO's two date fields (`orderDate` plus a nullable
+  /// `orderDateTime`, picked between by a `sortableDateTime` getter) and its two
+  /// id fields (`orderId` plus a nullable `actualOrderId`, picked between by
+  /// `displayOrderId`) into one authoritative value each.
+  OrderSummary toEntity() => OrderSummary(
+        id: orderId,
+        displayNumber: displayOrderId,
+        placedAt: orderDateTime ?? orderDate,
+        status: OrderStatus.parse(status),
+        lines: items.map((i) => i.toLine()).toList(growable: false),
+        totalAmount: totalAmount,
+        totalAtMrp: totalMrp,
+        deliveryCharge: deliveryAmount ?? 0,
+        refundAmount: refundAmount,
+        deliveryMethod: deliveryMethod,
+        deliverySlot: deliverySlot,
+        paymentMethod: paymentMethod,
+        deliveryAddress: deliveryAddress,
+      );
+
 }
