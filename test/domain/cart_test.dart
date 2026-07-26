@@ -100,6 +100,45 @@ void main() {
     });
   });
 
+  group('regressions the notifier used to have', () {
+    test('a zero per-order cap does not throw, and means "no cap"', () {
+      // CartNotifier called `quantity.clamp(1, maxQuantityAllowed)`. Dart's
+      // clamp asserts upper >= lower, so a product with a cap of 0 threw an
+      // ArgumentError on add.
+      //
+      // The entity reads a cap of 0 as "no per-order limit" — consistent with
+      // minOrderAmount 0 meaning no minimum — so the quantity is bounded by
+      // stock instead.
+      final cart = const Cart.empty('KLK')
+          .setQuantity(product(maxQuantity: 0, stock: 5), 3);
+
+      expect(cart.quantityOf('P1'), 3);
+    });
+
+    test('a zero cap is still bounded by stock', () {
+      final cart = const Cart.empty('KLK')
+          .setQuantity(product(maxQuantity: 0, stock: 2), 9);
+
+      expect(cart.quantityOf('P1'), 2);
+    });
+
+    test('quantity is capped by stock, not only by the per-order limit', () {
+      // The notifier compared quantity against maxQuantityAllowed alone, so a
+      // cart could hold more than the store could supply.
+      final cart = const Cart.empty('KLK')
+          .setQuantity(product(stock: 2, maxQuantity: 50), 10);
+
+      expect(cart.quantityOf('P1'), 2);
+    });
+
+    test('decrementing to zero removes the line rather than leaving a 0-qty row',
+        () {
+      final cart = const Cart.empty('KLK').add(product());
+
+      expect(cart.decrement('P1').lines, isEmpty);
+    });
+  });
+
   group('Cart.setQuantity / decrement / remove', () {
     test('setQuantity to zero removes the line', () {
       final cart = const Cart.empty('KLK').add(product());

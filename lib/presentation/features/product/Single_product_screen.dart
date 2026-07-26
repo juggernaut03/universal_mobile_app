@@ -319,7 +319,7 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
   @override
   Widget build(BuildContext context) {
     // Get cart information
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     final cartItem = cartItems.where((item) => 
       _product != null && item.product.pCode == _product!.pCode).toList();
     

@@ -146,7 +146,7 @@ class _OfferProductCardState extends ConsumerState<_OfferProductCard>
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth * 0.68;
 
-    final cartItems = ref.watch(cartProvider);
+    final cartItems = ref.watch(cartItemsProvider);
     final cartItem = cartItems
         .where((item) => item.product.pCode == widget.product.pCode)
         .toList();

@@ -202,6 +202,39 @@ void main() {
     });
   });
 
+  group('cancellation vs failure — the distinction that was missing', () {
+    // PaymentResult.success was false for both a declined card and a dismissed
+    // sheet, and payment_step's else-branch wrote "Payment Failed" to the
+    // database for both. These pin the two apart.
+    test('a dismissed sheet is not a failure', () {
+      const PaymentOutcome outcome = PaymentCancelled();
+
+      expect(outcome, isA<PaymentCancelled>());
+      expect(outcome is PaymentFailed, isFalse);
+    });
+
+    test('a declined card is a failure with a code', () {
+      const outcome = PaymentFailed(code: '1', message: 'Card declined');
+
+      expect(outcome.code, '1');
+      expect(outcome.userMessage, 'Card declined');
+    });
+
+    test('handling must be exhaustive, so neither case can be forgotten', () {
+      bool marksOrderFailed(PaymentOutcome o) => switch (o) {
+            PaymentSucceeded() => false,
+            PaymentCancelled() => false,
+            PaymentFailed() => true,
+          };
+
+      expect(marksOrderFailed(const PaymentCancelled()), isFalse);
+      expect(
+        marksOrderFailed(const PaymentFailed(code: '1', message: 'x')),
+        isTrue,
+      );
+    });
+  });
+
   group('PaymentMethod', () {
     test('only online payment is prepaid', () {
       expect(PaymentMethod.online.isPrepaid, isTrue);

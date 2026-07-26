@@ -54,7 +54,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
 
   void _trackCheckoutInitiation() {
     try {
-      final cartItems = ref.read(cartProvider);
+      final cartItems = ref.read(cartItemsProvider);
       final cartTotal = ref.read(cartTotalProvider);
       final productIds = cartItems.map((item) => item.product.pCode).toList();
 
@@ -124,7 +124,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
   }
   
   void _showOrderDetailsBottomSheet(BuildContext context) {
-  final cartItems = ref.read(cartProvider);
+  final cartItems = ref.read(cartItemsProvider);
   final cartTotal = ref.read(cartTotalProvider);
   final cartSavings = ref.read(cartSavingsProvider);
   
@@ -732,7 +732,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
 
   // Build order summary section
   Widget _buildOrderSummary() {
-  final cartItems = ref.watch(cartProvider);
+  final cartItems = ref.watch(cartItemsProvider);
   final cartTotal = ref.watch(cartTotalProvider);
   final cartSavings = ref.watch(cartSavingsProvider);
   
