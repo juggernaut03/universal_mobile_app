@@ -308,13 +308,14 @@ class PopularCategoryRepository {
   }
 
   // Clear cache (for debugging or force refresh)
+  //
+  // Deliberately leaves any in-flight request alone. A pull-to-refresh clears
+  // the cache from several call sites at once; dropping the shared request on
+  // each one would split a single refresh back into several network calls, and
+  // a response still in flight is newer than the cache being cleared anyway.
+  // A store change is handled separately — requests are keyed by store code.
   Future<void> clearCache() async {
     try {
-      // Drop the shared request too, or a refresh triggered right after this
-      // would be served the pre-clear response.
-      _inFlightSections = null;
-      _inFlightStoreCode = null;
-
       final prefs = await SharedPreferences.getInstance();
       final keys = prefs.getKeys().toList(); // Create a copy to avoid concurrent modification
       

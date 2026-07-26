@@ -74,10 +74,26 @@ final section4RefreshProvider = promoSectionRefreshProvider(4);
 final section5RefreshProvider = promoSectionRefreshProvider(5);
 
 /// Refreshes every strip. Used by the home screen's pull-to-refresh.
+///
+/// Clears the cache once rather than once per strip: all four strips are slices
+/// of a single `/popular-categories/list` response, so per-strip clearing only
+/// serves to fragment one refresh into several requests.
 final allSectionsRefreshProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    await Future.wait(
-      promoSectionIds.map((id) => ref.read(promoSectionRefreshProvider(id))()),
-    );
+    await ref.read(promotionRepositoryProvider).clearCache();
+
+    for (final id in promoSectionIds) {
+      ref.read(promoSectionRefreshFlagProvider(id).notifier).state = true;
+    }
+    try {
+      await Future.wait(
+        // ignore: unused_result — awaited for completion; the value is not needed.
+        promoSectionIds.map((id) => ref.refresh(promoSectionProvider(id).future)),
+      );
+    } finally {
+      for (final id in promoSectionIds) {
+        ref.read(promoSectionRefreshFlagProvider(id).notifier).state = false;
+      }
+    }
   };
 });
