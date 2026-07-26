@@ -4,16 +4,23 @@ import '../../domain/entities/promo_section.dart';
 
 class PopularCategoryResponse {
   final String title;
+
+  /// Section background colour. Only the seasonal strip renders it, but it
+  /// belongs here because that strip is section 1 of this same response.
+  final String categoryBgColor;
+
   final List<PopularCategoryItem> categoriesDetails;
 
   PopularCategoryResponse({
     required this.title,
     required this.categoriesDetails,
+    this.categoryBgColor = '#FFFFFF',
   });
 
   factory PopularCategoryResponse.fromJson(Map<String, dynamic> json) {
     return PopularCategoryResponse(
       title: (json['title'] as String?)?.replaceAll('Cateogory', 'Category') ?? '',
+      categoryBgColor: (json['category_bg_color'] as String?) ?? '#FFFFFF',
       categoriesDetails: (json['categories_details'] as List?)
           ?.map((item) => PopularCategoryItem.fromJson(item))
           .toList() ?? [],
@@ -32,6 +39,7 @@ class PopularCategoryResponse {
   Map<String, dynamic> toJson() {
     return {
       'title': title,
+      'category_bg_color': categoryBgColor,
       'categories_details': categoriesDetails.map((item) => item.toJson()).toList(),
     };
   }
