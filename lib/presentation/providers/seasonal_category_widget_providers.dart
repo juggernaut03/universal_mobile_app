@@ -114,18 +114,25 @@ final refreshSeasonalCategoryProvider = StateProvider<bool>((ref) => false);
 /// Loading state provider for seasonal categories - prevents shuffling during refresh
 final seasonalCategoryLoadingProvider = StateProvider<bool>((ref) => false);
 
-/// Riverpod provider for seasonal categories with refresh capability
+/// Riverpod provider for seasonal categories with refresh capability.
+///
+/// Goes through PopularCategoryRepository rather than issuing its own request:
+/// this strip is section 1 of `/popular-categories/list`, the same call the
+/// home screen's other four strips make.
 final seasonalCategoryProvider = FutureProvider.family<SeasonalCategoryResponse, SeasonalCategoryParams>((ref, params) async {
   // Use ref.read (NOT ref.watch) to avoid an infinite rebuild loop:
   // if we watch this flag and then reset it inside the async body,
   // the provider would detect the state change and restart itself endlessly.
   final forceRefresh = ref.read(refreshSeasonalCategoryProvider);
 
-  return SeasonalCategoryApi.fetchSeasonalCategories(
-    storeCode: params.storeCode,
-    departmentId: params.departmentId,
-    forceRefresh: forceRefresh,
-  );
+  final popular = await ref.watch(popularCategoryRepositoryProvider).getPopularCategories(
+        sectionId: 1,
+        departmentId: params.departmentId.toString(),
+        storeCode: params.storeCode,
+        forceRefresh: forceRefresh,
+      );
+
+  return SeasonalCategoryResponse.fromPopular(popular);
   // Flag reset is handled externally by seasonalCategoryRefreshProvider.finally
 });
 
