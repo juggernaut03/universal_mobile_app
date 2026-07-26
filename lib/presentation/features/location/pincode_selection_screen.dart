@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:patelmart/core/network/api_client.dart';
-import 'package:patelmart/core/utils/location_utils.dart';
+import 'package:patelmart/data/utils/location_utils.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/error_widgets.dart';

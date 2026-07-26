@@ -59,6 +59,15 @@ final class OutletRepositoryImpl implements IOutletRepository {
   }
 
   @override
+  Future<Result<void>> clearSelection() => guard(() async {
+        final cleared = await _storageService.clearSelectedOutlet();
+        if (!cleared) {
+          throw const CacheException('Could not clear the selected outlet');
+        }
+        _logger.log('Cleared outlet selection');
+      });
+
+  @override
   Future<Result<Outlet>> refreshStatus(String storeCode) {
     return guard(() async {
       // The universal backend exposes no real-time outlet-status endpoint —

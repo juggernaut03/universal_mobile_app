@@ -27,7 +27,7 @@ import '../../../core/utils/responsive_utils.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/checkout_timer_provider.dart';
 import '../checkout/widgets/checkout_timer_widget.dart';
-import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address;
+import 'package:patelmart/presentation/providers/address_provider.dart' as address;
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
 import '../../../di/service_providers.dart';

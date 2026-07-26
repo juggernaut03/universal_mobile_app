@@ -245,4 +245,22 @@ class Address {
     );
   }
 
+  /// Rebuilds a DTO from the entity, for screens still typed to Address.
+  factory Address.fromEntity(CustomerAddress a) => Address(
+        id: a.id,
+        fullName: a.fullName,
+        mobileNumber: a.mobileNumber,
+        emailId: a.email,
+        deliveryAddrLine1: a.line1,
+        deliveryAddrLine2: a.line2,
+        deliveryAddrCity: a.city,
+        deliveryAddrPincode: a.pincode,
+        isDefault: a.isDefault ? '1' : '0',
+        areaId: a.areaId,
+        landmark: a.landmark,
+        state: a.state,
+        latitude: a.location?.latitude.toString(),
+        longitude: a.location?.longitude.toString(),
+      );
+
 }

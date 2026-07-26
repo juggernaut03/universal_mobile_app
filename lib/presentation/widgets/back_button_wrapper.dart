@@ -2,8 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/utils/back_handler.dart';
-import '../../di/infrastructure_providers.dart';
+import '../providers/app_shell_providers.dart';
 
 
 class BackButtonWrapper extends ConsumerWidget {
@@ -36,7 +35,3 @@ class BackButtonWrapper extends ConsumerWidget {
   }
 }
 
-final backButtonHandlerProvider = Provider<BackButtonHandler>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return BackButtonHandler(logger: logger);
-});

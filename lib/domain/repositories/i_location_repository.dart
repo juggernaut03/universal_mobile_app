@@ -26,6 +26,9 @@ abstract interface class ILocationRepository {
   /// Persists the customer's chosen delivery pincode.
   Future<Result<void>> selectPincode(Pincode pincode);
 
+  /// Forgets the selected pincode.
+  Future<Result<void>> clearSelectedPincode();
+
   /// The currently selected pincode, or `Err(NotFoundFailure)` when unset.
   Future<Result<Pincode>> selectedPincode();
 

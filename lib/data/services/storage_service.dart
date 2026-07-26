@@ -49,6 +49,33 @@ class StorageService {
     }
   }
 
+  /// Removes the stored pincode.
+  ///
+  /// Callers previously "cleared" it by saving an empty string, which then
+  /// loaded back as a selected pincode of ''.
+  Future<bool> clearSelectedPincode() async {
+    try {
+      return await _prefs.remove(ApiConstants.keyPincode);
+    } catch (e) {
+      _logger.error('Error clearing pincode: $e');
+      return false;
+    }
+  }
+
+  /// Removes the stored outlet.
+  ///
+  /// Added because callers previously "cleared" the selection by persisting a
+  /// dummy OutletModel with empty fields, which then loaded back as a real
+  /// outlet with an empty store code.
+  Future<bool> clearSelectedOutlet() async {
+    try {
+      return await _prefs.remove(ApiConstants.keyOutlet);
+    } catch (e) {
+      _logger.error('Error clearing outlet: $e');
+      return false;
+    }
+  }
+
   // Get selected outlet
   OutletModel? getSelectedOutlet() {
     try {

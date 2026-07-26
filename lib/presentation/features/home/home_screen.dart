@@ -35,9 +35,10 @@ import '../../providers/popup_providers.dart';
 import '../../../presentation/handlers/app_lifecycle_handler.dart';
 // FORCE UPDATE IMPORTS
 import '../../providers/force_update_providers.dart';
-import '../../../core/widgets/force_update_dialog.dart';
+import '../../widgets/force_update_dialog.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
 import '../../../di/infrastructure_providers.dart';
+import '../../providers/promotional_banner_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});

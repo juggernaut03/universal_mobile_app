@@ -1,13 +1,13 @@
 // lib/presentation/providers/favorites_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/repositories/favorites_repository.dart';
 import '../providers/auth_providers.dart';
 import '../providers/outlet_provider.dart';
 import '../../data/models/product_model.dart';
 import '../../data/models/auth_models.dart';
-import '../../di/repository_providers.dart';
 import '../../di/infrastructure_providers.dart';
 import '../../di/auth_providers.dart';
+import '../../di/order_providers.dart';
+import '../../domain/repositories/i_favorites_repository.dart';
 
 // Import the repository provider from the repository file
 // (The favoritesRepositoryProvider is now defined in favorites_repository.dart)
@@ -51,7 +51,7 @@ class FavoritesState {
 
 // Favorites notifier
 class FavoritesNotifier extends StateNotifier<FavoritesState> {
-  final FavoritesRepository _repository;
+  final IFavoritesRepository _repository;
   final Ref _ref;
   bool _hasInitialized = false;
 
@@ -96,9 +96,9 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       state = state.copyWith(isLoading: true, error: null);
       
       // Load favorites from server
-      final favoriteProducts = await _repository.getFavoriteItems(
-        storeCode: storeCode,
-      );
+      final favoriteProducts = ((await _repository.items(storeCode: storeCode)).valueOrNull ?? const [])
+          .map(ProductModel.fromEntity)
+          .toList();
       
       // Extract product codes
       final favoriteProductCodes = favoriteProducts.map((product) => product.pCode).toSet();
@@ -166,9 +166,9 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       state = state.copyWith(isLoading: true, error: null);
       
       // Load favorites from server
-      final favoriteProducts = await _repository.getFavoriteItems(
-        storeCode: storeCode,
-      );
+      final favoriteProducts = ((await _repository.items(storeCode: storeCode)).valueOrNull ?? const [])
+          .map(ProductModel.fromEntity)
+          .toList();
       
       // Extract product codes
       final favoriteProductCodes = favoriteProducts.map((product) => product.pCode).toSet();
@@ -256,11 +256,11 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       if (isFavorite) {
         logger.log('🔥 Removing from favorites...');
         // Remove from favorites
-        success = await _repository.toggleFavorite(
-          productId: pCode,
+        success = (await _repository.setFavorite(
+          productCode: pCode,
           storeCode: storeCode,
-          addToFavorites: false,
-        );
+          isFavorite: false,
+        )).isOk;
         
         if (success) {
           logger.log('✅ Successfully removed from favorites');
@@ -287,11 +287,11 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
       } else {
         logger.log('🔥 Adding to favorites...');
         // Add to favorites
-        success = await _repository.toggleFavorite(
-          productId: pCode,
+        success = (await _repository.setFavorite(
+          productCode: pCode,
           storeCode: storeCode,
-          addToFavorites: true,
-        );
+          isFavorite: true,
+        )).isOk;
         
         if (success) {
           logger.log('✅ Successfully added to favorites');
@@ -345,8 +345,7 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
 
 // Provider for favorites state
 final favoritesProvider = StateNotifierProvider<FavoritesNotifier, FavoritesState>((ref) {
-  final repository = ref.watch(favoritesRepositoryProvider);
-  return FavoritesNotifier(repository, ref);
+  return FavoritesNotifier(ref.watch(favoritesRepositoryDomainProvider), ref);
 });
 
 // Provider for checking if a specific product is a favorite

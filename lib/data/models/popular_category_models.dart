@@ -1,3 +1,5 @@
+import '../../domain/entities/promo_section.dart';
+
 // lib/data/models/popular_category_models.dart
 
 class PopularCategoryResponse {
@@ -33,6 +35,17 @@ class PopularCategoryResponse {
       'categories_details': categoriesDetails.map((item) => item.toJson()).toList(),
     };
   }
+  /// Converts to the domain section.
+  ///
+  /// The `Cateogory` -> `Category` correction on the title stays in the DTO:
+  /// it is a fix for how the backend spells a field, which is exactly what a
+  /// DTO is for.
+  PromoSection toEntity(int sectionId) => PromoSection(
+        sectionId: sectionId,
+        title: title.trim(),
+        items: categoriesDetails.map((i) => i.toEntity()).toList(growable: false),
+      );
+
 }
 
 class PopularCategoryItem {
@@ -81,4 +94,13 @@ class PopularCategoryItem {
       'image_link': imageLink,
     };
   }
+  /// Converts to the domain tile.
+  PromoItem toEntity() => PromoItem(
+        id: id,
+        categoryCode: categoryId,
+        departmentCode: deptId,
+        label: categoryName,
+        imageUrl: imageLink,
+      );
+
 }

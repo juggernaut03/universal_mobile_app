@@ -27,6 +27,7 @@ import 'facebook_pixel/facebook_pixel_integration.dart';
 import 'di/service_providers.dart';
 import 'di/infrastructure_providers.dart';
 import 'domain/repositories/i_notification_service.dart';
+import 'presentation/providers/app_shell_providers.dart';
 // PRODUCT CACHE IMPORTS
 
 // Global navigator key for navigation from background

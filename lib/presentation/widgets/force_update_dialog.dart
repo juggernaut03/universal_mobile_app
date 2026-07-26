@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/data/services/force_update_service.dart';
-import '../constants/app_colors.dart';
-import '../constants/app_text_styles.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_text_styles.dart';
 import '../../di/service_providers.dart';
 
 class ForceUpdateDialog extends ConsumerStatefulWidget {

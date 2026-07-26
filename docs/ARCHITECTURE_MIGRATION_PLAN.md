@@ -369,3 +369,84 @@ Phase 8 is the only one that can run in parallel with others.
   left behind. That practice is what produced the current 3 validators and 4 notification services.
 - Tests land with the phase, not after.
 - No phase begins before the previous phase's exit criteria are signed off.
+
+---
+
+## Status after Phases 0-9
+
+| | Before | After |
+|---|---:|---:|
+| Analyzer issues | 668 | **130** |
+| Tests | 0 | **252** |
+| `domain/` | 0 files | **47 files / ~2,970 lines** |
+| `core/` → `presentation/` imports | 11 | **0** |
+| `data/` → `presentation/` imports | 12 | **0** |
+| Duplicate DI declarations | 6 names | **0** |
+| Notification services | 4 | **1** |
+| Cart validators | 3 | 2 + one policy (see below) |
+
+### Defects found and fixed
+
+1. **`apiClientProvider` declared twice with different behaviour.** Every consumer
+   resolved the variant built without a `CentralizedAuthManager`, so `postWithAuth`
+   sent no `Authorization` header and 401s were ignored. FCM token registration
+   was calling an authenticated endpoint unauthenticated.
+2. **Payment credentials in release logs.** 58 unguarded `print()` calls on the
+   payment path logged signatures, customer name, phone and email. Signature
+   logging removed entirely; everything else guarded.
+3. **Truncated paise.** `(amount * 100).toInt()` recorded ₹19.99 as 1998 paise,
+   not 1999 — a reconciliation mismatch against what Razorpay captured.
+4. **Order status classified six different ways.** Four of six `if/else` chains
+   handled a `proocessing` backend misspelling; two did not, so the same order
+   answered differently depending on which helper was asked.
+5. **Offline read as "we don't deliver here."** The serviceability check returned
+   `false` on any error, so a network failure and a genuine no were identical.
+6. **Hardcoded ₹499 minimum order** invented inside `cart_screen`'s build method.
+7. **`use_build_context_synchronously` guarded by the wrong object** — methods
+   taking a `BuildContext` parameter guarded with the *State's* `mounted`.
+8. **1,150 lines of dead notification code** and 689 lines of fully commented-out
+   widgets, left by rewrites that shipped alongside what they replaced.
+9. **`OutletStatusService.checkOutletStatus()` always returned null** — the
+   backend has no such endpoint, so 9 features polled a no-op.
+
+### Follow-up round (after phase 9)
+
+`tool/check_architecture.dart` reports **no violations**. Getting there:
+
+- `IAddressRepository`, `IOrderRepository`, `IFavoritesRepository` implemented;
+  `address_provider`, `outlet_provider`, `location_provider` and
+  `favorites_provider` now depend on domain interfaces
+- **`OrderRepository` takes `ITokenStore`, not `AuthRepository`.** It used one
+  method of that class — fetching a profile purely to read its access key.
+  Interface segregation in practice: an order repository can no longer reach
+  login, logout or session state. That made `legacyAuthRepositoryProvider` dead,
+  and `data/repositories/auth_repository.dart` was deleted.
+- **`ApiClient` no longer depends on `CentralizedAuthManager`.** It takes
+  `readToken` and `onUnauthorized` callbacks. That dependency was the only
+  reason the manager sat in `core/` while doing secure-storage I/O; it now lives
+  in `data/auth/`.
+- Two more hacks removed: "clearing" the selected outlet by persisting a dummy
+  `OutletModel` with empty fields, and clearing the pincode by saving `''`. Both
+  loaded back as real selections. `clearSelection()` / `clearSelectedPincode()`
+  added through the stack.
+- `toggleFavorite(addToFavorites:)` renamed to `setFavorite(isFavorite:)` — it
+  never toggled; callers had to know the current state and pass the opposite.
+
+### Known remaining work
+
+- 21 `use_build_context_synchronously` needing per-site control-flow judgement
+- `checkout_flow_screen.dart` is still 4,708 lines; `paymentGatewayProvider` is
+  wired but unused
+- `cart_provider` still holds `List<CartItem>`; two legacy validators remain
+- `best_seller`, `popular_category`, `seasonal` and `steal_deals` still use the
+  old repositories
+- Feature-state providers still declared inside screen/widget files, blocked on
+  extracting the model classes those files also hold
+- `avoid_dynamic_calls` reports 193 sites — enable once they are typed
+
+### Not verified
+
+**Nothing in phases 0-9 has been run on a device.** At minimum, before release:
+login → FCM registration → 401 → logout; cold start and every launch-flow branch;
+pincode serviceability offline; cart checkout gate; and the full payment matrix
+(COD, UPI, card, netbanking, wallet, failure, cancellation, webhook).

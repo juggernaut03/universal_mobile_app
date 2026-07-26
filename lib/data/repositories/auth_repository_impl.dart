@@ -16,7 +16,7 @@
 // duties into AuthLocalDataSource and delete it, once consumers read this
 // repository instead.
 
-import '../../core/auth/centralized_auth_manager.dart';
+import '../../data/auth/centralized_auth_manager.dart';
 import '../../core/error/exceptions.dart';
 import '../../core/error/failure_mapper.dart';
 import '../../core/result/result.dart';

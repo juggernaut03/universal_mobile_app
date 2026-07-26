@@ -1,30 +1,15 @@
 // lib/presentation/providers/auth_providers.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/services/auth_service.dart';
-import '../../data/repositories/auth_repository.dart';
 import '../../data/models/auth_models.dart';
 import '../../di/infrastructure_providers.dart';
 import '../../di/service_providers.dart';
+import '../../core/usecase/usecase.dart';
+import '../../di/auth_providers.dart';
 
 
 // authServiceProvider now declared in lib/di/service_providers.dart
 
-// TODO(phase-3a): superseded by `authRepositoryProvider` in lib/di/auth_providers.dart,
-// which is typed to the domain interface IAuthRepository and returns Result<T>.
-// 35 call sites across 20 files still read this one — including 9 auth guards in
-// app_router.dart. Renamed rather than deleted so the remaining debt is visible
-// and the compiler points at every site that still needs moving.
-final legacyAuthRepositoryProvider = Provider<AuthRepository>((ref) {
-  final authService = ref.watch(authServiceProvider);
-  final authManager = ref.watch(centralizedAuthManagerProvider);
-  final logger = ref.watch(loggerProvider);
-  
-  return AuthRepository(
-    authService: authService,
-    authManager: authManager,
-    logger: logger,
-  );
-});
 
 // Provider to check if user is logged in using centralized auth
 final isLoggedInProvider = FutureProvider<bool>((ref) async {
@@ -60,95 +45,16 @@ final mobileNumberProvider = StateProvider<String>((ref) => '');
 final otpProvider = StateProvider<String>((ref) => '');
 final loginStateProvider = StateProvider<LoginState>((ref) => LoginState.initial);
 
-// OTP request provider
-final otpRequestProvider = FutureProvider.autoDispose((ref) async {
-  final repository = ref.watch(legacyAuthRepositoryProvider);
-  final mobileNumber = ref.watch(mobileNumberProvider);
-  
-  // Validate mobile number
-  if (mobileNumber.isEmpty || mobileNumber.length != 10) {
-    throw Exception('Please enter a valid 10-digit mobile number');
-  }
-  
-  return await repository.requestOtp(mobileNumber);
-});
 
-// OTP validation provider
-final otpValidationProvider = FutureProvider.autoDispose((ref) async {
-  final repository = ref.watch(legacyAuthRepositoryProvider);
-  final mobileNumber = ref.watch(mobileNumberProvider);
-  final otp = ref.watch(otpProvider);
-  
-  // Validate OTP
-  if (otp.isEmpty || otp.length < 4) {
-    throw Exception('Please enter a valid OTP');
-  }
-  
-  return await repository.validateOtp(mobileNumber, otp);
-});
 
-// Enhanced OTP validation notifier with FCM token integration
-class OtpValidationNotifier extends StateNotifier<AsyncValue<OtpValidationResponse?>> {
-  final Ref _ref;
-  
-  OtpValidationNotifier(this._ref) : super(const AsyncValue.data(null));
-  
-  Future<void> validateOtp(String mobileNumber, String otp) async {
-    state = const AsyncValue.loading();
-    
-    try {
-      final repository = _ref.read(legacyAuthRepositoryProvider);
-      final response = await repository.validateOtp(mobileNumber, otp);
-      
-      if (response.authentication == 1) {
-        // Save to centralized auth manager as well
-        final authManager = _ref.read(centralizedAuthManagerProvider);
-        final userProfile = UserProfile(
-          mobile: mobileNumber,
-          accessKey: response.accessKey,
-          loginTime: DateTime.now(),
-        );
-        await authManager.saveUserProfile(userProfile);
-        
-        // Set login state to success
-        _ref.read(loginStateProvider.notifier).state = LoginState.success;
-        
-        // Invalidate providers to force refresh - do this immediately after auth manager update
-        _ref.invalidate(isLoggedInProvider);
-        _ref.invalidate(userProfileProvider);
-        
-        // Wait a bit more to ensure all reactive providers are updated
-        await Future.delayed(const Duration(milliseconds: 200));
-        
-      } else {
-        // Set login state to failure
-        _ref.read(loginStateProvider.notifier).state = LoginState.failure;
-      }
-      
-      state = AsyncValue.data(response);
-    } catch (e, stack) {
-      state = AsyncValue.error(e, stack);
-      _ref.read(loginStateProvider.notifier).state = LoginState.failure;
-    }
-  }
-  
 
-}
-
-// OTP validation notifier provider
-final otpValidationNotifierProvider = StateNotifierProvider<OtpValidationNotifier, AsyncValue<OtpValidationResponse?>>((ref) {
-  return OtpValidationNotifier(ref);
-});
 
 // Enhanced logout provider that clears favorites
 final logoutProvider = Provider((ref) {
   return () async {
-    final repository = ref.read(legacyAuthRepositoryProvider);
-    await repository.logout();
-    
-    // Clear centralized auth manager as well
-    final authManager = ref.read(centralizedAuthManagerProvider);
-    await authManager.logout();
+    // SignOut clears both the session store and the legacy AuthService copy;
+    // doing only one left the user half-signed-out.
+    await ref.read(signOutUseCaseProvider)(const NoParams());
     
     // Clear login state
     ref.read(loginStateProvider.notifier).state = LoginState.initial;

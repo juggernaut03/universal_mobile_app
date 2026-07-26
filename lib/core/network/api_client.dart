@@ -7,7 +7,6 @@ import 'package:http/http.dart' as http;
 import '../utils/logger.dart';
 import '../widgets/error_widgets.dart';
 import '../constants/app_constants.dart';
-import '../auth/centralized_auth_manager.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -33,15 +32,28 @@ class ApiException implements Exception {
 class ApiClient {
   final http.Client _client;
   final Logger _logger;
-  final CentralizedAuthManager? _authManager;
+
+  /// Supplies the bearer token, or null when there is no valid session.
+  ///
+  /// A plain callback rather than a CentralizedAuthManager. ApiClient lives in
+  /// `core/`, which must not know about the data layer; taking the manager
+  /// directly is what kept that class in `core/` even though it does secure
+  /// storage I/O. The composition root wires these to the real session store.
+  final Future<String?> Function()? _readToken;
+
+  /// Invoked when an authenticated call returns 401, so the app can drop back
+  /// to the login flow. Failures inside it are swallowed and logged.
+  final Future<void> Function()? _onUnauthorized;
 
   ApiClient({
     http.Client? client,
     Logger? logger,
-    CentralizedAuthManager? authManager,
+    Future<String?> Function()? readToken,
+    Future<void> Function()? onUnauthorized,
   }) : _client = client ?? http.Client(),
        _logger = logger ?? Logger(),
-       _authManager = authManager;
+       _readToken = readToken,
+       _onUnauthorized = onUnauthorized;
 
   Map<String, String> _headers({String? token}) => {
         'Content-Type': 'application/json',
@@ -52,10 +64,10 @@ class ApiClient {
 
   /// Fetch the JWT with retries — new-login flows can race storage writes.
   Future<String?> _getToken() async {
-    if (_authManager == null) return null;
+    if (_readToken == null) return null;
     String? token;
     for (int attempt = 0; attempt < 3; attempt++) {
-      token = await _authManager.getValidAccessKey();
+      token = await _readToken();
       if (token != null && token.isNotEmpty) break;
       if (attempt < 2) {
         await Future.delayed(Duration(milliseconds: 200 * (attempt + 1)));
@@ -247,9 +259,9 @@ class ApiClient {
       // A 401 on an authenticated call means the stored session is invalid
       // (expired JWT, legacy access_key, deleted user) — force logout so the
       // UI drops back to the login flow.
-      if (authed && response.statusCode == 401 && _authManager != null) {
+      if (authed && response.statusCode == 401 && _onUnauthorized != null) {
         _logger.warning('401 on authenticated call — forcing logout');
-        unawaited(_authManager.logout().catchError((e) {
+        unawaited(_onUnauthorized().catchError((e) {
           _logger.error('Forced logout failed: $e');
         }));
       }

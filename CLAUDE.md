@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**PatelMart** is a production e-commerce mobile application built with **Flutter** and **Dart** (SDK ^3.7.2). The app follows **Clean Architecture** with a feature-first organization pattern and uses **Riverpod** for state management. Current version: 4.0.9+4.0.9
+**PatelMart** is a production e-commerce mobile application built with **Flutter** and **Dart** (SDK ^3.7.2). The app follows **Clean Architecture** with a feature-first organization pattern and uses **Riverpod** for state management. Current version: see `pubspec.yaml`
 
 **Primary Technology Stack:**
 - Flutter (iOS 14.0+, Android API 21+, Web, Desktop)
@@ -43,11 +43,10 @@ flutter build web                  # Build for web
 ```
 
 ### Code Generation
-```bash
-build_runner build                 # Generate JSON serialization code (models)
-build_runner watch                 # Watch for file changes and regenerate
-dart run build_runner build --delete-conflicting-outputs  # Force regenerate
-```
+
+None. `json_serializable`, `json_annotation` and `build_runner` were declared in
+`pubspec.yaml` but never used — zero `@JsonSerializable` annotations and zero
+`.g.dart` files — and were removed. All models hand-roll `fromJson`.
 
 ### Testing
 ```bash
@@ -58,13 +57,30 @@ flutter test --coverage            # Run tests with coverage report
 
 ## Architecture Overview
 
-The codebase is organized into **4 main layers** following Clean Architecture:
+**Read `docs/ARCHITECTURE.md` first — it is the authority.** This file is a
+quick orientation; that one states the rules.
+
+The codebase is mid-migration to Clean Architecture (`docs/ARCHITECTURE_MIGRATION_PLAN.md`).
+Phases 0-9 are done: `core/error`, `core/result`, `core/usecase`, a `lib/di/`
+composition root, and a real `lib/domain/` layer (47 files) covering product,
+auth, outlet/location, catalogue, cart, orders and checkout.
+
+Older feature code still calls repositories directly. Both styles are present;
+new code follows `docs/ARCHITECTURE.md`.
+
+Run `dart run tool/check_architecture.dart` — it fails on layer violations. It
+currently reports 7 known ones, all tracked as migration follow-ups.
+
+The layers:
 
 ### Layer 1: Core (`lib/core/`)
 Shared utilities, configurations, and reusable components across the entire app.
 
 **Key Components:**
-- **api_client.dart** - Custom HTTP client with automatic project code injection (RET3163), 15s timeout, comprehensive logging
+- **api_client.dart** - The single HTTP choke point: injects `X-Project-Code`,
+  attaches the Bearer JWT on `*WithAuth` calls, forces logout on a 401. Resolve
+  it from `lib/di/` — constructing `ApiClient` without a `CentralizedAuthManager`
+  yields a client that silently sends no auth header.
 - **centralized_auth_manager.dart** - Single source of truth for authentication state and token management
 - **app_theme.dart** - Material Design 3 theme with Poppins font family (9 weights)
 - **app_colors.dart** & **app_text_styles.dart** - Design system constants
@@ -74,8 +90,9 @@ Shared utilities, configurations, and reusable components across the entire app.
 - **Reusable Widgets:** cached_network_image_widget, quantity_input_widget, bottom_navigation_widget, favorite_button, empty_state_widget, search_widget, app_drawer_widget
 
 **API Configuration:**
-- Base URL: `https://newtech.shalviadvision.com/api`
-- Project Code: `RET3163` (automatically injected in all requests)
+- Base URL, project code and Razorpay key are build-time values — see
+  `lib/core/config/env_config.dart`. They are supplied with `--dart-define`;
+  the defaults there are for development.
 - Timeout: 15 seconds
 
 ### Layer 2: Data (`lib/data/`)
@@ -108,7 +125,13 @@ Business logic and external API integration:
 - **delivery_charges_service.dart**, **delivery_slot_service.dart** - Delivery options
 
 ### Layer 3: Domain (`lib/domain/`)
-Business logic abstraction layer with repository interfaces and use cases.
+Pure Dart — no Flutter, no http, no JSON. Entities, repository interfaces
+(`IProductRepository`, `IAuthRepository`, `ICartRepository`, …) and use cases.
+
+Every use case returns `Result<T>` (`core/result/result.dart`), a sealed
+`Ok`/`Err` pair, so failures are values the compiler forces callers to handle.
+This replaced the previous convention of returning `null` on error, which made
+"offline", "HTTP 500", "not found" and "session expired" indistinguishable.
 
 ### Layer 4: Presentation (`lib/presentation/`)
 User interface, screens, state management providers, and routing.
@@ -280,17 +303,14 @@ The cart is the most complex feature with extensive validation:
 ## Testing Notes
 
 **Current Test Coverage:**
-- `test/widget_test.dart` - Basic widget testing
-- `test/timer_test.dart` - Timer functionality
-- Limited automated testing; primarily manual QA
-
-**Framework:** flutter_test (standard Flutter testing framework)
+- 252 tests, all under `test/core`, `test/domain`, `test/data`
+- Domain rules (cart validation, order status, checkout flow, pincode
+  serviceability, session expiry) are covered and run without a device
+- `test/widget_test.dart` and `test/timer_test.dart` are stale and do not compile
 
 **Areas Needing Tests:**
-- Provider logic and state transitions
-- Cart validation service
-- API error handling
-- Authentication flows
+- Widget and integration tests — there are none
+- The payment path end-to-end against Razorpay test keys
 
 ## Common Development Tasks
 
@@ -308,7 +328,7 @@ The cart is the most complex feature with extensive validation:
 2. Implement API calls in `lib/data/services/api_service.dart`
 3. Create repository in `lib/data/repositories/` with repository interface
 4. Create provider in `lib/presentation/providers/` for UI consumption
-5. Run `build_runner build` to generate JSON serialization code
+5. Write `fromJson`/`toJson` by hand, plus a `toEntity()` mapping to the domain entity
 
 ### Handling Complex State
 1. Use `StateNotifierProvider` for mutable state

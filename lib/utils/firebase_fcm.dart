@@ -144,8 +144,9 @@ void onDidReceiveNotificationResponse(NotificationResponse details) {
         RemoteMessage.fromMap(jsonDecode(details.payload!)),
       );
     } catch (e) {
-print
-("Error processing notification response: $e");
+      if (kDebugMode) {
+        print('Error processing notification response: $e');
+      }
     }
   }
 }

@@ -2,41 +2,57 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/logger.dart';
-import '../../data/repositories/outlet_repository.dart';
 import '../../data/models/outlet_model.dart';
 import '../../data/models/offer_model.dart';
 import 'location_provider.dart';
 import '../../di/repository_providers.dart';
 import '../../di/infrastructure_providers.dart';
+import '../../core/result/result.dart';
+import '../../di/location_providers.dart';
+import '../../domain/repositories/i_outlet_repository.dart';
+import '../../domain/usecases/outlet/get_outlets_for_pincode.dart';
 
 // Provider for the Outlet Repository
 
 // Available outlets for a specific pincode provider - refreshable
-final availableOutletsProvider = FutureProvider.family<List<OutletModel>, String>((ref, pincode) async {
-  final repository = ref.watch(outletRepositoryProvider);
+final availableOutletsProvider =
+    FutureProvider.family<List<OutletModel>, String>((ref, pincode) async {
   final logger = ref.watch(loggerProvider);
-  
-  try {
-    logger.log('Fetching outlets for pincode: $pincode');
-    final outlets = await repository.getOutletsForPincode(pincode);
-    logger.log('Retrieved ${outlets.length} outlets for pincode: $pincode');
-    return outlets;
-  } catch (e) {
-    logger.error('Error fetching outlets for pincode $pincode: $e');
-    return [];
-  }
+
+  final result = await ref.watch(getOutletsForPincodeUseCaseProvider)(
+    GetOutletsForPincodeParams(pincode: pincode),
+  );
+
+  return switch (result) {
+    Ok(:final value) =>
+      value.map(OutletModel.fromEntity).toList(growable: false),
+    // TODO(phase-3b): still swallows the failure to preserve the previous
+    // behaviour — an empty list here means either "no outlets" or "the call
+    // failed". Surfacing it changes what the outlet picker renders, so it is
+    // done when that screen is migrated.
+    Err(:final failure) => () {
+        logger.error('Outlets for $pincode unavailable: ${failure.message}');
+        return <OutletModel>[];
+      }(),
+  };
 });
 
 // Selected outlet provider
-final selectedOutletProvider = StateNotifierProvider<SelectedOutletNotifier, AsyncValue<OutletModel?>>((ref) {
-  final repository = ref.watch(outletRepositoryProvider);
-  final logger = ref.watch(loggerProvider);
-  return SelectedOutletNotifier(repository, logger);
+final selectedOutletProvider =
+    StateNotifierProvider<SelectedOutletNotifier, AsyncValue<OutletModel?>>((ref) {
+  return SelectedOutletNotifier(
+    ref.watch(outletRepositoryDomainProvider),
+    ref.watch(loggerProvider),
+  );
 });
 
 // Selected outlet notifier
+/// Holds the selected outlet.
+///
+/// Still exposes OutletModel because 12 features read this provider; the
+/// repository underneath is the domain interface.
 class SelectedOutletNotifier extends StateNotifier<AsyncValue<OutletModel?>> {
-  final OutletRepository _repository;
+  final IOutletRepository _repository;
   final Logger _logger;
 
   SelectedOutletNotifier(this._repository, this._logger) 
@@ -45,13 +61,15 @@ class SelectedOutletNotifier extends StateNotifier<AsyncValue<OutletModel?>> {
   }
 
   Future<void> _loadSavedOutlet() async {
-    try {
-      final outlet = _repository.getSelectedOutlet();
-      _logger.log('Loaded saved outlet: ${outlet?.name}');
-      state = AsyncValue.data(outlet);
-    } catch (e) {
-      _logger.error('Error loading saved outlet: $e');
-      state = AsyncValue.error(e, StackTrace.current);
+    final result = await _repository.selectedOutlet();
+    switch (result) {
+      case Ok(:final value):
+        _logger.log('Loaded saved outlet: ${value.name}');
+        state = AsyncValue.data(OutletModel.fromEntity(value));
+      case Err(:final failure):
+        // No outlet selected yet is the normal first-run state, not an error.
+        _logger.log('No saved outlet: ${failure.message}');
+        state = const AsyncValue.data(null);
     }
   }
 
@@ -59,15 +77,17 @@ class SelectedOutletNotifier extends StateNotifier<AsyncValue<OutletModel?>> {
     try {
       _logger.log('Saving outlet: ${outlet.name}');
       state = const AsyncValue.loading();
-      final result = await _repository.saveSelectedOutlet(outlet);
-      if (result) {
-        state = AsyncValue.data(outlet);
-        _logger.log('Outlet saved successfully');
-      } else {
-        _logger.error('Failed to save outlet');
-        state = const AsyncValue.data(null);
+      final result = await _repository.selectOutlet(outlet.toEntity());
+      switch (result) {
+        case Ok():
+          state = AsyncValue.data(outlet);
+          _logger.log('Outlet saved successfully');
+          return true;
+        case Err(:final failure):
+          _logger.error('Failed to save outlet: ${failure.message}');
+          state = const AsyncValue.data(null);
+          return false;
       }
-      return result;
     } catch (e) {
       _logger.error('Error selecting outlet: $e');
       state = AsyncValue.error(e, StackTrace.current);
@@ -77,40 +97,21 @@ class SelectedOutletNotifier extends StateNotifier<AsyncValue<OutletModel?>> {
   
   // Clear the selected outlet
   Future<bool> clearOutlet() async {
-    try {
-      _logger.log('Clearing outlet');
-      state = const AsyncValue.loading();
-      // The repository doesn't have a direct method to clear, so we need to save null
-      // In a real app, you'd want to add a clearSelectedOutlet method to the repository
-      final result = await _repository.saveSelectedOutlet(
-        // This creates a dummy outlet with empty values that will be treated as "no outlet"
-        OutletModel(
-          id: '',
-          name: '',
-          storeCode: '',
-          address: '',
-          minOrderAmount: 0,
-          openTime: '',
-          deliveryTime: '',
-          offerName: '',
-          latitude: '',
-          longitude: '',
-        )
-      );
-      
-      if (result) {
+    _logger.log('Clearing outlet');
+    state = const AsyncValue.loading();
+
+    // Was implemented by saving a dummy OutletModel with empty fields, which
+    // loaded back as a real outlet with an empty store code.
+    final result = await _repository.clearSelection();
+    switch (result) {
+      case Ok():
         state = const AsyncValue.data(null);
         _logger.log('Outlet cleared successfully');
-      } else {
-        _logger.error('Failed to clear outlet');
-        // Reload the current outlet to restore state
-        _loadSavedOutlet();
-      }
-      return result;
-    } catch (e) {
-      _logger.error('Error clearing outlet: $e');
-      state = AsyncValue.error(e, StackTrace.current);
-      return false;
+        return true;
+      case Err(:final failure):
+        _logger.error('Failed to clear outlet: ${failure.message}');
+        await _loadSavedOutlet();
+        return false;
     }
   }
 }

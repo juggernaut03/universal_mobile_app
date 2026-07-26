@@ -3,9 +3,16 @@
 The rules for writing code in this app. These are enforced at review time, and from Phase 9
 onward by lint rules that fail the build.
 
-> Migration status: **Phases 0-3 complete** — foundation primitives, the `lib/di/` composition
-> root, the Product reference slice, and the shared kernel (auth, outlet/location, launch flow).
-> Next: Phase 4 (catalogue). Follow-ups are tracked in the migration plan.
+> Migration status: **Phases 0-9 complete.** Foundation primitives, the `lib/di/`
+> composition root, and a `lib/domain/` layer of 47 files covering product, auth,
+> outlet/location, catalogue, cart, orders and checkout. 252 tests.
+>
+> Older feature code still calls repositories directly — both styles are present.
+> New and migrated code follows this document.
+>
+> **Enforcement:** `dart run tool/check_architecture.dart` fails the build on a
+> layer violation. It reports 7 known ones today, each tracked as a migration
+> follow-up in ARCHITECTURE_MIGRATION_PLAN.md. Do not add to them.
 > Sequence and remaining phases: [ARCHITECTURE_MIGRATION_PLAN.md](./ARCHITECTURE_MIGRATION_PLAN.md).
 > Code written before Phase 0 does not yet follow these rules — new and migrated code must.
 

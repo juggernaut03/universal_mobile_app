@@ -15,6 +15,7 @@ import '../../providers/auth_providers.dart';
 import '../../providers/location_provider.dart';
 import '../../../di/repository_providers.dart';
 import '../../../di/infrastructure_providers.dart';
+import '../../providers/address_provider.dart';
 
 
 
@@ -482,20 +483,4 @@ class AddressBookScreen extends ConsumerWidget {
   }
 }
 
-final addressListProvider = FutureProvider.autoDispose<List<Address>>((ref) async {
-  final logger = ref.read(loggerProvider);
-  final repository = ref.read(addressRepositoryProvider);
 
-  logger.log('Fetching addresses from universal backend...');
-  final addresses = await repository.getAddresses();
-  logger.log('Fetched ${addresses.length} address(es)');
-  return addresses;
-});
-
-// Provider to refresh addresses when needed
-final refreshAddressListProvider = Provider<Future<void> Function()>((ref) {
-  return () async {
-    ref.invalidate(addressListProvider);
-    await ref.read(addressListProvider.future);
-  };
-});

@@ -124,6 +124,7 @@ class AuthDebugScreen extends ConsumerWidget {
                     onPressed: () async {
                       final authManager = ref.read(centralizedAuthManagerProvider);
                       await authManager.refreshValidation();
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Auth validation refreshed')),
                       );
@@ -145,6 +146,7 @@ class AuthDebugScreen extends ConsumerWidget {
               onPressed: () async {
                 final logout = ref.read(logoutProvider);
                 await logout();
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Logged out')),
                 );

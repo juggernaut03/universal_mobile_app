@@ -6,33 +6,40 @@ import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 import '../models/order_model.dart';
 import '../models/last_order_status_model.dart';
-import '../repositories/auth_repository.dart';
+import '../../domain/repositories/i_auth_repository.dart';
 
 /// Orders against the universal backend. All endpoints are JWT-protected;
 /// the token comes from the stored user profile (accessKey slot).
 class OrderRepository {
   final http.Client _client;
-  final AuthRepository _authRepository;
+
+  /// Reads the bearer token.
+  ///
+  /// Was the whole `AuthRepository`, of which this class used exactly one
+  /// method — to fetch a profile purely to pull its access key out. Depending
+  /// on the two-method [ITokenStore] instead means an order repository can no
+  /// longer reach login, logout or session state.
+  final ITokenStore _tokenStore;
   final Logger _logger;
 
   OrderRepository({
     required http.Client client,
-    required AuthRepository authRepository,
+    required ITokenStore tokenStore,
     required Logger logger,
   })  : _client = client,
-        _authRepository = authRepository,
+        _tokenStore = tokenStore,
         _logger = logger;
 
   Future<Map<String, String>?> _authHeaders() async {
-    final userProfile = await _authRepository.getUserProfile();
-    if (userProfile == null || userProfile.accessKey.isEmpty) {
+    final token = await _tokenStore.readValidToken();
+    if (token == null || token.isEmpty) {
       return null;
     }
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'X-Project-Code': ApiConstants.projectCode,
-      'Authorization': 'Bearer ${userProfile.accessKey}',
+      'Authorization': 'Bearer $token',
     };
   }
 
