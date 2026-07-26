@@ -51,4 +51,60 @@ void main() {
     final light = HSLColor.fromColor(AppColors.errorLight);
     expect(light.lightness, closeTo(0.90, 0.01));
   });
+
+  group('splash screen config', () {
+    test('applyConfig drives every splash setting', () {
+      AppBranding.applyConfig({
+        'splash_logo_url': 'https://example.com/splash.png',
+        'splash_logo_size': '180',
+        'splash_background_color': '#101820',
+        'splash_background_image_url': 'https://example.com/bg.jpg',
+        'splash_tagline': 'Fresh, every day',
+        'splash_tagline_color': '#FFFFFF',
+        'splash_animation': 'fade',
+        'splash_duration_ms': '3500',
+        'splash_show_loader': 'false',
+      });
+
+      final b = AppBranding.instance;
+      expect(b.splashLogoUrl, 'https://example.com/splash.png');
+      expect(b.splashLogoSize, 180);
+      expect(b.splashBackgroundColor, const Color(0xFF101820));
+      expect(b.splashBackgroundImageUrl, 'https://example.com/bg.jpg');
+      expect(b.splashTagline, 'Fresh, every day');
+      expect(b.splashTaglineColor, const Color(0xFFFFFFFF));
+      expect(b.splashAnimation, SplashAnimation.fade);
+      expect(b.splashMinimumDuration, const Duration(milliseconds: 3500));
+      expect(b.splashShowLoader, isFalse);
+    });
+
+    test('an unconfigured tenant keeps the built-in splash', () {
+      AppBranding.applyConfig({});
+
+      final b = AppBranding.instance;
+      expect(b.splashLogoUrl, '');
+      expect(b.splashLogoSize, 300);
+      // Null so the splash falls back to the tenant's background colour.
+      expect(b.splashBackgroundColor, isNull);
+      expect(b.splashTaglineColor, isNull);
+      expect(b.splashAnimation, SplashAnimation.fadeScale);
+      expect(b.splashMinimumDuration, const Duration(milliseconds: 2000));
+      expect(b.splashShowLoader, isTrue);
+    });
+
+    test('out-of-range and unknown values fall back rather than render badly', () {
+      AppBranding.applyConfig({
+        'splash_logo_size': '9000',
+        'splash_duration_ms': '-1',
+        'splash_animation': 'explode',
+        'splash_background_color': 'not-a-color',
+      });
+
+      final b = AppBranding.instance;
+      expect(b.splashLogoSize, 300);
+      expect(b.splashMinimumDuration, const Duration(milliseconds: 2000));
+      expect(b.splashAnimation, SplashAnimation.fadeScale);
+      expect(b.splashBackgroundColor, isNull);
+    });
+  });
 }
