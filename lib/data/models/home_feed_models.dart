@@ -15,6 +15,25 @@ class HomeSectionType {
   static const String productRail = 'product_rail';
   static const String offerStrip = 'offer_strip';
   static const String seasonalPicks = 'seasonal_picks';
+
+  // Merchandising sections.
+  static const String flashSale = 'flash_sale';
+  static const String dealOfDay = 'deal_of_day';
+  static const String buyAgain = 'buy_again';
+  static const String recentlyViewed = 'recently_viewed';
+  static const String freeDeliveryProgress = 'free_delivery_progress';
+  static const String couponStrip = 'coupon_strip';
+  static const String brandStrip = 'brand_strip';
+  static const String uspStrip = 'usp_strip';
+}
+
+/// Who a section is meant for. Matched on the device, because the feed itself
+/// is public and cacheable and so cannot be filtered per user server-side.
+class HomeSectionAudience {
+  static const String all = 'all';
+  static const String newUser = 'new';
+  static const String returning = 'returning';
+  static const String hasCart = 'has_cart';
 }
 
 class HomeSectionStyle {
@@ -52,6 +71,15 @@ class HomeSection {
   /// would make the feed user-specific. The client supplies the content.
   final bool personalized;
 
+  /// End of the campaign window, when there is one. Drives countdowns.
+  final DateTime? endsAt;
+
+  /// Who should see this section; see [HomeSectionAudience].
+  final String audience;
+
+  /// Per-type settings the backend can add without an app change.
+  final Map<String, dynamic> config;
+
   final List<Map<String, dynamic>> items;
 
   const HomeSection({
@@ -64,6 +92,9 @@ class HomeSection {
     this.sourceSequence,
     this.sourceIndex,
     this.personalized = false,
+    this.endsAt,
+    this.audience = HomeSectionAudience.all,
+    this.config = const {},
     this.items = const [],
   });
 
@@ -86,6 +117,11 @@ class HomeSection {
       sourceSequence: int.tryParse('${source['sequence']}'),
       sourceIndex: int.tryParse('${source['index']}'),
       personalized: json['personalized'] == true,
+      endsAt: DateTime.tryParse('${json['ends_at']}')?.toLocal(),
+      audience: (json['audience'] ?? HomeSectionAudience.all).toString(),
+      config: json['config'] is Map<String, dynamic>
+          ? json['config'] as Map<String, dynamic>
+          : const <String, dynamic>{},
       items: (json['items'] as List? ?? const [])
           .whereType<Map<String, dynamic>>()
           .toList(),
@@ -101,6 +137,9 @@ class HomeSection {
         'style': style.toJson(),
         'source': {'sequence': sourceSequence, 'index': sourceIndex},
         'personalized': personalized,
+        'ends_at': endsAt?.toUtc().toIso8601String(),
+        'audience': audience,
+        'config': config,
         'items': items,
       };
 }
@@ -131,6 +170,16 @@ class HomeFeed {
       };
 
   bool get isEmpty => sections.isEmpty;
+
+  /// Whether a campaign section has already finished.
+  ///
+  /// The feed is cached and can outlive its own window, so a countdown that
+  /// has run out must not keep rendering.
+  bool sectionHasExpired(HomeSection section, {DateTime? now}) {
+    final endsAt = section.endsAt;
+    if (endsAt == null) return false;
+    return endsAt.isBefore(now ?? DateTime.now());
+  }
 
   /// The section of [type] whose source sequence is [sequence], if the feed
   /// carries one. Used by the data providers to serve themselves from the feed
