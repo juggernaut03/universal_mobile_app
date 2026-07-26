@@ -1,12 +1,10 @@
 // lib/data/repositories/base_repository.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/auth/centralized_auth_manager.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
-import '../../presentation/providers/launch_flow_provider.dart';
+import '../../di/infrastructure_providers.dart';
 
 /// Base repository class that provides centralized access token management
 /// and common repository functionality
@@ -191,29 +189,18 @@ abstract class BaseRepository {
   }
 }
 
-// Local providers to avoid circular dependencies
-final _secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
-  return const FlutterSecureStorage();
-});
-
-final _loggerProvider = Provider((ref) => Logger());
-
-final _apiClientProvider = Provider<ApiClient>((ref) {
-  final logger = ref.watch(_loggerProvider);
-  final authManager = ref.watch(_centralizedAuthManagerProvider);
-  return ApiClient(logger: logger, authManager: authManager);
-});
-
-// Use the same centralized auth manager provider defined in centralized_auth_manager.dart
-// to ensure consistency across the app
-final _centralizedAuthManagerProvider = centralizedAuthManagerProvider;
-
-/// Provider for base repository dependencies
-final baseRepositoryDependenciesProvider = Provider<BaseRepositoryDependencies>((ref) {
+/// Provider for base repository dependencies.
+///
+/// Previously this file declared its own private `_loggerProvider`,
+/// `_secureStorageProvider` and `_apiClientProvider` "to avoid circular
+/// dependencies". That produced a second, independent ApiClient instance and a
+/// second Logger. Both now resolve from the composition root in `lib/di/`.
+final baseRepositoryDependenciesProvider =
+    Provider<BaseRepositoryDependencies>((ref) {
   return BaseRepositoryDependencies(
-    authManager: ref.watch(_centralizedAuthManagerProvider),
-    apiClient: ref.watch(_apiClientProvider),
-    logger: ref.watch(_loggerProvider),
+    authManager: ref.watch(centralizedAuthManagerProvider),
+    apiClient: ref.watch(apiClientProvider),
+    logger: ref.watch(loggerProvider),
   );
 });
 
@@ -230,13 +217,5 @@ class BaseRepositoryDependencies {
   });
 }
 
-/// Enhanced API client provider
-final apiClientProvider = Provider<ApiClient>((ref) {
-  final logger = ref.watch(_loggerProvider);
-  final authManager = ref.watch(_centralizedAuthManagerProvider);
-  
-  return ApiClient(
-    logger: logger,
-    authManager: authManager,
-  );
-});
+// `apiClientProvider` previously lived here as a second declaration. It is now
+// declared once in lib/di/infrastructure_providers.dart and re-exported above.

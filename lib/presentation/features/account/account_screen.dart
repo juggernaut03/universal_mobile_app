@@ -3,19 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
-import '../../../core/widgets/app_drawer_widget.dart';
+import '../../../presentation/widgets/app_drawer_widget.dart';
 import '../../../core/widgets/bottom_navigation_widget.dart';
-import '../../providers/splash_provider.dart';
-import '../../providers/launch_flow_provider.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/outlet_provider.dart';
-import '../../providers/location_provider.dart';
-import '../../providers/best_seller_providers.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
+import '../../../di/auth_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class AccountScreen extends ConsumerStatefulWidget {
   const AccountScreen({Key? key}) : super(key: key);
@@ -43,8 +38,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     
     try {
       // Get auth repository and check login status
-      final authRepository = ref.read(authRepositoryProvider);
-      final isLoggedIn = await authRepository.isLoggedIn();
+      final isLoggedIn = await ref.read(authRepositoryProvider).isSignedIn();
       
       logger.log('Authentication status: ${isLoggedIn ? 'Logged in' : 'Not logged in'}');
       

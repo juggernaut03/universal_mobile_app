@@ -1,18 +1,17 @@
 // lib/presentation/providers/launch_flow_provider.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:patelmart/core/network/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'dart:math' show atan2, cos, sin, sqrt, pi;
 import '../../core/utils/logger.dart';
-import '../../data/services/api_service.dart';
-import '../../data/services/location_service.dart';
-import '../../data/services/storage_service.dart';
+import '../../di/infrastructure_providers.dart';
 import 'location_provider.dart';
 import 'outlet_provider.dart';
-import 'splash_provider.dart';
+import '../../di/service_providers.dart';
+import '../../core/result/result.dart';
+import '../../core/usecase/usecase.dart';
+import '../../di/location_providers.dart';
+import '../../domain/entities/delivery_location.dart';
+
 
 // Launch flow state
 enum AppLaunchState {
@@ -25,46 +24,9 @@ enum AppLaunchState {
   readyToLaunch,
 }
 
-// Provider for SharedPreferences
-final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
-  throw UnimplementedError(
-      'SharedPreferences must be initialized and overridden at the root widget');
-});
-
-// Logger provider
-final loggerProvider = Provider((ref) => Logger());
-
 // Service providers
-final locationServiceProvider = Provider((ref) {
-  final logger = ref.watch(loggerProvider);
-  
-  // Check if Google Maps is initialized
-  final isGoogleMapsInitialized = ref.watch(googleMapsInitializedProvider);
-  
-  if (isGoogleMapsInitialized) {
-    // Use Google Maps service
-    final googleMapsService = ref.watch(googleMapsServiceProvider);
-    return LocationService(
-      googleMapsService: googleMapsService,
-      logger: logger
-    );
-  }
-  
-  // Use basic location service without Google Maps
-  return LocationService(logger: logger);
-});
 
-final apiServiceProvider = Provider((ref) {
-  final logger = ref.watch(loggerProvider);
-  final apiClient = ApiClient(logger: logger);
-  return ApiService(apiClient: apiClient, logger: logger);
-});
 
-final storageServiceProvider = Provider((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  final logger = ref.watch(loggerProvider);
-  return StorageService(prefs: prefs, logger: logger);
-});
 
 // Key to track if app has been launched before
 const String _hasLaunchedBeforeKey = 'has_launched_before';
@@ -141,162 +103,67 @@ class LaunchFlowNotifier extends StateNotifier<AppLaunchState> {
   }
 
   // Method to fetch user's location and check if pincode is serviceable
+  /// Detects the delivery area and moves the launch flow to the next step.
+  ///
+  /// Was 155 lines of interleaved I/O and state assignment. The workflow now
+  /// lives in the ResolveDeliveryLocation use case; this method's only job is
+  /// mapping its sealed outcome onto launch state and the UI's LocationInfo.
   Future<void> fetchLocationAndCheckPincode() async {
-    try {
-      _logger.log('Attempting to fetch location and check pincode');
-      
-      // Clear previous location info at the beginning to avoid state conflicts
-      _ref.read(locationInfoProvider.notifier).state = LocationInfo();
-      
-      // Use a local variable to decide state changes
-      AppLaunchState newState = state;
-      
-      // Determine correct state if needed
-      if (state != AppLaunchState.needLocationPermission && 
-          state != AppLaunchState.subsequentLaunch) {
-        _logger.log('Setting state to needLocationPermission before fetching location');
-        newState = AppLaunchState.needLocationPermission;
-        state = newState;
-      }
-      
-      // Check if location services are enabled in a safe way
-      bool serviceEnabled;
-      try {
-        serviceEnabled = await Geolocator.isLocationServiceEnabled();
-        if (!serviceEnabled) {
-          _logger.log('Location services are disabled');
-          _ref.read(locationInfoProvider.notifier).state = 
-              LocationInfo(locationError: 'location_disabled');
-          state = AppLaunchState.needPincodeSelection;
-          return;
-        }
-      } catch (e) {
-        _logger.error('Error checking location services: $e');
-        _ref.read(locationInfoProvider.notifier).state = 
-            LocationInfo(locationError: 'location_disabled');
+    _logger.log('Resolving delivery location');
+    _ref.read(locationInfoProvider.notifier).state = LocationInfo();
+
+    if (state != AppLaunchState.needLocationPermission &&
+        state != AppLaunchState.subsequentLaunch) {
+      state = AppLaunchState.needLocationPermission;
+    }
+
+    final result =
+        await _ref.read(resolveDeliveryLocationUseCaseProvider)(const NoParams());
+
+    switch (result) {
+      case Err(:final failure):
+        // The use case reports detection problems as Ok(DetectionFailed); an
+        // Err here means something genuinely unexpected broke.
+        _logger.error('Delivery location resolution failed: ${failure.message}');
+        _ref.read(locationInfoProvider.notifier).state =
+            LocationInfo(issue: LocationIssue.networkError);
         state = AppLaunchState.needPincodeSelection;
-        return;
-      }
-      
-      // Check location permission
-      LocationPermission permission;
-      try {
-        permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
-          if (permission == LocationPermission.denied) {
-            _logger.log('Location permission denied');
-            _ref.read(locationInfoProvider.notifier).state = 
-                LocationInfo(locationError: 'permission_denied');
-            state = AppLaunchState.needPincodeSelection;
-            return;
-          }
-        }
-        
-        if (permission == LocationPermission.deniedForever) {
-          _logger.log('Location permission permanently denied');
-          _ref.read(locationInfoProvider.notifier).state = 
-              LocationInfo(locationError: 'permission_denied');
-          state = AppLaunchState.needPincodeSelection;
-          return;
-        }
-      } catch (e) {
-        _logger.error('Error checking location permission: $e');
-        _ref.read(locationInfoProvider.notifier).state = 
-            LocationInfo(locationError: 'permission_denied');
-        state = AppLaunchState.needPincodeSelection;
-        return;
-      }
-      
-      // Get user's current location
-      final locationService = _ref.read(locationServiceProvider);
-      try {
-        final position = await locationService.getCurrentPosition();
-        
-        if (position == null) {
-          _logger.log('Could not get user position, setting state to needPincodeSelection');
-          state = AppLaunchState.needPincodeSelection;
-          return;
-        }
-        
-        // Save the user's location regardless of serviceable status
-        await _ref.read(storageServiceProvider).saveUserLocation(
-          position.latitude,
-          position.longitude,
-        );
-        
-        // Get pincode from position
-        final isGoogleMapsInitialized = _ref.read(googleMapsInitializedProvider);
-        String? pincode;
-        
-        if (isGoogleMapsInitialized) {
-          // Use Google Maps for more accurate pincode detection
-          final googleMapsService = _ref.read(googleMapsServiceProvider);
-          final coordinates = LatLng(position.latitude, position.longitude);
-          pincode = await googleMapsService.getPincodeFromCoordinates(coordinates);
-        } else {
-          // Use basic location service as fallback
-          pincode = await locationService.getPincodeFromCurrentLocation();
-        }
-        
-        if (pincode == null || pincode.isEmpty) {
-          _logger.log('Could not determine pincode, setting state to needPincodeSelection');
-          _ref.read(locationInfoProvider.notifier).state = 
-              LocationInfo(locationError: 'pincode_not_found');
-          state = AppLaunchState.needPincodeSelection;
-          return;
-        }
-        
-        _logger.log('Pincode detected: $pincode, checking if serviceable');
-        
-        // Check if the pincode is serviceable
-        final locationRepository = _ref.read(locationRepositoryProvider);
-        final isServiceable = await locationRepository.isPincodeServiceable(pincode);
-        
-        if (isServiceable) {
-          _logger.log('Pincode is serviceable, saving and moving to outlet selection');
-          
-          // Save the pincode 
-          final result = await _ref.read(selectedPincodeProvider.notifier).selectPincode(pincode);
-          
-          if (result) {
-            // Check for available outlets for this pincode
-            final outletRepository = _ref.read(outletRepositoryProvider);
-            final outlets = await outletRepository.getOutletsForPincode(pincode);
-            
-            if (outlets.isEmpty) {
-              _logger.log('No outlets found for serviceable pincode: $pincode');
-              _ref.read(locationInfoProvider.notifier).state = 
-                  LocationInfo(locationError: 'no_outlets');
-              state = AppLaunchState.needPincodeSelection;
-            } else {
-              // Always navigate to outlet selection regardless of the number of outlets
-              _logger.log('Found ${outlets.length} outlet(s) for pincode: $pincode, user needs to select');
-              state = AppLaunchState.needOutletSelection;
-            }
-          } else {
-            _logger.error('Failed to save pincode $pincode');
-            state = AppLaunchState.needPincodeSelection;
-          }
-        } else {
-          _logger.log('Pincode is not serviceable, setting state to needPincodeSelection');
-          // Store the non-serviceable pincode for display
-          _ref.read(locationInfoProvider.notifier).state = 
-              LocationInfo(nonServiceablePincode: pincode);
-          // If not serviceable, move to pincode selection
-          state = AppLaunchState.needPincodeSelection;
-        }
-      } catch (e) {
-        _logger.error('Error getting position: $e');
-        _ref.read(locationInfoProvider.notifier).state = 
-            LocationInfo(locationError: 'network_error');
-        state = AppLaunchState.needPincodeSelection;
-      }
-    } catch (e) {
-      _logger.error('Error fetching location and checking pincode: $e');
-      state = AppLaunchState.needPincodeSelection;
+
+      case Ok(value: final outcome):
+        await _applyOutcome(outcome);
     }
   }
+
+  Future<void> _applyOutcome(DeliveryLocationOutcome outcome) async {
+    switch (outcome) {
+      case DeliveryAreaFound(:final pincode, :final outletCount):
+        _logger.log('$outletCount outlet(s) serve ${pincode.value}');
+        // Kept as the persistence path so selectedPincodeProvider — which the
+        // rest of the UI watches — stays in sync.
+        final saved = await _ref
+            .read(selectedPincodeProvider.notifier)
+            .selectPincode(pincode.value);
+        state = saved
+            ? AppLaunchState.needOutletSelection
+            : AppLaunchState.needPincodeSelection;
+        if (!saved) {
+          _logger.error('Could not persist pincode ${pincode.value}');
+        }
+
+      case PincodeNotServiceable(:final pincode):
+        _logger.log('${pincode.value} is not serviceable');
+        _ref.read(locationInfoProvider.notifier).state =
+            LocationInfo(nonServiceablePincode: pincode.value);
+        state = AppLaunchState.needPincodeSelection;
+
+      case DetectionFailed(:final issue):
+        _logger.log('Detection failed: $issue');
+        _ref.read(locationInfoProvider.notifier).state =
+            LocationInfo(issue: issue);
+        state = AppLaunchState.needPincodeSelection;
+    }
+  }
+
 
   // Method called after pincode selection
   void pincodeSelected() {

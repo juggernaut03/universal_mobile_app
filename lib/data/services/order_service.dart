@@ -10,7 +10,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/network/api_client.dart';
 import '../../core/utils/logger.dart';
 import '../models/address_model.dart';
-import '../../presentation/providers/cart_provider.dart';
+import '../models/cart_item.dart';
 import 'payment_service.dart'; // Import PaymentService for PaymentResult
 
 class OrderConfirmationResponse {

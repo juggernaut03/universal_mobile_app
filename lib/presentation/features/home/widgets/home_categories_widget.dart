@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/error_widgets.dart';
-import '../../../../data/models/category_model.dart';
 import '../../../../data/models/department_model.dart';
 import '../../../providers/category_providers.dart';
-import '../../../providers/launch_flow_provider.dart';
 import 'category_section.dart';
+import '../../../../di/infrastructure_providers.dart';
 
 /// Widget that displays multiple category sections in the home screen,
 /// automatically fetching data from category providers

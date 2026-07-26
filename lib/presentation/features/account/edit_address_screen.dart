@@ -11,14 +11,13 @@ import 'package:patelmart/core/auth/centralized_auth_manager.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/data/models/address_model.dart';
-import 'package:patelmart/data/repositories/address_repository.dart';
 import 'package:patelmart/presentation/features/account/address_book_screen.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
-import 'package:patelmart/core/auth/centralized_auth_manager.dart' as auth;
 import 'package:patelmart/utils/ascii_only_input_formatter.dart';
 import 'package:patelmart/core/utils/input_formatters.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../di/repository_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
 
 class EditAddressScreen extends ConsumerStatefulWidget {
@@ -174,7 +173,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     // If all retries failed, try direct access to auth manager
     try {
       logger.log('All retries failed, trying direct auth manager access...');
-      final authManager = ref.read(auth.centralizedAuthManagerProvider);
+      final authManager = ref.read(centralizedAuthManagerProvider);
       final userProfile = await authManager.getCurrentUserProfile();
       
       if (userProfile != null && userProfile.mobile.isNotEmpty) {

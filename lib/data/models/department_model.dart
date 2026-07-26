@@ -1,5 +1,7 @@
 // lib/data/models/department_model.dart
 
+import '../../domain/entities/catalogue.dart';
+
 class DepartmentModel {
   final String id;
   final String departmentId;
@@ -56,4 +58,16 @@ class DepartmentModel {
       isSelected: isSelected ?? this.isSelected,
     );
   }
+
+  /// Converts to the domain entity.
+  ///
+  /// `isSelected` is deliberately not carried across: it is UI selection state
+  /// and has no place on a shared entity.
+  Department toEntity() => Department(
+        id: id,
+        code: departmentId,
+        name: departmentName,
+        imageUrl: imageLink,
+        sequence: sequenceId,
+      );
 }

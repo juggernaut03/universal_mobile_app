@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../data/models/product_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/steal_deals_provider.dart';
 

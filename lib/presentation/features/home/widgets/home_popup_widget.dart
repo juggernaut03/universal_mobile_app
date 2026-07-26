@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/data/models/popup_model.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/popup_providers.dart';
+import '../../../../di/infrastructure_providers.dart';
 
 class HomePopupWidget extends ConsumerStatefulWidget {
   const HomePopupWidget({Key? key}) : super(key: key);

@@ -1,29 +1,13 @@
 // lib/presentation/providers/popular_category_providers.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import '../../core/network/api_client.dart';
 import '../../data/models/popular_category_models.dart';
-import '../../data/repositories/popular_category_repository.dart';
-import 'launch_flow_provider.dart';
 import 'outlet_provider.dart';
+import '../../di/repository_providers.dart';
 
 // Cache manager provider (reuse from category providers if available)
-final popularCategoryCacheManagerProvider = Provider<DefaultCacheManager>((ref) {
-  return DefaultCacheManager();
-});
 
 // Repository provider
-final popularCategoryRepositoryProvider = Provider<PopularCategoryRepository>((ref) {
-  final apiClient = ApiClient(logger: ref.watch(loggerProvider));
-  final cacheManager = ref.watch(popularCategoryCacheManagerProvider);
-  
-  return PopularCategoryRepository(
-    apiClient: apiClient,
-    logger: ref.watch(loggerProvider),
-    cacheManager: cacheManager,
-  );
-});
 
 // Provider to force refresh popular categories (ignoring cache)
 final refreshPopularCategoryProvider = StateProvider<bool>((ref) => false);

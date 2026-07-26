@@ -1,151 +1,97 @@
 // lib/presentation/providers/category_providers.dart
+//
+// Browse-taxonomy state. All data now arrives as domain entities through the
+// catalogue use cases; nothing here touches data/ or a repository directly.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import '../../core/network/api_client.dart';
-import '../../data/models/department_model.dart';
-import '../../data/models/category_model.dart';
-import '../../data/repositories/category_repository.dart';
-import 'launch_flow_provider.dart';
+
+import '../../core/result/result.dart';
+import '../../di/catalogue_providers.dart';
+import '../../domain/entities/catalogue.dart';
+import '../../domain/usecases/catalogue/get_categories.dart';
+import '../../domain/usecases/catalogue/get_departments.dart';
 import 'outlet_provider.dart';
-
-// Cache manager provider
-final cacheManagerProvider = Provider<DefaultCacheManager>((ref) {
-  return DefaultCacheManager();
-});
-
-// Enhanced repository provider with cache manager
-final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
-  final apiClient = ApiClient(logger: ref.watch(loggerProvider));
-  final cacheManager = ref.watch(cacheManagerProvider);
-  
-  return CategoryRepository(
-    apiClient: apiClient,
-    logger: ref.watch(loggerProvider),
-    cacheManager: cacheManager,
-  );
-});
 
 // Provider to force refresh categories (ignoring cache)
 final refreshCategoriesProvider = StateProvider<bool>((ref) => false);
 
-// All departments provider with refresh capability
-final departmentsProvider = FutureProvider<List<DepartmentModel>>((ref) async {
-  final repository = ref.watch(categoryRepositoryProvider);
-  final outletAsync = ref.watch(selectedOutletProvider);
-  final forceRefresh = ref.watch(refreshCategoriesProvider);
-  
-  // If force refresh is true, clear cache before fetching
-  if (forceRefresh) {
-    await repository.clearCache();
-    // Reset the refresh flag
-    ref.read(refreshCategoriesProvider.notifier).state = false;
-  }
-  
-  // Handle the AsyncValue properly
-  return outletAsync.when(
-    data: (outlet) async {
-      if (outlet == null) {
-        throw Exception('No store selected');
-      }
-      
-      final departments = await repository.getDepartments(outlet.storeCode);
-      
-      // Ensure the first department is selected by default
-      if (departments.isNotEmpty) {
-        departments[0] = departments[0].copyWith(isSelected: true);
-      }
-      
-      return departments;
-    },
-    loading: () => throw Exception('Loading outlet information...'),
-    error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
+/// Store code of the selected outlet, or null while none is chosen.
+///
+/// Extracted so the providers below stop repeating the same
+/// `outletAsync.when(...)` block, which threw a differently-worded `Exception`
+/// from each copy.
+String? _selectedStoreCode(Ref ref) =>
+    ref.watch(selectedOutletProvider).valueOrNull?.storeCode;
+
+Future<void> _clearCacheIfRequested(Ref ref) async {
+  if (!ref.watch(refreshCategoriesProvider)) return;
+  await ref.read(catalogueRepositoryProvider).clearCache();
+  ref.read(refreshCategoriesProvider.notifier).state = false;
+}
+
+/// Departments carried by the selected store, filtered and ordered.
+///
+/// The previous version reassigned `departments[0]` to mark it selected —
+/// writing UI selection state into shared data. Selection now lives in
+/// [selectedDepartmentCodeProvider].
+final departmentsProvider = FutureProvider<List<Department>>((ref) async {
+  final storeCode = _selectedStoreCode(ref);
+  if (storeCode == null) throw Exception('No store selected');
+
+  await _clearCacheIfRequested(ref);
+
+  final result = await ref.watch(getDepartmentsUseCaseProvider)(
+    GetDepartmentsParams(storeCode: storeCode),
   );
+  return switch (result) {
+    Ok(:final value) => value,
+    Err(:final failure) => throw Exception(failure.userMessage),
+  };
 });
 
-// Selected department provider
-final selectedDepartmentProvider = StateProvider<DepartmentModel?>((ref) => null);
+/// The department the user is browsing, by code. Presentation state.
+final selectedDepartmentCodeProvider = StateProvider<String?>((ref) => null);
 
-// Categories for selected department provider
-final categoriesForDepartmentProvider = FutureProvider.family<List<CategoryModel>, String>((ref, departmentId) async {
-  final repository = ref.watch(categoryRepositoryProvider);
-  final outletAsync = ref.watch(selectedOutletProvider);
-  final forceRefresh = ref.watch(refreshCategoriesProvider);
-  
-  if (forceRefresh) {
-    await repository.clearCache();
+/// Categories grouped by department code.
+final allCategoriesProvider =
+    FutureProvider<Map<String, List<Category>>>((ref) async {
+  final storeCode = _selectedStoreCode(ref);
+  if (storeCode == null) throw Exception('No store selected');
+
+  final departments = await ref.watch(departmentsProvider.future);
+  final getCategories = ref.watch(getCategoriesUseCaseProvider);
+
+  // TODO(phase-4-followup): one request per department. The backend exposes no
+  // bulk endpoint, so this stays sequential for now, but it is the slowest
+  // thing on the category screen.
+  final result = <String, List<Category>>{};
+  for (final department in departments) {
+    final categories = await getCategories(
+      GetCategoriesParams(
+        departmentCode: department.code,
+        storeCode: storeCode,
+      ),
+    );
+    // A department whose categories fail to load renders empty rather than
+    // failing the whole screen.
+    result[department.code] = categories.valueOrNull ?? const [];
   }
-  
-  return outletAsync.when(
-    data: (outlet) async {
-      if (outlet == null) {
-        throw Exception('No store selected');
-      }
-      
-      return repository.getCategoriesForDepartment(departmentId, outlet.storeCode);
-    },
-    loading: () => throw Exception('Loading outlet information...'),
-    error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
-  );
+  return result;
 });
 
-// All categories grouped by department
-final allCategoriesProvider = FutureProvider<Map<String, List<CategoryModel>>>((ref) async {
-  final outletAsync = ref.watch(selectedOutletProvider);
-  final forceRefresh = ref.watch(refreshCategoriesProvider);
-  
-  return outletAsync.when(
-    data: (outlet) async {
-      if (outlet == null) {
-        throw Exception('No store selected');
-      }
-      
-      final departments = await ref.watch(departmentsProvider.future);
-      final repository = ref.watch(categoryRepositoryProvider);
-      
-      // Clear cache if force refresh
-      if (forceRefresh) {
-        await repository.clearCache();
-        ref.read(refreshCategoriesProvider.notifier).state = false;
-      }
-      
-      final Map<String, List<CategoryModel>> result = {};
-      
-      for (final department in departments) {
-        final categories = await repository.getCategoriesForDepartment(
-          department.departmentId, 
-          outlet.storeCode
-        );
-        result[department.departmentId] = categories;
-      }
-      
-      return result;
-    },
-    loading: () => throw Exception('Loading outlet information...'),
-    error: (error, stackTrace) => throw Exception('Error loading outlet: $error'),
-  );
-}); 
-
-// Provider for controlling pull-to-refresh functionality
-/// Loading state for category refresh - prevents shuffling during refresh
+/// Loading state for category refresh — prevents shuffling during refresh.
 final categoryRefreshLoadingProvider = StateProvider<bool>((ref) => false);
 
-/// Provider for controlling pull-to-refresh functionality
-/// Implements the "clear state before fetch" pattern to prevent shuffling
+/// Pull-to-refresh entry point. Clears state before fetching so the list does
+/// not shuffle while new data arrives.
 final categoryRefreshProvider = Provider<Future<void> Function()>((ref) {
   return () async {
-    // 1. Set loading state to show shimmer immediately (prevents shuffling)
     ref.read(categoryRefreshLoadingProvider.notifier).state = true;
-    
     try {
-      // Set the refresh flag to true
       ref.read(refreshCategoriesProvider.notifier).state = true;
-      // Refresh the departments provider which will trigger a cache clear
-      final _ = await ref.refresh(departmentsProvider.future);
-      // Refresh the all categories provider
-      final __ = await ref.refresh(allCategoriesProvider.future);
+      await ref.refresh(departmentsProvider.future);
+      await ref.refresh(allCategoriesProvider.future);
     } finally {
-      // 2. Reset loading state after completion
       ref.read(categoryRefreshLoadingProvider.notifier).state = false;
     }
   };

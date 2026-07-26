@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/error_widgets.dart';
-import '../../../data/models/product_model.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/outlet_status_provider.dart'; // Add this import for outlet status

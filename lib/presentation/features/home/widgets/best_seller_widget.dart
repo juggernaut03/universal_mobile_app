@@ -6,9 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_constants.dart';
-import 'package:patelmart/core/widgets/favorite_button.dart';
+import 'package:patelmart/presentation/widgets/favorite_button.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 // Add this import for outlet status
 import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -18,6 +17,7 @@ import '../../../../data/models/product_model.dart';
 import '../../../../core/widgets/error_widgets.dart';
 import '../../../../core/widgets/empty_state_widget.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../../di/infrastructure_providers.dart';
 
 class BestSellerWidget extends ConsumerWidget {
   final int bestSellerId;

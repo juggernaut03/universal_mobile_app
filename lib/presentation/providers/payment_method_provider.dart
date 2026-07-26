@@ -1,18 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import '../../core/utils/logger.dart';
 import '../../data/models/payment_method_model.dart';
-import '../../data/services/payment_method_service.dart';
-import 'launch_flow_provider.dart';
+import '../../di/service_providers.dart';
 
 // Provider for PaymentMethodService
-final paymentMethodServiceProvider = Provider<PaymentMethodService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return PaymentMethodService(
-    client: http.Client(),
-    logger: logger,
-  );
-});
 
 // Provider for fetching payment methods
 final paymentMethodsProvider = FutureProvider<List<PaymentMethod>>((ref) async {

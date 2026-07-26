@@ -2,47 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/core/widgets/back_button_wrapper.dart';
-import 'package:patelmart/data/services/content_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../providers/launch_flow_provider.dart';
+import '../../providers/support_content_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
-// Provider for refund policy content (GET /api/content/refund-policy)
-final refundPolicyContentProvider = FutureProvider<String>((ref) async {
-  final logger = ref.read(loggerProvider);
-  try {
-    logger.log('Fetching refund policy content from API');
-    return await ContentService().fetchContentPage('refund-policy');
-  } catch (e) {
-    logger.error('Error fetching refund policy content: $e');
-    throw Exception('Unable to load content. Please check your connection and try again.');
-  }
-});
 
-// Provider for terms and conditions content (GET /api/content/terms)
-final termsConditionsContentProvider = FutureProvider<String>((ref) async {
-  final logger = ref.read(loggerProvider);
-  try {
-    logger.log('Fetching terms and conditions content from API');
-    return await ContentService().fetchContentPage('terms');
-  } catch (e) {
-    logger.error('Error fetching terms and conditions content: $e');
-    throw Exception('Unable to load content. Please check your connection and try again.');
-  }
-});
 
-// Provider for privacy policy content (GET /api/content/privacy-policy)
-final privacyPolicyContentProvider = FutureProvider<String>((ref) async {
-  final logger = ref.read(loggerProvider);
-  try {
-    logger.log('Fetching privacy policy content from API');
-    return await ContentService().fetchContentPage('privacy-policy');
-  } catch (e) {
-    logger.error('Error fetching privacy policy content: $e');
-    throw Exception('Unable to load content. Please check your connection and try again.');
-  }
-});
 
 class RefundTncScreen extends ConsumerStatefulWidget {
   const RefundTncScreen({Key? key}) : super(key: key);

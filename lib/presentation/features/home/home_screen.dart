@@ -1,12 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/core/widgets/app_drawer_widget.dart';
+import 'package:patelmart/presentation/widgets/app_drawer_widget.dart';
 import 'package:patelmart/core/widgets/bottom_navigation_widget.dart';
 import 'package:patelmart/core/widgets/header_widget.dart';
-import 'package:patelmart/core/widgets/search_widget.dart';
+import 'package:patelmart/presentation/widgets/search_widget.dart';
 import 'package:patelmart/presentation/features/cart/widgets/persistent_cart_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/home_popup_widget.dart';
 import 'package:patelmart/presentation/features/home/widgets/popular_category_section_2_widget.dart';
@@ -22,9 +21,7 @@ import 'package:patelmart/presentation/providers/steal_deals_provider.dart';
 import 'package:patelmart/presentation/features/orders/order_tracking_widget.dart';
 import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
-import 'package:patelmart/presentation/providers/popular_category_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/order_history_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/outlet_model.dart';
@@ -35,11 +32,12 @@ import '../../providers/home_refresh_provider.dart';
 // POPUP IMPORTS
 import '../../providers/popup_providers.dart';
 // APP LIFECYCLE HANDLER
-import '../../../core/handlers/app_lifecycle_handler.dart';
+import '../../../presentation/handlers/app_lifecycle_handler.dart';
 // FORCE UPDATE IMPORTS
 import '../../providers/force_update_providers.dart';
 import '../../../core/widgets/force_update_dialog.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);

@@ -5,21 +5,11 @@ import '../../core/utils/logger.dart';
 import '../../data/repositories/outlet_repository.dart';
 import '../../data/models/outlet_model.dart';
 import '../../data/models/offer_model.dart';
-import 'launch_flow_provider.dart';
 import 'location_provider.dart';
+import '../../di/repository_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider for the Outlet Repository
-final outletRepositoryProvider = Provider<OutletRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  final apiService = ref.watch(apiServiceProvider);
-  final storageService = ref.watch(storageServiceProvider);
-  
-  return OutletRepository(
-    apiService: apiService,
-    storageService: storageService,
-    logger: logger,
-  );
-});
 
 // Available outlets for a specific pincode provider - refreshable
 final availableOutletsProvider = FutureProvider.family<List<OutletModel>, String>((ref, pincode) async {

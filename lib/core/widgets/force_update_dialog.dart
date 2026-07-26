@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/data/services/force_update_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_text_styles.dart';
-import '../../presentation/providers/force_update_providers.dart';
+import '../../di/service_providers.dart';
 
 class ForceUpdateDialog extends ConsumerStatefulWidget {
   final UpdateCheckResponse updateInfo;

@@ -1,27 +1,15 @@
 // lib/presentation/providers/fcm_token_providers.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:http/http.dart' as http;
 import 'package:patelmart/data/models/auth_models.dart';
-import '../../data/services/fcm_token_service.dart';
-import '../../data/repositories/fcm_token_repository.dart';
 import 'auth_providers.dart';
-import 'launch_flow_provider.dart';
+import '../../di/repository_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Import the service provider from the service file
 // (The fcmTokenServiceProvider is now defined in fcm_token_service.dart)
 
 // Provider for FcmTokenRepository
-final fcmTokenRepositoryProvider = Provider<FcmTokenRepository>((ref) {
-  final fcmTokenService = ref.watch(fcmTokenServiceProvider);
-  final logger = ref.watch(loggerProvider);
-  
-  return FcmTokenRepository(
-    fcmTokenService: fcmTokenService,
-    logger: logger,
-  );
-});
 
 // Provider to save FCM token for the current user
 final saveFcmTokenProvider = FutureProvider.autoDispose<bool>((ref) async {

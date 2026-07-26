@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
@@ -12,6 +11,10 @@ import '../../providers/auth_providers.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
+import '../../../core/result/result.dart';
+import '../../../di/auth_providers.dart';
+import '../../../domain/usecases/auth/request_otp.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final String? redirectRoute;
@@ -72,70 +75,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _requestOtp() async {
-    // Clear any previous errors
     setState(() {
       _errorMessage = null;
-    });
-
-    // Validate mobile number format
-    final mobileNumber = _mobileController.text.trim();
-    if (mobileNumber.isEmpty || mobileNumber.length != 10) {
-      setState(() {
-        _errorMessage = 'Please enter a valid 10-digit mobile number';
-      });
-      return;
-    }
-
-    // Show loading indicator
-    setState(() {
       _isLoading = true;
     });
 
-    try {
-      // Request OTP
-      final repository = ref.read(authRepositoryProvider);
-      final otpResponse = await repository.requestOtp(mobileNumber);
-      
-      // Log success details
-      ref.read(loggerProvider).log('OTP requested successfully. Status: ${otpResponse.status}, Mobile: ${otpResponse.mobile}');
-      
-      // Track login attempt with Facebook Pixel
-      await FacebookPixelIntegration.trackUserAuth(
-        ref,
-        eventType: 'login',
-        userId: mobileNumber,
-        method: 'phone',
-      );
-      
-      // Update the login state
-      ref.read(loginStateProvider.notifier).state = LoginState.otpRequested;
-      
-      // Navigate to OTP validation screen with proper redirect route
-      if (mounted) {
-        // Use pushReplacement to prevent going back to login after OTP
-         context.pushReplacement(
-    '/auth/otp',
-    extra: {
-      'mobile': mobileNumber,
-      'redirectRoute': widget.redirectRoute, // ✅ Preserved
-    },
-  );
-      }
-    } catch (e) {
-      // Be more specific about the error
-      ref.read(loggerProvider).error('OTP request failed with error: $e');
-      
-      // Show error message
-      setState(() {
-        _errorMessage = 'Failed to request OTP: ${e.toString()}';
-      });
-    } finally {
-      // Hide loading indicator
-      if (mounted) {
+    // The 10-digit rule used to be duplicated here and in otpRequestProvider.
+    // It now lives in the RequestOtp use case and comes back as a
+    // ValidationFailure, so there is one definition of "valid mobile number".
+    final mobileNumber = _mobileController.text.trim();
+    final result = await ref.read(requestOtpUseCaseProvider)(
+      RequestOtpParams(mobile: mobileNumber),
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case Ok():
+        ref.read(loggerProvider).log('OTP requested for $mobileNumber');
+
+        await FacebookPixelIntegration.trackUserAuth(
+          ref,
+          eventType: 'login',
+          userId: mobileNumber,
+          method: 'phone',
+        );
+
+        if (!mounted) return;
+        ref.read(loginStateProvider.notifier).state = LoginState.otpRequested;
+        setState(() => _isLoading = false);
+
+        context.pushReplacement(
+          '/auth/otp',
+          extra: {
+            'mobile': mobileNumber,
+            'redirectRoute': widget.redirectRoute,
+          },
+        );
+
+      case Err(:final failure):
+        ref.read(loggerProvider).error('OTP request failed: ${failure.message}');
         setState(() {
+          // Was 'Failed to request OTP: ${e.toString()}' — a raw exception
+          // shown to the user.
+          _errorMessage = failure.userMessage;
           _isLoading = false;
         });
-      }
     }
   }
 

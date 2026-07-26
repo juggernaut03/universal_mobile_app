@@ -1,18 +1,10 @@
 // lib/presentation/providers/splash_provider.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:patelmart/core/constants/app_constants.dart';
-import '../../data/services/google_maps_service.dart';
-import 'launch_flow_provider.dart';
+import '../../di/service_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Google Maps Service provider
-final googleMapsServiceProvider = Provider<GoogleMapsService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return GoogleMapsService(
-    apiKey: ApiConstants.googleApiKey,
-    logger: logger,
-  );
-});
 
 // Provider to track Google Maps initialization status
 final googleMapsInitializedProvider = StateProvider<bool>((ref) => false);

@@ -4,15 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
 import '../../data/services/cart_validator.dart';
 import '../../data/services/cart_session_manager.dart';
+import '../../di/service_providers.dart';
 import '../../core/utils/logger.dart';
-import 'auth_providers.dart';
-import 'launch_flow_provider.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider for cart session manager
-final cartSessionManagerProvider = Provider<CartSessionManager>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return CartSessionManager(logger: logger);
-});
+// cartSessionManagerProvider moved to lib/di/service_providers.dart
 
 // Enhanced cart validator that includes session management
 class EnhancedCartValidator {

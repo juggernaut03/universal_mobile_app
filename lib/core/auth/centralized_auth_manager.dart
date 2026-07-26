@@ -4,8 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+import 'package:patelmart/di/infrastructure_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/logger.dart';
 import '../../data/models/auth_models.dart';
@@ -273,21 +272,7 @@ class CentralizedAuthManager {
   }
 }
 
-// Provider for CentralizedAuthManager
-final centralizedAuthManagerProvider = Provider<CentralizedAuthManager>((ref) {
-  final secureStorage = ref.watch(secureStorageProvider);
-  final prefs = ref.watch(sharedPreferencesProvider);
-  final logger = ref.watch(loggerProvider);
-  
-  final manager = CentralizedAuthManager(
-    secureStorage: secureStorage,
-    prefs: prefs,
-    logger: logger,
-  );
-  
-  ref.onDispose(() => manager.dispose());
-  return manager;
-});
+// centralizedAuthManagerProvider now declared in lib/di/infrastructure_providers.dart
 
 // Stream providers for reactive UI updates
 final userProfileStreamProvider = StreamProvider<UserProfile?>((ref) {

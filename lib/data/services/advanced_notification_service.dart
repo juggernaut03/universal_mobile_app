@@ -2,21 +2,18 @@
 
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
+// TODO(phase-8): this service still reads cartProvider and legacyAuthRepositoryProvider
+// from the presentation layer. Fixing that requires the notification
+// consolidation in Phase 8 (4 services -> 1 behind INotificationService).
+import 'package:patelmart/di/infrastructure_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 import '../../presentation/providers/cart_provider.dart';
-import '../../presentation/providers/auth_providers.dart';
-import '../models/product_model.dart';
+import '../../di/auth_providers.dart';
 
-// Provider for the advanced notification service
-final advancedNotificationServiceProvider = Provider<AdvancedNotificationService>((ref) {
-  return AdvancedNotificationService(ref: ref);
-});
+// advancedNotificationServiceProvider now declared in lib/di/service_providers.dart
 
 // Notification types enum
 enum NotificationType {
@@ -274,7 +271,7 @@ class AdvancedNotificationService {
   /// Schedule cart abandonment reminder
   Future<void> _scheduleCartAbandonmentReminder(List<CartItem> cartItems) async {
     try {
-      final userProfile = await _ref.read(authRepositoryProvider).getUserProfile();
+      final userProfile = (await _ref.read(authRepositoryProvider).currentSession()).valueOrNull;
       if (userProfile == null) return;
 
       final token = await _firebaseMessaging.getToken();
@@ -389,7 +386,7 @@ class AdvancedNotificationService {
   /// Sync user profile with server for personalized notifications
   Future<void> _syncUserProfileWithServer() async {
     try {
-      final userProfile = await _ref.read(authRepositoryProvider).getUserProfile();
+      final userProfile = (await _ref.read(authRepositoryProvider).currentSession()).valueOrNull;
       if (userProfile == null) return;
 
       final token = await _firebaseMessaging.getToken();
@@ -406,7 +403,7 @@ class AdvancedNotificationService {
   /// Sync product subscription with server
   Future<void> _syncProductSubscriptionWithServer(String productCode, {required bool subscribe}) async {
     try {
-      final userProfile = await _ref.read(authRepositoryProvider).getUserProfile();
+      final userProfile = (await _ref.read(authRepositoryProvider).currentSession()).valueOrNull;
       if (userProfile == null) return;
 
       final token = await _firebaseMessaging.getToken();
@@ -445,7 +442,7 @@ class AdvancedNotificationService {
   /// Send immediate notification for testing
   Future<void> sendTestNotification(NotificationType type, {Map<String, dynamic>? data}) async {
     try {
-      final userProfile = await _ref.read(authRepositoryProvider).getUserProfile();
+      final userProfile = (await _ref.read(authRepositoryProvider).currentSession()).valueOrNull;
       if (userProfile == null) return;
 
       final token = await _firebaseMessaging.getToken();

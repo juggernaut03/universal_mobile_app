@@ -3,7 +3,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/utils/logger.dart';
-import '../../presentation/providers/cart_provider.dart';
+import '../models/cart_item.dart';
 import '../models/product_model.dart';
 
 /// Service responsible for saving and loading cart data from persistent storage

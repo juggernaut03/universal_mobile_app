@@ -1,4 +1,10 @@
 // lib/data/models/outlet_model.dart
+//
+// DTO. Owns the wire format: `store_name` vs `mobile_outlet_name`,
+// `is_enabled: "Enabled"`, `home_delivery: "yes"`, and coordinates as strings.
+// Only the Outlet entity crosses out of the data layer.
+
+import '../../domain/entities/outlet.dart';
 
 class OutletModel {
   final String id;
@@ -104,4 +110,46 @@ class OutletModel {
       'is_enabled': isEnabled,
     };
   }
+
+  /// Converts this DTO into the domain entity.
+  ///
+  /// Coordinates are parsed here, once. `GeoPoint.tryParse` yields null for a
+  /// missing or malformed pair rather than defaulting to 0,0 — which is a real
+  /// point in the Gulf of Guinea and would silently corrupt distance maths.
+  Outlet toEntity() => Outlet(
+        id: id,
+        storeCode: storeCode,
+        name: name,
+        address: address,
+        location: GeoPoint.tryParse(latitude, longitude),
+        minOrderAmount: minOrderAmount,
+        openTime: openTime,
+        deliveryTime: deliveryTime,
+        offerName: offerName,
+        contactPhone: contactPhone,
+        storeMessage: storeMessage,
+        isEnabled: isEnabled,
+        fulfilmentMethods: {
+          if (homeDelivery) FulfilmentMethod.homeDelivery,
+          if (selfPickup) FulfilmentMethod.selfPickup,
+        },
+      );
+
+  factory OutletModel.fromEntity(Outlet outlet) => OutletModel(
+        id: outlet.id,
+        name: outlet.name,
+        storeCode: outlet.storeCode,
+        address: outlet.address,
+        minOrderAmount: outlet.minOrderAmount,
+        openTime: outlet.openTime,
+        deliveryTime: outlet.deliveryTime,
+        offerName: outlet.offerName,
+        latitude: outlet.location?.latitude.toString() ?? '',
+        longitude: outlet.location?.longitude.toString() ?? '',
+        homeDelivery: outlet.offersHomeDelivery,
+        selfPickup: outlet.offersSelfPickup,
+        contactPhone: outlet.contactPhone,
+        storeMessage: outlet.storeMessage,
+        isEnabled: outlet.isEnabled,
+      );
 }

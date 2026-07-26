@@ -2,13 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../providers/launch_flow_provider.dart';
 import '../../providers/outlet_provider.dart';
+import '../../../di/service_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
 // Store details model
 class StoreDetails {
@@ -61,35 +60,6 @@ class StoreDetails {
   }
 }
 
-// Provider for store details
-final storeDetailsProvider = FutureProvider<StoreDetails?>((ref) async {
-  final selectedOutlet = ref.watch(selectedOutletProvider).valueOrNull;
-  final logger = ref.read(loggerProvider);
-  
-  if (selectedOutlet == null) {
-    logger.log('No outlet selected for store details');
-    return null;
-  }
-
-  try {
-    logger.log('Fetching store details for store code: ${selectedOutlet.storeCode}');
-    
-    final apiService = ref.read(apiServiceProvider);
-    final response = await apiService.getStoreDetails(selectedOutlet.storeCode);
-
-    if (response != null && response.isNotEmpty) {
-      final storeDetails = StoreDetails.fromJson(response);
-      logger.log('Store details fetched successfully: ${storeDetails.mobileOutletName}');
-      return storeDetails;
-    } else {
-      logger.error('Invalid or empty response format for store details');
-      return null;
-    }
-  } catch (e) {
-    logger.error('Error fetching store details: $e');
-    return null;
-  }
-});
 
 class HelpSupportScreen extends ConsumerWidget {
   const HelpSupportScreen({Key? key}) : super(key: key);
@@ -543,3 +513,32 @@ class HelpSupportScreen extends ConsumerWidget {
     }
   }
 }
+
+final storeDetailsProvider = FutureProvider<StoreDetails?>((ref) async {
+  final selectedOutlet = ref.watch(selectedOutletProvider).valueOrNull;
+  final logger = ref.read(loggerProvider);
+  
+  if (selectedOutlet == null) {
+    logger.log('No outlet selected for store details');
+    return null;
+  }
+
+  try {
+    logger.log('Fetching store details for store code: ${selectedOutlet.storeCode}');
+    
+    final apiService = ref.read(apiServiceProvider);
+    final response = await apiService.getStoreDetails(selectedOutlet.storeCode);
+
+    if (response != null && response.isNotEmpty) {
+      final storeDetails = StoreDetails.fromJson(response);
+      logger.log('Store details fetched successfully: ${storeDetails.mobileOutletName}');
+      return storeDetails;
+    } else {
+      logger.error('Invalid or empty response format for store details');
+      return null;
+    }
+  } catch (e) {
+    logger.error('Error fetching store details: $e');
+    return null;
+  }
+});

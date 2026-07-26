@@ -4,18 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
-import 'package:patelmart/core/widgets/app_drawer_widget.dart';
+import 'package:patelmart/presentation/widgets/app_drawer_widget.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/widgets/back_button_wrapper.dart';
+import '../../../presentation/widgets/back_button_wrapper.dart';
 import '../../../core/widgets/bottom_navigation_widget.dart';
 import '../../../core/widgets/error_widgets.dart';
 import '../../../core/widgets/cached_network_image_widget.dart';
-import '../../../data/models/department_model.dart';
-import '../../../data/models/category_model.dart';
+import '../../../domain/entities/catalogue.dart';
 import '../../providers/category_providers.dart';
-import '../../providers/launch_flow_provider.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class CategoryScreen extends ConsumerStatefulWidget {
   const CategoryScreen({Key? key}) : super(key: key);
@@ -93,13 +92,13 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                           data: (categoriesByDepartment) {
                             // Set initial selected department if none is selected
                             if (_currentDepartmentId == null && departments.isNotEmpty) {
-                              _currentDepartmentId = departments[0].departmentId;
+                              _currentDepartmentId = departments[0].code;
                             }
                             
                             // Validate that current selection exists in new data
                             if (_currentDepartmentId != null && 
-                                !departments.any((dept) => dept.departmentId == _currentDepartmentId)) {
-                              _currentDepartmentId = departments.isNotEmpty ? departments[0].departmentId : null;
+                                !departments.any((dept) => dept.code == _currentDepartmentId)) {
+                              _currentDepartmentId = departments.isNotEmpty ? departments[0].code : null;
                             }
                             
                             return Row(
@@ -205,7 +204,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     );
   }
   
-  Widget _buildDepartmentList(List<DepartmentModel> departments) {
+  Widget _buildDepartmentList(List<Department> departments) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -223,7 +222,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         physics: const BouncingScrollPhysics(),
         itemBuilder: (context, index) {
           final department = departments[index];
-          final isSelected = department.departmentId == _currentDepartmentId;
+          final isSelected = department.code == _currentDepartmentId;
           
           return AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -239,7 +238,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             child: InkWell(
               onTap: () {
                 setState(() {
-                  _currentDepartmentId = department.departmentId;
+                  _currentDepartmentId = department.code;
                 });
               },
               child: Padding(
@@ -257,7 +256,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                           width: 100,
                           height: 100,
                           child: CachedNetworkImageWidget(
-                            imageUrl: department.imageLink,
+                            imageUrl: department.imageUrl,
                             fit: BoxFit.cover,
                             placeholder: Container(
                               color: Colors.grey[100],
@@ -284,7 +283,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                     // const SizedBox(height: 6),
                     // Department name
                     // Text(
-                    //   department.departmentName,
+                    //   department.name,
                     //   style: TextStyle(
                     //     color: isSelected ? AppColors.primary : AppColors.textSecondary,
                     //     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -304,7 +303,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     );
   }
   
-  Widget _buildCategoriesForDepartment(Map<String, List<CategoryModel>> categoriesByDepartment) {
+  Widget _buildCategoriesForDepartment(Map<String, List<Category>> categoriesByDepartment) {
     if (_currentDepartmentId == null) {
       return const Center(
         child: Text('Select a department'),
@@ -318,16 +317,16 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     
     if (departments != null) {
       final selectedDepartment = departments.firstWhere(
-        (dept) => dept.departmentId == _currentDepartmentId,
-        orElse: () => DepartmentModel(
+        (dept) => dept.code == _currentDepartmentId,
+        orElse: () => const Department(
           id: '',
-          departmentId: '',
-          departmentName: 'Unknown Department',
-          imageLink: '',
-          sequenceId: 0,
+          code: '',
+          name: 'Unknown Department',
+          imageUrl: '',
+          sequence: 0,
         ),
       );
-      departmentName = selectedDepartment.departmentName;
+      departmentName = selectedDepartment.name;
     }
     
     if (categories.isEmpty) {
@@ -402,13 +401,13 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   }
   
   
-Widget _buildCategoryCard(CategoryModel category) {
+Widget _buildCategoryCard(Category category) {
   return GestureDetector(
-    key: ValueKey('category_${category.categoryId}'),
+    key: ValueKey('category_${category.code}'),
     onTap: () {
       final departmentId = _currentDepartmentId ?? '';
       context.push(
-        '/subcategory/${category.categoryId}/$departmentId/${Uri.encodeComponent(category.categoryName)}',
+        '/subcategory/${category.code}/$departmentId/${Uri.encodeComponent(category.name)}',
       );
     },
     child: Column(
@@ -419,7 +418,7 @@ Widget _buildCategoryCard(CategoryModel category) {
           height: 85,
           width: double.infinity,
           child: CachedNetworkImageWidget(
-            imageUrl: category.imageLink,
+            imageUrl: category.imageUrl,
             fit: BoxFit.contain,
             placeholder: const SizedBox.shrink(),
             errorWidget: Icon(
@@ -431,7 +430,7 @@ Widget _buildCategoryCard(CategoryModel category) {
         ),
         const SizedBox(height: 6),
         Text(
-          category.categoryName,
+          category.name,
           style: const TextStyle(
             fontWeight: FontWeight.w500,
             fontSize: 11,

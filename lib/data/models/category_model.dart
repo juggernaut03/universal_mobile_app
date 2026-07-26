@@ -1,5 +1,7 @@
 // lib/data/models/category_model.dart
 
+import '../../domain/entities/catalogue.dart' as domain;
+
 class CategoryModel {
   final String id;
   final String categoryId;
@@ -48,4 +50,18 @@ class CategoryModel {
       'image_link': imageLink,
     };
   }
+
+  /// Converts to the domain entity.
+  ///
+  /// `no_of_col` arrives as a string; it is parsed once here and becomes null
+  /// when the backend expressed no preference.
+  domain.Category toEntity() => domain.Category(
+        id: id,
+        code: categoryId,
+        name: categoryName,
+        imageUrl: imageLink,
+        sequence: sequenceId,
+        departmentCode: departmentId,
+        preferredColumns: int.tryParse(numberOfColumns),
+      );
 }

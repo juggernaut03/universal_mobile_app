@@ -4,23 +4,15 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/utils/logger.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../data/models/pincode_model.dart';
-import 'launch_flow_provider.dart';
 import 'splash_provider.dart';
+import '../../di/repository_providers.dart';
+import '../../core/result/result.dart';
+import '../../di/location_providers.dart';
+import '../../domain/usecases/location/check_pincode_serviceability.dart';
+import '../../domain/entities/delivery_location.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider for the Location Repository
-final locationRepositoryProvider = Provider<LocationRepository>((ref) {
-  final logger = ref.watch(loggerProvider);
-  final locationService = ref.watch(locationServiceProvider);
-  final apiService = ref.watch(apiServiceProvider);
-  final storageService = ref.watch(storageServiceProvider);
-  
-  return LocationRepository(
-    locationService: locationService,
-    apiService: apiService,
-    storageService: storageService,
-    logger: logger,
-  );
-});
 
 // Current Location provider - refreshable
 final currentLocationProvider = FutureProvider<Position?>((ref) async {
@@ -45,18 +37,22 @@ final currentPincodeProvider = FutureProvider<String?>((ref) async {
 });
 
 // Provider to check if a pincode is serviceable
-final isPincodeServiceableProvider = FutureProvider.family<bool, String>((ref, pincode) async {
-  final repository = ref.watch(locationRepositoryProvider);
-  final logger = ref.watch(loggerProvider);
-  
-  try {
-    final isServiceable = await repository.isPincodeServiceable(pincode);
-    logger.log('Pincode $pincode serviceable: $isServiceable');
-    return isServiceable;
-  } catch (e) {
-    logger.error('Error checking if pincode $pincode is serviceable: $e');
-    return false;
-  }
+//
+// Previously this swallowed every error and returned `false`, so a user with no
+// connectivity was told "we do not deliver to your area" — indistinguishable
+// from a genuine no. The use case now separates the two: an unserviceable
+// pincode is `Ok(isServiceable: false)`, while a broken call is an `Err` and
+// surfaces as AsyncValue.error so the UI can offer a retry.
+final isPincodeServiceableProvider =
+    FutureProvider.family<bool, String>((ref, pincode) async {
+  final result = await ref.watch(checkPincodeServiceabilityUseCaseProvider)(
+    CheckPincodeServiceabilityParams(pincode: pincode),
+  );
+
+  return switch (result) {
+    Ok(:final value) => value.isServiceable,
+    Err(:final failure) => throw Exception(failure.userMessage),
+  };
 });
 
 // All available pincodes provider - refreshable
@@ -73,6 +69,9 @@ final allPincodesProvider = FutureProvider<List<PincodeModel>>((ref) async {
     logger.log('Retrieved ${pincodes.length} pincodes');
     return pincodes;
   } catch (e) {
+    // TODO(phase-3b-followup): still returns [] on failure, so "no pincodes
+    // configured" and "request failed" look identical to the picker. Fix when
+    // the screen moves onto GetServiceablePincodes and can render an error.
     logger.error('Error getting all pincodes: $e');
     return [];
   }
@@ -186,9 +185,19 @@ class FilteredPincodesNotifier extends StateNotifier<AsyncValue<List<PincodeMode
 // Model to store location serviceability info
 class LocationInfo {
   final String? nonServiceablePincode;
-  final String? locationError;
-  
-  LocationInfo({this.nonServiceablePincode, this.locationError});
+
+  /// Why automatic detection failed, when it did.
+  ///
+  /// Was a bare `String?` holding one of five magic codes. Screens compared it
+  /// with `==` and only three of the five were ever handled. Typed now; the
+  /// legacy string is still exposed as [locationError] for screens that have
+  /// not moved over yet.
+  final LocationIssue? issue;
+
+  LocationInfo({this.nonServiceablePincode, this.issue});
+
+  /// Legacy string form of [issue]. Transitional — prefer [issue].
+  String? get locationError => issue?.legacyCode;
 }
 
 // Provider to store location information for UI display

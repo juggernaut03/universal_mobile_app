@@ -8,7 +8,7 @@
 
 import '../../core/utils/logger.dart';
 import '../models/address_model.dart';
-import '../../presentation/providers/cart_provider.dart';
+import '../models/cart_item.dart';
 import 'cart_validator.dart';
 
 class OrderPaymentProcessingResponse {

@@ -1,31 +1,17 @@
 // lib/presentation/providers/reorder_provider.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import 'package:patelmart/data/repositories/order_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:math';
-import '../../core/utils/logger.dart';
-import '../../data/services/payment_service.dart';
-import '../../data/services/order_service.dart';
-import '../../data/services/cart_validator.dart';
 import '../../data/models/order_model.dart';
-import 'launch_flow_provider.dart';
 import 'cart_provider.dart';
-import 'auth_providers.dart';
+import '../../di/auth_providers.dart';
+import '../../di/repository_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider for OrderRepository
-final orderRepositoryProvider = Provider((ref) {
-  final logger = ref.read(loggerProvider);
-  final authRepository = ref.read(authRepositoryProvider);
-  
-  return OrderRepository(
-    client: http.Client(),
-    authRepository: authRepository,
-    logger: logger,
-  );
-});
+// orderRepositoryProvider now declared in lib/di/repository_providers.dart
 
 // Provider to store and retrieve user orders - WITH LATEST DATE FIRST SORTING
 final userOrdersProvider = FutureProvider<List<Order>>((ref) async {
@@ -34,17 +20,14 @@ final userOrdersProvider = FutureProvider<List<Order>>((ref) async {
   
   try {
     // Check if user is logged in
-    final authRepository = ref.read(authRepositoryProvider);
-    final isLoggedIn = await authRepository.isLoggedIn();
+    final isLoggedIn = await ref.read(authRepositoryProvider).isSignedIn();
     
     if (isLoggedIn) {
       try {
         // Create and use OrderRepository
-        final orderRepository = OrderRepository(
-          client: http.Client(),
-          authRepository: authRepository,
-          logger: logger,
-        );
+        // Was constructing its own OrderRepository with a fresh http.Client.
+        // Uses the single wired instance from lib/di/repository_providers.dart.
+        final orderRepository = ref.read(orderRepositoryProvider);
         
         logger.log('Calling getOrderHistory from API');
         final apiOrders = await orderRepository.getOrderHistory();

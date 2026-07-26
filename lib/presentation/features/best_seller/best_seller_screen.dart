@@ -6,15 +6,15 @@ import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_constants.dart';
 import 'package:patelmart/core/widgets/empty_state_widget.dart';
 import 'package:patelmart/core/widgets/error_widgets.dart';
-import 'package:patelmart/core/widgets/favorite_button.dart';
+import 'package:patelmart/presentation/widgets/favorite_button.dart';
 import 'package:patelmart/core/widgets/bottom_navigation_widget.dart';
 import 'package:patelmart/data/models/product_model.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/cart_provider.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 import '../cart/widgets/persistent_cart_widget.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class BestSellerScreen extends ConsumerStatefulWidget {
   final int bestSellerId;

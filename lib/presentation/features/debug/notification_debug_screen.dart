@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../data/services/firebase_notification_service.dart';
+import '../../../di/service_providers.dart';
 
 class NotificationDebugScreen extends ConsumerStatefulWidget {
   const NotificationDebugScreen({super.key});

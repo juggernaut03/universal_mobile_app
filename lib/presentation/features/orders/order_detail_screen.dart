@@ -7,10 +7,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/order_model.dart';
-import '../../../core/utils/logger.dart';
-import '../../providers/launch_flow_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../cart/widgets/persistent_cart_widget.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final Order order;

@@ -6,9 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/data/models/outlet_status_model.dart';
-import 'package:patelmart/data/services/outlet_status_service.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
-import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 
 

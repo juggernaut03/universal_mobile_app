@@ -9,6 +9,7 @@ import '../../../data/models/outlet_model.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/launch_flow_provider.dart';
 import '../../providers/home_refresh_provider.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class OutletSelectionScreen extends ConsumerStatefulWidget {
   final String pincode;

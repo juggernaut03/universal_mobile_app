@@ -20,7 +20,7 @@ plugins {
 
 android {
     namespace = "com.patelrmart.app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = "28.0.13004108"
     
     compileOptions {

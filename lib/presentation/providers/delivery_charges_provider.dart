@@ -1,23 +1,14 @@
 // lib/presentation/providers/delivery_charges_provider.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import '../../core/utils/logger.dart';
 import '../../data/models/address_model.dart';
-import '../../data/models/outlet_model.dart';
 import '../../data/services/delivery_charges_service.dart';
 import 'cart_provider.dart';
-import 'launch_flow_provider.dart';
 import 'outlet_provider.dart';
+import '../../di/service_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider for the DeliveryChargesService
-final deliveryChargesServiceProvider = Provider<DeliveryChargesService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return DeliveryChargesService(
-    client: http.Client(),
-    logger: logger,
-  );
-});
 
 // State for storing delivery charges
 class DeliveryChargesState {

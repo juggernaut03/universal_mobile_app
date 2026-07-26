@@ -6,38 +6,34 @@ import '../../../core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/data/models/address_model.dart';
-import 'package:patelmart/data/models/auth_models.dart';
 import 'package:patelmart/data/models/delivery_slot_model.dart';
 import 'package:patelmart/data/models/payment_method_model.dart';
-import 'package:patelmart/data/models/product_model.dart';
 import 'package:patelmart/data/services/payment_service.dart';
-import 'package:patelmart/presentation/features/checkout/enhanced_payment_flow.dart';
 import 'package:patelmart/presentation/features/outlet_status/outlet_status_banner.dart';
 import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart';
 import 'package:patelmart/presentation/providers/delivery_charges_provider.dart';
 import 'package:patelmart/presentation/providers/delivery_slot_provider.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
 import 'package:patelmart/presentation/providers/order_providers.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 import 'package:patelmart/presentation/providers/payment_method_provider.dart';
-import 'package:patelmart/presentation/providers/reorder_provider.dart';
 import 'package:patelmart/utils/payment_data_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
-import '../../../data/models/outlet_model.dart';
-import '../../../core/auth/centralized_auth_manager.dart';
-import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/checkout_timer_provider.dart';
 import '../checkout/widgets/checkout_timer_widget.dart';
 import 'package:patelmart/presentation/features/account/address_book_screen.dart' as address;
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
+import '../../../di/service_providers.dart';
+import '../../../di/infrastructure_providers.dart';
+import '../../../di/auth_providers.dart';
+import '../../../domain/entities/auth_session.dart';
 
 // Checkout step enum to track progress
 enum CheckoutStep {
@@ -3006,7 +3002,7 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
     );
   }
 
-  String _buildSpecialNotes(UserProfile? userProfile) {
+  String _buildSpecialNotes(AuthSession? userProfile) {
     final List<String> notes = [];
 
     // Add typed special instructions if provided
@@ -3118,13 +3114,12 @@ Future<void> _placeOrder() async {
     final selectedOutlet = ref.read(selectedOutletProvider).value!;
     
     // Get the user profile to access the access key and mobile number
-    final authRepository = ref.read(authRepositoryProvider);
-    final userProfile = await authRepository.getUserProfile();
+    final userProfile = (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
     String? accessKey;
     String? mobileNo;
     
     if (userProfile != null) {
-      accessKey = userProfile.accessKey;
+      accessKey = userProfile.accessToken;
       mobileNo = userProfile.mobile;
     }
     

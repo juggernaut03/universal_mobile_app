@@ -1,4 +1,13 @@
 // lib/data/models/product_model.dart
+//
+// DTO. Owns the wire format and nothing else: snake_case keys, Mongoose
+// `$numberDecimal` wrappers, and `is_ipo_product` arriving as the string "Yes".
+//
+// A ProductModel must not leave the data layer. Repositories convert with
+// [toEntity] so the rest of the app only ever sees a `Product`.
+
+import '../../domain/entities/product.dart';
+
 class ProductModel {
   final String id;
   final String pCode;
@@ -195,7 +204,62 @@ class ProductModel {
   }
 
   /// True if product should be shown — in stock and has a valid price.
-  bool get isAvailable => storeQuantity > 0 && ourPrice > 0;
+  ///
+  /// Retained for the screens still reading ProductModel directly. The
+  /// authoritative rule is `Product.isAvailable`; this delegates to the same
+  /// condition so the two cannot drift.
+  bool get isAvailable => toEntity().isAvailable;
+
+  /// Converts this DTO into the domain entity.
+  ///
+  /// The only sanctioned way for product data to cross out of `data/`.
+  Product toEntity() => Product(
+        id: id,
+        code: pCode,
+        storeCode: storeCode,
+        name: productName,
+        description: productDescription,
+        brandName: brandName,
+        imageUrl: pcodeImg,
+        barcode: barcode,
+        packageSize: packageSize,
+        packageUnit: packageUnit,
+        mrp: productMrp,
+        sellingPrice: ourPrice,
+        departmentId: deptId,
+        categoryId: categoryId,
+        subCategoryId: subCategoryId,
+        stockQuantity: storeQuantity,
+        maxQuantityAllowed: maxQuantityAllowed,
+        status: pcodestatus,
+        isIpoProduct: isIpoProduct,
+        ipoImageUrl: ipoImg,
+      );
+
+  /// Rebuilds a DTO from an entity, for the paths that still persist or send
+  /// ProductModel JSON (cart storage, order payloads).
+  factory ProductModel.fromEntity(Product product) => ProductModel(
+        id: product.id,
+        pCode: product.code,
+        pcodeImg: product.imageUrl,
+        barcode: product.barcode,
+        productName: product.name,
+        productDescription: product.description,
+        packageSize: product.packageSize,
+        packageUnit: product.packageUnit,
+        productMrp: product.mrp,
+        ourPrice: product.sellingPrice,
+        brandName: product.brandName,
+        storeCode: product.storeCode,
+        pcodestatus: product.status,
+        deptId: product.departmentId,
+        categoryId: product.categoryId,
+        subCategoryId: product.subCategoryId,
+        storeQuantity: product.stockQuantity,
+        maxQuantityAllowed: product.maxQuantityAllowed,
+        ipoImg: product.ipoImageUrl,
+        isIpoProduct: product.isIpoProduct,
+      );
 
   @override
   String toString() {

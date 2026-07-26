@@ -9,14 +9,12 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/bottom_navigation_widget.dart';
 import '../../../core/widgets/error_widgets.dart';
-import '../../../core/widgets/search_widget.dart';
 import '../../providers/subcategory_providers.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
-import '../../providers/launch_flow_provider.dart';
-import '../../providers/best_seller_providers.dart';
 import 'widgets/product_item_widget.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class SubcategoryScreen extends ConsumerStatefulWidget {
   final String categoryName;

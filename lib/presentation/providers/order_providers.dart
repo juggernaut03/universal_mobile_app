@@ -4,30 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/services/payment_service.dart';
 import '../../data/services/order_service.dart';
 import '../../data/services/order_payment_processing_service.dart';
-import 'auth_providers.dart';
-import 'cart_provider.dart';
-import 'launch_flow_provider.dart';
 
 // Enhanced payment service provider
-final paymentServiceProvider = Provider<PaymentService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  final apiClient = ref.watch(apiClientProvider);
-  return PaymentService(logger: logger, apiClient: apiClient);
-});
 
 // Order service provider
-final orderServiceProvider = Provider<OrderService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  final apiClient = ref.watch(apiClientProvider);
-  return OrderService(logger: logger, apiClient: apiClient);
-});
 
-// Order payment processing service provider (pre-payment server cart sync)
-final orderPaymentProcessingServiceProvider = Provider<OrderPaymentProcessingService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  final cartValidator = ref.watch(cartValidatorProvider);
-  return OrderPaymentProcessingService(logger: logger, cartValidator: cartValidator);
-});
+// orderPaymentProcessingServiceProvider now declared in lib/di/service_providers.dart
 
 // Updated enum to track the current status of the order process
 enum OrderProcessStatus {

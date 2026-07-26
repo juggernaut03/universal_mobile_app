@@ -34,7 +34,6 @@ import '../features/product/single_product_screen.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/store/store_info_screen.dart';
 import '../features/subcategory/subcategory_screen.dart';
-import '../providers/auth_providers.dart';
 import '../providers/launch_flow_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/outlet_provider.dart';
@@ -50,6 +49,8 @@ import '../../main.dart';
 
 // Import for debug screens
 import '../features/debug/notification_debug_screen.dart';
+import '../../di/auth_providers.dart';
+import '../../di/infrastructure_providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final launchState = ref.watch(launchFlowProvider);
@@ -255,7 +256,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         // redirect: (context, state) async {
         //   // Check if user is logged in
         //   final container = ProviderScope.containerOf(context);
-        //   final authRepository = container.read(authRepositoryProvider);
+        //   final authRepository = container.read(legacyAuthRepositoryProvider);
           
         //   final isLoggedIn = await authRepository.isLoggedIn();
         //   if (!isLoggedIn) {
@@ -287,9 +288,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) async {
           // Check if user is logged in
           final container = ProviderScope.containerOf(context);
-          final authRepository = container.read(authRepositoryProvider);
-          
-          final isLoggedIn = await authRepository.isLoggedIn();
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/my-orders';
           }
@@ -304,9 +303,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) async {
           // Check if user is logged in
           final container = ProviderScope.containerOf(context);
-          final authRepository = container.read(authRepositoryProvider);
-          
-          final isLoggedIn = await authRepository.isLoggedIn();
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/savings';
           }
@@ -321,9 +318,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) async {
           // Check if user is logged in
           final container = ProviderScope.containerOf(context);
-          final authRepository = container.read(authRepositoryProvider);
-          
-          final isLoggedIn = await authRepository.isLoggedIn();
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/reorder';
           }
@@ -354,9 +349,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) async {
           // Check if user is logged in
           final container = ProviderScope.containerOf(context);
-          final authRepository = container.read(authRepositoryProvider);
-          
-          final isLoggedIn = await authRepository.isLoggedIn();
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/profile';
           }
@@ -409,9 +402,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   redirect: (context, state) async {
     // Check if user is logged in
     final container = ProviderScope.containerOf(context);
-    final authRepository = container.read(authRepositoryProvider);
-    
-    final isLoggedIn = await authRepository.isLoggedIn();
+    final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
     if (!isLoggedIn) {
       return '/auth/login?redirectRoute=/checkout-flow'; // ✅ Protected
     }
@@ -446,9 +437,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) async {
           // Check if user is logged in
           final container = ProviderScope.containerOf(context);
-          final authRepository = container.read(authRepositoryProvider);
-          
-          final isLoggedIn = await authRepository.isLoggedIn();
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/favorites';
           }
@@ -473,10 +462,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) async {
           // Get the repository reference
           final container = ProviderScope.containerOf(context);
-          final authRepository = container.read(authRepositoryProvider);
-          
           // Check if user is logged in
-          final isLoggedIn = await authRepository.isLoggedIn();
+          final isLoggedIn =
+              await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/address-book';
           }

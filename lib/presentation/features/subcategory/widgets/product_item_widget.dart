@@ -3,15 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/core/widgets/favorite_button.dart';
+import 'package:patelmart/presentation/widgets/favorite_button.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/widgets/cached_network_image_widget.dart';
 import '../../../../data/models/product_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/outlet_provider.dart';
-import '../../../providers/launch_flow_provider.dart';
+import '../../../../di/infrastructure_providers.dart';
 import '../../../providers/outlet_status_provider.dart'; // Add this import for outlet status
 
 class ProductItemWidget extends ConsumerStatefulWidget {

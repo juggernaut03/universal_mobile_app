@@ -158,63 +158,7 @@ Color hexToColor(String hexString) {
   }
 }
 
-/// State provider to control force refresh
-final refreshSeasonalCategoryProvider = StateProvider<bool>((ref) => false);
 
-/// Loading state provider for seasonal categories - prevents shuffling during refresh
-final seasonalCategoryLoadingProvider = StateProvider<bool>((ref) => false);
-
-/// Riverpod provider for seasonal categories with refresh capability
-final seasonalCategoryProvider = FutureProvider.family<SeasonalCategoryResponse, SeasonalCategoryParams>((ref, params) async {
-  // Use ref.read (NOT ref.watch) to avoid an infinite rebuild loop:
-  // if we watch this flag and then reset it inside the async body,
-  // the provider would detect the state change and restart itself endlessly.
-  final forceRefresh = ref.read(refreshSeasonalCategoryProvider);
-
-  return SeasonalCategoryApi.fetchSeasonalCategories(
-    storeCode: params.storeCode,
-    departmentId: params.departmentId,
-    forceRefresh: forceRefresh,
-  );
-  // Flag reset is handled externally by seasonalCategoryRefreshProvider.finally
-});
-
-/// Provider for controlling pull-to-refresh functionality
-/// Implements the "clear state before fetch" pattern to prevent shuffling
-final seasonalCategoryRefreshProvider = Provider<Future<void> Function()>((ref) {
-  return () async {
-    // 1. Set loading state FIRST to show loader immediately (prevents shuffling)
-    ref.read(seasonalCategoryLoadingProvider.notifier).state = true;
-
-    // 2. Set the refresh flag to trigger fresh API call
-    ref.read(refreshSeasonalCategoryProvider.notifier).state = true;
-
-    try {
-      // 3. Get the current outlet to determine params
-      final outletAsync = ref.read(selectedOutletProvider);
-
-      final outlet = outletAsync.valueOrNull;
-      if (outlet != null) {
-        final params = SeasonalCategoryParams(
-          storeCode: outlet.storeCode,
-          departmentId: 2, // default department ID
-        );
-        // 4. Actually await the network fetch so RefreshIndicator completes correctly
-        final refreshFuture = ref.refresh(seasonalCategoryProvider(params).future);
-        await refreshFuture;
-      } else {
-        // No outlet yet — just wait a short moment then reset
-        await Future.delayed(const Duration(milliseconds: 300));
-      }
-    } catch (_) {
-      // Swallow errors so the refresh chain doesn't break
-    } finally {
-      // 5. Reset both flags after refresh completes or fails
-      ref.read(refreshSeasonalCategoryProvider.notifier).state = false;
-      ref.read(seasonalCategoryLoadingProvider.notifier).state = false;
-    }
-  };
-});
 
 /// Parameters for the provider
 class SeasonalCategoryParams {
@@ -686,3 +630,60 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     );
   }
 }
+
+final refreshSeasonalCategoryProvider = StateProvider<bool>((ref) => false);
+
+/// Loading state provider for seasonal categories - prevents shuffling during refresh
+final seasonalCategoryLoadingProvider = StateProvider<bool>((ref) => false);
+
+/// Riverpod provider for seasonal categories with refresh capability
+final seasonalCategoryProvider = FutureProvider.family<SeasonalCategoryResponse, SeasonalCategoryParams>((ref, params) async {
+  // Use ref.read (NOT ref.watch) to avoid an infinite rebuild loop:
+  // if we watch this flag and then reset it inside the async body,
+  // the provider would detect the state change and restart itself endlessly.
+  final forceRefresh = ref.read(refreshSeasonalCategoryProvider);
+
+  return SeasonalCategoryApi.fetchSeasonalCategories(
+    storeCode: params.storeCode,
+    departmentId: params.departmentId,
+    forceRefresh: forceRefresh,
+  );
+  // Flag reset is handled externally by seasonalCategoryRefreshProvider.finally
+});
+
+/// Provider for controlling pull-to-refresh functionality
+/// Implements the "clear state before fetch" pattern to prevent shuffling
+final seasonalCategoryRefreshProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    // 1. Set loading state FIRST to show loader immediately (prevents shuffling)
+    ref.read(seasonalCategoryLoadingProvider.notifier).state = true;
+
+    // 2. Set the refresh flag to trigger fresh API call
+    ref.read(refreshSeasonalCategoryProvider.notifier).state = true;
+
+    try {
+      // 3. Get the current outlet to determine params
+      final outletAsync = ref.read(selectedOutletProvider);
+
+      final outlet = outletAsync.valueOrNull;
+      if (outlet != null) {
+        final params = SeasonalCategoryParams(
+          storeCode: outlet.storeCode,
+          departmentId: 2, // default department ID
+        );
+        // 4. Actually await the network fetch so RefreshIndicator completes correctly
+        final refreshFuture = ref.refresh(seasonalCategoryProvider(params).future);
+        await refreshFuture;
+      } else {
+        // No outlet yet — just wait a short moment then reset
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+    } catch (_) {
+      // Swallow errors so the refresh chain doesn't break
+    } finally {
+      // 5. Reset both flags after refresh completes or fails
+      ref.read(refreshSeasonalCategoryProvider.notifier).state = false;
+      ref.read(seasonalCategoryLoadingProvider.notifier).state = false;
+    }
+  };
+});

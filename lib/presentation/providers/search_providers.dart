@@ -2,7 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'launch_flow_provider.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Search history item model
 class SearchHistoryItem {

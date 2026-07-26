@@ -1,21 +1,11 @@
 // lib/presentation/providers/delivery_slot_provider.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import '../../core/utils/logger.dart';
 import '../../data/models/delivery_slot_model.dart';
-import '../../data/services/delivery_slot_service.dart';
-import 'launch_flow_provider.dart';
 import 'outlet_provider.dart';
+import '../../di/service_providers.dart';
 
 // Provider for the DeliverySlotService
-final deliverySlotServiceProvider = Provider<DeliverySlotService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return DeliverySlotService(
-    client: http.Client(),
-    logger: logger,
-  );
-});
 
 // Provider for delivery slots based on selected outlet
 final deliverySlotsProvider = FutureProvider<List<DeliverySlot>>((ref) async {

@@ -1,5 +1,7 @@
 // lib/data/models/pincode_model.dart
 
+import '../../domain/entities/pincode.dart';
+
 class PincodeModel {
   final String id;
   final String pincode;
@@ -22,6 +24,10 @@ class PincodeModel {
       'pincode': pincode,
     };
   }
+
+  /// Converts to the domain value object, or null when the backend sent
+  /// something that is not a valid pincode.
+  Pincode? toEntity() => Pincode.tryParse(pincode);
 }
 
 class PincodeCheckResponse {
@@ -44,4 +50,14 @@ class PincodeCheckResponse {
   }
 
   bool isPincodeServiceable() => count == 1;
+
+  /// Converts to the domain answer.
+  ///
+  /// The wire format reports serviceability as `count == 1`; the entity states
+  /// it as a boolean.
+  Serviceability toEntity(Pincode pincode) => Serviceability(
+        pincode: pincode,
+        isServiceable: count == 1,
+        message: message,
+      );
 }

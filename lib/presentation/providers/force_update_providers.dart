@@ -3,11 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/data/services/force_update_service.dart';
+import '../../di/service_providers.dart';
 
 /// Provider for the force update service
-final forceUpdateServiceProvider = Provider<ForceUpdateService>((ref) {
-  return ForceUpdateService();
-});
 
 /// Provider to check for app updates
 final updateCheckProvider = FutureProvider<UpdateCheckResponse>((ref) async {

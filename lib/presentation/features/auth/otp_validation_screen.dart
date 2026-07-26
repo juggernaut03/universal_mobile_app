@@ -5,18 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
-import '../../../core/widgets/back_button_wrapper.dart';
-import '../../../core/auth/centralized_auth_manager.dart';
+import '../../../presentation/widgets/back_button_wrapper.dart';
 import '../../providers/auth_providers.dart';
-import 'package:patelmart/data/models/auth_models.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
+import '../../../core/result/result.dart';
+import '../../../di/auth_providers.dart';
+import '../../../domain/usecases/auth/request_otp.dart';
+import '../../../domain/usecases/auth/verify_otp.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class OtpValidationScreen extends ConsumerStatefulWidget {
   final String mobileNumber;
@@ -90,8 +92,12 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
     });
 
     try {
-      final repository = ref.read(authRepositoryProvider);
-      await repository.requestOtp(widget.mobileNumber);
+      final resend = await ref.read(requestOtpUseCaseProvider)(
+        RequestOtpParams(mobile: widget.mobileNumber),
+      );
+      if (resend case Err(:final failure)) {
+        throw Exception(failure.userMessage);
+      }
       
       // Start the countdown timer again
       _startResendTimer();
@@ -116,93 +122,58 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
   }
 
   Future<void> _validateOtp() async {
-    final otp = _otpController.text.trim();
-    
-    // Validate OTP format
-    if (otp.isEmpty || otp.length < 4) {
-      _errorController.add(ErrorAnimationType.shake);
-      setState(() {
-        _errorMessage = 'Please enter a valid OTP';
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
-    try {
-      // Validate OTP
-      final repository = ref.read(authRepositoryProvider);
-      final validationResponse = await repository.validateOtp(widget.mobileNumber, otp);
-      
-      if (validationResponse.isSuccessful()) {
-        // Update login state to success
+    // The OTP format rule lives in the VerifyOtp use case now, alongside the
+    // mobile-number rule, instead of being restated in each screen.
+    final result = await ref.read(verifyOtpUseCaseProvider)(
+      VerifyOtpParams(
+        mobile: widget.mobileNumber,
+        otp: _otpController.text.trim(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    switch (result) {
+      case Ok(value: final session):
+        // The session is already persisted by the repository — the screen no
+        // longer builds a UserProfile and calls saveUserProfile itself.
         ref.read(loginStateProvider.notifier).state = LoginState.success;
-        
-        // Save user profile to centralized auth manager
-        final authManager = ref.read(centralizedAuthManagerProvider);
-        final userProfile = UserProfile(
-          mobile: validationResponse.mobileNumber.toString(),
-          accessKey: validationResponse.accessKey,
-          loginTime: DateTime.now(),
-        );
-        await authManager.saveUserProfile(userProfile);
-        
-        // Log success information
-        ref.read(loggerProvider).log('OTP validation successful: ${validationResponse.message}');
-        
-        // Track successful login with Facebook Pixel
+        ref.read(loggerProvider).log('Signed in as ${session.mobile}');
+
         await FacebookPixelIntegration.trackUserAuth(
           ref,
           eventType: 'login',
-          userId: validationResponse.mobileNumber.toString(),
+          userId: session.mobile,
           method: 'phone',
         );
-        
-        // Navigate to redirect route or home screen
+
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+
         final route = widget.redirectRoute ?? '/home';
-        
-        // Use pushReplacement to clear the auth flow stack and go to destination
-        if (mounted) {
-          // Clear the navigation stack and go to the intended route
-          context.go(route);
-          
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Welcome! You are now logged in.'),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          
-          // Log the successful redirect
-          ref.read(loggerProvider).log('Successfully redirected to: $route');
-        }
-      } else {
+        context.go(route);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Welcome! You are now logged in.'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+      case Err(:final failure):
+        ref.read(loggerProvider).error('OTP validation failed: ${failure.message}');
         setState(() {
-          _errorMessage = 'Invalid OTP or authentication failed. Please try again.';
-        });
-        _errorController.add(ErrorAnimationType.shake);
-        
-        // Log failure information
-        ref.read(loggerProvider).log('OTP validation failed: ${validationResponse.message}');
-      }
-    } catch (e) {
-      ref.read(loggerProvider).error('Error during OTP validation: $e');
-      
-      setState(() {
-        _errorMessage = 'Failed to validate OTP: ${e.toString()}';
-      });
-      _errorController.add(ErrorAnimationType.shake);
-    } finally {
-      if (mounted) {
-        setState(() {
+          // Was 'Failed to validate OTP: ${e.toString()}'. A wrong code and a
+          // dropped connection now say different, accurate things.
+          _errorMessage = failure.userMessage;
           _isLoading = false;
         });
-      }
+        _errorController.add(ErrorAnimationType.shake);
     }
   }
 

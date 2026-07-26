@@ -7,11 +7,11 @@ import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/category_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
-import 'package:patelmart/presentation/providers/launch_flow_provider.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart'
     show bannerProvider, categoriesProvider, seasonalPicksRefreshProvider;
 import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
+import '../../di/infrastructure_providers.dart';
 
 // Provider to track overall home screen refresh state
 final homeScreenRefreshStateProvider = StateProvider<bool>((ref) => false);

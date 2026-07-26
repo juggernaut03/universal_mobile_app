@@ -1,19 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
-import '../../core/utils/logger.dart';
 import '../../data/models/outlet_status_model.dart';
-import '../../data/services/outlet_status_service.dart';
-import 'launch_flow_provider.dart';
 import 'outlet_provider.dart';
+import '../../di/service_providers.dart';
 
 // Provider for the OutletStatusService
-final outletStatusServiceProvider = Provider<OutletStatusService>((ref) {
-  final logger = ref.watch(loggerProvider);
-  return OutletStatusService(
-    client: http.Client(),
-    logger: logger,
-  );
-});
 
 // Provider for current outlet status based on selected outlet
 final currentOutletStatusProvider = FutureProvider<OutletStatus?>((ref) async {

@@ -3,8 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/auth/centralized_auth_manager.dart' as centralized;
 import '../../providers/auth_providers.dart';
+import '../../../di/infrastructure_providers.dart';
 
 class AuthDebugScreen extends ConsumerWidget {
   const AuthDebugScreen({Key? key}) : super(key: key);
@@ -122,7 +122,7 @@ class AuthDebugScreen extends ConsumerWidget {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
-                      final authManager = ref.read(centralized.centralizedAuthManagerProvider);
+                      final authManager = ref.read(centralizedAuthManagerProvider);
                       await authManager.refreshValidation();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Auth validation refreshed')),

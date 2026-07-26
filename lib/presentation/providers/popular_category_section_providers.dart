@@ -2,30 +2,19 @@
 // Completely separated providers for each section to avoid any state mixing
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import '../../core/network/api_client.dart';
 import '../../data/models/popular_category_models.dart';
-import '../../data/repositories/popular_category_repository.dart';
-import 'launch_flow_provider.dart';
 import 'outlet_provider.dart';
+import '../../di/repository_providers.dart';
 
 // ============================================
 // SECTION 2 - Completely Isolated
 // ============================================
 
-final section2CacheManagerProvider = Provider<DefaultCacheManager>((ref) {
-  return DefaultCacheManager();
-});
 
-final section2RepositoryProvider = Provider<PopularCategoryRepository>((ref) {
-  final apiClient = ApiClient(logger: ref.watch(loggerProvider));
-  final cacheManager = ref.watch(section2CacheManagerProvider);
-  return PopularCategoryRepository(
-    apiClient: apiClient,
-    logger: ref.watch(loggerProvider),
-    cacheManager: cacheManager,
-  );
-});
+/// Alias of the shared repository. Sections 2-5 each declared their own
+/// instance with its own DefaultCacheManager; that cache manager is a
+/// singleton, so the four were never actually isolated.
+final section2RepositoryProvider = popularCategoryRepositoryProvider;
 
 final section2RefreshFlagProvider = StateProvider<bool>((ref) => false);
 
@@ -62,19 +51,11 @@ final section2RefreshProvider = Provider<Future<void> Function()>((ref) {
 // SECTION 3 - Completely Isolated
 // ============================================
 
-final section3CacheManagerProvider = Provider<DefaultCacheManager>((ref) {
-  return DefaultCacheManager();
-});
 
-final section3RepositoryProvider = Provider<PopularCategoryRepository>((ref) {
-  final apiClient = ApiClient(logger: ref.watch(loggerProvider));
-  final cacheManager = ref.watch(section3CacheManagerProvider);
-  return PopularCategoryRepository(
-    apiClient: apiClient,
-    logger: ref.watch(loggerProvider),
-    cacheManager: cacheManager,
-  );
-});
+/// Alias of the shared repository. Sections 2-5 each declared their own
+/// instance with its own DefaultCacheManager; that cache manager is a
+/// singleton, so the four were never actually isolated.
+final section3RepositoryProvider = popularCategoryRepositoryProvider;
 
 final section3RefreshFlagProvider = StateProvider<bool>((ref) => false);
 
@@ -110,19 +91,11 @@ final section3RefreshProvider = Provider<Future<void> Function()>((ref) {
 // SECTION 4 - Completely Isolated
 // ============================================
 
-final section4CacheManagerProvider = Provider<DefaultCacheManager>((ref) {
-  return DefaultCacheManager();
-});
 
-final section4RepositoryProvider = Provider<PopularCategoryRepository>((ref) {
-  final apiClient = ApiClient(logger: ref.watch(loggerProvider));
-  final cacheManager = ref.watch(section4CacheManagerProvider);
-  return PopularCategoryRepository(
-    apiClient: apiClient,
-    logger: ref.watch(loggerProvider),
-    cacheManager: cacheManager,
-  );
-});
+/// Alias of the shared repository. Sections 2-5 each declared their own
+/// instance with its own DefaultCacheManager; that cache manager is a
+/// singleton, so the four were never actually isolated.
+final section4RepositoryProvider = popularCategoryRepositoryProvider;
 
 final section4RefreshFlagProvider = StateProvider<bool>((ref) => false);
 
@@ -158,19 +131,11 @@ final section4RefreshProvider = Provider<Future<void> Function()>((ref) {
 // SECTION 5 - Completely Isolated
 // ============================================
 
-final section5CacheManagerProvider = Provider<DefaultCacheManager>((ref) {
-  return DefaultCacheManager();
-});
 
-final section5RepositoryProvider = Provider<PopularCategoryRepository>((ref) {
-  final apiClient = ApiClient(logger: ref.watch(loggerProvider));
-  final cacheManager = ref.watch(section5CacheManagerProvider);
-  return PopularCategoryRepository(
-    apiClient: apiClient,
-    logger: ref.watch(loggerProvider),
-    cacheManager: cacheManager,
-  );
-});
+/// Alias of the shared repository. Sections 2-5 each declared their own
+/// instance with its own DefaultCacheManager; that cache manager is a
+/// singleton, so the four were never actually isolated.
+final section5RepositoryProvider = popularCategoryRepositoryProvider;
 
 final section5RefreshFlagProvider = StateProvider<bool>((ref) => false);
 

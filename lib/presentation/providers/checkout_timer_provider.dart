@@ -3,7 +3,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/logger.dart';
-import 'launch_flow_provider.dart';
+import '../../di/infrastructure_providers.dart';
 
 // ⚙️ TIMER CONFIGURATION - Centralized settings
 class CheckoutTimerConfig {
