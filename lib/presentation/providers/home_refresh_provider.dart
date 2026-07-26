@@ -2,17 +2,15 @@
 // Optional unified provider for better organization
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:patelmart/presentation/features/home/widgets/promotional_banner_widget.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 import 'package:patelmart/presentation/providers/category_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_providers.dart';
 import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
-import 'package:patelmart/presentation/features/home/widgets/seasonal_picks_widget.dart'
-    show bannerProvider, categoriesProvider, seasonalPicksRefreshProvider;
-import 'package:patelmart/presentation/features/home/widgets/seasonal_category_widget.dart';
 import '../../di/infrastructure_providers.dart';
 import 'promotional_banner_providers.dart';
+import 'seasonal_picks_widget_providers.dart';
+import 'seasonal_category_widget_providers.dart';
 
 // Provider to track overall home screen refresh state
 final homeScreenRefreshStateProvider = StateProvider<bool>((ref) => false);

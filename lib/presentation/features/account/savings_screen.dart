@@ -6,9 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../data/models/order_model.dart';
-import '../../../di/repository_providers.dart';
-import '../../../di/auth_providers.dart';
 import '../../providers/savings_providers.dart';
 
 // Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:patelmart/presentation/widgets/favorite_button.dart';
 import 'package:patelmart/data/models/product_model.dart';
-import 'package:patelmart/presentation/features/orders/my_orders_screen.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/bottom_navigation_widget.dart';
@@ -15,6 +14,7 @@ import '../../providers/outlet_status_provider.dart';
 import '../../providers/location_provider.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
 import '../../../di/infrastructure_providers.dart';
+import '../../providers/orders_screen_providers.dart';
 
 // Define ReorderItem at the top level
 class ReorderItem {
