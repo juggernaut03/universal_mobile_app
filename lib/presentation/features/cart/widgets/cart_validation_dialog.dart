@@ -20,8 +20,10 @@ class CartValidationDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Debug print to verify dialog is being built
-    if (kDebugMode) print('Building CartValidationDialog with ${result.removedItems.length} removed items, '
+    if (kDebugMode) {
+      print('Building CartValidationDialog with ${result.removedItems.length} removed items, '
           '${result.priceChangedItems.length} price changes, and ${result.itemsWithIssues.length} items with issues');
+    }
     if (kDebugMode) print('Cart validation message: "${result.validationMessage}"');
     if (kDebugMode) print('Is save error: ${result.isSaveError}');
 
@@ -104,7 +106,7 @@ class CartValidationDialog extends StatelessWidget {
                 _buildIssueList(
                   "Items out of stock:", 
                   result.removedItems.map((item) => 
-                    "${item.product.productName}"
+                    item.product.productName
                   ).toList()
                 ),
                 

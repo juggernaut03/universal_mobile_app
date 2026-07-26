@@ -478,7 +478,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
   }
 
   /// Perform iOS-specific post-initialization checks
-  void _performIOSPostInitializationChecks(INotificationService service, Logger logger) async {
+  Future<void> _performIOSPostInitializationChecks(INotificationService service, Logger logger) async {
     try {
       logger.log('🍎 Performing iOS post-initialization checks...');
       

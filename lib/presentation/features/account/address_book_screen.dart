@@ -291,7 +291,7 @@ class AddressBookScreen extends ConsumerWidget {
     );
   }
 
-  void _navigateToEditAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
+  Future<void> _navigateToEditAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Preparing to edit address: ${address.id}');
     
     try {
@@ -357,7 +357,7 @@ class AddressBookScreen extends ConsumerWidget {
 
   // Updated implementation using centralized access key management
   // Set default via the universal backend (update-address with is_default Yes)
-  void _setAsDefault(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
+  Future<void> _setAsDefault(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Setting address as default: ${address.id}');
 
     // Show loading dialog
@@ -434,7 +434,7 @@ class AddressBookScreen extends ConsumerWidget {
   }
 
   // Delete via the universal backend (DELETE /api/address-crud/delete-address/:id)
-  void _deleteAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
+  Future<void> _deleteAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Deleting address: ${address.id}');
 
     // Show loading dialog

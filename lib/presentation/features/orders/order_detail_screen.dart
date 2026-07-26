@@ -685,7 +685,7 @@ Widget _buildItemsList(Order order) {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${item.product.productName}',
+                      item.product.productName,
                       style: TextStyle(
                         fontWeight: FontWeight.w500,
                         fontSize: 12,

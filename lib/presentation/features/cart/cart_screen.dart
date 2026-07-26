@@ -237,17 +237,6 @@ class CartScreen extends ConsumerWidget {
     );
   }
 
-  /// Format cart total for display in badge
-  String _formatCartTotal(double total) {
-    if (total >= 1000) {
-      // Show in K format for values >= 1000
-      return '${(total / 1000).toStringAsFixed(total % 1000 == 0 ? 0 : 1)}K';
-    } else {
-      // Show full amount for values < 1000
-      return total.toStringAsFixed(total.truncateToDouble() == total ? 0 : 2);
-    }
-  }
-
   Widget _buildCartSummary(BuildContext context, double savings, double total) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -739,7 +728,7 @@ class CartScreen extends ConsumerWidget {
     }
   }
   
-  void _continueToCheckout(BuildContext context, WidgetRef ref) async {
+  Future<void> _continueToCheckout(BuildContext context, WidgetRef ref) async {
     // Reset retry count since we're proceeding
     ref.read(validationRetryCountProvider.notifier).state = 0;
     
@@ -760,7 +749,7 @@ class CartScreen extends ConsumerWidget {
     }
   }
   
-  void _autoUpdateCartBasedOnValidation(
+  Future<void> _autoUpdateCartBasedOnValidation(
     BuildContext context, 
     WidgetRef ref, 
     CartValidationResult result
@@ -946,75 +935,4 @@ class CartScreen extends ConsumerWidget {
     }
   }
   
-  void _showMinOrderModal(BuildContext context, double minimumOrderValue) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.shopping_bag_outlined,
-                size: 48,
-                color: AppColors.primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Minimum Order Value Required',
-                style: AppTextStyles.h5,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Your cart value is under ₹${minimumOrderValue.toStringAsFixed(minimumOrderValue.truncateToDouble() == minimumOrderValue ? 0 : 2)}. Please add more items to proceed with checkout.',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  // Close modal and navigate to home/products
-                  Navigator.pop(context);
-                  context.go('/home');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: Text(
-                  'CONTINUE SHOPPING',
-                  style: AppTextStyles.buttonMedium.copyWith(
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () {
-                  // Just close the modal
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  'CLOSE',
-                  style: AppTextStyles.buttonMedium.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
