@@ -12,6 +12,20 @@ import '../../di/infrastructure_providers.dart';
 // cartSessionManagerProvider moved to lib/di/service_providers.dart
 
 // Enhanced cart validator that includes session management
+/// Order-session lifecycle around a cart.
+///
+/// Named "EnhancedCartValidator", but it never validated anything — of its 21
+/// methods, exactly one (`processCartValidation`) touched validation, and that
+/// one delegates straight to CartValidator. The rest were session bookkeeping,
+/// and 14 of them had no callers at all.
+///
+/// The name is kept for now because the checkout screens reference it; the
+/// class is what remains after the dead code was removed.
+///
+/// NOTE: the mark* methods swallow their errors and only log. A failed
+/// `markOrderAsCompleted` therefore looks like success to the caller, on the
+/// order path. Changing that is a behaviour change and is left for the device
+/// pass to inform.
 class EnhancedCartValidator {
   final CartValidator _cartValidator;
   final CartSessionManager _sessionManager;
@@ -103,45 +117,6 @@ class EnhancedCartValidator {
     }
   }
   
-  /// FIXED: Prepare for new order - ensure fresh identifiers
-  Future<Map<String, String?>> prepareForNewOrder() async {
-    try {
-      _logger.log('=== PREPARING FOR NEW ORDER ===');
-      
-      // Always create a completely new session for new orders
-      await _sessionManager.createNewOrderSession();
-      
-      // Small delay to ensure session is created
-      await Future.delayed(Duration(milliseconds: 100));
-      
-      // Get the fresh identifiers
-      final identifiers = await getCurrentCartIdentifiers();
-      
-      _logger.log('New order preparation complete:');
-      _logger.log('- Fresh Temp Order ID: ${identifiers['temp_order_id']}');
-      _logger.log('- Fresh Cart Key: ${identifiers['cart_key']}');
-      _logger.log('- Device ID: ${identifiers['device_id']}');
-      
-      return identifiers;
-    } catch (e) {
-      _logger.error('Error preparing for new order: $e');
-      
-      // Force fallback session creation
-      try {
-        await _sessionManager.resetCartSession();
-        await Future.delayed(Duration(milliseconds: 100));
-        final fallbackIdentifiers = await getCurrentCartIdentifiers();
-        return fallbackIdentifiers;
-      } catch (fallbackError) {
-        _logger.error('Fallback session creation failed: $fallbackError');
-        return {
-          'temp_order_id': null,
-          'cart_key': null,
-          'device_id': null,
-        };
-      }
-    }
-  }
 
   /// FIXED: Ensure session is ready for order placement with null safety
   // Future<bool> ensureSessionReadyForOrder() async {
@@ -214,43 +189,10 @@ class EnhancedCartValidator {
   //   }
   // }
   
-  /// Get current cart key (with session validation)
-  Future<String?> getCurrentCartKey() async {
-    final identifiers = await getCurrentCartIdentifiers();
-    return identifiers['cart_key'];
-  }
   
-  /// Get current device ID (with session validation)
-  Future<String?> getCurrentDeviceId() async {
-    final identifiers = await getCurrentCartIdentifiers();
-    return identifiers['device_id'];
-  }
   
-  /// Get current temp order ID (with session validation)
-  Future<String?> getCurrentTempOrderId() async {
-    final identifiers = await getCurrentCartIdentifiers();
-    return identifiers['temp_order_id'];
-  }
   
-  /// Mark that cart has been modified (user added/removed items)
-  Future<void> markCartAsModified() async {
-    try {
-      await _sessionManager.updateCartModification();
-      _logger.log('Marked cart as modified');
-    } catch (e) {
-      _logger.error('Error marking cart as modified: $e');
-    }
-  }
   
-  /// Mark order as processing (when user clicks "Place Order")
-  Future<void> markOrderAsProcessing(String tempOrderId) async {
-    try {
-      await _sessionManager.markOrderAsProcessing(tempOrderId);
-      _logger.log('Marked order as processing: $tempOrderId');
-    } catch (e) {
-      _logger.error('Error marking order as processing: $e');
-    }
-  }
   
   /// Mark order as payment processing (when payment processing API is called)
   Future<void> markOrderAsPaymentProcessing(String tempOrderId) async {
@@ -284,15 +226,6 @@ class EnhancedCartValidator {
     }
   }
   
-  /// Force reset cart session (for manual reset)
-  Future<void> resetCartSession() async {
-    try {
-      await _sessionManager.resetCartSession();
-      _logger.log('Force reset cart session');
-    } catch (e) {
-      _logger.error('Error force resetting cart session: $e');
-    }
-  }
   
   /// Process cart validation using existing cart validator
   Future<CartValidationResult?> processCartValidation(
@@ -302,15 +235,6 @@ class EnhancedCartValidator {
     return await _cartValidator.processCartValidation(cartItems, storeCode);
   }
 
-  /// Get session debug information
-  Future<Map<String, dynamic>> getSessionDebugInfo() async {
-    try {
-      return await _sessionManager.getSessionInfo();
-    } catch (e) {
-      _logger.error('Error getting session debug info: $e');
-      return {'error': e.toString()};
-    }
-  }
   
   /// FIXED: Ensure session is ready for order placement
   Future<bool> ensureSessionReadyForOrder() async {
@@ -362,67 +286,11 @@ class EnhancedCartValidator {
     }
   }
 
-  /// FIXED: Safe session validation wrapper
-  Future<bool> isSessionValid() async {
-    try {
-      final result = await _sessionManager.isCartSessionValid();
-      return result ?? false; // Handle null case
-    } catch (e) {
-      _logger.error('Error checking session validity: $e');
-      return false;
-    }
-  }
 
-  /// FIXED: Safe session state getter
-  Future<String> getSessionState() async {
-    try {
-      final result = await _sessionManager.getOrderProcessingState();
-      return result ?? 'idle'; // Handle null case
-    } catch (e) {
-      _logger.error('Error getting session state: $e');
-      return 'idle';
-    }
-  }
 
-  /// Check if cart has been modified after processing
-  Future<bool> hasCartBeenModifiedAfterProcessing() async {
-    try {
-      return await _sessionManager.hasCartBeenModifiedAfterProcessing();
-    } catch (e) {
-      _logger.error('Error checking cart modification: $e');
-      return false;
-    }
-  }
 
-  /// Update cart modification timestamp
-  Future<void> updateCartModification() async {
-    try {
-      await _sessionManager.updateCartModification();
-      _logger.log('Updated cart modification timestamp');
-    } catch (e) {
-      _logger.error('Error updating cart modification: $e');
-    }
-  }
 
-  /// Force cleanup and create new session
-  Future<void> forceCleanupAndCreateNew() async {
-    try {
-      await _sessionManager.forceCleanupAndCreateNew();
-      _logger.log('Force cleanup and new session created');
-    } catch (e) {
-      _logger.error('Error in force cleanup: $e');
-    }
-  }
 
-  /// Clear processed order IDs
-  Future<void> clearProcessedOrderIds() async {
-    try {
-      await _sessionManager.clearProcessedOrderIds();
-      _logger.log('Cleared processed order IDs');
-    } catch (e) {
-      _logger.error('Error clearing processed order IDs: $e');
-    }
-  }
 }
 
 // Provider for the original CartValidator
@@ -558,21 +426,8 @@ final cartValidationStateProvider = StateNotifierProvider<CartValidationStateNot
   );
 });
 
-// Additional helper providers for enhanced functionality
-final cartIdentifiersProvider = FutureProvider<Map<String, String?>>((ref) async {
-  final enhancedValidator = ref.watch(enhancedCartValidatorProvider);
-  return await enhancedValidator.getCurrentCartIdentifiers();
-});
 
-final sessionValidityProvider = FutureProvider<bool>((ref) async {
-  final enhancedValidator = ref.watch(enhancedCartValidatorProvider);
-  return await enhancedValidator.isSessionValid();
-});
 
-final sessionStateProvider = FutureProvider<String>((ref) async {
-  final enhancedValidator = ref.watch(enhancedCartValidatorProvider);
-  return await enhancedValidator.getSessionState();
-});
 
 final sessionDebugInfoProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final enhancedValidator = ref.watch(enhancedCartValidatorProvider);
