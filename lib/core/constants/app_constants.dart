@@ -49,6 +49,10 @@ class ApiConstants {
   // ---- Onboarding ----
   static const String onboardingList = '$baseUrl/onboarding/list';
 
+  // ---- Home ----
+  /// Server-defined home layout: ordered, typed sections.
+  static const String homeFeed = '$baseUrl/home/feed';
+
   // ---- Home content ----
   static const String banners = '$baseUrl/banners';
   static const String popularCategoriesList = '$baseUrl/popular-categories/list';

@@ -16,6 +16,7 @@ import '../data/repositories/best_seller_repository.dart';
 import '../data/repositories/category_repository.dart';
 import '../data/repositories/favorites_repository.dart';
 import '../data/repositories/fcm_token_repository.dart';
+import '../data/repositories/home_feed_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/onboarding_repository.dart';
 import '../data/repositories/order_repository.dart';
@@ -73,6 +74,13 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
 
 final subcategoryRepositoryProvider = Provider<SubcategoryRepository>((ref) {
   return SubcategoryRepository(logger: ref.watch(loggerProvider));
+});
+
+final homeFeedRepositoryProvider = Provider<HomeFeedRepository>((ref) {
+  return HomeFeedRepository(
+    apiClient: ref.watch(apiClientProvider),
+    logger: ref.watch(loggerProvider),
+  );
 });
 
 final onboardingRepositoryProvider = Provider<OnboardingRepository>((ref) {
