@@ -1,175 +1,86 @@
-// lib/core/utils/order_status_utils.dart
+// lib/utils/order_status_utils.dart
+//
+// Presentation mapping for order status.
+//
+// Was six independent if/else chains, each substring-matching the raw backend
+// string to re-derive the same classification: getStatusColor, getStatusIcon,
+// getStatusDescription, canCancelOrder, isOrderInProgress, isOrderCompleted.
+//
+// Four of those chains carried `contains('proocessing')` — a workaround for a
+// misspelled backend value — and two did not, so the same order classified
+// differently depending on which helper was asked.
+//
+// Classification now happens once in OrderStatus.parse; this file only maps an
+// already-classified status to Flutter types. Each switch is exhaustive, so a
+// new status forces every mapping to be updated.
 
 import 'package:flutter/material.dart';
 
-/// Utility class for handling order status mapping, colors, and icons
-/// Works with dynamic statuses from API without hard-coded constants
+import '../domain/entities/order_status.dart';
+
+/// Maps order status to the colours, icons and copy the UI needs.
 class OrderStatusUtils {
+  const OrderStatusUtils._();
 
-  /// Get normalized status from API response
+  /// Label shown on status chips.
+  ///
+  /// An unrecognised status is passed through verbatim rather than replaced
+  /// with a generic label. The backend adds statuses without a client release,
+  /// and the original implementation deliberately displayed them as-is —
+  /// substituting "Order placed" would hide a genuinely new state from the user.
   static String normalizeStatus(String apiStatus) {
-    final trimmedStatus = apiStatus.trim();
-
-    // Special case: Show "Pending" for "Order Confirmed" status
-    if (trimmedStatus.toLowerCase() == 'order confirmed') {
-      return 'Pending';
-    }
-
-    // For all other statuses, return as-is from API
-    return trimmedStatus;
+    final status = OrderStatus.parse(apiStatus);
+    return status == OrderStatus.unknown ? apiStatus.trim() : status.label;
   }
 
-  /// Get color for order status
-  static Color getStatusColor(String status) {
-    final normalizedStatus = normalizeStatus(status).toLowerCase();
+  static Color getStatusColor(String status) =>
+      colorFor(OrderStatus.parse(status));
 
-    // Use pattern matching to determine colors based on status content
-    if (normalizedStatus.contains('pending')) {
-      return Colors.orange;
-    } else if (normalizedStatus.contains('processing') || normalizedStatus.contains('proocessing')) {
-      return Colors.blue;
-    } else if (normalizedStatus.contains('packaging') || normalizedStatus.contains('packing')) {
-      return Colors.purple;
-    } else if (normalizedStatus.contains('out for delivery') || normalizedStatus.contains('dispatched') || normalizedStatus.contains('shipped')) {
-      return Colors.amber;
-    } else if (normalizedStatus.contains('delivered')) {
-      return Colors.green;
-    } else if (normalizedStatus.contains('cancelled')) {
-      return Colors.red;
-    } else if (normalizedStatus.contains('confirmed')) {
-      return Colors.blue;
-    } else {
-      return Colors.grey;
-    }
-  }
+  static IconData getStatusIcon(String status) =>
+      iconFor(OrderStatus.parse(status));
 
-  /// Get icon for order status
-  static IconData getStatusIcon(String status) {
-    final normalizedStatus = normalizeStatus(status).toLowerCase();
-
-    // Use pattern matching to determine icons based on status content
-    if (normalizedStatus.contains('pending')) {
-      return Icons.schedule;
-    } else if (normalizedStatus.contains('processing') || normalizedStatus.contains('proocessing')) {
-      return Icons.check_circle_outline;
-    } else if (normalizedStatus.contains('packaging') || normalizedStatus.contains('packing')) {
-      return Icons.inventory_2;
-    } else if (normalizedStatus.contains('out for delivery') || normalizedStatus.contains('dispatched') || normalizedStatus.contains('shipped')) {
-      return Icons.local_shipping;
-    } else if (normalizedStatus.contains('delivered')) {
-      return Icons.check_circle;
-    } else if (normalizedStatus.contains('cancelled')) {
-      return Icons.cancel;
-    } else if (normalizedStatus.contains('confirmed')) {
-      return Icons.check_circle_outline;
-    } else {
-      return Icons.info;
-    }
-  }
-
-  /// Get user-friendly description for status
   static String getStatusDescription(String status) {
-    final normalizedStatus = normalizeStatus(status).toLowerCase();
-
-    // Use pattern matching to determine descriptions based on status content
-    if (normalizedStatus.contains('pending')) {
-      return 'Your order is pending confirmation';
-    } else if (normalizedStatus.contains('processing') || normalizedStatus.contains('proocessing')) {
-      return 'Your order is being processed and prepared';
-    } else if (normalizedStatus.contains('packaging') || normalizedStatus.contains('packing')) {
-      return 'Your order is being packaged for delivery';
-    } else if (normalizedStatus.contains('out for delivery') || normalizedStatus.contains('dispatched') || normalizedStatus.contains('shipped')) {
-      return 'Your order is out for delivery';
-    } else if (normalizedStatus.contains('delivered')) {
-      return 'Your order has been delivered successfully';
-    } else if (normalizedStatus.contains('cancelled')) {
-      return 'Your order has been cancelled';
-    } else if (normalizedStatus.contains('confirmed')) {
-      return 'Your order has been confirmed and is being processed';
-    } else {
-      return 'Order status: $status';
-    }
+    final parsed = OrderStatus.parse(status);
+    // Same reasoning as normalizeStatus: keep the backend's own wording when we
+    // do not recognise the state.
+    return parsed == OrderStatus.unknown
+        ? 'Order status: ${status.trim()}'
+        : parsed.description;
   }
 
-  /// Check if order is in progress (not delivered or cancelled)
-  static bool isOrderInProgress(String status) {
-    final normalizedStatus = normalizeStatus(status).toLowerCase();
-    return !normalizedStatus.contains('delivered') && !normalizedStatus.contains('cancelled');
-  }
+  static bool isOrderInProgress(String status) =>
+      OrderStatus.parse(status).isInProgress;
 
-  /// Check if order is completed (delivered or cancelled)
-  static bool isOrderCompleted(String status) {
-    final normalizedStatus = normalizeStatus(status).toLowerCase();
-    return normalizedStatus.contains('delivered') || normalizedStatus.contains('cancelled');
-  }
+  static bool isOrderCompleted(String status) =>
+      OrderStatus.parse(status).isCompleted;
 
-  /// Check if order can be cancelled
-  static bool canCancelOrder(String status) {
-    final normalizedStatus = normalizeStatus(status).toLowerCase();
-    // Can cancel if pending or processing, but not once in packaging, out for delivery, or delivered
-    return normalizedStatus.contains('pending') ||
-           (normalizedStatus.contains('processing') || normalizedStatus.contains('proocessing')) ||
-           normalizedStatus.contains('confirmed');
-  }
+  static bool canCancelOrder(String status) =>
+      OrderStatus.parse(status).canCancel;
 
-  /// Check if order can be reordered
-  static bool canReorder(String status) {
-    final normalizedStatus = normalizeStatus(status).toLowerCase();
-    // Can reorder all orders except cancelled ones
-    return !normalizedStatus.contains('cancelled');
-  }
+  static bool canReorder(String status) => OrderStatus.parse(status).canReorder;
 
-  /// Check if order can be tracked
-  static bool canTrackOrder(String status) {
-    final normalizedStatus = normalizeStatus(status);
-    // Can track if order is in progress
-    return isOrderInProgress(normalizedStatus);
-  }
+  static bool canTrackOrder(String status) =>
+      OrderStatus.parse(status).canTrack;
 
-  /// Get next status in the flow (deprecated - no fixed flow with dynamic statuses)
-  static String? getNextStatus(String currentStatus) {
-    // Since we removed fixed status flow, this method now returns null
-    // The next status is determined by the API dynamically
-    return null;
-  }
+  /// Colour for a classified status. Exhaustive — no `default:`.
+  static Color colorFor(OrderStatus status) => switch (status) {
+        OrderStatus.pending => Colors.orange,
+        OrderStatus.processing => Colors.blue,
+        OrderStatus.packaging => Colors.purple,
+        OrderStatus.outForDelivery => Colors.amber,
+        OrderStatus.delivered => Colors.green,
+        OrderStatus.cancelled => Colors.red,
+        OrderStatus.unknown => Colors.grey,
+      };
 
-
-
-  /// Get status badge widget
-  static Widget getStatusBadge(String status, {double? fontSize}) {
-    final normalizedStatus = normalizeStatus(status);
-    final color = getStatusColor(status);
-    final icon = getStatusIcon(status);
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: fontSize ?? 12,
-            color: color,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            normalizedStatus,
-            style: TextStyle(
-              fontSize: fontSize ?? 11,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  /// Icon for a classified status. Exhaustive — no `default:`.
+  static IconData iconFor(OrderStatus status) => switch (status) {
+        OrderStatus.pending => Icons.schedule,
+        OrderStatus.processing => Icons.check_circle_outline,
+        OrderStatus.packaging => Icons.inventory_2,
+        OrderStatus.outForDelivery => Icons.local_shipping,
+        OrderStatus.delivered => Icons.check_circle,
+        OrderStatus.cancelled => Icons.cancel,
+        OrderStatus.unknown => Icons.info,
+      };
 }

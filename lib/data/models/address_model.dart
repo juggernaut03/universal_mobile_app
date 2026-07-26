@@ -1,5 +1,8 @@
 // lib/data/models/address_model.dart
 
+import '../../domain/entities/customer_address.dart';
+import '../../domain/entities/outlet.dart' show GeoPoint;
+
 class Address {
   final String id;
   final String fullName;
@@ -219,4 +222,27 @@ class Address {
   }
 
   static fromMap(Map<String, dynamic> deliveryAddressMap) {}
+  /// Converts to the domain entity.
+  ///
+  /// `isDefault` arrives as a String — '1', 'true' or 'yes' depending on the
+  /// route. Decoded once here instead of at each call site.
+  CustomerAddress toEntity() {
+    final flag = isDefault.trim().toLowerCase();
+    return CustomerAddress(
+      id: id,
+      fullName: fullName,
+      mobileNumber: mobileNumber,
+      email: emailId,
+      line1: deliveryAddrLine1,
+      line2: deliveryAddrLine2,
+      landmark: landmark,
+      city: deliveryAddrCity,
+      state: state,
+      pincode: deliveryAddrPincode,
+      isDefault: flag == '1' || flag == 'true' || flag == 'yes',
+      areaId: areaId,
+      location: GeoPoint.tryParse(latitude, longitude),
+    );
+  }
+
 }
