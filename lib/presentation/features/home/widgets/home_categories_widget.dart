@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/error_widgets.dart';
-import '../../../../data/models/department_model.dart';
+import '../../../../domain/entities/catalogue.dart';
 import '../../../providers/category_providers.dart';
 import 'category_section.dart';
 import '../../../../di/infrastructure_providers.dart';
@@ -14,7 +14,7 @@ class HomeCategoriesWidget extends ConsumerWidget {
   final List<SectionData> sections;
   
   /// Callback when a department view all button is tapped
-  final Function(DepartmentModel)? onDepartmentTap;
+  final Function(Department)? onDepartmentTap;
   
   /// Show shimmer loading effect when data is loading
   final bool showShimmerLoading;
@@ -61,13 +61,13 @@ class HomeCategoriesWidget extends ConsumerWidget {
               );
               
               if (matchingDept != null) {
-                final categories = categoriesByDepartment[matchingDept.departmentId] ?? [];
+                final categories = categoriesByDepartment[matchingDept.code] ?? [];
                 
                 if (categories.isNotEmpty) {
                   final items = categories.map(
-                    (category) => CategoryItem.fromCategoryModel(
+                    (category) => CategoryItem.fromCategory(
                       category, 
-                      matchingDept.departmentId
+                      matchingDept.code
                     )
                   ).toList();
                   
@@ -105,12 +105,12 @@ class HomeCategoriesWidget extends ConsumerWidget {
   }
   
   /// Find department that matches any of the keywords
-  DepartmentModel? _findDepartmentByKeywords(
-    List<DepartmentModel> departments, 
+  Department? _findDepartmentByKeywords(
+    List<Department> departments, 
     List<String> keywords
   ) {
     for (final dept in departments) {
-      final name = dept.departmentName.toLowerCase();
+      final name = dept.name.toLowerCase();
       for (final keyword in keywords) {
         if (name.contains(keyword.toLowerCase())) {
           return dept;
@@ -123,7 +123,7 @@ class HomeCategoriesWidget extends ConsumerWidget {
   }
   
   /// Handle view all button tap for a department
-  void _handleViewAllTap(BuildContext context, DepartmentModel department) {
+  void _handleViewAllTap(BuildContext context, Department department) {
     if (onDepartmentTap != null) {
       onDepartmentTap!(department);
     } else {

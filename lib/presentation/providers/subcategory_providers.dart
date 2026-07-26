@@ -1,11 +1,12 @@
 // lib/presentation/providers/subcategory_providers.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/models/subcategory_model.dart';
 import '../../data/models/product_model.dart';
 import '../../core/result/result.dart';
 import '../../di/product_providers.dart';
 import '../../domain/usecases/product/get_products.dart';
-import '../../di/repository_providers.dart';
+import '../../di/catalogue_providers.dart';
+import '../../domain/entities/catalogue.dart';
+import '../../domain/usecases/catalogue/get_subcategories.dart';
 
 // Cache manager provider (reuse from category providers if available)
 
@@ -19,17 +20,21 @@ import '../../di/repository_providers.dart';
 final refreshSubcategoryProvider = StateProvider<bool>((ref) => false);
 
 // Subcategories provider with refresh capability
-final subcategoriesProvider = FutureProvider.family<List<SubcategoryModel>, String>((ref, categoryId) async {
-  final repository = ref.watch(subcategoryRepositoryProvider);
-  final forceRefresh = ref.watch(refreshSubcategoryProvider);
-  
-  // If force refresh is true, clear cache before fetching
-  if (forceRefresh) {
-    await repository.clearCache();
-    // Don't reset the flag yet, as products might still need to refresh
+final subcategoriesProvider =
+    FutureProvider.family<List<Subcategory>, String>((ref, categoryId) async {
+  // The refresh flag is deliberately not reset here — products still need to
+  // see it before it clears.
+  if (ref.watch(refreshSubcategoryProvider)) {
+    await ref.read(catalogueRepositoryProvider).clearCache();
   }
-  
-  return repository.getSubcategories(categoryId);
+
+  final result = await ref.watch(getSubcategoriesUseCaseProvider)(
+    GetSubcategoriesParams(categoryCode: categoryId),
+  );
+  return switch (result) {
+    Ok(:final value) => value,
+    Err(:final failure) => throw Exception(failure.userMessage),
+  };
 });
 
 // Product filter parameters

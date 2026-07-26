@@ -15,6 +15,7 @@ import '../../providers/outlet_provider.dart';
 import '../../providers/location_provider.dart';
 import 'widgets/product_item_widget.dart';
 import '../../../di/infrastructure_providers.dart';
+import '../../../domain/entities/catalogue.dart';
 
 class SubcategoryScreen extends ConsumerStatefulWidget {
   final String categoryName;
@@ -146,7 +147,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
       if (_selectedIndex > 0) {
         subcategoriesAsync.whenData((subcategories) {
           if (_selectedIndex <= subcategories.length) {
-            subCategoryId = subcategories[_selectedIndex - 1].subCategoryId;
+            subCategoryId = subcategories[_selectedIndex - 1].code;
           }
         });
       }
@@ -191,7 +192,9 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
   }
 
   // Build the tab bar widget
-  Widget _buildTabBarWidget(List subcategories) {
+  // Typed. Was a bare `List`, i.e. List<dynamic> — member access compiled
+  // against anything and would only fail at runtime.
+  Widget _buildTabBarWidget(List<Subcategory> subcategories) {
     if (_tabController == null) return const SizedBox.shrink();
     
     return Container(
@@ -219,7 +222,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
           _buildTab("ALL", _selectedIndex == 0),
           ...subcategories.map((subcategory) => 
             _buildTab(
-              subcategory.subCategoryName, 
+              subcategory.name, 
               _selectedIndex == subcategories.indexOf(subcategory) + 1
             )
           ).toList(),
@@ -321,7 +324,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         ? ProductFilterParams(
             deptId: widget.deptId,
             categoryId: widget.categoryId,
-            subCategoryId: subcategoriesAsync.valueOrNull![_selectedIndex - 1].subCategoryId,
+            subCategoryId: subcategoriesAsync.valueOrNull![_selectedIndex - 1].code,
             storeCode: storeCode,
           )
         : ProductFilterParams(

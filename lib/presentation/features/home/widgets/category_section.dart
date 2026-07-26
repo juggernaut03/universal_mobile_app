@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/data/models/category_model.dart';
+import '../../../../domain/entities/catalogue.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/cached_network_image_widget.dart';
@@ -198,15 +198,15 @@ class CategoryItem {
     this.departmentId,
   });
   
-  // Factory constructor to create CategoryItem from CategoryModel
-  factory CategoryItem.fromCategoryModel(
-    CategoryModel category, 
+  /// Builds a tile from a catalogue Category entity.
+  factory CategoryItem.fromCategory(
+    Category category,
     String departmentId,
   ) {
     return CategoryItem(
-      name: category.categoryName,
-      imageUrl: category.imageLink,
-      categoryId: category.categoryId,
+      name: category.name,
+      imageUrl: category.imageUrl,
+      categoryId: category.code,
       departmentId: departmentId,
     );
   }
