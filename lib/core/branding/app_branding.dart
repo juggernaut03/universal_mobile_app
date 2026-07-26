@@ -92,6 +92,11 @@ class AppBranding {
   /// Google Maps key; empty = use the build-time default.
   String googleMapsApiKey = '';
 
+  /// Renders home from the server-defined feed instead of the layout compiled
+  /// into the app. Rollout switch — defaults off so an unconfigured tenant
+  /// keeps the previous behaviour exactly.
+  bool homeFeedEnabled = false;
+
   /// Minimum time the splash is held, even when startup finishes sooner.
   Duration splashMinimumDuration =
       const Duration(milliseconds: _defSplashDurationMs);
@@ -148,6 +153,8 @@ class AppBranding {
 
     b.razorpayKeyId = (config['razorpay_key_id'] ?? '').toString().trim();
     b.googleMapsApiKey = (config['google_maps_api_key'] ?? '').toString().trim();
+    b.homeFeedEnabled =
+        (config['home_feed_enabled'] ?? '').toString().trim() == 'true';
 
     final name = (config['app_name'] ?? '').toString().trim();
     b.appName = name.isNotEmpty
