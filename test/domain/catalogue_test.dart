@@ -41,7 +41,11 @@ final class _FakeCatalogueRepo implements ICatalogueRepository {
       const Ok([]);
 
   @override
-  Future<Result<List<Subcategory>>> subcategories(String categoryCode) async =>
+  Future<Result<List<Subcategory>>> subcategories(
+    String categoryCode, {
+    String? departmentCode,
+    String? storeCode,
+  }) async =>
       const Ok([]);
 
   @override

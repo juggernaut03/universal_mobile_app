@@ -128,6 +128,12 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     }
   }
 
+  SubcategoryQuery _subcategoryQuery(String storeCode) => SubcategoryQuery(
+        categoryId: widget.categoryId,
+        deptId: widget.deptId,
+        storeCode: storeCode,
+      );
+
   // Handle refresh action
   Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
@@ -138,12 +144,17 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
     
     try {
       ref.read(refreshSubcategoryProvider.notifier).state = true;
+
+      final selectedOutlet = ref.read(selectedOutletProvider).valueOrNull;
+      final storeCode = selectedOutlet?.storeCode ?? "TTL";
+      final query = _subcategoryQuery(storeCode);
+
       // ignore: unused_result — awaited for completion; the value is not needed.
-      await ref.refresh(subcategoriesProvider(widget.categoryId).future);
-      
-      final subcategoriesAsync = ref.read(subcategoriesProvider(widget.categoryId));
+      await ref.refresh(subcategoriesProvider(query).future);
+
+      final subcategoriesAsync = ref.read(subcategoriesProvider(query));
       String subCategoryId = "0";
-      
+
       if (_selectedIndex > 0) {
         subcategoriesAsync.whenData((subcategories) {
           if (_selectedIndex <= subcategories.length) {
@@ -151,10 +162,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
           }
         });
       }
-      
-      final selectedOutlet = ref.read(selectedOutletProvider).valueOrNull;
-      final storeCode = selectedOutlet?.storeCode ?? "TTL";
-      
+
       final filterParams = ProductFilterParams(
         deptId: widget.deptId,
         categoryId: widget.categoryId,
@@ -278,7 +286,11 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    final subcategoriesAsync = ref.watch(subcategoriesProvider(widget.categoryId));
+    final selectedOutletAsync = ref.watch(selectedOutletProvider);
+    final storeCode = selectedOutletAsync.asData?.value?.storeCode ?? "TTL";
+
+    final subcategoriesAsync =
+        ref.watch(subcategoriesProvider(_subcategoryQuery(storeCode)));
     // Subscription kept deliberately: the binding was unused but the
     // watch is what rebuilds this on change.
     ref.watch(selectedPincodeProvider);
@@ -307,10 +319,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
       }
     });
     
-    final selectedOutletAsync = ref.watch(selectedOutletProvider);
-    final storeCode = selectedOutletAsync.asData?.value?.storeCode ?? "TTL";
-    
-    final filterParams = subcategoriesAsync.valueOrNull != null && 
+    final filterParams = subcategoriesAsync.valueOrNull != null &&
                          subcategoriesAsync.valueOrNull!.isNotEmpty && 
                          _selectedIndex > 0 && 
                          _selectedIndex <= subcategoriesAsync.valueOrNull!.length
