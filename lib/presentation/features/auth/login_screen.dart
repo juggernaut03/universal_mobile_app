@@ -20,9 +20,9 @@ class LoginScreen extends ConsumerStatefulWidget {
   final String? redirectRoute;
 
   const LoginScreen({
-    Key? key,
+    super.key,
     this.redirectRoute,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();

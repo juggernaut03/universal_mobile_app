@@ -90,8 +90,8 @@ static Future<void> handleLocationError(
             },
           ),
           TextButton(
-            child: Text(actionText),
             onPressed: action,
+            child: Text(actionText),
           ),
         ],
       );
@@ -114,9 +114,9 @@ static Future<void> handleLocationError(
   Future<bool> isLocationInServiceArea(Position position, List<String> servicePincodes) async {
     try {
       // If Google Maps service is available, use it
-      if (_googleMapsService != null && _googleMapsService!.isInitialized) {
+      if (_googleMapsService != null && _googleMapsService.isInitialized) {
         final coordinates = LatLng(position.latitude, position.longitude);
-        return await _googleMapsService!.isLocationInServiceArea(coordinates, servicePincodes);
+        return await _googleMapsService.isLocationInServiceArea(coordinates, servicePincodes);
       }
       
       // Fallback to basic pincode check
@@ -133,11 +133,11 @@ static Future<void> handleLocationError(
   // Get distance between user's location and a store (for finding nearest store)
   Future<double?> getDistanceToStore(Position userPosition, double storeLat, double storeLng) async {
     try {
-      if (_googleMapsService != null && _googleMapsService!.isInitialized) {
+      if (_googleMapsService != null && _googleMapsService.isInitialized) {
         final userCoordinates = LatLng(userPosition.latitude, userPosition.longitude);
         final storeCoordinates = LatLng(storeLat, storeLng);
         
-        return await _googleMapsService!.getDistance(userCoordinates, storeCoordinates);
+        return await _googleMapsService.getDistance(userCoordinates, storeCoordinates);
       }
       
       // Fallback to basic distance calculation using Haversine formula

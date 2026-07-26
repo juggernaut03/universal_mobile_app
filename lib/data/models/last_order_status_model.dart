@@ -1,4 +1,5 @@
 import 'order_model.dart';
+import 'package:flutter/foundation.dart';
 
 class LastOrderStatus {
   final String orderStatusTxt;
@@ -46,7 +47,7 @@ class LastOrderStatus {
           lastOrder = Order.fromJson(converted);
         }
       } catch (e) {
-        print('Error parsing last_order_details: $e');
+        if (kDebugMode) print('Error parsing last_order_details: $e');
       }
     }
 

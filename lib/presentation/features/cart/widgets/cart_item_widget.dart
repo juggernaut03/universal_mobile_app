@@ -14,12 +14,12 @@ class CartItemWidget extends ConsumerWidget {
   final VoidCallback onRemove;
 
   const CartItemWidget({
-    Key? key,
+    super.key,
     required this.cartItem,
     required this.onIncrementQuantity,
     required this.onDecrementQuantity,
     required this.onRemove,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -264,7 +264,7 @@ class CartItemWidget extends ConsumerWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text(
-                        'Max ${maxQty} items',
+                        'Max $maxQty items',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textSecondary,
                           fontSize: 10,

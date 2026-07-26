@@ -15,7 +15,7 @@ class CategorySection extends StatelessWidget {
   final bool showDivider;
 
   const CategorySection({
-    Key? key,
+    super.key,
     required this.title,
     required this.items,
     this.onViewAllTap,
@@ -23,7 +23,7 @@ class CategorySection extends StatelessWidget {
     this.spacing = 8.0,
     this.crossAxisCount = 4,
     this.showDivider = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

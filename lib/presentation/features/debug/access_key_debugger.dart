@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../utils/debug_access_key.dart';
 
 class AccessKeyDebuggerScreen extends ConsumerWidget {
-  const AccessKeyDebuggerScreen({Key? key}) : super(key: key);
+  const AccessKeyDebuggerScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

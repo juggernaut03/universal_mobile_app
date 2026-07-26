@@ -7,10 +7,10 @@ class HeaderWidget extends StatelessWidget {
   final VoidCallback onChangeTap;
 
   const HeaderWidget({
-    Key? key,
+    super.key,
     required this.pincode,
     required this.onChangeTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

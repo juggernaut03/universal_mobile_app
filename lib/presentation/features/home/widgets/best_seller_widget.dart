@@ -25,11 +25,11 @@ class BestSellerWidget extends ConsumerWidget {
   final EdgeInsetsGeometry padding;
 
   const BestSellerWidget({
-    Key? key,
+    super.key,
     required this.bestSellerId,
     this.height = 370,
     this.padding = const EdgeInsets.symmetric(vertical: 16),
-  }) : super(key: key);
+  });
 
   // Build unavailability message widget
   Widget _buildUnavailabilityMessage(BuildContext context, WidgetRef ref, dynamic status) {
@@ -471,7 +471,7 @@ Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
                     ),
                   ),
                   child: Text(
-                    "${discountPercent}% OFF",
+                    "$discountPercent% OFF",
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,

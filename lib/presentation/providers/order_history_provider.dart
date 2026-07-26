@@ -52,7 +52,7 @@ final orderHistoryProvider = FutureProvider.autoDispose<List<Order>>((ref) async
   } catch (e, stacktrace) {
     logger.error('Error fetching orders: $e');
     logger.error('Stack trace: $stacktrace');
-    throw e;
+    rethrow;
   }
 });
 

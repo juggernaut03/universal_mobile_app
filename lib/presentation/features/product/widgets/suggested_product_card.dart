@@ -16,10 +16,10 @@ class SuggestedProductCard extends ConsumerWidget {
   static const String fallbackImageUrl = 'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp';
 
   const SuggestedProductCard({
-    Key? key,
+    super.key,
     required this.product,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -102,7 +102,7 @@ class SuggestedProductCard extends ConsumerWidget {
                           ),
                         ),
                         child: Text(
-                          '${discountPercent}% OFF',
+                          '$discountPercent% OFF',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 9,

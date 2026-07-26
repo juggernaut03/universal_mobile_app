@@ -15,7 +15,7 @@ import '../../../di/infrastructure_providers.dart';
 
 
 class MyOrdersScreen extends ConsumerWidget {
-  const MyOrdersScreen({Key? key}) : super(key: key);
+  const MyOrdersScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -345,8 +345,8 @@ final ordersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
       final comparison = bDateTime.compareTo(aDateTime);
       
       logger.log('Comparing orders: '
-          'Order ${a.displayOrderId} (${aDateTime}) vs '
-          'Order ${b.displayOrderId} (${bDateTime}) = $comparison');
+          'Order ${a.displayOrderId} ($aDateTime) vs '
+          'Order ${b.displayOrderId} ($bDateTime) = $comparison');
       
       return comparison;
     });
@@ -364,6 +364,6 @@ final ordersProvider = FutureProvider.autoDispose<List<Order>>((ref) async {
   } catch (e, stacktrace) {
     logger.error('Error fetching orders: $e');
     logger.error('Stack trace: $stacktrace');
-    throw e;
+    rethrow;
   }
 });

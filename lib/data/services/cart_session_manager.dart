@@ -2,6 +2,7 @@
 
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/utils/logger.dart';
+import 'package:flutter/foundation.dart';
 
 class CartSessionManager {
   final Logger _logger;
@@ -150,21 +151,21 @@ Future<bool> isCartSessionValid() async {
   try {
     final prefs = await SharedPreferences.getInstance();
     
-    print('\n🔄 === MARKING ORDER AS PAYMENT PROCESSING === 🔄');
-    print('Temp Order ID: $tempOrderId');
-    print('Current Status Before: ${prefs.getString(_orderProcessingStateKey) ?? "null"}');
+    if (kDebugMode) print('\n🔄 === MARKING ORDER AS PAYMENT PROCESSING === 🔄');
+    if (kDebugMode) print('Temp Order ID: $tempOrderId');
+    if (kDebugMode) print('Current Status Before: ${prefs.getString(_orderProcessingStateKey) ?? "null"}');
     
     // Set the status
     await prefs.setString(_orderProcessingStateKey, statePaymentProcessing);
     
     // Verify it was set
     final newStatus = prefs.getString(_orderProcessingStateKey);
-    print('Status After Setting: $newStatus');
-    print('🔄 === PAYMENT PROCESSING STATUS SET === 🔄\n');
+    if (kDebugMode) print('Status After Setting: $newStatus');
+    if (kDebugMode) print('🔄 === PAYMENT PROCESSING STATUS SET === 🔄\n');
     
     _logger.log('Marked order $tempOrderId as payment processing');
   } catch (e) {
-    print('❌ ERROR marking order as payment processing: $e');
+    if (kDebugMode) print('❌ ERROR marking order as payment processing: $e');
     _logger.error('Error marking order as payment processing: $e');
   }
 }

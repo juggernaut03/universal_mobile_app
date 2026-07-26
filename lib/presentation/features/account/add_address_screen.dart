@@ -22,9 +22,9 @@ class AddAddressScreen extends ConsumerStatefulWidget {
   final bool returnToCheckout;
 
   const AddAddressScreen({
-    Key? key,
+    super.key,
     this.returnToCheckout = false,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<AddAddressScreen> createState() => _AddAddressScreenState();

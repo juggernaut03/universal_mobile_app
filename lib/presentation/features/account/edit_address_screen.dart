@@ -24,9 +24,9 @@ class EditAddressScreen extends ConsumerStatefulWidget {
   final bool returnToCheckout;
   
   const EditAddressScreen({
-    Key? key,
+    super.key,
     this.returnToCheckout = false,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<EditAddressScreen> createState() => _EditAddressScreenState();

@@ -10,7 +10,7 @@ import '../di/infrastructure_providers.dart';
 
 /// A utility widget to display access key for debugging and Postman testing
 class AccessKeyDebugScreen extends ConsumerStatefulWidget {
-  const AccessKeyDebugScreen({Key? key}) : super(key: key);
+  const AccessKeyDebugScreen({super.key});
 
   @override
   ConsumerState<AccessKeyDebugScreen> createState() => _AccessKeyDebugScreenState();

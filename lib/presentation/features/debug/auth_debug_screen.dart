@@ -7,7 +7,7 @@ import '../../providers/auth_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 
 class AuthDebugScreen extends ConsumerWidget {
-  const AuthDebugScreen({Key? key}) : super(key: key);
+  const AuthDebugScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

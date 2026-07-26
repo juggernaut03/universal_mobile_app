@@ -6,6 +6,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/utils/logger.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/network/api_client.dart';
+import 'package:flutter/foundation.dart';
 
 class PaymentResult {
   final bool success;
@@ -173,16 +174,23 @@ class PaymentService {
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
     _logger.log('Payment successful: ${response.paymentId}');
     
-    print('\n💳 === RAZORPAY PAYMENT SUCCESS === 💳');
-    print('Payment ID: ${response.paymentId}');
-    print('Order ID: ${response.orderId}');
-    print('Signature: ${response.signature}');
-    print('💳 === PROCESSING SUCCESS === 💳\n');
+    if (kDebugMode) print('\n💳 === RAZORPAY PAYMENT SUCCESS === 💳');
+    if (kDebugMode) print('Payment ID: ${response.paymentId}');
+    if (kDebugMode) print('Order ID: ${response.orderId}');
+    // Signature intentionally not logged: it is a payment credential.
+    if (kDebugMode) print('💳 === PROCESSING SUCCESS === 💳\n');
     
     // Enhanced payment data with real Razorpay response + temp order ID
     final now = DateTime.now();
     final currentTimestamp = now.millisecondsSinceEpoch ~/ 1000;
-    final amountInPaise = _currentPaymentAmount != null ? (_currentPaymentAmount! * 100).toInt() : null;
+    // round(), not toInt(). Truncating a double loses a paisa whenever the
+    // rupee value has no exact binary representation: (19.99 * 100).toInt() is
+    // 1998, and 1.15 and 8.29 are likewise short. This value is reported to the
+    // backend as `amount` and `amount_captured`, so a truncated figure records
+    // less than Razorpay actually captured and breaks reconciliation.
+    final amountInPaise = _currentPaymentAmount != null
+        ? (_currentPaymentAmount! * 100).round()
+        : null;
     
     // Create enhanced payment data structure with actual Razorpay data + temp order ID
     final enhancedPaymentData = {
@@ -262,18 +270,18 @@ class PaymentService {
       }
     };
     
-    print('\n📊 === COMPLETE PAYMENT DATA === 📊');
-    print('Payment ID: ${response.paymentId}');
-    print('Order ID: ${response.orderId}');
-    print('Signature: ${response.signature}');
-    print('Amount: ₹${_currentPaymentAmount?.toStringAsFixed(2)}');
-    print('Customer: $_currentCustomerName ($_currentCustomerPhone)');
-    print('Email: $_currentCustomerEmail');
-    print('Created Razorpay Order ID: $_currentRazorpayOrderId');
-    print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
-    print('Environment: LIVE');
-    print('Status: Payment Successful → Ready for Database Update');
-    print('📊 === END PAYMENT DATA === 📊\n');
+    if (kDebugMode) print('\n📊 === COMPLETE PAYMENT DATA === 📊');
+    if (kDebugMode) print('Payment ID: ${response.paymentId}');
+    if (kDebugMode) print('Order ID: ${response.orderId}');
+    // Signature intentionally not logged: it is a payment credential.
+    if (kDebugMode) print('Amount: ₹${_currentPaymentAmount?.toStringAsFixed(2)}');
+    if (kDebugMode) print('Customer: $_currentCustomerName ($_currentCustomerPhone)');
+    if (kDebugMode) print('Email: $_currentCustomerEmail');
+    if (kDebugMode) print('Created Razorpay Order ID: $_currentRazorpayOrderId');
+    if (kDebugMode) print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
+    if (kDebugMode) print('Environment: LIVE');
+    if (kDebugMode) print('Status: Payment Successful → Ready for Database Update');
+    if (kDebugMode) print('📊 === END PAYMENT DATA === 📊\n');
     
     // Verify the payment signature with the backend before treating the
     // payment as successful (POST /api/razorpay/verify).
@@ -351,11 +359,11 @@ class PaymentService {
   void _handlePaymentError(PaymentFailureResponse response) {
     _logger.error('Payment error: ${response.code} - ${response.message}');
     
-    print('\n❌ === PAYMENT ERROR === ❌');
-    print('Error Code: ${response.code}');
-    print('Error Message: ${response.message}');
-    print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
-    print('❌ === END ERROR === ❌\n');
+    if (kDebugMode) print('\n❌ === PAYMENT ERROR === ❌');
+    if (kDebugMode) print('Error Code: ${response.code}');
+    if (kDebugMode) print('Error Message: ${response.message}');
+    if (kDebugMode) print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
+    if (kDebugMode) print('❌ === END ERROR === ❌\n');
     
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
       _paymentCompleter!.complete(PaymentResult(
@@ -384,10 +392,10 @@ class PaymentService {
   void _handleExternalWallet(ExternalWalletResponse response) {
     _logger.log('External wallet selected: ${response.walletName}');
     
-    print('\n🔄 === EXTERNAL WALLET === 🔄');
-    print('Wallet: ${response.walletName}');
-    print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
-    print('🔄 === END WALLET === 🔄\n');
+    if (kDebugMode) print('\n🔄 === EXTERNAL WALLET === 🔄');
+    if (kDebugMode) print('Wallet: ${response.walletName}');
+    if (kDebugMode) print('Temp Order ID: ${_currentTempOrderId ?? "Not available"}');
+    if (kDebugMode) print('🔄 === END WALLET === 🔄\n');
     
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
       _paymentCompleter!.complete(PaymentResult(
@@ -437,15 +445,15 @@ class PaymentService {
       _currentDescription = description;
       _currentTempOrderId = orderIdToUse; // STORE: Temp order ID for tracking
       
-      print('\n🚀 === STARTING PAYMENT PROCESS === 🚀');
-      print('Amount: ₹${amount.toStringAsFixed(2)}');
-      print('Customer: $customerName');
-      print('Phone: ${customerPhone ?? "Not provided"}');
-      print('Email: ${customerEmail ?? "Not provided"}');
-      print('Description: $description');
-      print('Temp Order ID: ${orderIdToUse ?? "Not provided"}');
-      print('Environment: LIVE');
-      print('🚀 === STEP 1: CREATE ORDER === 🚀\n');
+      if (kDebugMode) print('\n🚀 === STARTING PAYMENT PROCESS === 🚀');
+      if (kDebugMode) print('Amount: ₹${amount.toStringAsFixed(2)}');
+      if (kDebugMode) print('Customer: $customerName');
+      if (kDebugMode) print('Phone: ${customerPhone ?? "Not provided"}');
+      if (kDebugMode) print('Email: ${customerEmail ?? "Not provided"}');
+      if (kDebugMode) print('Description: $description');
+      if (kDebugMode) print('Temp Order ID: ${orderIdToUse ?? "Not provided"}');
+      if (kDebugMode) print('Environment: LIVE');
+      if (kDebugMode) print('🚀 === STEP 1: CREATE ORDER === 🚀\n');
       
       // Create a new completer for this payment attempt
       _paymentCompleter = Completer<PaymentResult>();
@@ -482,11 +490,11 @@ class PaymentService {
         );
       }
       
-      print('\n🚀 === STEP 2: OPEN CHECKOUT === 🚀');
-      print('Razorpay Order ID: ${razorpayOrder['id']}');
-      print('Temp Order ID: ${orderIdToUse ?? "Not provided"}');
-      print('Opening payment gateway...');
-      print('🚀 === CHECKOUT OPENING === 🚀\n');
+      if (kDebugMode) print('\n🚀 === STEP 2: OPEN CHECKOUT === 🚀');
+      if (kDebugMode) print('Razorpay Order ID: ${razorpayOrder['id']}');
+      if (kDebugMode) print('Temp Order ID: ${orderIdToUse ?? "Not provided"}');
+      if (kDebugMode) print('Opening payment gateway...');
+      if (kDebugMode) print('🚀 === CHECKOUT OPENING === 🚀\n');
       
       // STEP 2: Create the payment options with the created order ID
       // Validate and prepare customer data for Razorpay
@@ -528,7 +536,7 @@ class PaymentService {
       };
       
       _logger.log('Opening Razorpay checkout with order ID: ${razorpayOrder['id']}');
-      _logger.log('Temp Order ID in checkout: ${orderIdToUse}');
+      _logger.log('Temp Order ID in checkout: $orderIdToUse');
       _logger.log('Payment options: ${jsonEncode(options)}');
       
       // STEP 3: Open the Razorpay checkout
@@ -538,16 +546,16 @@ class PaymentService {
       final paymentResult = await _paymentCompleter!.future;
       
       _logger.log('Payment process completed. Success: ${paymentResult.success}');
-      _logger.log('Temp Order ID: ${orderIdToUse}');
+      _logger.log('Temp Order ID: $orderIdToUse');
       
       return paymentResult;
     } catch (e) {
       _logger.error('Error starting Razorpay payment: $e');
       
-      print('\n❌ === PAYMENT PROCESS ERROR === ❌');
-      print('Error: $e');
-      print('Temp Order ID: ${tempOrderId ?? customOrderId}');
-      print('❌ === END ERROR === ❌\n');
+      if (kDebugMode) print('\n❌ === PAYMENT PROCESS ERROR === ❌');
+      if (kDebugMode) print('Error: $e');
+      if (kDebugMode) print('Temp Order ID: ${tempOrderId ?? customOrderId}');
+      if (kDebugMode) print('❌ === END ERROR === ❌\n');
       
       if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
         _paymentCompleter!.complete(PaymentResult(

@@ -20,7 +20,7 @@ import '../../../di/infrastructure_providers.dart';
 import '../../providers/cart_validation_policy_provider.dart';
 
 class CartScreen extends ConsumerWidget {
-  const CartScreen({Key? key}) : super(key: key);
+  const CartScreen({super.key});
 
   // Custom back navigation handler - matches the pattern from category screen
   Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {
@@ -172,7 +172,7 @@ class CartScreen extends ConsumerWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'You have ${cartCount} item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(cartTotal.truncateToDouble() == cartTotal ? 0 : 2)})',
+                        'You have $cartCount item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(cartTotal.truncateToDouble() == cartTotal ? 0 : 2)})',
                       ),
                       duration: const Duration(seconds: 2),
                       backgroundColor: AppColors.primary,

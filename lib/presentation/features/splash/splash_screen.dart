@@ -12,9 +12,9 @@ class SplashScreen extends ConsumerStatefulWidget {
   final String logoAsset;
   
   const SplashScreen({
-    Key? key,
+    super.key,
     required this.logoAsset,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<SplashScreen> createState() => _SplashScreenState();

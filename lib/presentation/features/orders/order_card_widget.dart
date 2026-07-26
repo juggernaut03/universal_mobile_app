@@ -15,11 +15,11 @@ class OrderCardWidget extends ConsumerWidget {
   final VoidCallback? onReorderTap;
 
   const OrderCardWidget({
-    Key? key,
+    super.key,
     required this.order,
     required this.onOrderTap,
     this.onReorderTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

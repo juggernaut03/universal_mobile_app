@@ -39,7 +39,7 @@ class BestSellerRepository {
       
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString(cacheKey);
-      final cachedTimestamp = prefs.getInt('${_timestampKeyPrefix}$cacheKey') ?? 0;
+      final cachedTimestamp = prefs.getInt('$_timestampKeyPrefix$cacheKey') ?? 0;
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       
       // Check if cache is valid (not older than cache duration)
@@ -76,7 +76,7 @@ class BestSellerRepository {
         // Cache the banners (legacy shape so cached reads keep working)
         await prefs.setString(
             cacheKey, jsonEncode(banners.map((b) => b.toJson()).toList()));
-        await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
+        await prefs.setInt('$_timestampKeyPrefix$cacheKey', currentTime);
         
         // Log the banner URLs for debugging
         for (var banner in banners) {
@@ -116,7 +116,7 @@ class BestSellerRepository {
       
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString(cacheKey);
-      final cachedTimestamp = prefs.getInt('${_timestampKeyPrefix}$cacheKey') ?? 0;
+      final cachedTimestamp = prefs.getInt('$_timestampKeyPrefix$cacheKey') ?? 0;
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       
       // Check if cache is valid (not older than cache duration)
@@ -164,7 +164,7 @@ class BestSellerRepository {
 
         // Cache the entire response (including title)
         await prefs.setString(cacheKey, jsonEncode(response));
-        await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
+        await prefs.setInt('$_timestampKeyPrefix$cacheKey', currentTime);
 
         // Cache the title separately for easy access
         await prefs.setString('$_titleCacheKeyPrefix$bestSellerId', bestSellerResponse.title);

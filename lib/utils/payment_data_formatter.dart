@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import '../data/services/payment_service.dart';
+import 'package:flutter/foundation.dart';
 
 enum PaymentDataFormat {
   array,
@@ -168,49 +169,49 @@ class PaymentDataFormatter {
   
   /// Debug method to show all possible formats
   static void logAllFormats(PaymentResult paymentResult) {
-    print('\n💳 === ALL PAYMENT DATA FORMATS === 💳');
+    if (kDebugMode) print('\n💳 === ALL PAYMENT DATA FORMATS === 💳');
     
     // Array format
     final arrayFormat = formatPaymentData(
       paymentResult: paymentResult,
       format: PaymentDataFormat.array,
     );
-    print('ARRAY FORMAT:');
-    print(JsonEncoder.withIndent('  ').convert(arrayFormat));
-    print('');
+    if (kDebugMode) print('ARRAY FORMAT:');
+    if (kDebugMode) print(JsonEncoder.withIndent('  ').convert(arrayFormat));
+    if (kDebugMode) print('');
     
     // String format
     final stringFormat = formatPaymentData(
       paymentResult: paymentResult,
       format: PaymentDataFormat.string,
     );
-    print('STRING FORMAT:');
-    print(JsonEncoder.withIndent('  ').convert(stringFormat));
-    print('');
+    if (kDebugMode) print('STRING FORMAT:');
+    if (kDebugMode) print(JsonEncoder.withIndent('  ').convert(stringFormat));
+    if (kDebugMode) print('');
     
     // Object format
     final objectFormat = formatPaymentData(
       paymentResult: paymentResult,
       format: PaymentDataFormat.object,
     );
-    print('OBJECT FORMAT:');
-    print(JsonEncoder.withIndent('  ').convert(objectFormat));
-    print('');
+    if (kDebugMode) print('OBJECT FORMAT:');
+    if (kDebugMode) print(JsonEncoder.withIndent('  ').convert(objectFormat));
+    if (kDebugMode) print('');
     
     // Both formats
     final bothFormat = formatPaymentData(
       paymentResult: paymentResult,
       format: PaymentDataFormat.both,
     );
-    print('BOTH FORMATS:');
-    print(JsonEncoder.withIndent('  ').convert(bothFormat));
-    print('');
+    if (kDebugMode) print('BOTH FORMATS:');
+    if (kDebugMode) print(JsonEncoder.withIndent('  ').convert(bothFormat));
+    if (kDebugMode) print('');
     
     // Exact Razorpay format
     final exactFormat = getExactRazorpayFormat(paymentResult);
-    print('EXACT RAZORPAY FORMAT:');
-    print(JsonEncoder.withIndent('  ').convert(exactFormat));
+    if (kDebugMode) print('EXACT RAZORPAY FORMAT:');
+    if (kDebugMode) print(JsonEncoder.withIndent('  ').convert(exactFormat));
     
-    print('💳 === END ALL FORMATS === 💳\n');
+    if (kDebugMode) print('💳 === END ALL FORMATS === 💳\n');
   }
 }

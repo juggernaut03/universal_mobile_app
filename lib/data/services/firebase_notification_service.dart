@@ -7,10 +7,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../main.dart';
+import '../../domain/repositories/i_notification_service.dart';
 
 // firebaseNotificationServiceProvider now declared in lib/di/service_providers.dart
 
-class FirebaseNotificationService {
+class FirebaseNotificationService implements INotificationService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   
@@ -26,6 +27,7 @@ class FirebaseNotificationService {
   );
   
   /// Initialize ONLY when explicitly called - NOT in constructor
+  @override
   Future<void> initializeWhenReady() async {
     if (_isInitialized || _isInitializing) {
       debugPrint('NotificationService: Already initialized or initializing');
@@ -546,6 +548,7 @@ class FirebaseNotificationService {
   }
   
   /// Get current token with platform-specific handling
+  @override
   Future<String?> getCurrentToken() async {
     try {
       if (Platform.isIOS) {
@@ -570,6 +573,7 @@ class FirebaseNotificationService {
   }
   
   /// Check if notifications are enabled
+  @override
   Future<bool> areNotificationsEnabled() async {
     try {
       final settings = await _firebaseMessaging.getNotificationSettings();
@@ -581,6 +585,7 @@ class FirebaseNotificationService {
   }
   
   /// Get APNS token (iOS only)
+  @override
   Future<String?> getAPNSToken() async {
     try {
       if (Platform.isIOS) {
@@ -631,6 +636,7 @@ class FirebaseNotificationService {
   }
   
   /// Force token refresh (useful for debugging iOS issues)
+  @override
   Future<String?> forceTokenRefresh() async {
     try {
       debugPrint('NotificationService: 🔄 Forcing token refresh...');

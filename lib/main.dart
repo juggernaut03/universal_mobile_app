@@ -26,6 +26,7 @@ import 'presentation/providers/favorites_provider.dart';
 import 'facebook_pixel/facebook_pixel_integration.dart';
 import 'di/service_providers.dart';
 import 'di/infrastructure_providers.dart';
+import 'domain/repositories/i_notification_service.dart';
 // PRODUCT CACHE IMPORTS
 
 // Global navigator key for navigation from background
@@ -35,26 +36,26 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
-    print('🔔 Background message handler started');
-    print('   Message ID: ${message.messageId}');
-    print('   Platform: ${Platform.isIOS ? "iOS" : "Android"}');
-    print('   Title: ${message.notification?.title}');
-    print('   Body: ${message.notification?.body}');
-    print('   Data: ${message.data}');
+    if (kDebugMode) print('🔔 Background message handler started');
+    if (kDebugMode) print('   Message ID: ${message.messageId}');
+    if (kDebugMode) print('   Platform: ${Platform.isIOS ? "iOS" : "Android"}');
+    if (kDebugMode) print('   Title: ${message.notification?.title}');
+    if (kDebugMode) print('   Body: ${message.notification?.body}');
+    if (kDebugMode) print('   Data: ${message.data}');
     
     // ONLY initialize Firebase if not already initialized
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-      print('🔥 Firebase initialized in background handler');
+      if (kDebugMode) print('🔥 Firebase initialized in background handler');
     }
     
     // Handle the background message using the service
     await FirebaseNotificationService.handleBackgroundMessage(message);
-    print('✅ Background message handled successfully');
+    if (kDebugMode) print('✅ Background message handled successfully');
     
   } catch (e, stackTrace) {
-    print('❌ Background handler error: $e');
-    print('Stack trace: $stackTrace');
+    if (kDebugMode) print('❌ Background handler error: $e');
+    if (kDebugMode) print('Stack trace: $stackTrace');
     // Don't rethrow - let app continue
   }
 }
@@ -62,15 +63,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
-    print('🚀 App starting - Flutter binding initialized');
-    print('📱 Platform: ${Platform.isIOS ? "iOS" : "Android"}');
+    if (kDebugMode) print('🚀 App starting - Flutter binding initialized');
+    if (kDebugMode) print('📱 Platform: ${Platform.isIOS ? "iOS" : "Android"}');
     
     // Lock orientation FIRST (this is safe)
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
-    print('📱 Orientation locked to portrait');
+    if (kDebugMode) print('📱 Orientation locked to portrait');
     
     // Initialize SharedPreferences EARLY (this is safe)
     final sharedPreferences = await SharedPreferences.getInstance();
@@ -85,7 +86,7 @@ void main() async {
     
     // Initialize Firebase with enhanced error handling and iOS-specific configuration
     try {
-      print('🔥 Initializing Firebase...');
+      if (kDebugMode) print('🔥 Initializing Firebase...');
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
       logger.log('✅ Firebase initialized successfully');
       
@@ -132,7 +133,7 @@ void main() async {
       logger.error('❌ Firebase initialization failed: $e');
       logger.error('Stack trace: $stackTrace');
       // Don't stop app - continue without Firebase but log the issue
-      print('⚠️ Continuing without Firebase - some features may be limited');
+      if (kDebugMode) print('⚠️ Continuing without Firebase - some features may be limited');
     }
     
     // Set up global error handling
@@ -175,8 +176,8 @@ void main() async {
     );
     
   } catch (e, stackTrace) {
-    print('❌ CRITICAL ERROR in main(): $e');
-    print('Stack trace: $stackTrace');
+    if (kDebugMode) print('❌ CRITICAL ERROR in main(): $e');
+    if (kDebugMode) print('Stack trace: $stackTrace');
     
     // Ensure we always show SOMETHING to the user
     runApp(
@@ -281,7 +282,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
   @override
   void initState() {
     super.initState();
-    print('🎯 App lifecycle handler initializing...');
+    if (kDebugMode) print('🎯 App lifecycle handler initializing...');
     
     // Add lifecycle observer
     WidgetsBinding.instance.addObserver(this);
@@ -294,7 +295,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
 
   @override
   void dispose() {
-    print('🔄 App lifecycle handler disposing...');
+    if (kDebugMode) print('🔄 App lifecycle handler disposing...');
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -476,7 +477,7 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
   }
 
   /// Perform iOS-specific post-initialization checks
-  void _performIOSPostInitializationChecks(FirebaseNotificationService service, Logger logger) async {
+  void _performIOSPostInitializationChecks(INotificationService service, Logger logger) async {
     try {
       logger.log('🍎 Performing iOS post-initialization checks...');
       
@@ -783,7 +784,7 @@ class FcmTokenAwareMyApp extends ConsumerWidget {
     } catch (e) {
       // Providers don't exist - that's okay
       if (kDebugMode) {
-        print('ℹ️ Some FCM token providers not available: $e');
+        if (kDebugMode) print('ℹ️ Some FCM token providers not available: $e');
       }
     }
     
@@ -792,7 +793,7 @@ class FcmTokenAwareMyApp extends ConsumerWidget {
       ref.watch(favoritesInitializationWatcherProvider);
     } catch (e) {
       if (kDebugMode) {
-        print('ℹ️ Favorites initialization watcher not available: $e');
+        if (kDebugMode) print('ℹ️ Favorites initialization watcher not available: $e');
       }
     }
     
@@ -829,7 +830,7 @@ class FcmTokenAwareMyApp extends ConsumerWidget {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('ℹ️ User profile provider not available: $e');
+        if (kDebugMode) print('ℹ️ User profile provider not available: $e');
       }
     }
     

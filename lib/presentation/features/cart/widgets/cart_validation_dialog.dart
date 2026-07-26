@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../data/services/cart_validator.dart';
+import 'package:flutter/foundation.dart';
 
 class CartValidationDialog extends StatelessWidget {
   final CartValidationResult result;
@@ -10,19 +11,19 @@ class CartValidationDialog extends StatelessWidget {
   final VoidCallback onUpdateCart;
 
   const CartValidationDialog({
-    Key? key,
+    super.key,
     required this.result,
     required this.onContinue,
     required this.onUpdateCart,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     // Debug print to verify dialog is being built
-    print('Building CartValidationDialog with ${result.removedItems.length} removed items, '
+    if (kDebugMode) print('Building CartValidationDialog with ${result.removedItems.length} removed items, '
           '${result.priceChangedItems.length} price changes, and ${result.itemsWithIssues.length} items with issues');
-    print('Cart validation message: "${result.validationMessage}"');
-    print('Is save error: ${result.isSaveError}');
+    if (kDebugMode) print('Cart validation message: "${result.validationMessage}"');
+    if (kDebugMode) print('Is save error: ${result.isSaveError}');
 
     return Dialog(
       shape: RoundedRectangleBorder(

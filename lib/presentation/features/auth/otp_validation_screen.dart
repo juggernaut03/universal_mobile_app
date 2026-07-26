@@ -25,10 +25,10 @@ class OtpValidationScreen extends ConsumerStatefulWidget {
   final String? redirectRoute;
 
   const OtpValidationScreen({
-    Key? key,
+    super.key,
     required this.mobileNumber,
     this.redirectRoute,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<OtpValidationScreen> createState() => _OtpValidationScreenState();

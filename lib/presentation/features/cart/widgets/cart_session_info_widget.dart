@@ -12,7 +12,7 @@ import 'package:patelmart/presentation/providers/cart_provider.dart';
 /// A widget that displays information about the cart session
 /// This is optional and can be used for debugging or to show users when their cart will expire
 class CartSessionInfoWidget extends ConsumerStatefulWidget {
-  const CartSessionInfoWidget({Key? key}) : super(key: key);
+  const CartSessionInfoWidget({super.key});
 
   @override
   ConsumerState<CartSessionInfoWidget> createState() => _CartSessionInfoWidgetState();

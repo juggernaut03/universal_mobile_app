@@ -24,14 +24,14 @@ class AppErrorWidget extends StatelessWidget {
   final String? cancelText;
 
   const AppErrorWidget({
-    Key? key,
+    super.key,
     required this.errorType,
     this.message,
     this.onRetry,
     this.onCancel,
     this.retryText = 'Try Again',
     this.cancelText = 'Cancel',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -170,10 +170,10 @@ class ErrorToast extends StatelessWidget {
   final VoidCallback? onDismiss;
 
   const ErrorToast({
-    Key? key,
+    super.key,
     required this.message,
     this.onDismiss,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -250,12 +250,12 @@ class AsyncValueWidget<T> extends StatelessWidget {
   final Widget? loadingWidget;
 
   const AsyncValueWidget({
-    Key? key,
+    super.key,
     required this.value,
     required this.dataBuilder,
     this.errorBuilder,
     this.loadingWidget,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

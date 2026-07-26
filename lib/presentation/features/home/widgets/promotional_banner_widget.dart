@@ -138,7 +138,7 @@ class PromotionalBannerWidget extends ConsumerStatefulWidget {
   final VoidCallback? onBannerTap;
 
   const PromotionalBannerWidget({
-    Key? key,
+    super.key,
     this.autoPlay = true,
     this.autoPlayInterval = const Duration(seconds: 5),
     this.transitionDuration = const Duration(milliseconds: 600),
@@ -149,7 +149,7 @@ class PromotionalBannerWidget extends ConsumerStatefulWidget {
     this.indicatorInactiveColor,
     this.enableRefresh = true,
     this.onBannerTap,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<PromotionalBannerWidget> createState() => _PromotionalBannerWidgetState();
@@ -686,9 +686,9 @@ class OptimizedPromotionalBannerWidget extends StatelessWidget {
   final Widget child;
   
   const OptimizedPromotionalBannerWidget({
-    Key? key,
+    super.key,
     required this.child,
-  }) : super(key: key);
+  });
   
   @override
   Widget build(BuildContext context) {

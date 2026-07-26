@@ -16,7 +16,7 @@ import '../../providers/home_refresh_provider.dart';
 import '../../../di/infrastructure_providers.dart';
 
 class LocationChangeScreen extends ConsumerStatefulWidget {
-  const LocationChangeScreen({Key? key}) : super(key: key);
+  const LocationChangeScreen({super.key});
 
   @override
   ConsumerState<LocationChangeScreen> createState() => _LocationChangeScreenState();
@@ -313,7 +313,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
       // First check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        if (mounted) {
+        if (context.mounted) {
           Navigator.pop(context);
           _showLocationServicesDialog(context);
         }
@@ -326,7 +326,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
       final currentPin = await ref.read(currentPincodeProvider.future);
       logger.log('Retrieved pincode from location: $currentPin');
       
-      if (mounted) {
+      if (context.mounted) {
         Navigator.pop(context);
         
         if (currentPin == null) {
@@ -341,7 +341,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
       }
     } catch (e) {
       logger.error('Error during location detection: $e');
-      if (mounted) {
+      if (context.mounted) {
         Navigator.pop(context);
         await _handleLocationError(context, e);
       }
@@ -374,13 +374,13 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
         await _handleOutletSelection(context, ref, logger, outlets);
       } else {
         logger.log('Pincode is not serviceable, showing serviceable pincodes');
-        if (mounted) {
+        if (context.mounted) {
           _showServiceablePincodesDialog(context, ref);
         }
       }
     } catch (e) {
       logger.error('Error processing detected pincode: $e');
-      if (mounted) {
+      if (context.mounted) {
         _showErrorSnackBar(context, 'Error processing location: ${e.toString()}');
       }
     }
@@ -461,7 +461,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
           availableOutletsProvider(selectedPincode).future
         );
         
-        if (mounted) {
+        if (context.mounted) {
           Navigator.pop(context);
         }
         
@@ -487,7 +487,7 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
         }
       } catch (e) {
         logger.error('Error checking available outlets: $e');
-        if (mounted) {
+        if (context.mounted) {
           Navigator.pop(context);
           _showErrorSnackBar(context, 'Error loading stores. Please try again.');
         }

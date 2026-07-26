@@ -15,9 +15,9 @@ class OutletSelectionScreen extends ConsumerStatefulWidget {
   final String pincode;
 
   const OutletSelectionScreen({
-    Key? key,
+    super.key,
     required this.pincode,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<OutletSelectionScreen> createState() => _OutletSelectionScreenState();

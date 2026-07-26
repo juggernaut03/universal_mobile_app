@@ -57,9 +57,9 @@ class LocationUtils {
   Future<String?> getPincodeFromPosition(Position position) async {
     try {
       // If Google Maps service is available, use it
-      if (_googleMapsService != null && _googleMapsService!.isInitialized) {
+      if (_googleMapsService != null && _googleMapsService.isInitialized) {
         final coordinates = LatLng(position.latitude, position.longitude);
-        return await _googleMapsService!.getPincodeFromCoordinates(coordinates);
+        return await _googleMapsService.getPincodeFromCoordinates(coordinates);
       } 
       
       // Fallback to Geocoding package if Google Maps is not available

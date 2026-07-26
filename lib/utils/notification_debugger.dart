@@ -93,7 +93,7 @@ class NotificationDebugger {
     final report = StringBuffer();
     report.writeln('=== FIREBASE PUSH NOTIFICATION DEBUG REPORT ===');
     report.writeln('Generated: ${DateTime.now()}');
-    report.writeln('Platform: ${defaultTargetPlatform}');
+    report.writeln('Platform: $defaultTargetPlatform');
     report.writeln();
     
     try {

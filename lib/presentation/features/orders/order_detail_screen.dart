@@ -10,14 +10,15 @@ import '../../../data/models/order_model.dart';
 import '../../providers/cart_provider.dart';
 import '../cart/widgets/persistent_cart_widget.dart';
 import '../../../di/infrastructure_providers.dart';
+import 'package:flutter/foundation.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final Order order;
 
   const OrderDetailScreen({
-    Key? key,
+    super.key,
     required this.order,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -607,14 +608,14 @@ class OrderDetailScreen extends ConsumerWidget {
   }
 Widget _buildItemsList(Order order) {
     // DEBUG: Let's see what the actual status is
-    print('DEBUG: Original status: "${order.status}"');
-    print('DEBUG: Status length: ${order.status.length}');
-    print('DEBUG: Status toLowerCase: "${order.status.toLowerCase()}"');
-    print('DEBUG: Status trim toLowerCase: "${order.status.trim().toLowerCase()}"');
+    if (kDebugMode) print('DEBUG: Original status: "${order.status}"');
+    if (kDebugMode) print('DEBUG: Status length: ${order.status.length}');
+    if (kDebugMode) print('DEBUG: Status toLowerCase: "${order.status.toLowerCase()}"');
+    if (kDebugMode) print('DEBUG: Status trim toLowerCase: "${order.status.trim().toLowerCase()}"');
     
     // Check if we should show prices based on order status
     final shouldShowPrices = _shouldShowItemPrices(order.status);
-    print('DEBUG: shouldShowPrices result: $shouldShowPrices');
+    if (kDebugMode) print('DEBUG: shouldShowPrices result: $shouldShowPrices');
     
     return ListView.separated(
       shrinkWrap: true,
@@ -905,16 +906,16 @@ Widget _buildItemsList(Order order) {
     // Clean the status string - remove any whitespace and convert to lowercase
     final cleanStatus = status.trim().toLowerCase();
     
-    print('DEBUG _shouldShowItemPrices: cleanStatus = "$cleanStatus"');
+    if (kDebugMode) print('DEBUG _shouldShowItemPrices: cleanStatus = "$cleanStatus"');
     
     // Check if status contains certain keywords instead of exact match
     if (cleanStatus.contains('delivered')) {
-      print('DEBUG: Found "delivered" in status');
+      if (kDebugMode) print('DEBUG: Found "delivered" in status');
       return false;
     }
     
     if (cleanStatus.contains('cancelled') || cleanStatus.contains('canceled')) {
-      print('DEBUG: Found "cancelled" or "canceled" in status');
+      if (kDebugMode) print('DEBUG: Found "cancelled" or "canceled" in status');
       return false;
     }
     
@@ -923,12 +924,12 @@ Widget _buildItemsList(Order order) {
         cleanStatus.contains('confirmed') || 
         cleanStatus.contains('preparing') || 
         cleanStatus.contains('shipped')) {
-      print('DEBUG: Found active status in status');
+      if (kDebugMode) print('DEBUG: Found active status in status');
       return true;
     }
     
     // Default to showing prices for unknown statuses
-    print('DEBUG: Unknown status, defaulting to show prices');
+    if (kDebugMode) print('DEBUG: Unknown status, defaulting to show prices');
     return true;
   }
 

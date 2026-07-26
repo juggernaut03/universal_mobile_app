@@ -36,7 +36,7 @@ class CategoryRepository {
       
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString(_departmentsKey);
-      final cachedTimestamp = prefs.getInt('${_timestampKeyPrefix}${_departmentsKey}') ?? 0;
+      final cachedTimestamp = prefs.getInt('$_timestampKeyPrefix$_departmentsKey') ?? 0;
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       
       // Check if cache is valid (not older than cache duration)
@@ -71,7 +71,7 @@ class CategoryRepository {
 
       // Cache the departments
       await prefs.setString(_departmentsKey, jsonEncode(deptData));
-      await prefs.setInt('${_timestampKeyPrefix}${_departmentsKey}', currentTime);
+      await prefs.setInt('$_timestampKeyPrefix$_departmentsKey', currentTime);
 
       // Pre-cache department images for better user experience
       _preCacheDepartmentImages(departments);
@@ -99,7 +99,7 @@ class CategoryRepository {
       final cacheKey = '$_categoriesKeyPrefix$departmentId';
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString(cacheKey);
-      final cachedTimestamp = prefs.getInt('${_timestampKeyPrefix}$cacheKey') ?? 0;
+      final cachedTimestamp = prefs.getInt('$_timestampKeyPrefix$cacheKey') ?? 0;
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       
       // Check if cache is valid (not older than cache duration)
@@ -125,7 +125,7 @@ class CategoryRepository {
 
       // Cache the categories
       await prefs.setString(cacheKey, jsonEncode(catData));
-      await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
+      await prefs.setInt('$_timestampKeyPrefix$cacheKey', currentTime);
 
       // Pre-cache category images for better user experience
       _preCacheCategoryImages(categories);

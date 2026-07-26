@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/popup_providers.dart';
 import '../../di/infrastructure_providers.dart';
+import 'package:flutter/foundation.dart';
 
 /// Handles app lifecycle events to manage popup behavior
 /// This ensures popup shows on every app launch/resume
@@ -33,7 +34,7 @@ class AppLifecycleHandler extends WidgetsBindingObserver {
       _lastLifecycleState = state;
     } catch (e) {
       // Handle any errors gracefully
-      print('Error in AppLifecycleHandler: $e');
+      if (kDebugMode) print('Error in AppLifecycleHandler: $e');
     }
   }
 

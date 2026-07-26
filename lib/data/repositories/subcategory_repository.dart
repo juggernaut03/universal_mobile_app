@@ -35,7 +35,7 @@ class SubcategoryRepository {
       final cacheKey = '$_subcategoriesKeyPrefix$categoryId';
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString(cacheKey);
-      final cachedTimestamp = prefs.getInt('${_timestampKeyPrefix}$cacheKey') ?? 0;
+      final cachedTimestamp = prefs.getInt('$_timestampKeyPrefix$cacheKey') ?? 0;
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       
       // Check if cache is valid (not older than cache duration)
@@ -70,7 +70,7 @@ class SubcategoryRepository {
 
         // Cache the filtered subcategories for this category
         await prefs.setString(cacheKey, jsonEncode(filtered));
-        await prefs.setInt('${_timestampKeyPrefix}$cacheKey', currentTime);
+        await prefs.setInt('$_timestampKeyPrefix$cacheKey', currentTime);
 
         return subcategories;
       } else {
@@ -123,7 +123,7 @@ class SubcategoryRepository {
       
       for (final key in keys) {
         if (key.startsWith(_subcategoriesKeyPrefix) ||
-            key.startsWith('${_timestampKeyPrefix}${_subcategoriesKeyPrefix}')) {
+            key.startsWith('$_timestampKeyPrefix$_subcategoriesKeyPrefix')) {
           await prefs.remove(key);
         }
       }

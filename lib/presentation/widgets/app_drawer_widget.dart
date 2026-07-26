@@ -16,7 +16,7 @@ import '../../di/auth_providers.dart';
 
 
 class AppDrawerWidget extends ConsumerWidget {
-  const AppDrawerWidget({Key? key}) : super(key: key);
+  const AppDrawerWidget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -322,7 +322,7 @@ class _DrawerItemTile extends ConsumerWidget {
               ),
             ),
             Text(
-              '${cartCount} ${cartCount == 1 ? 'item' : 'items'}',
+              '$cartCount ${cartCount == 1 ? 'item' : 'items'}',
               style: TextStyle(
                 color: AppColors.primary,
                 fontSize: 12,

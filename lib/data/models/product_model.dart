@@ -7,6 +7,7 @@
 // [toEntity] so the rest of the app only ever sees a `Product`.
 
 import '../../domain/entities/product.dart';
+import 'package:flutter/foundation.dart';
 
 class ProductModel {
   final String id;
@@ -90,7 +91,7 @@ class ProductModel {
         try {
           return double.parse(decimalString);
         } catch (e) {
-          print('Error parsing Decimal128 string: $decimalString, Error: $e');
+          if (kDebugMode) print('Error parsing Decimal128 string: $decimalString, Error: $e');
           return 0.0;
         }
       }
@@ -103,12 +104,12 @@ class ProductModel {
       try {
         return double.parse(value);
       } catch (e) {
-        print('Error parsing string to double: $value, Error: $e');
+        if (kDebugMode) print('Error parsing string to double: $value, Error: $e');
         return 0.0;
       }
     }
     
-    print('Unsupported value type for numeric parsing: ${value.runtimeType}, Value: $value');
+    if (kDebugMode) print('Unsupported value type for numeric parsing: ${value.runtimeType}, Value: $value');
     return 0.0;
   }
 
@@ -125,7 +126,7 @@ class ProductModel {
       try {
         return int.parse(value);
       } catch (e) {
-        print('Error parsing string to int: $value, Error: $e');
+        if (kDebugMode) print('Error parsing string to int: $value, Error: $e');
         return 0;
       }
     }

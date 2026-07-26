@@ -16,7 +16,7 @@ class CachedNetworkImageWidget extends StatelessWidget {
   final Widget? loadingWidget;
   
   const CachedNetworkImageWidget({
-    Key? key,
+    super.key,
     required this.imageUrl,
     this.width,
     this.height,
@@ -25,7 +25,7 @@ class CachedNetworkImageWidget extends StatelessWidget {
     this.placeholder,
     this.errorWidget,
     this.loadingWidget,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

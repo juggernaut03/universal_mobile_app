@@ -20,7 +20,7 @@ class PopularCategorySection5Widget extends ConsumerStatefulWidget {
   final double spacing;
 
   const PopularCategorySection5Widget({
-    Key? key,
+    super.key,
     this.titleOverride,
     this.showTitle = true,
     this.showViewAll = true,
@@ -28,7 +28,7 @@ class PopularCategorySection5Widget extends ConsumerStatefulWidget {
     this.itemHeight = 95,
     this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
     this.spacing = 6,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<PopularCategorySection5Widget> createState() => _PopularCategorySection5WidgetState();

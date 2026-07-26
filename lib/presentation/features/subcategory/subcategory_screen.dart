@@ -23,11 +23,11 @@ class SubcategoryScreen extends ConsumerStatefulWidget {
   final String deptId;
 
   const SubcategoryScreen({
-    Key? key,
+    super.key,
     required this.categoryName,
     required this.categoryId,
     required this.deptId,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<SubcategoryScreen> createState() => _SubcategoryScreenState();
@@ -225,7 +225,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
               subcategory.name, 
               _selectedIndex == subcategories.indexOf(subcategory) + 1
             )
-          ).toList(),
+          ),
         ],
         onTap: (index) {
           setState(() {

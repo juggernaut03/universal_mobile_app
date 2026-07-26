@@ -138,7 +138,7 @@ class SeasonalApi {
 
 /// The main seasonal picks widget
 class SeasonalPicksWidget extends ConsumerWidget {
-  const SeasonalPicksWidget({Key? key}) : super(key: key);
+  const SeasonalPicksWidget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

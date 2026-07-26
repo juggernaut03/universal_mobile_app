@@ -11,12 +11,12 @@ class ProductQuantitySelector extends StatelessWidget {
   final Function() onDecrement;
 
   const ProductQuantitySelector({
-    Key? key,
+    super.key,
     required this.quantity,
     required this.maxQuantity,
     required this.onIncrement,
     required this.onDecrement,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

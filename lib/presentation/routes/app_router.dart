@@ -51,6 +51,7 @@ import '../../main.dart';
 import '../features/debug/notification_debug_screen.dart';
 import '../../di/auth_providers.dart';
 import '../../di/infrastructure_providers.dart';
+import 'package:flutter/foundation.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final launchState = ref.watch(launchFlowProvider);
@@ -566,17 +567,17 @@ final routerProvider = Provider<GoRouter>((ref) {
 class GoRouterObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    print('GoRouter: Pushed ${route.settings.name}');
+    if (kDebugMode) print('GoRouter: Pushed ${route.settings.name}');
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    print('GoRouter: Popped ${route.settings.name}');
+    if (kDebugMode) print('GoRouter: Popped ${route.settings.name}');
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    print('GoRouter: Replaced ${oldRoute?.settings.name} with ${newRoute?.settings.name}');
+    if (kDebugMode) print('GoRouter: Replaced ${oldRoute?.settings.name} with ${newRoute?.settings.name}');
   }
 }
 

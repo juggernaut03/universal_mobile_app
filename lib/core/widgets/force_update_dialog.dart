@@ -13,9 +13,9 @@ class ForceUpdateDialog extends ConsumerStatefulWidget {
   final UpdateCheckResponse updateInfo;
 
   const ForceUpdateDialog({
-    Key? key,
+    super.key,
     required this.updateInfo,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ForceUpdateDialog> createState() => _ForceUpdateDialogState();
@@ -30,7 +30,7 @@ class _ForceUpdateDialogState extends ConsumerState<ForceUpdateDialog> {
       canPop: false, // Prevent back button dismissal
       child: Material(
         color: Colors.black.withOpacity(0.8), // Dark overlay to block interaction
-        child: Container(
+        child: SizedBox(
           width: double.infinity,
           height: double.infinity,
           child: Center(

@@ -9,10 +9,11 @@ import '../../providers/auth_providers.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/outlet_status_provider.dart'; // Add this import for outlet status
 import '../subcategory/widgets/product_item_widget.dart';
+import 'package:flutter/foundation.dart';
 
 /// A screen to display the user's favorite products
 class FavoritesScreen extends ConsumerWidget {
-  const FavoritesScreen({Key? key}) : super(key: key);
+  const FavoritesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,10 +25,10 @@ class FavoritesScreen extends ConsumerWidget {
     
     // Debug logging (remove this in production)
     ref.listen(loginStatusStreamProvider, (previous, next) {
-      print('🔐 Login status stream changed: ${next.valueOrNull}');
+      if (kDebugMode) print('🔐 Login status stream changed: ${next.valueOrNull}');
     });
     
-    print('🔐 Favorites Screen - Reactive: $isLoggedIn, Async: ${isLoggedInAsync.valueOrNull}');
+    if (kDebugMode) print('🔐 Favorites Screen - Reactive: $isLoggedIn, Async: ${isLoggedInAsync.valueOrNull}');
     
     if (!isLoggedIn) {
       // If not logged in, show login prompt

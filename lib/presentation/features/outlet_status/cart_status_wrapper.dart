@@ -15,11 +15,11 @@ class CartStatusWrapper extends ConsumerWidget {
   final bool showStatusBanner;
 
   const CartStatusWrapper({
-    Key? key,
+    super.key,
     required this.child,
     this.customDisabledWidget,
     this.showStatusBanner = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

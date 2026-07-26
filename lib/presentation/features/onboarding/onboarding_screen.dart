@@ -13,7 +13,7 @@ import '../../providers/launch_flow_provider.dart';
 final onboardingPageProvider = StateProvider<int>((ref) => 0);
 
 class OnboardingScreen extends ConsumerWidget {
-  const OnboardingScreen({Key? key}) : super(key: key);
+  const OnboardingScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -210,10 +210,10 @@ class OnboardingPage extends StatelessWidget {
   final EdgeInsets responsivePadding;
 
   const OnboardingPage({
-    Key? key,
+    super.key,
     required this.data,
     required this.responsivePadding,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -269,10 +269,10 @@ class AnimatedImageContainer extends StatefulWidget {
   final String imagePath;
 
   const AnimatedImageContainer({
-    Key? key,
+    super.key,
     required this.size,
     required this.imagePath,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedImageContainer> createState() => _AnimatedImageContainerState();
@@ -335,11 +335,11 @@ class PageIndicator extends StatelessWidget {
   final Color inactiveColor;
 
   const PageIndicator({
-    Key? key,
+    super.key,
     required this.isActive,
     required this.activeColor,
     required this.inactiveColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
