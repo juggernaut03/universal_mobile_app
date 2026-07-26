@@ -113,7 +113,9 @@ class PaymentService implements IPaymentGateway {
 
   // Razorpay publishable key id only — orders are created and verified by the
   // backend (/api/razorpay/order, /api/razorpay/verify), which holds the secret.
-  static const String keyId = ApiConstants.razorpayKeyId;
+  // Resolved per call, not once at class-load: the tenant's key id arrives
+  // with project-config, which lands after this file is first loaded.
+  static String get keyId => ApiConstants.razorpayKeyId;
 
   final ApiClient? _apiClient;
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patelmart/core/branding/app_branding.dart';
+import 'package:patelmart/core/config/env_config.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
+import 'package:patelmart/core/constants/app_constants.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 
 void main() {
@@ -105,6 +107,25 @@ void main() {
       expect(b.splashMinimumDuration, const Duration(milliseconds: 2000));
       expect(b.splashAnimation, SplashAnimation.fadeScale);
       expect(b.splashBackgroundColor, isNull);
+    });
+  });
+
+  group('integration keys', () {
+    test('a configured key id overrides the build-time default', () {
+      AppBranding.applyConfig({
+        'razorpay_key_id': 'rzp_live_tenant',
+        'google_maps_api_key': 'AIzaTenantKey',
+      });
+
+      expect(ApiConstants.razorpayKeyId, 'rzp_live_tenant');
+      expect(ApiConstants.googleApiKey, 'AIzaTenantKey');
+    });
+
+    test('an unconfigured project keeps the build-time keys', () {
+      AppBranding.applyConfig({});
+
+      expect(ApiConstants.razorpayKeyId, EnvConfig.razorpayKeyId);
+      expect(ApiConstants.googleApiKey, isNotEmpty);
     });
   });
 }

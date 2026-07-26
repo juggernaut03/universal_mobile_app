@@ -1,5 +1,6 @@
 // lib/core/constants/app_constants.dart
 
+import '../branding/app_branding.dart';
 import '../config/env_config.dart';
 
 class ApiConstants {
@@ -11,8 +12,18 @@ class ApiConstants {
   // X-Project-Code header (and body/query fallback) with every request.
   static const String projectCode = EnvConfig.projectCode;
 
-  // Google Maps API Configuration
-  static const String googleApiKey = 'AIzaSyBAu4cNOm7_OJfwL8oX0PtL3BI8ma7MoOo';
+  // Google Maps API Configuration.
+  //
+  // The tenant's key from project-config wins; this build-time value is the
+  // fallback for projects that have not set one under Mobile App >
+  // Integrations. Read through the getter, not the constant.
+  static const String _defaultGoogleApiKey = 'AIzaSyBAu4cNOm7_OJfwL8oX0PtL3BI8ma7MoOo';
+
+  static String get googleApiKey {
+    final configured = AppBranding.instance.googleMapsApiKey;
+    return configured.isNotEmpty ? configured : _defaultGoogleApiKey;
+  }
+
   static const int locationTimeout = 15; // Seconds to wait for location
 
   // ---- Auth ----
@@ -106,9 +117,14 @@ class ApiConstants {
   ];
 
   // razorpay — key id only; the secret lives on the server, which creates
-  // and verifies all Razorpay orders.
+  // and verifies all Razorpay orders. The tenant's configured key id wins
+  // over the build-time one, same as the maps key above.
   static const int apiTimeoutSeconds = 15;
-  static const String razorpayKeyId = EnvConfig.razorpayKeyId;
+
+  static String get razorpayKeyId {
+    final configured = AppBranding.instance.razorpayKeyId;
+    return configured.isNotEmpty ? configured : EnvConfig.razorpayKeyId;
+  }
 
   static const String timeout = '390';
   static const String version = '1.0';

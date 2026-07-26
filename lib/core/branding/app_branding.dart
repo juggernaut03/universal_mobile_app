@@ -80,6 +80,18 @@ class AppBranding {
 
   SplashAnimation splashAnimation = _defSplashAnimation;
 
+  // ---- Integrations (admin panel: Mobile App > Integrations) ----
+  //
+  // Publishable values only. Both fall back to the build-time constant when
+  // the tenant has not set them, so an unconfigured project keeps working.
+  // The matching secrets never leave the server.
+
+  /// Razorpay publishable key id; empty = use the build-time default.
+  String razorpayKeyId = '';
+
+  /// Google Maps key; empty = use the build-time default.
+  String googleMapsApiKey = '';
+
   /// Minimum time the splash is held, even when startup finishes sooner.
   Duration splashMinimumDuration =
       const Duration(milliseconds: _defSplashDurationMs);
@@ -133,6 +145,9 @@ class AppBranding {
     // spinner the splash has always shown.
     b.splashShowLoader =
         (config['splash_show_loader'] ?? '').toString().trim() != 'false';
+
+    b.razorpayKeyId = (config['razorpay_key_id'] ?? '').toString().trim();
+    b.googleMapsApiKey = (config['google_maps_api_key'] ?? '').toString().trim();
 
     final name = (config['app_name'] ?? '').toString().trim();
     b.appName = name.isNotEmpty
