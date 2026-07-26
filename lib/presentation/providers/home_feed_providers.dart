@@ -9,6 +9,8 @@ import '../../core/branding/app_branding.dart';
 import '../../data/models/home_feed_models.dart';
 import '../../di/repository_providers.dart';
 import '../features/home/sections/home_section_registry.dart';
+import 'cart_provider.dart';
+import 'order_history_provider.dart';
 import 'outlet_provider.dart';
 
 /// Whether this tenant renders home from the feed.
@@ -29,16 +31,47 @@ final homeFeedProvider = FutureProvider<HomeFeed>((ref) async {
   return ref.watch(homeFeedRepositoryProvider).getFeed(storeCode: storeCode);
 });
 
+/// Which audience bucket this device falls into.
+///
+/// Matched here rather than server-side on purpose: the feed is public and
+/// cacheable, so it cannot vary per user. A section targeted at an audience is
+/// still delivered to everyone and filtered on arrival.
+final homeAudienceProvider = Provider<Set<String>>((ref) {
+  final audiences = <String>{HomeSectionAudience.all};
+
+  if (ref.watch(cartItemsProvider).isNotEmpty) {
+    audiences.add(HomeSectionAudience.hasCart);
+  }
+
+  final orders = ref.watch(orderHistoryProvider).valueOrNull;
+  // Unknown history is treated as "new": showing a first-time shopper a
+  // returning-user rail is the worse mistake of the two.
+  if (orders != null && orders.isNotEmpty) {
+    audiences.add(HomeSectionAudience.returning);
+  } else {
+    audiences.add(HomeSectionAudience.newUser);
+  }
+
+  return audiences;
+});
+
 /// Sections this build knows how to draw, in order.
 ///
-/// Unknown types are dropped here rather than at the render site, so a section
-/// added to the backend before this app version existed is simply absent
-/// instead of throwing.
+/// Three things are filtered here rather than at the render site, so a section
+/// that should not appear is absent rather than drawing an empty box:
+///   - types this app version predates,
+///   - campaigns whose window has closed (the feed is cached and can outlive
+///     its own schedule),
+///   - sections aimed at an audience this device is not in.
 final homeSectionsProvider = Provider<List<HomeSection>>((ref) {
   final feed = ref.watch(homeFeedProvider).valueOrNull ?? HomeFeed.fallback;
+  final audiences = ref.watch(homeAudienceProvider);
+  final now = DateTime.now();
 
   return feed.sections
       .where((section) => HomeSectionRegistry.canRender(section.type))
+      .where((section) => !feed.sectionHasExpired(section, now: now))
+      .where((section) => audiences.contains(section.audience))
       .toList(growable: false);
 });
 

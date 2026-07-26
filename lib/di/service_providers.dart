@@ -43,6 +43,7 @@ import '../presentation/providers/cart_validator_provider.dart'
 import '../presentation/providers/splash_provider.dart'
     show googleMapsInitializedProvider;
 import 'infrastructure_providers.dart';
+import '../data/services/home_analytics_service.dart';
 
 // ---- storage & session ----
 
@@ -212,4 +213,16 @@ final paymentGatewayProvider = Provider<IPaymentGateway>((ref) {
   final gateway = ref.watch(paymentServiceProvider);
   ref.onDispose(gateway.dispose);
   return gateway;
+});
+
+
+/// Home-section impression/tap reporting. Buffers in memory and flushes on a
+/// timer, so nothing on the render path waits for it.
+final homeAnalyticsServiceProvider = Provider<HomeAnalyticsService>((ref) {
+  final service = HomeAnalyticsService(
+    apiClient: ref.watch(apiClientProvider),
+    logger: ref.watch(loggerProvider),
+  );
+  ref.onDispose(service.dispose);
+  return service;
 });

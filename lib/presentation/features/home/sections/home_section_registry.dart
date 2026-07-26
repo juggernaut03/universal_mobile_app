@@ -11,7 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/home_feed_models.dart';
+import '../../../../di/service_providers.dart';
 import '../../../providers/steal_deals_provider.dart';
+import 'merchandising_sections.dart';
 import '../widgets/best_seller_widget.dart';
 import '../widgets/popular_category_section_widget.dart';
 import '../widgets/promotional_banner_widget.dart';
@@ -35,6 +37,14 @@ class HomeSectionRegistry {
     HomeSectionType.productRail: _productRail,
     HomeSectionType.offerStrip: _offerStrip,
     HomeSectionType.seasonalPicks: _seasonalPicks,
+
+    // Merchandising sections. Each is one entry plus one widget — the whole
+    // cost of a new section type.
+    HomeSectionType.flashSale: _flashSale,
+    HomeSectionType.dealOfDay: _flashSale,
+    HomeSectionType.buyAgain: _buyAgain,
+    HomeSectionType.freeDeliveryProgress: _freeDeliveryProgress,
+    HomeSectionType.uspStrip: _uspStrip,
   };
 
   static bool canRender(String type) => _builders.containsKey(type);
@@ -46,7 +56,10 @@ class HomeSectionRegistry {
 
     return RepaintBoundary(
       key: ValueKey('home_section_${section.id}'),
-      child: builder(context, ref, section),
+      child: _TrackedSection(
+        section: section,
+        child: builder(context, ref, section),
+      ),
     );
   }
 
@@ -122,5 +135,70 @@ class HomeSectionRegistry {
 
   static Widget _seasonalPicks(BuildContext context, WidgetRef ref, HomeSection section) {
     return const SeasonalPicksWidget();
+  }
+
+  /// Deal-of-the-day is a flash sale with one item; the presentation is the
+  /// same, so it shares the renderer rather than duplicating it.
+  static Widget _flashSale(BuildContext context, WidgetRef ref, HomeSection section) =>
+      FlashSaleSection(section: section);
+
+  static Widget _buyAgain(BuildContext context, WidgetRef ref, HomeSection section) =>
+      BuyAgainSection(section: section);
+
+  static Widget _freeDeliveryProgress(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) =>
+      FreeDeliveryProgressSection(section: section);
+
+  static Widget _uspStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
+      UspStripSection(section: section);
+}
+
+/// Counts a section as seen once it is actually built.
+///
+/// Impression tracking has to wrap the section rather than live inside each
+/// renderer, or every new section type would have to remember to report — and
+/// the one that forgot would silently look like it never performed.
+class _TrackedSection extends ConsumerStatefulWidget {
+  final HomeSection section;
+  final Widget child;
+
+  const _TrackedSection({required this.section, required this.child});
+
+  @override
+  ConsumerState<_TrackedSection> createState() => _TrackedSectionState();
+}
+
+class _TrackedSectionState extends ConsumerState<_TrackedSection> {
+  @override
+  void initState() {
+    super.initState();
+    // After the frame: reporting during build would rebuild providers mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(homeAnalyticsServiceProvider).recordImpression(
+            sectionId: widget.section.id,
+            sectionType: widget.section.type,
+          );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // A tap anywhere in the section counts as engagement with it.
+    //
+    // Listener observes pointer events without competing for them, so the
+    // section's own taps still work exactly as before. deferToChild means it
+    // fires only when something inside was actually hit, not on empty space.
+    return Listener(
+      behavior: HitTestBehavior.deferToChild,
+      onPointerUp: (_) => ref.read(homeAnalyticsServiceProvider).recordClick(
+            sectionId: widget.section.id,
+            sectionType: widget.section.type,
+          ),
+      child: widget.child,
+    );
   }
 }
