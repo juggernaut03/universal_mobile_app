@@ -92,7 +92,7 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
     );
     
     // Insert overlay at the top level of the app
-    Overlay.of(context, rootOverlay: true)?.insert(_overlayEntry!);
+    Overlay.of(context, rootOverlay: true).insert(_overlayEntry!);
     
     // Start animation
     _animationController.forward();

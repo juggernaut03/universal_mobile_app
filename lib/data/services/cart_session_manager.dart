@@ -84,7 +84,6 @@ Future<bool> isCartSessionValid() async {
   
   /// FIXED: Generate a truly unique temp order ID for each order placement
   String _generateUniqueOrderId() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
     final random = DateTime.now().microsecond; // More unique than modulo
     final dateTime = DateTime.now();
     final dateStr = '${dateTime.year}${dateTime.month.toString().padLeft(2, '0')}${dateTime.day.toString().padLeft(2, '0')}';

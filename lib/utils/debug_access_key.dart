@@ -52,7 +52,7 @@ class _AccessKeyDebugScreenState extends ConsumerState<AccessKeyDebugScreen> {
             'key': key,
           });
           
-          if (accessKeyFinal == null && key.isNotEmpty) {
+          if (key.isNotEmpty) {
             accessKeyFinal = key;
           }
         }

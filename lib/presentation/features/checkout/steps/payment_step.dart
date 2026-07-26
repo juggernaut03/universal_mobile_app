@@ -333,12 +333,12 @@ Future<void> _placeOrder() async {
     } else {
       // For self pickup, create address from outlet info
       // Ensure mobile number has a valid value
-      final mobileForPayment = userProfile?.mobile?.isNotEmpty == true
+      final mobileForPayment = userProfile?.mobile.isNotEmpty == true
           ? userProfile!.mobile
           : '9999999999'; // Fallback mobile for payment
 
       // Generate valid email from mobile or use default
-      final emailForPayment = userProfile?.mobile?.isNotEmpty == true
+      final emailForPayment = userProfile?.mobile.isNotEmpty == true
           ? '${userProfile!.mobile}@customer.patelrmart.com'
           : 'orders@patelrmart.com';
 
@@ -567,7 +567,7 @@ Future<void> _placeOrder() async {
     
     logger.log('=== STEP 3: UPDATING DATABASE WITH FINAL STATUS ===');
     logger.log('Using Temp Order ID: $tempOrderId');
-    logger.log('Payment Success: ${paymentResult?.success ?? false}');
+    logger.log('Payment Success: ${paymentResult.success ?? false}');
     logger.log('Transaction ID: ${transactionId ?? "None"}');
     
     // Determine what the final status should be
@@ -575,7 +575,7 @@ Future<void> _placeOrder() async {
     String expectedPaymentStatus;
     
     if (paymentMode.toLowerCase() == "online payment") {
-      if (paymentResult != null && paymentResult.success) {
+      if (paymentResult.success) {
         expectedOrderStatus = "Order Confirmed";
         expectedPaymentStatus = "Payment Confirmed";
       } else {
@@ -589,7 +589,7 @@ Future<void> _placeOrder() async {
     
     if (kDebugMode) print('\n📋 === STEP 3: UPDATING ORDER WITH FINAL STATUS === 📋');
     if (kDebugMode) print('Temp Order ID: $tempOrderId');
-    if (kDebugMode) print('Payment Success: ${paymentResult?.success ?? false}');
+    if (kDebugMode) print('Payment Success: ${paymentResult.success ?? false}');
     if (kDebugMode) print('Expected Order Status: $expectedOrderStatus');
     if (kDebugMode) print('Expected Payment Status: $expectedPaymentStatus');
     if (kDebugMode) print('Transaction ID: ${transactionId ?? "None"}');
@@ -616,7 +616,7 @@ Future<void> _placeOrder() async {
       deliveryCharges: deliveryCharge,
       discountedAmount: cartTotal,
       finalPayableAmount: finalAmount,
-      paidAmount: (paymentResult?.success == true) ? finalAmount.toString() : "0",
+      paidAmount: (paymentResult.success == true) ? finalAmount.toString() : "0",
       accessKey: accessKey,
       transactionId: transactionId,
       specialNotes: _buildSpecialNotes(userProfile),
@@ -638,7 +638,7 @@ Future<void> _placeOrder() async {
     
     if (orderResult.success) {
       // API call successful - determine the outcome based on the message or payment result
-      if (paymentResult != null && paymentResult.success && paymentMode.toLowerCase() == "online payment") {
+      if (paymentResult.success && paymentMode.toLowerCase() == "online payment") {
         // Successful online payment
         ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
         await enhancedCartValidator.markOrderAsCompleted(tempOrderId);

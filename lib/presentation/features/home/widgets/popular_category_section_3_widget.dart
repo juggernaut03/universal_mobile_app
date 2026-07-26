@@ -6,7 +6,6 @@ import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/core/widgets/cached_network_image_widget.dart';
 import 'package:patelmart/core/widgets/error_widgets.dart';
 import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
-import '../../../../di/infrastructure_providers.dart';
 
 class PopularCategorySection3Widget extends ConsumerStatefulWidget {
   final int sectionId = 3;
@@ -41,7 +40,6 @@ class _PopularCategorySection3WidgetState extends ConsumerState<PopularCategoryS
   Widget build(BuildContext context) {
     // Use dedicated Section 3 provider for complete isolation
     final categoriesAsync = ref.watch(popularCategorySection3Provider);
-    final logger = ref.read(loggerProvider);
 
     return categoriesAsync.when(
       data: (categoryResponse) {

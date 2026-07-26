@@ -680,7 +680,6 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
                 logger.log('👤 User is logged in, checking FCM token status...');
                 
                 try {
-                  final authService = ref.read(authServiceProvider);
                   
                   // Check if these methods exist before calling them
                   // Uncomment and modify based on your actual auth service methods

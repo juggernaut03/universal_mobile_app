@@ -56,7 +56,9 @@ import 'package:flutter/foundation.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   final launchState = ref.watch(launchFlowProvider);
   final splashCompleted = ref.watch(splashCompletedProvider);
-  final selectedPincode = ref.watch(selectedPincodeProvider);
+  // Subscription kept deliberately: the binding was unused but the
+  // watch is what rebuilds this on change.
+  ref.watch(selectedPincodeProvider);
   final logger = ref.read(loggerProvider);
   
   // Helper function to get address to edit from shared preferences

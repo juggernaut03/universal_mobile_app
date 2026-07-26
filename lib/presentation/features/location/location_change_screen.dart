@@ -7,7 +7,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../data/utils/location_utils.dart';
-import '../../../core/utils/back_handler.dart';
 import '../../../data/models/outlet_model.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/outlet_provider.dart';
@@ -86,7 +85,6 @@ class _LocationChangeScreenState extends ConsumerState<LocationChangeScreen> {
     final selectedOutletAsync = ref.watch(selectedOutletProvider);
     final isScreenSmall = ResponsiveUtils.isSmall(context);
     final logger = ref.read(loggerProvider);
-    final backHandler = BackButtonHandler(logger: logger);
 
     logger.log('Building LocationChangeScreen - Pincode: $selectedPincode');
 

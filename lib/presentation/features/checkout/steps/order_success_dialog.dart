@@ -23,8 +23,6 @@ void showOrderSuccessDialog(
   String orderId,
 ) {
   final paymentResult = ref.read(paymentResultProvider);
-  final orderResult = ref.read(orderConfirmationResultProvider);
-  final paymentProcessingResult = ref.read(orderPaymentProcessingResultProvider);
   
   showDialog(
     context: context,

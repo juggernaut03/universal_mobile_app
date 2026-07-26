@@ -33,7 +33,9 @@ final bestSellerBannerProvider = FutureProvider.family<List<BestSellerBanner>, i
 // Provider for best seller products with family parameter for different section IDs
 final bestSellerProductsProvider = FutureProvider.family<List<ProductModel>, int>((ref, bestSellerId) async {
   final repository = ref.watch(bestSellerRepositoryProvider);
-  final forceRefresh = ref.watch(refreshBestSellerProvider);
+  // Subscription kept deliberately: the binding was unused but the
+  // watch is what rebuilds this on change.
+  ref.watch(refreshBestSellerProvider);
   
   // If force refresh is true, the cache will have already been cleared by the banner provider
   // so we don't need to clear it again here
