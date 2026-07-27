@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/time/clock.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../data/models/home_feed_models.dart';
 import '../../../../data/models/home_feed_mappers.dart';
@@ -44,7 +45,9 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
     final section = widget.section;
     final endsAt = section.endsAt;
 
-    if (_expired || (endsAt != null && endsAt.isBefore(DateTime.now()))) {
+    final now = ref.watch(clockProvider).now();
+
+    if (_expired || (endsAt != null && endsAt.isBefore(now))) {
       return const SizedBox.shrink();
     }
 
@@ -76,6 +79,7 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
                   Text('$label ', style: AppTextStyles.bodySmall),
                   CountdownText(
                     endsAt: endsAt,
+                    clock: ref.watch(clockProvider),
                     style: AppTextStyles.bodySmall.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.error,

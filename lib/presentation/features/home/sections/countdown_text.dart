@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/time/clock.dart';
+
 /// Ticking "ends in HH:MM:SS" label for time-boxed sections.
 ///
 /// Rebuilds only itself — a countdown inside a section widget would otherwise
@@ -15,11 +17,16 @@ class CountdownText extends StatefulWidget {
   /// Called once when the deadline passes, so the parent can drop the section.
   final VoidCallback? onExpired;
 
+  /// Where "now" comes from. A [FixedClock] freezes the countdown, which is
+  /// what the admin preview wants when rendering a chosen date.
+  final Clock clock;
+
   const CountdownText({
     super.key,
     required this.endsAt,
     this.style,
     this.onExpired,
+    this.clock = const SystemClock(),
   });
 
   @override
@@ -48,7 +55,7 @@ class _CountdownTextState extends State<CountdownText> {
   }
 
   Duration _remainingNow() {
-    final left = widget.endsAt.difference(DateTime.now());
+    final left = widget.endsAt.difference(widget.clock.now());
     return left.isNegative ? Duration.zero : left;
   }
 

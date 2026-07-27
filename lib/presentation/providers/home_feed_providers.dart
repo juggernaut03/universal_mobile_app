@@ -6,6 +6,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/branding/app_branding.dart';
+import '../../core/time/clock.dart';
 import '../../data/models/home_feed_models.dart';
 import '../../di/repository_providers.dart';
 import '../features/home/sections/home_section_registry.dart';
@@ -66,7 +67,9 @@ final homeAudienceProvider = Provider<Set<String>>((ref) {
 final homeSectionsProvider = Provider<List<HomeSection>>((ref) {
   final feed = ref.watch(homeFeedProvider).valueOrNull ?? HomeFeed.fallback;
   final audiences = ref.watch(homeAudienceProvider);
-  final now = DateTime.now();
+  // Through the clock, so the admin preview can render a chosen date and see
+  // which sections would be live then.
+  final now = ref.watch(clockProvider).now();
 
   return feed.sections
       .where((section) => HomeSectionRegistry.canRender(section.type))
