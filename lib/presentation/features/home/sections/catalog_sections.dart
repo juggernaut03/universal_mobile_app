@@ -8,7 +8,6 @@
 // sellers. Because they render `section.items`, they cost no extra request.
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/cached_network_image_widget.dart';
@@ -99,17 +98,10 @@ class _BannerTile extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () => _openBannerTarget(context, banner.redirectLink),
+      onTap: () => openBannerTarget(context, banner.redirectLink),
       child: image,
     );
   }
-}
-
-/// Banner targets are stored as in-app paths. Anything that is not one is
-/// ignored rather than pushed onto the router, which would land the user on a
-/// "page not found" they cannot back out of cleanly.
-void _openBannerTarget(BuildContext context, String target) {
-  if (target.startsWith('/')) context.push(target);
 }
 
 // ----------------------------------------------------------------------
