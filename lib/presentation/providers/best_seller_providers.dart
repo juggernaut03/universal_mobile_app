@@ -38,7 +38,11 @@ final bestSellerProductsProvider = FutureProvider.family<List<ProductModel>, int
   // Served from the home feed when it carries this rail; see the note on
   // promoSectionProvider.
   final fromFeed = ref.watch(homeFeedProvider).valueOrNull
-      ?.bySequence(HomeSectionType.productRail, bestSellerId);
+      ?.bySequence(
+        HomeSectionType.productRail,
+        bestSellerId,
+        collection: HomeSectionSource.bestSellers,
+      );
   if (fromFeed != null && fromFeed.items.isNotEmpty) {
     return fromFeed.toProducts();
   }
@@ -57,7 +61,11 @@ final bestSellerProductsProvider = FutureProvider.family<List<ProductModel>, int
 // NEW: Provider for best seller title with family parameter for different section IDs
 final bestSellerTitleProvider = FutureProvider.family<String, int>((ref, bestSellerId) async {
   final fromFeed = ref.watch(homeFeedProvider).valueOrNull
-      ?.bySequence(HomeSectionType.productRail, bestSellerId);
+      ?.bySequence(
+        HomeSectionType.productRail,
+        bestSellerId,
+        collection: HomeSectionSource.bestSellers,
+      );
   if (fromFeed != null && fromFeed.title.isNotEmpty) return fromFeed.title;
 
   final repository = ref.watch(bestSellerRepositoryProvider);

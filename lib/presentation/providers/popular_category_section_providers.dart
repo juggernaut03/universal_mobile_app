@@ -40,7 +40,11 @@ final promoSectionProvider =
   // section's own fetch when the feed is off, still loading, or does not
   // contain this section.
   final fromFeed = ref.watch(homeFeedProvider).valueOrNull
-      ?.bySequence(HomeSectionType.categoryGrid, sectionId);
+      ?.bySequence(
+        HomeSectionType.categoryGrid,
+        sectionId,
+        collection: HomeSectionSource.popularCategories,
+      );
   if (fromFeed != null && fromFeed.items.isNotEmpty) {
     return fromFeed.toPromoSection(sectionId);
   }

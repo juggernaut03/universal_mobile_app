@@ -25,6 +25,7 @@ import '../data/repositories/popular_category_repository.dart';
 import '../data/repositories/profile_repository.dart';
 import '../data/repositories/project_config_repository.dart';
 import '../data/repositories/subcategory_repository.dart';
+import '../data/repositories/top_seller_repository.dart';
 import 'auth_providers.dart';
 import 'infrastructure_providers.dart';
 import 'service_providers.dart';
@@ -78,6 +79,13 @@ final subcategoryRepositoryProvider = Provider<SubcategoryRepository>((ref) {
 
 final homeFeedRepositoryProvider = Provider<HomeFeedRepository>((ref) {
   return HomeFeedRepository(
+    apiClient: ref.watch(apiClientProvider),
+    logger: ref.watch(loggerProvider),
+  );
+});
+
+final topSellerRepositoryProvider = Provider<TopSellerRepository>((ref) {
+  return TopSellerRepository(
     apiClient: ref.watch(apiClientProvider),
     logger: ref.watch(loggerProvider),
   );
