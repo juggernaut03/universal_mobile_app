@@ -11,6 +11,10 @@
 
 import 'dart:async';
 import 'dart:convert';
+// The lint guards against web-only imports leaking into a mobile build. This
+// file is reachable only through the conditional import in preview_bridge.dart
+// and only compiles for web, which is precisely the exemption it describes.
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
 import '../preview_protocol.dart';
