@@ -1,5 +1,7 @@
 // lib/presentation/features/product/single_product_screen.dart
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +14,7 @@ import '../../../di/product_providers.dart';
 import '../../../domain/usecases/product/get_product_by_code.dart';
 import '../../../domain/usecases/product/get_products.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/recently_viewed_providers.dart';
 import '../../providers/outlet_status_provider.dart'; // Add this import for outlet status
 import 'widgets/suggested_product_card.dart';
 // FACEBOOK PIXEL IMPORTS
@@ -67,12 +70,18 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
 
     switch (result) {
       case Ok(:final value):
+        final product = ProductModel.fromEntity(value);
         setState(() {
           // Converted back to the DTO because cartProvider still takes a
           // ProductModel. TODO(phase-5): hold the Product entity directly.
-          _product = ProductModel.fromEntity(value);
+          _product = product;
           _isLoading = false;
         });
+
+        // Feeds the home screen's "Recently viewed" rail. Stays on the device
+        // and is deliberately not awaited — history is not worth delaying the
+        // screen the shopper is already looking at.
+        unawaited(ref.read(recordProductViewProvider)(product));
 
         await FacebookPixelIntegration.trackProductEvent(
           ref,

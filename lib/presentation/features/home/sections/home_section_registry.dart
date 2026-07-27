@@ -45,7 +45,10 @@ class HomeSectionRegistry {
     HomeSectionType.flashSale: _flashSale,
     HomeSectionType.dealOfDay: _flashSale,
     HomeSectionType.buyAgain: _buyAgain,
+    HomeSectionType.recentlyViewed: _recentlyViewed,
     HomeSectionType.freeDeliveryProgress: _freeDeliveryProgress,
+    HomeSectionType.couponStrip: _couponStrip,
+    HomeSectionType.brandStrip: _brandStrip,
     HomeSectionType.uspStrip: _uspStrip,
   };
 
@@ -168,6 +171,16 @@ class HomeSectionRegistry {
 
   static Widget _uspStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
       UspStripSection(section: section);
+
+  /// Filled from on-device history; the server never sees it.
+  static Widget _recentlyViewed(BuildContext context, WidgetRef ref, HomeSection section) =>
+      RecentlyViewedSection(section: section);
+
+  static Widget _couponStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
+      CouponStripSection(section: section);
+
+  static Widget _brandStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
+      BrandStripSection(section: section);
 }
 
 /// Counts a section as seen once it is actually built.

@@ -9,21 +9,21 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patelmart/data/models/home_feed_mappers.dart';
 import 'package:patelmart/data/models/home_feed_models.dart';
+import 'package:patelmart/presentation/features/home/sections/home_section_registry.dart';
 
 HomeSection section({
   required String type,
   int? sequence,
   String collection = '',
   List<Map<String, dynamic>> items = const [],
-}) =>
-    HomeSection(
-      id: '$type-$sequence',
-      type: type,
-      slot: 0,
-      sourceSequence: sequence,
-      sourceCollection: collection,
-      items: items,
-    );
+}) => HomeSection(
+  id: '$type-$sequence',
+  type: type,
+  slot: 0,
+  sourceSequence: sequence,
+  sourceCollection: collection,
+  items: items,
+);
 
 void main() {
   group('feed parsing', () {
@@ -60,24 +60,26 @@ void main() {
     // A best-seller rail and a top-seller rail are both product_rail and can
     // share a sequence. Matching on type alone hands a provider the other
     // collection's products under its own heading.
-    final feed = HomeFeed(sections: [
-      section(
-        type: HomeSectionType.productRail,
-        sequence: 1,
-        collection: HomeSectionSource.bestSellers,
-        items: const [
-          {'p_code': 'best'}
-        ],
-      ),
-      section(
-        type: HomeSectionType.productRail,
-        sequence: 1,
-        collection: HomeSectionSource.topSellers,
-        items: const [
-          {'p_code': 'top'}
-        ],
-      ),
-    ]);
+    final feed = HomeFeed(
+      sections: [
+        section(
+          type: HomeSectionType.productRail,
+          sequence: 1,
+          collection: HomeSectionSource.bestSellers,
+          items: const [
+            {'p_code': 'best'},
+          ],
+        ),
+        section(
+          type: HomeSectionType.productRail,
+          sequence: 1,
+          collection: HomeSectionSource.topSellers,
+          items: const [
+            {'p_code': 'top'},
+          ],
+        ),
+      ],
+    );
 
     test('picks the rail from the collection asked for', () {
       final best = feed.bySequence(
@@ -103,11 +105,17 @@ void main() {
 
     test('a section whose source the backend did not name still matches', () {
       // Otherwise upgrading the app before the backend would blank the screen.
-      final older = HomeFeed(sections: [
-        section(type: HomeSectionType.productRail, sequence: 1, items: const [
-          {'p_code': 'legacy'}
-        ]),
-      ]);
+      final older = HomeFeed(
+        sections: [
+          section(
+            type: HomeSectionType.productRail,
+            sequence: 1,
+            items: const [
+              {'p_code': 'legacy'},
+            ],
+          ),
+        ],
+      );
 
       final match = older.bySequence(
         HomeSectionType.productRail,
@@ -132,14 +140,17 @@ void main() {
 
   group('banner mapping', () {
     test('reads a banner: image_url and action.value', () {
-      final banners = section(type: HomeSectionType.heroCarousel, items: const [
-        {
-          'id': 'b1',
-          'image_url': 'https://cdn/banner.png',
-          'action': {'type': 'url', 'value': '/category/5'},
-          'sequence': 2,
-        }
-      ]).toPromotionalBanners('S1');
+      final banners = section(
+        type: HomeSectionType.heroCarousel,
+        items: const [
+          {
+            'id': 'b1',
+            'image_url': 'https://cdn/banner.png',
+            'action': {'type': 'url', 'value': '/category/5'},
+            'sequence': 2,
+          },
+        ],
+      ).toPromotionalBanners('S1');
 
       expect(banners.single.imageUrl, 'https://cdn/banner.png');
       expect(banners.single.redirectLink, '/category/5');
@@ -149,13 +160,12 @@ void main() {
     test('reads an advertisement: banner_url and a flat redirect_url', () {
       // Advertisements name both fields differently from banners, so a mapper
       // that only knew the banner shape dropped every advertisement.
-      final banners = section(type: HomeSectionType.bannerStrip, items: const [
-        {
-          '_id': 'a1',
-          'banner_url': 'https://cdn/ad.png',
-          'redirect_url': '/product/9',
-        }
-      ]).toPromotionalBanners('S1');
+      final banners = section(
+        type: HomeSectionType.bannerStrip,
+        items: const [
+          {'_id': 'a1', 'banner_url': 'https://cdn/ad.png', 'redirect_url': '/product/9'},
+        ],
+      ).toPromotionalBanners('S1');
 
       expect(banners.single.imageUrl, 'https://cdn/ad.png');
       expect(banners.single.redirectLink, '/product/9');
@@ -163,47 +173,98 @@ void main() {
     });
 
     test('per-breakpoint assets win over the flat url', () {
-      final banners = section(type: HomeSectionType.heroCarousel, items: const [
-        {
-          'id': 'b1',
-          'image_url': 'https://cdn/flat.png',
-          'banner_urls': {
-            'bannerUrl1': {'mobile': 'https://cdn/mobile.png', 'desktop': 'https://cdn/d.png'}
+      final banners = section(
+        type: HomeSectionType.heroCarousel,
+        items: const [
+          {
+            'id': 'b1',
+            'image_url': 'https://cdn/flat.png',
+            'banner_urls': {
+              'bannerUrl1': {'mobile': 'https://cdn/mobile.png', 'desktop': 'https://cdn/d.png'},
+            },
           },
-        }
-      ]).toPromotionalBanners('S1');
+        ],
+      ).toPromotionalBanners('S1');
 
       expect(banners.single.imageUrl, 'https://cdn/mobile.png');
     });
 
     test("an advertisement's single banner_urls object is read one level up", () {
-      final banners = section(type: HomeSectionType.bannerStrip, items: const [
-        {
-          'id': 'a1',
-          'banner_urls': {'mobile': 'https://cdn/admobile.png'},
-        }
-      ]).toPromotionalBanners('S1');
+      final banners = section(
+        type: HomeSectionType.bannerStrip,
+        items: const [
+          {
+            'id': 'a1',
+            'banner_urls': {'mobile': 'https://cdn/admobile.png'},
+          },
+        ],
+      ).toPromotionalBanners('S1');
 
       expect(banners.single.imageUrl, 'https://cdn/admobile.png');
     });
 
     test('an item with no usable image is skipped, not rendered blank', () {
-      final banners = section(type: HomeSectionType.bannerStrip, items: const [
-        {'id': 'a1'},
-        {'id': 'a2', 'banner_url': 'https://cdn/ok.png'},
-      ]).toPromotionalBanners('S1');
+      final banners = section(
+        type: HomeSectionType.bannerStrip,
+        items: const [
+          {'id': 'a1'},
+          {'id': 'a2', 'banner_url': 'https://cdn/ok.png'},
+        ],
+      ).toPromotionalBanners('S1');
 
       expect(banners, hasLength(1));
       expect(banners.single.id, 'a2');
     });
 
     test('banners come back in sequence order', () {
-      final banners = section(type: HomeSectionType.bannerStrip, items: const [
-        {'id': 'b', 'banner_url': 'https://cdn/2.png', 'sequence': 5},
-        {'id': 'a', 'banner_url': 'https://cdn/1.png', 'sequence': 1},
-      ]).toPromotionalBanners('S1');
+      final banners = section(
+        type: HomeSectionType.bannerStrip,
+        items: const [
+          {'id': 'b', 'banner_url': 'https://cdn/2.png', 'sequence': 5},
+          {'id': 'a', 'banner_url': 'https://cdn/1.png', 'sequence': 1},
+        ],
+      ).toPromotionalBanners('S1');
 
       expect(banners.map((b) => b.id), ['a', 'b']);
+    });
+  });
+
+  group('renderer coverage', () {
+    // Every type the admin panel offers must have a renderer here. Without
+    // this, a type can be added to the dropdown, configured, saved — and then
+    // skipped silently on the phone, which is exactly how recently_viewed,
+    // coupon_strip and brand_strip came to be selectable but invisible.
+    const offeredInAdminPanel = [
+      HomeSectionType.heroCarousel,
+      HomeSectionType.bannerStrip,
+      HomeSectionType.categoryStrip,
+      HomeSectionType.categoryGrid,
+      HomeSectionType.productRail,
+      HomeSectionType.offerStrip,
+      HomeSectionType.seasonalPicks,
+      HomeSectionType.flashSale,
+      HomeSectionType.dealOfDay,
+      HomeSectionType.buyAgain,
+      HomeSectionType.recentlyViewed,
+      HomeSectionType.freeDeliveryProgress,
+      HomeSectionType.couponStrip,
+      HomeSectionType.brandStrip,
+      HomeSectionType.uspStrip,
+    ];
+
+    for (final type in offeredInAdminPanel) {
+      test('$type has a renderer', () {
+        expect(
+          HomeSectionRegistry.canRender(type),
+          isTrue,
+          reason: '$type is offered in the panel but would be skipped by the app',
+        );
+      });
+    }
+
+    test('an unknown type is still skipped rather than crashing', () {
+      // This is what lets the backend ship a section type ahead of the app.
+      expect(HomeSectionRegistry.canRender('something_from_the_future'), isFalse);
     });
   });
 }
