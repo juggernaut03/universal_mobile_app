@@ -80,3 +80,36 @@ Color? homeSectionBackground(String hex) {
   final parsed = int.tryParse(value.length == 6 ? 'ff$value' : value, radix: 16);
   return parsed == null ? null : Color(parsed);
 }
+
+/// Routes a banner tap.
+///
+/// Shared so every banner placement resolves targets identically — the hero
+/// carousel has always understood four formats, and a strip that only handled
+/// in-app paths would swallow three of them as dead taps.
+void openBannerTarget(BuildContext context, String target) {
+  if (target.isEmpty) return;
+
+  if (target.startsWith('product_details/')) {
+    context.push('/product/${target.replaceFirst('product_details/', '')}');
+    return;
+  }
+
+  if (target.startsWith('/')) {
+    context.push(target);
+    return;
+  }
+
+  if (target.contains('category_id=')) {
+    final uri = Uri.tryParse(target);
+    final categoryId = uri?.queryParameters['category_id'];
+    if (categoryId != null) {
+      final deptId = uri?.queryParameters['dept_id'] ?? '1';
+      final categoryName = uri?.queryParameters['category_name'] ?? 'Category';
+      context.push('/subcategory/$categoryId/$deptId/$categoryName');
+    }
+    return;
+  }
+
+  // External URLs need url_launcher, which the hero has never wired up either;
+  // ignored rather than pushed onto the router as a bogus path.
+}
