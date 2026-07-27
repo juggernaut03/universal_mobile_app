@@ -102,7 +102,11 @@ extension HomeSectionPromoMapper on HomeSection {
     for (final item in items) {
       final assets = _map(item['banner_urls']);
 
-      var imageUrl = _str(item['image_url']);
+      // Banners call it `image_url`; advertisements call it `banner_url`. Both
+      // may instead carry per-breakpoint assets, which win when present.
+      var imageUrl = _str(item['image_url']).isNotEmpty
+          ? _str(item['image_url'])
+          : _str(item['banner_url']);
       for (final asset in assets.values) {
         if (asset is Map) {
           final candidate = _str(asset['mobile']).isNotEmpty
@@ -114,14 +118,26 @@ extension HomeSectionPromoMapper on HomeSection {
           }
         }
       }
+      // `banner_urls` on an advertisement is a single object, not a map of
+      // them, so its keys sit one level up from a banner's.
+      if (imageUrl.isEmpty) {
+        imageUrl = _str(assets['mobile']).isNotEmpty
+            ? _str(assets['mobile'])
+            : _str(assets['desktop']);
+      }
       if (imageUrl.isEmpty) continue;
 
+      // A banner routes through `action`; an advertisement has a flat
+      // `redirect_url`.
       final action = _map(item['action']);
+      final redirect = _str(action['value']).isNotEmpty
+          ? _str(action['value'])
+          : _str(item['redirect_url']);
 
       banners.add(
         PromotionalBanner.fromJson({
-          '_id': _str(item['id']),
-          'redirect_link': _str(action['value']),
+          '_id': _str(item['id']).isNotEmpty ? _str(item['id']) : _str(item['_id']),
+          'redirect_link': redirect,
           'banner_img': imageUrl,
           'is_active': item['is_active'] == false ? 'Disabled' : 'Enabled',
           'banner_type_id': 1,

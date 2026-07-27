@@ -64,11 +64,26 @@ class BannerService {
   final Logger _logger;
   final DefaultCacheManager _cacheManager;
   
+  /// Banner placements, matching the admin panel's `section_name`. Only the
+  /// hero was ever requested, so banners saved under any other placement were
+  /// unreachable from the app however correctly they were configured.
+  static const String homeTopSection = 'home_top';
+  static const String homeMiddleSection = 'home_middle';
+
+  static const List<String> homeSections = [homeTopSection, homeMiddleSection];
+
   // Constants for caching
-  static const String _bannerCacheKey = 'promotional_banners';
-  static const String _bannerCacheTimestampKey = 'promotional_banners_timestamp';
   static const String _lastCacheClearKey = 'last_banner_cache_clear_time';
   static const Duration _cacheDuration = Duration(hours: 20);
+
+  // The hero's keys are unsuffixed so caches written by earlier builds are
+  // still read rather than silently refetched.
+  static String _cacheKey(String sectionName) => sectionName == homeTopSection
+      ? 'promotional_banners'
+      : 'promotional_banners_$sectionName';
+
+  static String _timestampKey(String sectionName) =>
+      '${_cacheKey(sectionName)}_timestamp';
   
   BannerService({
     required ApiClient apiClient,
@@ -79,14 +94,22 @@ class BannerService {
     _logger = logger,
     _cacheManager = cacheManager;
   
-  Future<List<PromotionalBanner>> getPromotionalBanners(String storeCode) async {
+  /// Banners for one placement. Defaults to the hero so existing callers are
+  /// unchanged.
+  Future<List<PromotionalBanner>> getPromotionalBanners(
+    String storeCode, {
+    String sectionName = homeTopSection,
+  }) async {
+    final cacheKey = _cacheKey(sectionName);
+    final timestampKey = _timestampKey(sectionName);
+
     try {
       // Check if cache should be cleared (2 AM daily)
       await _checkAndClearCacheIfNeeded();
       
       final prefs = await SharedPreferences.getInstance();
-      final cachedData = prefs.getString(_bannerCacheKey);
-      final cachedTimestamp = prefs.getInt(_bannerCacheTimestampKey) ?? 0;
+      final cachedData = prefs.getString(cacheKey);
+      final cachedTimestamp = prefs.getInt(timestampKey) ?? 0;
       final currentTime = DateTime.now().millisecondsSinceEpoch;
       
       // Check if cache is valid (not older than cache duration)
@@ -111,22 +134,22 @@ class BannerService {
         } catch (e) {
           _logger.error('Error parsing cached banner data: $e');
           // Clear corrupted cache
-          await prefs.remove(_bannerCacheKey);
-          await prefs.remove(_bannerCacheTimestampKey);
+          await prefs.remove(cacheKey);
+          await prefs.remove(timestampKey);
         }
       }
       
       // Fetch fresh banners from API
       _logger.log('Fetching promotional banners from API for store: $storeCode');
 
-      // Universal backend: POST /api/banners with the shared 'home_top'
-      // section (same convention as the web PWA); response nests
+      // Universal backend: POST /api/banners for one placement (same
+      // convention as the web PWA); response nests
       // data.banner_sections[].banners[].
       final response = await _apiClient.post(
         ApiConstants.banners,
         body: {
           "store_code": storeCode,
-          "section_name": "home_top",
+          "section_name": sectionName,
         },
       );
 
@@ -142,8 +165,8 @@ class BannerService {
         banners.sort((a, b) => a.sequenceId.compareTo(b.sequenceId));
 
         // Cache the banners
-        await prefs.setString(_bannerCacheKey, jsonEncode(legacyList));
-        await prefs.setInt(_bannerCacheTimestampKey, currentTime);
+        await prefs.setString(cacheKey, jsonEncode(legacyList));
+        await prefs.setInt(timestampKey, currentTime);
         
         // Pre-cache banner images
         _preCacheBannerImages(banners);
@@ -159,7 +182,7 @@ class BannerService {
       
       // Try to get data from cache even if it's expired
       final prefs = await SharedPreferences.getInstance();
-      final cachedData = prefs.getString(_bannerCacheKey);
+      final cachedData = prefs.getString(cacheKey);
       
       if (cachedData != null) {
         try {
@@ -282,8 +305,10 @@ class BannerService {
   Future<void> clearCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_bannerCacheKey);
-      await prefs.remove(_bannerCacheTimestampKey);
+      for (final section in homeSections) {
+        await prefs.remove(_cacheKey(section));
+        await prefs.remove(_timestampKey(section));
+      }
       
       // Clear image cache for promotional banners
       await _cacheManager.emptyCache();

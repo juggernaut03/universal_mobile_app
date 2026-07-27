@@ -10,6 +10,9 @@
 /// Section types this app build can render. Anything else is skipped.
 class HomeSectionType {
   static const String heroCarousel = 'hero_carousel';
+
+  /// A second banner placement, and how advertisements reach the home screen.
+  static const String bannerStrip = 'banner_strip';
   static const String categoryStrip = 'category_strip';
   static const String categoryGrid = 'category_grid';
   static const String productRail = 'product_rail';
@@ -25,6 +28,20 @@ class HomeSectionType {
   static const String couponStrip = 'coupon_strip';
   static const String brandStrip = 'brand_strip';
   static const String uspStrip = 'usp_strip';
+}
+
+/// Which admin collection backs a section.
+///
+/// One section type can be fed by more than one collection — a product rail is
+/// either best sellers or top sellers — and the two are indistinguishable by
+/// sequence alone, so a renderer that guessed would draw the wrong rail.
+class HomeSectionSource {
+  static const String popularCategories = 'popular_categories';
+  static const String seasonalCategories = 'seasonal_categories';
+  static const String bestSellers = 'best_sellers';
+  static const String topSellers = 'top_sellers';
+  static const String banners = 'banners';
+  static const String advertisements = 'advertisements';
 }
 
 /// Who a section is meant for. Matched on the device, because the feed itself
@@ -67,6 +84,11 @@ class HomeSection {
   /// document (offer slots).
   final int? sourceIndex;
 
+  /// Which collection supplied this section; see [HomeSectionSource]. Empty
+  /// when the backend did not say, in which case the renderer falls back to
+  /// whatever the type has always meant.
+  final String sourceCollection;
+
   /// True for sections the server deliberately left empty because filling them
   /// would make the feed user-specific. The client supplies the content.
   final bool personalized;
@@ -91,6 +113,7 @@ class HomeSection {
     this.style = const HomeSectionStyle(),
     this.sourceSequence,
     this.sourceIndex,
+    this.sourceCollection = '',
     this.personalized = false,
     this.endsAt,
     this.audience = HomeSectionAudience.all,
@@ -116,6 +139,7 @@ class HomeSection {
       ),
       sourceSequence: int.tryParse('${source['sequence']}'),
       sourceIndex: int.tryParse('${source['index']}'),
+      sourceCollection: (source['collection_name'] ?? '').toString(),
       personalized: json['personalized'] == true,
       endsAt: DateTime.tryParse('${json['ends_at']}')?.toLocal(),
       audience: (json['audience'] ?? HomeSectionAudience.all).toString(),
@@ -135,7 +159,11 @@ class HomeSection {
         'title': title,
         'description': description,
         'style': style.toJson(),
-        'source': {'sequence': sourceSequence, 'index': sourceIndex},
+        'source': {
+          'sequence': sourceSequence,
+          'index': sourceIndex,
+          'collection_name': sourceCollection,
+        },
         'personalized': personalized,
         'ends_at': endsAt?.toUtc().toIso8601String(),
         'audience': audience,
@@ -184,11 +212,21 @@ class HomeFeed {
   /// The section of [type] whose source sequence is [sequence], if the feed
   /// carries one. Used by the data providers to serve themselves from the feed
   /// instead of making their own call.
-  HomeSection? bySequence(String type, int sequence) {
+  ///
+  /// [collection] disambiguates types that more than one collection can fill:
+  /// a best-seller rail and a top-seller rail are both `product_rail` and can
+  /// share a sequence, so matching on type alone would hand a provider the
+  /// other collection's products. A section whose source the backend did not
+  /// name still matches, so an older backend keeps working.
+  HomeSection? bySequence(String type, int sequence, {String? collection}) {
     for (final section in sections) {
-      if (section.type == type && section.sourceSequence == sequence) {
-        return section;
+      if (section.type != type || section.sourceSequence != sequence) continue;
+      if (collection != null &&
+          section.sourceCollection.isNotEmpty &&
+          section.sourceCollection != collection) {
+        continue;
       }
+      return section;
     }
     return null;
   }

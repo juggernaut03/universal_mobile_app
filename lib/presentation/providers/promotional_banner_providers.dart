@@ -47,14 +47,43 @@ final promotionalBannersProvider = FutureProvider<List<PromotionalBanner>>((ref)
   );
 });
 
+/// The second banner placement, `home_middle`.
+///
+/// The admin panel has always offered this placement, but nothing ever asked
+/// for it — only the hero was fetched — so banners saved here never appeared
+/// however correctly they were configured.
+final midBannersProvider = FutureProvider<List<PromotionalBanner>>((ref) async {
+  final outlet = ref.watch(selectedOutletProvider).valueOrNull;
+  if (outlet == null) return const [];
+
+  // Served from the feed when it carries the strip, same as the hero above.
+  final fromFeed = ref.watch(homeFeedProvider).valueOrNull?.sections.where(
+        (s) =>
+            s.type == HomeSectionType.bannerStrip &&
+            s.sourceCollection == HomeSectionSource.banners,
+      );
+  if (fromFeed != null && fromFeed.isNotEmpty) {
+    return fromFeed.first.toPromotionalBanners(outlet.storeCode);
+  }
+
+  return ref.read(bannerServiceProvider).getPromotionalBanners(
+        outlet.storeCode,
+        sectionName: BannerService.homeMiddleSection,
+      );
+});
+
 // Provider for refreshing promotional banners manually
 final promotionalBannerRefreshProvider = Provider<Future<void> Function()>((ref) {
   return () async {
     // Set the refresh flag to true to trigger cache clearing
     ref.read(refreshPromotionalBannersProvider.notifier).state = true;
-    
+
     // Refresh the promotional banners provider
     // ignore: unused_result — awaited for completion; the value is not needed.
     await ref.refresh(promotionalBannersProvider.future);
+    // clearCache() above drops every placement, so the mid strip has to be
+    // refetched too or it renders from a cache that no longer exists.
+    // ignore: unused_result — awaited for completion; the value is not needed.
+    await ref.refresh(midBannersProvider.future);
   };
 });

@@ -9,7 +9,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
@@ -19,8 +18,8 @@ import '../../../../data/models/product_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/delivery_charges_provider.dart';
 import '../../../providers/order_history_provider.dart';
-import '../../../../core/widgets/cached_network_image_widget.dart';
 import 'countdown_text.dart';
+import 'home_product_card.dart';
 
 // ----------------------------------------------------------------------
 
@@ -57,7 +56,7 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(vertical: 12),
-      color: _backgroundOf(section) ?? AppColors.primaryLighter,
+      color: homeSectionBackground(section.style.backgroundColor) ?? AppColors.primaryLighter,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -98,7 +97,7 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
               itemCount: products.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) =>
-                  _ProductCard(product: products[index]),
+                  HomeProductCard(product: products[index]),
             ),
           ),
         ],
@@ -161,7 +160,7 @@ class BuyAgainSection extends ConsumerWidget {
                   itemCount: products.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 12),
                   itemBuilder: (context, index) =>
-                      _ProductCard(product: products[index]),
+                      HomeProductCard(product: products[index]),
                 ),
               ),
             ],
@@ -204,7 +203,7 @@ class FreeDeliveryProgressSection extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _backgroundOf(section) ?? AppColors.successLight,
+        color: homeSectionBackground(section.style.backgroundColor) ?? AppColors.successLight,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -258,7 +257,7 @@ class UspStripSection extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: _backgroundOf(section),
+      color: homeSectionBackground(section.style.backgroundColor),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
@@ -277,78 +276,6 @@ class UspStripSection extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-// ----------------------------------------------------------------------
-
-Color? _backgroundOf(HomeSection section) {
-  final hex = section.style.backgroundColor.replaceFirst('#', '').trim();
-  if (hex.length != 6 && hex.length != 8) return null;
-  final value = int.tryParse(hex.length == 6 ? 'ff$hex' : hex, radix: 16);
-  return value == null ? null : Color(value);
-}
-
-/// Compact product tile shared by the merchandising rails.
-///
-/// Deliberately thin: the tap target is what matters, and the existing
-/// best-seller card is welded to its own providers.
-class _ProductCard extends ConsumerWidget {
-  final ProductModel product;
-
-  const _ProductCard({required this.product});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hasDiscount = product.productMrp > product.ourPrice && product.ourPrice > 0;
-
-    return InkWell(
-      onTap: () => context.push('/product/${product.pCode}'),
-      child: SizedBox(
-        width: 150,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImageWidget(
-                  imageUrl: product.pcodeImg,
-                  fit: BoxFit.cover,
-                  width: 150,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              product.productName,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.bodySmall,
-            ),
-            const SizedBox(height: 2),
-            Row(
-              children: [
-                Text(
-                  '₹${product.ourPrice.toStringAsFixed(0)}',
-                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
-                ),
-                if (hasDiscount) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    '₹${product.productMrp.toStringAsFixed(0)}',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      decoration: TextDecoration.lineThrough,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -38,6 +38,10 @@ import '../../widgets/force_update_dialog.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../providers/promotional_banner_providers.dart';
+import '../../providers/top_seller_providers.dart';
+import 'sections/catalog_sections.dart';
+import '../../../data/models/home_feed_models.dart';
+import '../../../data/services/banner_service.dart';
 import '../../providers/seasonal_picks_widget_providers.dart';
 import '../../providers/seasonal_category_widget_providers.dart';
 
@@ -379,7 +383,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         })
       );
 
-      // 6. Pending Order / Last Order Status widget
+      // 6. Top Sellers
+      refreshOperations.add(
+        ref.read(topSellerRefreshProvider)().catchError((e) {
+          ref.read(loggerProvider).error('Top sellers refresh failed: $e');
+        })
+      );
+
+      // 7. Pending Order / Last Order Status widget
       refreshOperations.add(
         Future(() async {
           try {
@@ -985,10 +996,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         child: SingleOfferSectionWidget(
                             offer: displayOffers[i]),
                       ),
+
+                    // Mid-page banners, once, after the first block — the
+                    // placement the panel has always offered and nothing drew.
+                    if (i == 0) const RepaintBoundary(child: _MidBanners()),
                   ],
                 ],
               );
             },
+          ),
+
+          // Top Sellers. Configured in the panel all along, but the app had no
+          // client for the collection, so the rails never appeared.
+          const RepaintBoundary(
+            child: _TopSellerRails(),
           ),
 
           // Seasonal Picks
@@ -1120,4 +1141,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
 
+}
+
+
+/// Top-seller rails on the legacy home layout.
+///
+/// Renders through the same rail the feed uses, so the two paths cannot drift
+/// apart in appearance.
+class _TopSellerRails extends ConsumerWidget {
+  const _TopSellerRails();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sections = ref.watch(topSellerSectionsProvider).valueOrNull ?? const [];
+    if (sections.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        for (final section in sections)
+          FeedProductRailSection(key: ValueKey(section.id), section: section),
+      ],
+    );
+  }
+}
+
+/// The `home_middle` banner placement on the legacy home layout.
+class _MidBanners extends ConsumerWidget {
+  const _MidBanners();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final banners = ref.watch(midBannersProvider).valueOrNull ?? const [];
+    if (banners.isEmpty) return const SizedBox.shrink();
+
+    // The strip renders a feed section, so the banners are wrapped back into
+    // one rather than given a second, near-identical widget.
+    return BannerStripSection(
+      section: HomeSection(
+        id: BannerService.homeMiddleSection,
+        type: HomeSectionType.bannerStrip,
+        slot: 0,
+        sourceCollection: HomeSectionSource.banners,
+        items: [
+          for (final banner in banners)
+            {
+              'id': banner.id,
+              'image_url': banner.imageUrl,
+              'redirect_url': banner.redirectLink,
+              'sequence': banner.sequenceId,
+            },
+        ],
+      ),
+    );
+  }
 }

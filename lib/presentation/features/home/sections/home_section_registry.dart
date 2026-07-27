@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/models/home_feed_models.dart';
 import '../../../../di/service_providers.dart';
 import '../../../providers/steal_deals_provider.dart';
+import 'catalog_sections.dart';
 import 'merchandising_sections.dart';
 import '../widgets/best_seller_widget.dart';
 import '../widgets/popular_category_section_widget.dart';
@@ -33,6 +34,7 @@ class HomeSectionRegistry {
   static final Map<String, HomeSectionBuilder> _builders = {
     HomeSectionType.categoryStrip: _categoryStrip,
     HomeSectionType.heroCarousel: _heroCarousel,
+    HomeSectionType.bannerStrip: _bannerStrip,
     HomeSectionType.categoryGrid: _categoryGrid,
     HomeSectionType.productRail: _productRail,
     HomeSectionType.offerStrip: _offerStrip,
@@ -110,7 +112,19 @@ class HomeSectionRegistry {
     );
   }
 
+  /// The second banner placement, and how advertisements reach home. Drawn
+  /// from the items the feed carries, so it costs no extra request.
+  static Widget _bannerStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
+      BannerStripSection(section: section);
+
+  /// A product rail is backed by either best sellers or top sellers, and the
+  /// two can share a sequence. Dispatching on sequence alone would render the
+  /// best-seller rail in the top-seller slot.
   static Widget _productRail(BuildContext context, WidgetRef ref, HomeSection section) {
+    if (section.sourceCollection == HomeSectionSource.topSellers) {
+      return FeedProductRailSection(section: section);
+    }
+
     final sectionId = section.sourceSequence;
     if (sectionId == null) return const SizedBox.shrink();
 
