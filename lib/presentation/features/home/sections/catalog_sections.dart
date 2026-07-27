@@ -65,8 +65,7 @@ class BannerStripSection extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: banners.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) =>
-                    _BannerTile(banner: banners[index], width: 280),
+                itemBuilder: (context, index) => _BannerTile(banner: banners[index], width: 280),
               ),
             ),
         ],
@@ -147,8 +146,7 @@ class FeedProductRailSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: products.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) =>
-                  HomeProductCard(product: products[index]),
+              itemBuilder: (context, index) => HomeProductCard(product: products[index]),
             ),
           ),
         ],

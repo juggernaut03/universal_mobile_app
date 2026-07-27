@@ -22,8 +22,8 @@ class TopSellerRepository {
   final Logger _logger;
 
   TopSellerRepository({required ApiClient apiClient, required Logger logger})
-      : _apiClient = apiClient,
-        _logger = logger;
+    : _apiClient = apiClient,
+      _logger = logger;
 
   /// Active top-seller sections for [storeCode], in the admin's order.
   ///
@@ -51,9 +51,10 @@ class TopSellerRepository {
         if (raw is! Map) continue;
 
         final products = raw['products'];
-        final items = products is List
-            ? products.whereType<Map>().map(Map<String, dynamic>.from).toList()
-            : <Map<String, dynamic>>[];
+        final items =
+            products is List
+                ? products.whereType<Map>().map(Map<String, dynamic>.from).toList()
+                : <Map<String, dynamic>>[];
 
         // A section with no products would render as a bare heading.
         if (items.isEmpty) continue;
@@ -68,8 +69,7 @@ class TopSellerRepository {
             // background_color. Read both so a colour set in the panel is not
             // quietly dropped.
             style: HomeSectionStyle(
-              backgroundColor:
-                  (raw['bg_color'] ?? raw['background_color'] ?? '').toString(),
+              backgroundColor: (raw['bg_color'] ?? raw['background_color'] ?? '').toString(),
             ),
             sourceSequence: int.tryParse('${raw['sequence']}'),
             sourceCollection: HomeSectionSource.topSellers,

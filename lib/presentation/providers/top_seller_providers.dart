@@ -19,9 +19,8 @@ final topSellerSectionsProvider = FutureProvider<List<HomeSection>>((ref) async 
 
   final feed = ref.watch(homeFeedProvider).valueOrNull;
   if (feed != null) {
-    final fromFeed = feed.sections
-        .where((s) => s.sourceCollection == HomeSectionSource.topSellers)
-        .toList();
+    final fromFeed =
+        feed.sections.where((s) => s.sourceCollection == HomeSectionSource.topSellers).toList();
     if (fromFeed.isNotEmpty) return fromFeed;
   }
 
