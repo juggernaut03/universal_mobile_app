@@ -20,22 +20,33 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/branding/app_branding.dart';
 import '../core/config/app_theme.dart';
 import '../core/time/clock.dart';
+import '../di/infrastructure_providers.dart';
 import '../presentation/providers/onboarding_provider.dart';
 import '../presentation/providers/splash_provider.dart';
 import 'preview_bridge.dart';
 import 'preview_controller.dart';
 import 'preview_host.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // The real screens reach for stored preferences the same way here as they do
+  // on the phone — favourites, the selected outlet, cached branding. The
+  // provider throws until it is overridden, so without this a rail that reads
+  // prefs renders its error state and the preview misreports a working screen
+  // as broken. Backed by localStorage on web, scoped to this origin.
+  final sharedPreferences = await SharedPreferences.getInstance();
 
   runApp(
     ProviderScope(
       overrides: [
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+
         // Scheduling reads the clock rather than the wall, so the admin can
         // ask what a screen looks like next Tuesday.
         clockProvider.overrideWith((ref) {
