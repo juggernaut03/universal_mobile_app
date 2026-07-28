@@ -71,7 +71,14 @@ class PreviewBridge {
         }
 
       case PreviewInbound.setFeed:
-        _controller.setFeed(HomeFeed.fromJson(payload));
+        final feed = HomeFeed.fromJson(payload);
+        // Sent and parsed are different numbers when a section is malformed or
+        // typed in a way this build does not know — and the difference is the
+        // whole diagnosis when the preview looks emptier than the panel.
+        final sent = (payload['data'] as List?)?.length ?? 0;
+        previewLog('set_feed: $sent sent, '
+            '${feed.sections.length} parsed and rendered');
+        _controller.setFeed(feed);
 
       case PreviewInbound.patchSection:
         final raw = payload['section'];

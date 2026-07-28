@@ -6,6 +6,9 @@
 
 typedef PreviewMessageHandler = void Function(Map<String, dynamic> message);
 
+/// No browser console to write to off the web; the web build logs to it.
+void previewLog(String message) {}
+
 class PreviewChannel {
   const PreviewChannel();
 
