@@ -16,6 +16,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_colors.dart';
 import '../data/models/home_feed_models.dart';
 import '../presentation/features/home/sections/home_section_registry.dart';
+import '../presentation/features/onboarding/onboarding_screen.dart';
+import '../presentation/features/splash/splash_screen.dart';
 import 'preview_bridge.dart';
 import 'preview_controller.dart';
 import 'preview_state.dart';
@@ -203,7 +205,7 @@ class _PreviewViewport extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ids = ref.watch(previewSectionIdsProvider);
+    final screen = ref.watch(previewScreenProvider);
 
     // Supplying MediaQuery rather than inheriting the browser's is what makes
     // SafeArea, text scaling and every size-dependent branch behave as they do
@@ -219,23 +221,66 @@ class _PreviewViewport extends ConsumerWidget {
       ),
       child: Container(
         color: Theme.of(context).scaffoldBackgroundColor,
-        child: ids.isEmpty
-            ? const _EmptyLayout()
-            : ListView.builder(
-                controller: scroll,
-                padding: EdgeInsets.only(
-                  top: device.padding.top,
-                  bottom: device.padding.bottom + 24,
-                ),
-                // Built lazily, exactly as the app builds its home list, so
-                // what the preview reports about scroll performance is true
-                // of the phone as well.
-                itemCount: ids.length,
-                itemBuilder: (context, index) => _PreviewSection(
-                  key: keyFor(ids[index]),
-                  sectionId: ids[index],
-                ),
-              ),
+        child: _screenFor(screen),
+      ),
+    );
+  }
+
+  /// One preview surface, every screen.
+  ///
+  /// Splash and onboarding are the app's own widgets, unmodified — the panel
+  /// previously drew hand-built approximations of both, which is how a
+  /// tagline's colour could look right in the admin and wrong on the phone.
+  Widget _screenFor(String screen) {
+    switch (screen) {
+      case PreviewScreen.splash:
+        // The same asset the router passes, so the fallback logo shown when a
+        // tenant has not uploaded one matches what the phone falls back to.
+        return const SplashScreen(logoAsset: 'assets/images/patelLogo.png');
+
+      case PreviewScreen.onboarding:
+        return const OnboardingScreen();
+
+      case PreviewScreen.home:
+      default:
+        return _HomeSections(
+          device: device,
+          scroll: scroll,
+          keyFor: keyFor,
+        );
+    }
+  }
+}
+
+/// The home layout: the section list, lazily built.
+class _HomeSections extends ConsumerWidget {
+  final DeviceSpec device;
+  final ScrollController scroll;
+  final GlobalKey Function(String) keyFor;
+
+  const _HomeSections({
+    required this.device,
+    required this.scroll,
+    required this.keyFor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ids = ref.watch(previewSectionIdsProvider);
+    if (ids.isEmpty) return const _EmptyLayout();
+
+    return ListView.builder(
+      controller: scroll,
+      padding: EdgeInsets.only(
+        top: device.padding.top,
+        bottom: device.padding.bottom + 24,
+      ),
+      // Built lazily, exactly as the app builds its home list, so what the
+      // preview reports about scroll performance is true of the phone as well.
+      itemCount: ids.length,
+      itemBuilder: (context, index) => _PreviewSection(
+        key: keyFor(ids[index]),
+        sectionId: ids[index],
       ),
     );
   }

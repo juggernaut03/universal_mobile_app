@@ -12,12 +12,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/home_feed_models.dart';
+import '../data/models/onboarding_slide_model.dart';
 import 'preview_state.dart';
 
 // ----------------------------------------------------------------------
 
 class PreviewSession {
+  /// Which screen is on show; see [PreviewScreen].
+  final String screen;
+
   final HomeFeed feed;
+
+  /// Draft onboarding slides, when the onboarding screen is selected.
+  final List<OnboardingSlideModel> slides;
   final PreviewContext context;
   final DeviceSpec device;
   final NetworkProfile network;
@@ -34,7 +41,9 @@ class PreviewSession {
   final int refreshToken;
 
   const PreviewSession({
+    this.screen = PreviewScreen.home,
     this.feed = const HomeFeed(),
+    this.slides = const [],
     this.context = const PreviewContext(),
     this.device = DeviceSpec.iphone15Pro,
     this.network = NetworkProfile.unthrottled,
@@ -45,7 +54,9 @@ class PreviewSession {
   });
 
   PreviewSession copyWith({
+    String? screen,
     HomeFeed? feed,
+    List<OnboardingSlideModel>? slides,
     PreviewContext? context,
     DeviceSpec? device,
     NetworkProfile? network,
@@ -57,7 +68,9 @@ class PreviewSession {
     int? refreshToken,
   }) =>
       PreviewSession(
+        screen: screen ?? this.screen,
         feed: feed ?? this.feed,
+        slides: slides ?? this.slides,
         context: context ?? this.context,
         device: device ?? this.device,
         network: network ?? this.network,
@@ -73,6 +86,12 @@ class PreviewSession {
 
 class PreviewController extends StateNotifier<PreviewSession> {
   PreviewController() : super(const PreviewSession());
+
+  void setScreen(String screen) =>
+      state = state.copyWith(screen: PreviewScreen.normalise(screen));
+
+  void setSlides(List<OnboardingSlideModel> slides) =>
+      state = state.copyWith(slides: slides);
 
   void setFeed(HomeFeed feed) => state = state.copyWith(feed: feed);
 
@@ -141,6 +160,16 @@ final previewSectionProvider = Provider.family<HomeSection?, String>((ref, id) {
   }
   return null;
 });
+
+final previewScreenProvider = Provider<String>(
+  (ref) => ref.watch(previewControllerProvider.select((s) => s.screen)),
+);
+
+/// Draft slides, for the onboarding screen. Overrides the app's own slide
+/// provider so the real onboarding widget renders unsaved edits.
+final previewSlidesProvider = Provider<List<OnboardingSlideModel>>(
+  (ref) => ref.watch(previewControllerProvider.select((s) => s.slides)),
+);
 
 final previewDeviceProvider = Provider<DeviceSpec>(
   (ref) => ref.watch(previewControllerProvider.select((s) => s.device)),

@@ -11,6 +11,18 @@
 
 /// Admin → preview.
 class PreviewInbound {
+  /// Which screen the preview is showing. One preview surface serves every
+  /// screen page in the panel, so this is what a page selects on mount.
+  static const String setScreen = 'set_screen';
+
+  /// Draft project config — branding, splash settings, colours. Applied to
+  /// AppBranding, which is where the real screens read it from, so a colour
+  /// typed in the panel reaches the preview the same way it reaches the phone.
+  static const String setConfig = 'set_config';
+
+  /// Draft onboarding slides.
+  static const String setSlides = 'set_slides';
+
   /// Full feed replacement. Sent on load and whenever the draft changes.
   static const String setFeed = 'set_feed';
 

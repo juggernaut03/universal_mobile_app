@@ -9,6 +9,24 @@ import 'package:flutter/material.dart';
 
 // ----------------------------------------------------------------------
 
+/// Screens the preview can show.
+///
+/// One preview surface serves every screen page in the panel. The alternative
+/// — a bespoke preview per page — is how the panel ended up with three
+/// hand-built phone mock-ups that each drifted from the app separately.
+class PreviewScreen {
+  static const String home = 'home';
+  static const String splash = 'splash';
+  static const String onboarding = 'onboarding';
+
+  static const all = [splash, onboarding, home];
+
+  static String normalise(String? value) =>
+      all.contains(value) ? value! : home;
+}
+
+// ----------------------------------------------------------------------
+
 /// A device the preview can imitate.
 ///
 /// `padding` is what makes a notch or a dynamic island real: the app already
