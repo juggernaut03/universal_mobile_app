@@ -37,8 +37,19 @@ class PreviewChannel {
             parentOrigin ?? html.window.location.search?.let(_originFromQuery);
 
   void listen(PreviewMessageHandler onMessage) {
+    previewLog('listening; parent origin '
+        '${_parentOrigin ?? "not pinned — running standalone, nothing will be sent"}');
+
     _subscription = html.window.onMessage.listen((event) {
-      if (_parentOrigin != null && event.origin != _parentOrigin) return;
+      if (_parentOrigin != null && event.origin != _parentOrigin) {
+        // Silent by design, which makes a mismatched origin very hard to spot
+        // from the outside — so say so, but only for traffic aimed at us.
+        if (event.data is Map && (event.data as Map)['channel'] == kPreviewChannel) {
+          previewLog('IGNORED a preview message from ${event.origin}, '
+              'expected $_parentOrigin — check the parentOrigin query parameter');
+        }
+        return;
+      }
 
       final data = event.data;
       if (data is! Map) return;
@@ -51,6 +62,8 @@ class PreviewChannel {
       final type = data['type'];
       if (type is! String) return;
 
+      previewLog('received $type');
+
       // Deep-converted, not `Map<String, dynamic>.from`: that is shallow, so
       // nested maps stay dynamic-keyed and every model parser drops them.
       onMessage({
@@ -59,6 +72,7 @@ class PreviewChannel {
       });
     });
 
+    previewLog('sending preview_ready');
     send(PreviewOutbound.ready, {'protocol_version': kPreviewProtocolVersion});
   }
 
@@ -90,6 +104,14 @@ class PreviewChannel {
     _subscription = null;
   }
 }
+
+/// Console output, prefixed so it reads alongside the admin panel's own
+/// `[preview]` lines in the same devtools console.
+///
+/// Goes to `window.console` rather than `print`: `print` on web is routed
+/// through the Dart runtime and is banned by the analyzer's `avoid_print`,
+/// and this needs to be readable in the browser next to the panel's logs.
+void previewLog(String message) => html.window.console.log('[preview:flutter] $message');
 
 String? _originFromQuery(String search) {
   if (search.isEmpty) return null;
