@@ -51,10 +51,11 @@ class PreviewChannel {
       final type = data['type'];
       if (type is! String) return;
 
-      final payload = data['payload'];
+      // Deep-converted, not `Map<String, dynamic>.from`: that is shallow, so
+      // nested maps stay dynamic-keyed and every model parser drops them.
       onMessage({
         'type': type,
-        'payload': payload is Map ? Map<String, dynamic>.from(payload) : const {},
+        'payload': normalisePayload(data['payload']),
       });
     });
 

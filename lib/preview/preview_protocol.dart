@@ -78,3 +78,34 @@ class PreviewOutbound {
 /// and acting on a stray one would be a security problem, not just a bug.
 const String kPreviewChannel = 'bdui-preview';
 const int kPreviewProtocolVersion = 1;
+
+/// Re-types an inbound payload as if it had come from `jsonDecode`.
+///
+/// `dart:html` hands a JS object to Dart as `Map<dynamic, dynamic>`, nested
+/// maps included, while every model's `fromJson` is written against the
+/// `Map<String, dynamic>` that `jsonDecode` produces. The mismatch does not
+/// fail loudly: `HomeFeed.fromJson` filters its sections with
+/// `whereType<Map<String, dynamic>>()`, which matches nothing and yields an
+/// empty feed — the preview then renders "No sections yet" while the admin is
+/// sending a full layout.
+///
+/// Done once at the transport boundary rather than in each parser, so every
+/// message type gets the same shape and the models stay written against JSON.
+Object? normalisePayloadValue(Object? value) {
+  if (value is Map) {
+    return <String, dynamic>{
+      for (final entry in value.entries)
+        entry.key.toString(): normalisePayloadValue(entry.value),
+    };
+  }
+  if (value is List) {
+    return value.map(normalisePayloadValue).toList();
+  }
+  return value;
+}
+
+/// [normalisePayloadValue] for a message payload, which is always an object.
+Map<String, dynamic> normalisePayload(Object? value) {
+  final converted = normalisePayloadValue(value);
+  return converted is Map<String, dynamic> ? converted : <String, dynamic>{};
+}
