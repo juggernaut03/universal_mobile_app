@@ -11,7 +11,9 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/branding/app_branding.dart';
 import '../data/models/home_feed_models.dart';
+import '../data/models/onboarding_slide_model.dart';
 import 'bridge/bridge_stub.dart' if (dart.library.html) 'bridge/bridge_web.dart';
 import 'preview_controller.dart';
 import 'preview_protocol.dart';
@@ -37,6 +39,37 @@ class PreviewBridge {
     final payload = (message['payload'] as Map?)?.cast<String, dynamic>() ?? const {};
 
     switch (type) {
+      case PreviewInbound.setScreen:
+        _controller.setScreen(payload['screen']?.toString() ?? '');
+
+      case PreviewInbound.setConfig:
+        final config = payload['config'];
+        if (config is Map) {
+          // Applied through the app's own entry point, so an unset or invalid
+          // value falls back exactly as it does on the phone. A preview that
+          // parsed colours itself would show a tenant's half-filled config
+          // more optimistically than the device does.
+          AppBranding.applyConfig(
+            Map<String, dynamic>.from(config),
+            clientName: payload['client_name']?.toString(),
+          );
+          // Branding is read through a singleton rather than a provider, so
+          // nothing rebuilds on its own; nudging the controller is what makes
+          // a colour edit visible.
+          _controller.refresh();
+        }
+
+      case PreviewInbound.setSlides:
+        final raw = payload['slides'];
+        if (raw is List) {
+          _controller.setSlides(
+            raw
+                .whereType<Map>()
+                .map((e) => OnboardingSlideModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList(growable: false),
+          );
+        }
+
       case PreviewInbound.setFeed:
         _controller.setFeed(HomeFeed.fromJson(payload));
 
