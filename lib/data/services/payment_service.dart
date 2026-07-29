@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import '../../core/branding/app_branding.dart';
 import '../../core/utils/logger.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/network/api_client.dart';
@@ -455,7 +456,24 @@ class PaymentService implements IPaymentGateway {
       
       _logger.log('Starting Razorpay payment for amount: ${amount.toStringAsFixed(2)}');
       _logger.log('Temp Order ID: ${orderIdToUse ?? "Not provided"}');
-      
+
+      // Checked before the order is created, not just before the sheet opens:
+      // an order created with no key to collect against is an orphan the
+      // backend still has to reconcile. There is no default key to fall back
+      // on — it identifies the merchant account the money lands in, so a
+      // literal here would pay the wrong client.
+      if (keyId.isEmpty) {
+        _logger.error(
+            'No Razorpay key id: set razorpay_key_id in the tenant config '
+            '(admin panel → Integrations) or pass --dart-define=RAZORPAY_KEY_ID');
+        return PaymentResult(
+          success: false,
+          message: 'Online payment is not available right now. '
+              'Please choose another payment method.',
+          error: StateError('Razorpay key id is not configured'),
+        );
+      }
+
       // Store payment context including temp order ID
       _currentPaymentAmount = amount;
       _currentCustomerEmail = customerEmail;
@@ -531,7 +549,9 @@ class PaymentService implements IPaymentGateway {
         'key': keyId,
         'amount': razorpayOrder['amount'], // Use amount from created order
         'currency': razorpayOrder['currency'],
-        'name': 'PatelMart',
+        // The tenant's name, not a literal: this is the merchant name the
+        // shopper reads on the payment sheet.
+        'name': AppBranding.instance.appName,
         'description': description,
         'order_id': razorpayOrder['id'], // CRITICAL: Use the created order ID
         'prefill': {
