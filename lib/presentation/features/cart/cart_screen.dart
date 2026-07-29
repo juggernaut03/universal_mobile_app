@@ -584,9 +584,20 @@ class CartScreen extends ConsumerWidget {
     // Get current retry count
     final retryCount = ref.read(validationRetryCountProvider);
     
-    // Get the store code from the selected outlet
-    final storeCode = selectedOutletAsync.value?.storeCode ?? 'KLW'; // Default store code
-    
+    // Get the store code from the selected outlet. Validation prices and
+    // stock-checks against a specific store, so guessing one here would clear
+    // a cart against another tenant's inventory and let checkout proceed on it.
+    final storeCode = selectedOutletAsync.value?.storeCode;
+    if (storeCode == null || storeCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select a store before checking out.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     // Show loading indicator
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -756,8 +767,12 @@ class CartScreen extends ConsumerWidget {
   ) async {
     final cartNotifier = ref.read(cartProvider.notifier);
     final selectedOutletAsync = ref.read(selectedOutletProvider);
-    final storeCode = selectedOutletAsync.value?.storeCode ?? 'KLW'; // Default store code
-    
+    // Only reached from _proceedToCheckout, which has already refused to run
+    // without an outlet — so this is a guard against a future second caller,
+    // not a state a shopper can reach today.
+    final storeCode = selectedOutletAsync.value?.storeCode;
+    if (storeCode == null || storeCode.isEmpty) return;
+
     // Track the changes we made
     bool madeChanges = false;
     

@@ -309,10 +309,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: RouteNames.productDetail,
         builder: (context, state) {
           final pCode = state.pathParameters['pCode'] ?? '';
-          // If storeCode is not provided in query params, use the selected outlet's store code
-          final storeCode = state.uri.queryParameters['storeCode'] ?? 
-            (ProviderScope.containerOf(context).read(selectedOutletProvider).value?.storeCode ?? 'TTL');
-          
+          // If storeCode is not provided in query params, use the selected
+          // outlet's. Empty when neither exists: the screen then surfaces the
+          // backend's error rather than quietly showing another tenant's
+          // product under a literal store code.
+          final storeCode = state.uri.queryParameters['storeCode'] ??
+              ProviderScope.containerOf(context)
+                  .read(selectedOutletProvider)
+                  .value
+                  ?.storeCode ??
+              '';
+
           return SingleProductScreen(
             pCode: pCode,
             storeCode: storeCode,

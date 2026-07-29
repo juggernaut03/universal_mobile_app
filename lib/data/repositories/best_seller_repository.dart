@@ -237,6 +237,11 @@ class BestSellerRepository {
   Future<Map<String, dynamic>?> _fetchSection(int bestSellerId) async {
     final storeCode = await _getStoreCode();
 
+    // No outlet chosen yet. Every store code belongs to one tenant, so there
+    // is no code that can stand in for "unknown" — asking with a guess would
+    // return another client's merchandising.
+    if (storeCode == null) return null;
+
     final bool cacheStale = _sectionsFuture == null ||
         _sectionsStoreCode != storeCode ||
         _sectionsFetchedAt == null ||
@@ -289,21 +294,25 @@ class BestSellerRepository {
     }
   }
   
-  // Get the current store code from shared preferences
-  Future<String> _getStoreCode() async {
+  /// The selected outlet's store code, or null when no outlet has been chosen
+  /// (or the stored one is unreadable).
+  ///
+  /// Null rather than a default: store codes are tenant-scoped, so a literal
+  /// here would send one client's app to another client's catalogue the moment
+  /// outlet selection had not completed.
+  Future<String?> _getStoreCode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final outletJson = prefs.getString(ApiConstants.keyOutlet);
-      
-      if (outletJson != null) {
-        final outlet = jsonDecode(outletJson);
-        return outlet['store_code'] ?? 'TTL'; // Default to TTL if not found
-      }
-      
-      return 'TTL'; // Default store code
+
+      if (outletJson == null) return null;
+
+      final outlet = jsonDecode(outletJson);
+      final code = outlet['store_code']?.toString();
+      return (code == null || code.isEmpty) ? null : code;
     } catch (e) {
       _logger.error('Error getting store code: $e');
-      return 'TTL'; // Default store code on error
+      return null;
     }
   }
 

@@ -99,9 +99,21 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
     if (!mounted) return;
     
     try {
+      // No outlet means no store to suggest from. Suggestions are ambient, so
+      // showing none is the right failure — a stand-in code would suggest
+      // products from another tenant's store.
       final selectedOutlet = ref.read(selectedOutletProvider).valueOrNull;
-      final storeCode = selectedOutlet?.storeCode ?? 'TTL';
-      
+      final storeCode = selectedOutlet?.storeCode;
+      if (storeCode == null || storeCode.isEmpty) {
+        // _onQueryChanged already switched the spinner on before debouncing.
+        setState(() {
+          _suggestions = [];
+          _isLoading = false;
+        });
+        _hideOverlay();
+        return;
+      }
+
       final apiClient = ref.read(apiClientProvider);
       
       final response = await apiClient.post(
