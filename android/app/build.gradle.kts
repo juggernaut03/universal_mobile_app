@@ -20,7 +20,7 @@ plugins {
 
 android {
     namespace = "com.patelrmart.app"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "28.0.13004108"
     
     compileOptions {

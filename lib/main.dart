@@ -11,6 +11,7 @@ import 'dart:io';
 import 'app.dart';
 import 'presentation/providers/launch_flow_provider.dart';
 import 'presentation/widgets/back_button_wrapper.dart';
+import 'core/config/env_config.dart';
 import 'core/utils/back_handler.dart';
 import 'core/utils/logger.dart';
 // POPUP LIFECYCLE IMPORTS
@@ -62,6 +63,11 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
+  // Before the try, deliberately: main() swallows everything below to keep a
+  // partly-broken app running, which is right for a failed Firebase init and
+  // wrong for a build pointed at no tenant at all.
+  EnvConfig.assertConfigured();
+
   try {
     WidgetsFlutterBinding.ensureInitialized();
     if (kDebugMode) print('🚀 App starting - Flutter binding initialized');

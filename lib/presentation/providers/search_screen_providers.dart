@@ -87,10 +87,24 @@ class SearchNotifier extends StateNotifier<SearchState> {
     logger.log('Auto-searching for: $query');
     
     try {
-      // Get selected outlet store code
+      // Get selected outlet store code. Searching another tenant's store would
+      // return products this shopper cannot buy, so without an outlet there is
+      // nothing to search.
       final selectedOutlet = _ref.read(selectedOutletProvider).valueOrNull;
-      final storeCode = selectedOutlet?.storeCode ?? 'TTL';
-      
+      final storeCode = selectedOutlet?.storeCode;
+      if (storeCode == null || storeCode.isEmpty) {
+        logger.log('Search skipped: no outlet selected');
+        // setQuery already switched on the spinner, so this must land the state
+        // rather than just return, or the field spins forever.
+        state = state.copyWith(
+          results: [],
+          isLoading: false,
+          error: 'Choose a store to search products',
+          hasSearched: true,
+        );
+        return;
+      }
+
       // Use the API client
       final apiClient = _ref.read(apiClientProvider);
       

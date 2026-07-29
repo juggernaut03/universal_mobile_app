@@ -91,7 +91,14 @@ final stealDealsOffersProvider =
   final apiService = ref.watch(apiServiceProvider);
   final logger = ref.watch(loggerProvider);
   final selectedOutlet = ref.watch(selectedOutletProvider).valueOrNull;
-  final storeCode = selectedOutlet?.storeCode ?? 'KLK';
+  final storeCode = selectedOutlet?.storeCode;
+
+  // Offers are per store, and store codes are tenant-scoped — there is no
+  // sensible stand-in for "no outlet yet", so show nothing until one is picked.
+  if (storeCode == null || storeCode.isEmpty) {
+    logger.log('StealDeals: no outlet selected yet — skipping fetch');
+    return const [];
+  }
 
   logger.log('StealDeals: Provider triggered - storeCode: $storeCode');
 

@@ -89,29 +89,36 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
         }
       }
 
-      // Get the store code
+      // Get the store code. Favourites are priced and stocked per store, so
+      // without an outlet there is nothing meaningful to load — and a literal
+      // stand-in would read another tenant's store.
       final selectedOutlet = _ref.read(selectedOutletProvider).valueOrNull;
-      final storeCode = selectedOutlet?.storeCode ?? 'KLK';
-      
+      final storeCode = selectedOutlet?.storeCode;
+      if (storeCode == null || storeCode.isEmpty) {
+        state = state.copyWith(isLoading: false, isInitialized: true, error: null);
+        _hasInitialized = true;
+        return;
+      }
+
       state = state.copyWith(isLoading: true, error: null);
-      
+
       // Load favorites from server
       final favoriteProducts = ((await _repository.items(storeCode: storeCode)).valueOrNull ?? const [])
           .map(ProductModel.fromEntity)
           .toList();
-      
+
       // Extract product codes
       final favoriteProductCodes = favoriteProducts.map((product) => product.pCode).toSet();
-      
+
       state = state.copyWith(
         favoriteProductCodes: favoriteProductCodes,
         favoriteProducts: favoriteProducts,
         isLoading: false,
         isInitialized: true,
       );
-      
+
       _hasInitialized = true;
-      
+
       final logger = _ref.read(loggerProvider);
       logger.log('Favorites initialized with ${favoriteProducts.length} items');
       
@@ -159,26 +166,31 @@ class FavoritesNotifier extends StateNotifier<FavoritesState> {
         }
       }
 
-      // Get the store code
+      // Get the store code — see the note in the initialiser: no outlet means
+      // no store to read favourites from, and no code that can stand in.
       final selectedOutlet = _ref.read(selectedOutletProvider).valueOrNull;
-      final storeCode = selectedOutlet?.storeCode ?? 'KLK';
-      
+      final storeCode = selectedOutlet?.storeCode;
+      if (storeCode == null || storeCode.isEmpty) {
+        state = state.copyWith(isLoading: false, error: null);
+        return;
+      }
+
       state = state.copyWith(isLoading: true, error: null);
-      
+
       // Load favorites from server
       final favoriteProducts = ((await _repository.items(storeCode: storeCode)).valueOrNull ?? const [])
           .map(ProductModel.fromEntity)
           .toList();
-      
+
       // Extract product codes
       final favoriteProductCodes = favoriteProducts.map((product) => product.pCode).toSet();
-      
+
       state = state.copyWith(
         favoriteProductCodes: favoriteProductCodes,
         favoriteProducts: favoriteProducts,
         isLoading: false,
       );
-      
+
       final logger = _ref.read(loggerProvider);
       logger.log('Favorites refreshed with ${favoriteProducts.length} items');
       
