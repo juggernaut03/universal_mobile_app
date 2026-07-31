@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/features/outlet_status/outlet_status_banner.dart';
+import 'package:patelmart/data/models/outlet_status_model.dart';
 import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
@@ -60,11 +61,12 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
     );
   }
 
-  Widget _buildContent(BuildContext context, status) {
-    // If status is null, show error
-    if (status == null) {
-      return _buildErrorState('Unable to load store information');
-    }
+  Widget _buildContent(BuildContext context, OutletStatus? rawStatus) {
+    // Null is "the backend does not report outlet status", not "the store is
+    // broken" — it is what every store returns today. Blocking checkout on it
+    // made the whole flow unreachable, so fall back to fully operational, as
+    // the cart and delivery-method providers already do.
+    final status = rawStatus ?? OutletStatus.unknown();
 
     // If store is completely unavailable
     if (!status.isEnabled) {

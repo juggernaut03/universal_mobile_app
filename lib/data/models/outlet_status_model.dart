@@ -13,6 +13,21 @@ class OutletStatus {
     required this.selfPickupAvailable,
   });
 
+  /// Status for a store the backend cannot report on.
+  ///
+  /// The universal backend has no outlet-status endpoint, so
+  /// [OutletStatusService.checkOutletStatus] returns null for every store. The
+  /// fail-safe reading of "unknown" is "open, both methods offered" — the same
+  /// assumption isCartEnabledProvider and availableDeliveryMethodsProvider
+  /// already make. Treating unknown as closed strands the customer at checkout.
+  factory OutletStatus.unknown() => OutletStatus(
+        id: '',
+        isEnabled: true,
+        storeMessage: '',
+        homeDeliveryAvailable: true,
+        selfPickupAvailable: true,
+      );
+
   factory OutletStatus.fromJson(Map<String, dynamic> json) {
     return OutletStatus(
       id: json['_id'] ?? '',
