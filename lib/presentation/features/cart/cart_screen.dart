@@ -792,11 +792,20 @@ class CartScreen extends ConsumerWidget {
         return;
       } else {
         if (context.mounted) {
+          // Show what the server actually objected to. "Failed to update cart.
+          // Please try again." was a dead end: retrying changes nothing when
+          // the cause is a rejected field or an expired session, and it gave
+          // the shopper nothing to act on and us nothing to debug.
+          final reason = cartValidator.lastSaveError;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to update cart. Please try again.'),
+            SnackBar(
+              content: Text(
+                reason != null && reason.isNotEmpty
+                    ? "Couldn't update cart: $reason"
+                    : 'Failed to update cart. Please try again.',
+              ),
               backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 4),
             ),
           );
         }

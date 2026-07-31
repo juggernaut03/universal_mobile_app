@@ -26,6 +26,17 @@ class CartValidator {
   String? _currentDeviceId;
   String? _customerMobile;
 
+  String? _lastSaveError;
+
+  /// Why the last [saveCart] failed, in the server's own words.
+  ///
+  /// ApiClient throws an ApiException carrying the backend's `error` string on
+  /// a 4xx, and saveCart used to swallow it whole and return a bare `false` —
+  /// so every distinct cause (a rejected field, an expired session, a timeout)
+  /// surfaced to the shopper as the same "Failed to update cart. Please try
+  /// again.", with nothing in the UI to tell them or us apart.
+  String? get lastSaveError => _lastSaveError;
+
   CartValidator({
     ApiClient? apiClient,
     Logger? logger,
@@ -95,9 +106,11 @@ class CartValidator {
   /// Save the cart to the server (POST /api/cart/save-cart, JWT-scoped).
   Future<bool> saveCart(List<CartItem> cartItems, String storeCode,
       {bool isOrderConfirmation = false}) async {
+    _lastSaveError = null;
     try {
       if (_apiClient == null) {
         _logger.error('CartValidator has no ApiClient — cannot save cart');
+        _lastSaveError = 'Cart service unavailable';
         return false;
       }
       if (cartItems.isEmpty) {
@@ -124,10 +137,21 @@ class CartValidator {
         _logger.log('Cart saved successfully');
       } else {
         _logger.error('Failed to save cart: $response');
+        _lastSaveError = response is Map
+            ? (response['error'] ?? response['message'])?.toString()
+            : null;
       }
       return success;
+    } on ApiException catch (e) {
+      // The backend says exactly which item and field it rejected. Keep that —
+      // it is the difference between "try again" and a fix the shopper can act
+      // on, and between a reproducible bug report and a shrug.
+      _logger.error('Error saving cart: ${e.message} (HTTP ${e.statusCode})');
+      _lastSaveError = e.message;
+      return false;
     } catch (e) {
       _logger.error('Error saving cart: $e');
+      _lastSaveError = e.toString();
       return false;
     }
   }
@@ -159,7 +183,7 @@ class CartValidator {
       if (!saved) {
         return CartValidationResult(
           isValid: false,
-          validationMessage: 'Failed to save cart to server',
+          validationMessage: _lastSaveError ?? 'Failed to save cart to server',
           isSaveError: true,
         );
       }
