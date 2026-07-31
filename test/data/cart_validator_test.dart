@@ -226,6 +226,54 @@ void main() {
     expect(result.priceChangedItems.single.newPrice, 619.5);
   });
 
+  group('save failures keep the reason', () {
+    // "Failed to update cart. Please try again." was the only thing a shopper
+    // ever saw here, whatever went wrong — and retrying never helped, because
+    // the causes are things retrying cannot change.
+    test('a rejected field surfaces the server\'s own message', () async {
+      final validator = _validatorFailingSave(400, {
+        'success': false,
+        'error': 'Item 2 (SOFIT SOYA): unit_price must be a number',
+      });
+
+      final result = await validator.validateCart(
+        [CartItem(product: camphor, quantity: 1)],
+        'PAG001',
+      );
+
+      expect(result!.isSaveError, isTrue);
+      expect(result.isValid, isFalse);
+      expect(validator.lastSaveError, 'Item 2 (SOFIT SOYA): unit_price must be a number');
+      expect(result.validationMessage, contains('unit_price must be a number'));
+    });
+
+    test('an expired session says so rather than "try again"', () async {
+      final validator = _validatorFailingSave(401, {
+        'success': false,
+        'message': 'Token is not valid.',
+      });
+
+      final result = await validator.validateCart(
+        [CartItem(product: camphor, quantity: 1)],
+        'PAG001',
+      );
+
+      expect(result!.isSaveError, isTrue);
+      expect(result.validationMessage, contains('Token is not valid'));
+    });
+
+    test('the reason is cleared once a save succeeds', () async {
+      final validator = _validatorReturning({
+        'valid': true,
+        'invalidItems': [],
+        'updatedItems': [],
+      });
+
+      await validator.validateCart([CartItem(product: camphor, quantity: 1)], 'PAG001');
+      expect(validator.lastSaveError, isNull);
+    });
+  });
+
   test('a clean cart reports no changes at all, so checkout is not interrupted',
       () async {
     final validator = _validatorReturning({
