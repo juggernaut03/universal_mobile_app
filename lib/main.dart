@@ -65,8 +65,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   // Before the try, deliberately: main() swallows everything below to keep a
   // partly-broken app running, which is right for a failed Firebase init and
-  // wrong for a build pointed at no tenant at all.
-  EnvConfig.assertConfigured();
+  // wrong for a build pointed at no tenant at all. Shown rather than thrown —
+  // a throw here never reaches runApp, so the launch screen stays up and the
+  // failure looks like a hang.
+  final configError = EnvConfig.configurationError();
+  if (configError != null) {
+    WidgetsFlutterBinding.ensureInitialized();
+    runApp(_MisconfiguredApp(message: configError));
+    return;
+  }
 
   try {
     WidgetsFlutterBinding.ensureInitialized();
@@ -232,6 +239,49 @@ void main() async {
           ),
         ),
         debugShowCheckedModeBanner: false,
+      ),
+    );
+  }
+}
+
+/// Shown when the build has no tenant to talk to. Deliberately plain: it runs
+/// before Firebase, branding and providers, so it can depend on none of them.
+class _MisconfiguredApp extends StatelessWidget {
+  const _MisconfiguredApp({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'PatelMart',
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.settings_ethernet, size: 56, color: Colors.orange),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Build not configured',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

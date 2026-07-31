@@ -29,18 +29,19 @@ class EnvConfig {
   /// real payments into one specific client's account.
   static const String razorpayKeyId = String.fromEnvironment('RAZORPAY_KEY_ID');
 
-  /// Fails the build's first frame rather than letting it run mis-tenanted.
+  /// Why the build cannot start, or null when it is configured.
   ///
-  /// Called from main(); a missing project code cannot be recovered at runtime,
-  /// and the failure it causes otherwise is a confusing empty catalogue rather
-  /// than an obviously wrong build.
-  static void assertConfigured() {
+  /// A missing project code cannot be recovered at runtime, so the app refuses
+  /// to run rather than run mis-tenanted. main() turns this into a visible
+  /// screen: this used to `throw` before runApp, which on iOS leaves the launch
+  /// storyboard up and is indistinguishable from a hung white app.
+  static String? configurationError() {
     if (projectCode.isEmpty) {
-      throw StateError(
-        'PROJECT_CODE is not set. Build with '
-        '--dart-define=PROJECT_CODE=<tenant code> '
-        '(see lib/core/config/env_config.dart).',
-      );
+      return 'PROJECT_CODE is not set.\n\n'
+          'Run with:\n'
+          'flutter run --dart-define-from-file=dart_defines/dev.json\n\n'
+          '(see lib/core/config/env_config.dart)';
     }
+    return null;
   }
 }
