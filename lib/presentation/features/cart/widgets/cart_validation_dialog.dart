@@ -91,39 +91,51 @@ class CartValidationDialog extends StatelessWidget {
               const SizedBox(height: 16),
               
               // List specific issues
-              
+
               // 1. Price changes
               if (result.priceChangedItems.isNotEmpty)
                 _buildIssueList(
                   "Price changes detected:",
                   result.priceChangedItems.map((item) =>
-                    "${item.product.productName}: ₹${item.oldPrice.toStringAsFixed(item.oldPrice.truncateToDouble() == item.oldPrice ? 0 : 2)} → ₹${item.newPrice.toStringAsFixed(item.newPrice.truncateToDouble() == item.newPrice ? 0 : 2)}"
+                    "${item.product.productName}: ₹${_money(item.oldPrice)} → ₹${_money(item.newPrice)}"
                   ).toList()
                 ),
-                
-              // 2. Out-of-stock items
+
+              // 2. Quantity caps (stock ran low, or per-order limit hit).
+              //
+              // This is the single most common validation failure, and it used
+              // to render nothing at all — the dialog listed only the three
+              // buckets below, so a capped item produced an empty dialog with
+              // no way to tell which product was at fault.
+              if (result.quantityChangedItems.isNotEmpty)
+                _buildIssueList(
+                  "Quantity updated:",
+                  result.quantityChangedItems.map((item) =>
+                    "${item.product.productName}: ${item.oldQuantity} → ${item.newQuantity}"
+                    "${item.reason.isNotEmpty ? " (${item.reason})" : ""}"
+                  ).toList()
+                ),
+
+              // 3. Out-of-stock items
               if (result.removedItems.isNotEmpty)
                 _buildIssueList(
-                  "Items out of stock:", 
-                  result.removedItems.map((item) => 
+                  "Items out of stock:",
+                  result.removedItems.map((item) =>
                     item.product.productName
                   ).toList()
                 ),
-                
-              // 3. Other issues
+
+              // 4. Other issues
               if (result.itemsWithIssues.isNotEmpty)
                 _buildIssueList(
-                  "Update", 
-                  result.itemsWithIssues.map((item) => 
+                  "Update",
+                  result.itemsWithIssues.map((item) =>
                     "${item.product.productName}: ${item.issue}"
                   ).toList()
                 ),
-                
+
               // If no specific issues are listed but cart is invalid
-              if (result.removedItems.isEmpty && 
-                  result.priceChangedItems.isEmpty && 
-                  result.itemsWithIssues.isEmpty && 
-                  !result.isValid)
+              if (!_hasItemisedChanges && !result.isValid)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: Text(
@@ -133,9 +145,9 @@ class CartValidationDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
               const SizedBox(height: 8),
-              
+
               // Action buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -151,18 +163,32 @@ class CartValidationDialog extends StatelessWidget {
                       child: const Text("UPDATE CART"),
                     ),
                   ),
-                  
+
                   const SizedBox(width: 12),
-                  
+
+                  // The second action. This was hardcoded to `onPressed: null`
+                  // and labelled "REQUIRED", which left UPDATE CART as the only
+                  // live control on a barrier-dismissible:false dialog — so a
+                  // shopper whose cart could not be auto-fixed had no way out
+                  // of the dialog at all.
+                  //
+                  // `onContinue` decides what happens: it proceeds to checkout
+                  // when the server called the cart valid (a price change alone
+                  // is valid), and otherwise just closes and asks the shopper to
+                  // adjust the cart by hand.
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: null, // Always disabled
+                      onPressed: onContinue,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[300],
-                        foregroundColor: Colors.grey[600],
+                        backgroundColor: result.isValid
+                            ? AppColors.primary
+                            : Colors.grey[200],
+                        foregroundColor: result.isValid
+                            ? Colors.white
+                            : Colors.black87,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Text("REQUIRED"),
+                      child: Text(result.isValid ? "CONTINUE" : "CANCEL"),
                     ),
                   ),
                 ],
@@ -174,6 +200,19 @@ class CartValidationDialog extends StatelessWidget {
     );
   }
   
+  /// True when at least one bucket renders a line, so the generic
+  /// "we'll refresh your cart" fallback only appears when there really is
+  /// nothing itemised to show.
+  bool get _hasItemisedChanges =>
+      result.priceChangedItems.isNotEmpty ||
+      result.quantityChangedItems.isNotEmpty ||
+      result.removedItems.isNotEmpty ||
+      result.itemsWithIssues.isNotEmpty;
+
+  /// Drop the decimals on whole-rupee amounts, keep two otherwise.
+  static String _money(double value) =>
+      value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
+
   Widget _buildIssueList(String title, List<String> issues) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
