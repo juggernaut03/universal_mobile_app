@@ -216,9 +216,16 @@ class CartNotifier extends StateNotifier<Cart> {
   }
   
   // Apply validation changes automatically
+  ///
+  /// [quantityUpdates] carries the server's stock/max-per-order caps. It is not
+  /// optional in practice: `insufficient_stock` and `max_quantity_exceeded` are
+  /// the most common validation failures, and leaving them unapplied is what
+  /// made the validation dialog reopen forever — the cart was re-sent unchanged
+  /// on every retry, so the server returned the same complaint each time.
   void applyValidationChanges({
     required List<ProductModel> removeItems,
     required Map<String, double> priceUpdates,
+    Map<String, int> quantityUpdates = const {},
   }) {
     var updated = state;
 
@@ -235,6 +242,14 @@ class CartNotifier extends StateNotifier<Cart> {
         line.quantity,
       );
       _logger.log('Updated price for ${line.product.name} to ₹$newPrice');
+    });
+
+    quantityUpdates.forEach((pCode, newQuantity) {
+      final line = updated.lineFor(pCode);
+      if (line == null) return;
+      // setQuantity drops the line at zero, so "cap" and "remove" collapse.
+      updated = updated.setQuantity(line.product, newQuantity);
+      _logger.log('Updated quantity for ${line.product.name} to $newQuantity');
     });
 
     state = updated;

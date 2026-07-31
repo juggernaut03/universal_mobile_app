@@ -627,7 +627,7 @@ class CartScreen extends ConsumerWidget {
     if (validationResult != null && context.mounted) {
       // Check if max retries reached
       if (validationResult.maxRetriesReached) {
-        await _handleMaxRetriesReached(context, ref);
+        _handleValidationRetriesExhausted(context, ref);
         return;
       }
       
@@ -639,6 +639,10 @@ class CartScreen extends ConsumerWidget {
           barrierDismissible: false,
           builder: (dialogContext) => CartValidationDialog(
             result: validationResult,
+            // The dialog's second button. It reads as CONTINUE when the server
+            // called the cart valid (a price change alone is), and as CANCEL
+            // otherwise — either way it closes, which is the only way out of a
+            // barrierDismissible:false dialog.
             onContinue: () {
               // Only proceed if validation was ultimately successful
               if (validationResult.isValid) {
@@ -646,6 +650,10 @@ class CartScreen extends ConsumerWidget {
                 _continueToCheckout(context, ref);
               } else {
                 Navigator.pop(dialogContext);
+                // Backing out ends this checkout attempt, so the retry budget
+                // goes back to full — otherwise two cancels would leave the
+                // next genuine attempt to trip the retry ceiling immediately.
+                ref.read(validationRetryCountProvider.notifier).state = 0;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Please update your cart before proceeding'),
@@ -680,62 +688,30 @@ class CartScreen extends ConsumerWidget {
     }
   }
   
-  /// Handle the case when we've reached maximum retries
-  Future<void> _handleMaxRetriesReached(BuildContext context, WidgetRef ref) async {
-    final cartNotifier = ref.read(cartProvider.notifier);
-    
-    // Take more drastic action - remove items or reduce quantities
-    final cartItems = ref.read(cartItemsProvider);
-    if (cartItems.isEmpty) return;
-    
-    // Start with reducing quantities of all items
-    bool madeChanges = false;
-    
-    // 1. For items with quantities > 2, reduce by half
-    for (int i = 0; i < cartItems.length; i++) {
-      final item = cartItems[i];
-      if (item.quantity > 2) {
-        final newQuantity = item.quantity ~/ 2;
-        
-        // Remove and add back with reduced quantity
-        cartNotifier.removeItem(item.product);
-        cartNotifier.addItemWithQuantity(item.product, newQuantity);
-        madeChanges = true;
-      }
-    }
-    
-    // 2. If we have more than 1 item in the cart, remove all but first
-    if (!madeChanges && cartItems.length > 1) {
-      final firstItem = cartItems.first;
-      cartNotifier.clearCart();
-      cartNotifier.addItemWithQuantity(firstItem.product, firstItem.quantity);
-      madeChanges = true;
-    }
-    
-    // 3. If still not made changes and only 1 item, reduce quantity to 1
-    if (!madeChanges && cartItems.length == 1 && cartItems[0].quantity > 1) {
-      final item = cartItems[0];
-      cartNotifier.removeItem(item.product);
-      cartNotifier.addItemWithQuantity(item.product, 1);
-      madeChanges = true;
-    }
-    
-    // Notify user
+  /// Stop after the automatic fix-and-retry cycle has run out of attempts.
+  ///
+  /// This used to "take more drastic action": halve the quantity of every line
+  /// over 2, or clear the cart and re-add only its first item, then reset the
+  /// retry counter and re-enter checkout. A shopper who hit a validation issue
+  /// the app could not map therefore watched the cart shrink on each pass, with
+  /// no prompt and no way to stop it.
+  ///
+  /// Retries are the app's business; the cart is the shopper's. So the cycle
+  /// just ends here — the cart is left exactly as it is, and the counter is
+  /// cleared so a manual retry starts fresh.
+  void _handleValidationRetriesExhausted(BuildContext context, WidgetRef ref) {
+    ref.read(validationRetryCountProvider.notifier).state = 0;
+
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Your cart has been modified to help with validation issues'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: const Text(
+            "We couldn't confirm some items. Please review your cart and try again.",
+          ),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 4),
         ),
       );
-      
-      // Reset retry count and try again with the modified cart
-      ref.read(validationRetryCountProvider.notifier).state = 0;
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (context.mounted) {
-        _proceedToCheckout(context, ref);
-      }
     }
   }
   
@@ -855,7 +831,33 @@ class CartScreen extends ConsumerWidget {
       }
     }
     
-    // 2. Process price changes
+    // 2. Process server-capped quantities (low stock / per-order maximum).
+    //
+    // Previously unhandled, which is what made the dialog loop: the server
+    // capped an item, nothing applied the cap, so `madeChanges` stayed false
+    // and the cart was re-sent unchanged on every retry.
+    final Map<String, int> quantityUpdates = {};
+    if (result.quantityChangedItems.isNotEmpty) {
+      for (final item in result.quantityChangedItems) {
+        quantityUpdates[item.product.pCode] = item.newQuantity;
+        madeChanges = true;
+      }
+
+      if (context.mounted) {
+        final count = result.quantityChangedItems.length;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Quantity updated for $count ${count == 1 ? 'item' : 'items'} (limited stock)'
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+
+    // 3. Process price changes
     if (result.priceChangedItems.isNotEmpty) {
       for (final item in result.priceChangedItems) {
         // Map the product code to its new price
@@ -878,7 +880,7 @@ class CartScreen extends ConsumerWidget {
       }
     }
     
-    // 3. Process generic validation issues if we didn't make other changes
+    // 4. Process generic validation issues if we didn't make other changes
     if (!madeChanges && result.genericValidationItem != null) {
       final item = result.genericValidationItem!;
       
@@ -919,35 +921,57 @@ class CartScreen extends ConsumerWidget {
       }
     }
     
-    // 4. Apply all changes in one operation if we made some
-    if (itemsToRemove.isNotEmpty || priceUpdates.isNotEmpty) {
+    // 5. Apply all changes in one operation if we made some
+    if (itemsToRemove.isNotEmpty ||
+        priceUpdates.isNotEmpty ||
+        quantityUpdates.isNotEmpty) {
       // Apply the validation changes to the cart
       cartNotifier.applyValidationChanges(
         removeItems: itemsToRemove,
         priceUpdates: priceUpdates,
+        quantityUpdates: quantityUpdates,
       );
-      
+
       madeChanges = true;
     }
-    
-    // 5. Final case: if we still didn't make changes and the cart is invalid, 
-    // take more drastic action by calling the max retries handler
+
+    // 6. Nothing we know how to fix automatically. Hand the cart back to the
+    //    shopper rather than mutating it behind their back — the old branch
+    //    here halved every quantity, or cleared the cart down to its first
+    //    line, and then re-entered checkout, so an unrecognised server
+    //    complaint silently ate the cart one dialog at a time.
     if (!madeChanges && !result.isValid) {
-      await _handleMaxRetriesReached(context, ref);
+      ref.read(validationRetryCountProvider.notifier).state = 0;
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.validationMessage.isNotEmpty
+                  ? result.validationMessage
+                  : 'Some items are unavailable. Please adjust your cart and try again.',
+            ),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
       return;
     }
-    
-    // 6. Reset retry count since we made changes
+
+    // 7. Re-run checkout with the corrected cart.
+    //
+    // Deliberately does NOT reset validationRetryCountProvider. Resetting it
+    // disarmed the only bound on this recursion (_proceedToCheckout -> dialog
+    // -> here -> _proceedToCheckout), so a condition the server kept rejecting
+    // looped forever. The counter now survives the retry, and
+    // _continueToCheckout clears it once checkout is actually reached.
     if (madeChanges) {
-      ref.read(validationRetryCountProvider.notifier).state = 0;
-      
-      // If we made changes, try to checkout again after a short delay
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       if (context.mounted) {
         _proceedToCheckout(context, ref);
       }
     }
   }
-  
+
 }
