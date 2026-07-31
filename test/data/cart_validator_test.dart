@@ -63,6 +63,25 @@ CartValidator _validatorReturning(Map<String, dynamic> validation) {
   );
 }
 
+/// Builds a CartValidator whose save-cart fails with [status] and [body].
+CartValidator _validatorFailingSave(int status, Map<String, dynamic> body) {
+  final client = MockClient((request) async {
+    if (request.url.path.endsWith('/cart/save-cart')) {
+      return http.Response(jsonEncode(body), status,
+          headers: {'content-type': 'application/json'});
+    }
+    return http.Response(
+      jsonEncode({'success': true, 'validation': {'valid': true}}),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  });
+
+  return CartValidator(
+    apiClient: ApiClient(client: client, readToken: () async => 'test-token'),
+  );
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
