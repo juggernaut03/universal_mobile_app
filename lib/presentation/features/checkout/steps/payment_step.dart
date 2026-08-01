@@ -43,6 +43,10 @@ class PaymentStep extends ConsumerStatefulWidget {
 }
 
 class _PaymentStepState extends ConsumerState<PaymentStep> {
+  /// Captured while this step is active; see [_showErrorSnackBar] for why a
+  /// `mounted` check is not a substitute for capturing it.
+  ScaffoldMessengerState? _messenger;
+
   PaymentMethod? _selectedPaymentMethod;
   final TextEditingController _instructionsController = TextEditingController();
   final TextEditingController _pickupNameController = TextEditingController();
@@ -62,6 +66,12 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
       // Try to restore previously selected payment method
       _restoreSelectedPaymentMethod();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _messenger = ScaffoldMessenger.of(context);
   }
 
   @override
@@ -184,18 +194,19 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
     return true;
   }
 
-  /// Shows [message], or does nothing if this step is no longer on screen.
+  /// Shows [message] through the messenger captured while this step was active.
   ///
-  /// `ScaffoldMessenger.of(context)` walks the element tree, and doing that
-  /// from a deactivated element throws "Looking up a deactivated widget's
-  /// ancestor is unsafe". Every caller here runs after at least one `await`,
-  /// so the step may well have been disposed by the time it reports. That
-  /// throw was then caught by _placeOrder's own catch and displayed to the
-  /// shopper as "Order Failed" — for an order that had, in some cases,
-  /// already been paid for and confirmed.
+  /// Deliberately not `ScaffoldMessenger.of(context)`: that walks the element
+  /// tree, which is illegal once the element is deactivated, and a `mounted`
+  /// check does not cover it — `mounted` is `_widget != null` and stays true
+  /// through the deactivated-but-not-unmounted window, while the lookup needs
+  /// the element to be *active*.
+  ///
+  /// Every caller runs after at least one `await`, and the resulting throw was
+  /// caught by _placeOrder's own catch and shown to the shopper as
+  /// "Order Failed" — for an order that had already been paid for.
   void _showErrorSnackBar(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    _messenger?.showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
@@ -541,7 +552,7 @@ Future<void> _placeOrder() async {
         ref.read(orderProcessStatusProvider.notifier).state =
             OrderProcessStatus.initial;
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          _messenger?.showSnackBar(
             const SnackBar(content: Text('Payment cancelled.')),
           );
         }

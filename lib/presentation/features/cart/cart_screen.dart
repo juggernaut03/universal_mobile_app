@@ -27,6 +27,44 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
+  /// The messenger for this screen, captured while the element is still active.
+  ///
+  /// `ScaffoldMessenger.of(context)` walks the element tree, and that lookup
+  /// is illegal once the element is deactivated. A `mounted` check does NOT
+  /// cover it: `mounted` is `_widget != null`, which stays true through the
+  /// deactivated-but-not-yet-unmounted window, while the lookup requires the
+  /// element to be *active*. So `if (context.mounted) ScaffoldMessenger.of(...)`
+  /// after an `await` still throws "Looking up a deactivated widget's ancestor
+  /// is unsafe" — which is exactly what happened here.
+  ///
+  /// Capturing the state up front, as the framework documents, means no lookup
+  /// happens after the gap. A messenger belonging to a torn-down route simply
+  /// drops the SnackBar, which is the behaviour we want.
+  ScaffoldMessengerState? _messenger;
+
+  /// The router for this screen, captured for the same reason as [_messenger].
+  ///
+  /// `context.push`/`context.go` resolve GoRouter through the element tree too,
+  /// so navigating after an `await` — which the checkout flow does at every
+  /// step — carries exactly the same hazard as showing a SnackBar does.
+  GoRouter? _router;
+
+  /// Navigator for this screen, captured for the same reason again.
+  ///
+  /// `showDialog(context: context)` resolves the Navigator through the element
+  /// tree, so the validation dialog — which is only ever shown after awaiting
+  /// the validation call — needs a context that is guaranteed still active.
+  /// [NavigatorState.context] is exactly that.
+  NavigatorState? _navigator;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _messenger = ScaffoldMessenger.of(context);
+    _router = GoRouter.of(context);
+    _navigator = Navigator.of(context, rootNavigator: true);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +84,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       // to launch checkout on some unrelated later visit.
       ref.read(pendingCheckoutProvider.notifier).state = false;
       if (signedIn) {
-        _proceedToCheckout(context, ref);
+        _proceedToCheckout(ref);
       }
     });
   }
@@ -198,7 +236,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               onPressed: () {
                 // Already in cart screen, show current cart status
                 if (cartCount > 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  _messenger?.showSnackBar(
                     SnackBar(
                       content: Text(
                         'You have $cartCount item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(cartTotal.truncateToDouble() == cartTotal ? 0 : 2)})',
@@ -212,7 +250,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ),
                   );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  _messenger?.showSnackBar(
                     const SnackBar(
                       content: Text('Your cart is empty'),
                       duration: Duration(seconds: 2),
@@ -400,7 +438,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ref.read(cartProvider.notifier).removeItem(item.product);
               
               // Show confirmation of item removal
-              ScaffoldMessenger.of(context).showSnackBar(
+              _messenger?.showSnackBar(
                 SnackBar(
                   content: Text('${item.product.productName} removed from cart'),
                   duration: const Duration(seconds: 2),
@@ -479,7 +517,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 
                 // Show confirmation with UNDO option
                 if (currentCartItems.isNotEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  _messenger?.showSnackBar(
                     SnackBar(
                       content: const Text('Cart cleared'),
                       duration: const Duration(seconds: 3),
@@ -563,7 +601,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 
                 // Reset retry count before starting checkout
                 ref.read(validationRetryCountProvider.notifier).state = 0;
-                _proceedToCheckout(context, ref);
+                _proceedToCheckout(ref);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: canCheckout ? AppColors.primary : AppColors.neutral300,
@@ -595,10 +633,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
   
-  Future<void> _proceedToCheckout(BuildContext context, WidgetRef ref) async {
+  Future<void> _proceedToCheckout(WidgetRef ref) async {
     final cartItems = ref.read(cartItemsProvider);
     if (cartItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      _messenger?.showSnackBar(
         const SnackBar(
           content: Text('Your cart is empty. Add items to proceed.'),
           backgroundColor: Colors.red,
@@ -620,7 +658,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       // and price checks entirely. pendingCheckoutProvider resumes the journey.
       ref.read(pendingCheckoutProvider.notifier).state = true;
       if (context.mounted) {
-        context.push('/auth/login?redirectRoute=/cart');
+        _router?.push('/auth/login?redirectRoute=/cart');
       }
       return;
     }
@@ -637,7 +675,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final storeCode = selectedOutletAsync.value?.storeCode;
     if (storeCode == null || storeCode.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        _messenger?.showSnackBar(
           const SnackBar(
             content: Text('Select a store before checking out.'),
             backgroundColor: Colors.red,
@@ -649,7 +687,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     // Show loading indicator
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      _messenger?.showSnackBar(
         const SnackBar(
           content: Text('Validating your cart...'),
           duration: Duration(seconds: 1),
@@ -668,23 +706,32 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     ref.read(validationRetryCountProvider.notifier).state = retryCount + 1;
     
     // Remove any existing snackbars
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    }
-    
-    // Check if we have a result and the context is still valid
-    if (validationResult != null && context.mounted) {
+    _messenger?.hideCurrentSnackBar();
+
+    // The navigator captured while this screen was active. Everything below
+    // runs after awaiting validation, so this screen's own `context` may
+    // belong to a deactivated element — resolving the Navigator through it is
+    // what threw "Looking up a deactivated widget's ancestor is unsafe" and
+    // left the shopper unable to proceed to checkout at all.
+    //
+    // The navigator outlives this route, and its `mounted` check is the real
+    // one: unlike `State.mounted` it is false precisely when its context can
+    // no longer be used.
+    final navigator = _navigator;
+
+    // Check if we have a result and the navigator is still usable
+    if (validationResult != null && navigator != null && navigator.mounted) {
       // Check if max retries reached
       if (validationResult.maxRetriesReached) {
-        _handleValidationRetriesExhausted(context, ref);
+        _handleValidationRetriesExhausted(ref);
         return;
       }
-      
+
       // Always show validation dialog if the validation result indicates issues or changes
       if (validationResult.hasChanges || !validationResult.isValid) {
         // Show validation dialog for changes
         showDialog(
-          context: context,
+          context: navigator.context,
           barrierDismissible: false,
           builder: (dialogContext) => CartValidationDialog(
             result: validationResult,
@@ -696,14 +743,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               // Only proceed if validation was ultimately successful
               if (validationResult.isValid) {
                 Navigator.pop(dialogContext);
-                _continueToCheckout(context, ref);
+                _continueToCheckout(ref);
               } else {
                 Navigator.pop(dialogContext);
                 // Backing out ends this checkout attempt, so the retry budget
                 // goes back to full — otherwise two cancels would leave the
                 // next genuine attempt to trip the retry ceiling immediately.
                 ref.read(validationRetryCountProvider.notifier).state = 0;
-                ScaffoldMessenger.of(context).showSnackBar(
+                _messenger?.showSnackBar(
                   const SnackBar(
                     content: Text('Please update your cart before proceeding'),
                     backgroundColor: Colors.orange,
@@ -714,19 +761,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             onUpdateCart: () {
               // Close dialog and update cart based on validation
               Navigator.pop(dialogContext);
-              _autoUpdateCartBasedOnValidation(context, ref, validationResult);
+              _autoUpdateCartBasedOnValidation(ref, validationResult);
             },
           ),
         );
       } else {
         // Both hasChanges is false AND isValid is true - safe to proceed
-        _continueToCheckout(context, ref);
+        _continueToCheckout(ref);
       }
     } else {
       if (context.mounted) {
         // Error occurred during validation
         final errorMessage = cartValidationNotifier.errorMessage ?? 'Failed to validate cart';
-        ScaffoldMessenger.of(context).showSnackBar(
+        _messenger?.showSnackBar(
           SnackBar(
             content: Text(errorMessage),
             backgroundColor: AppColors.error,
@@ -748,11 +795,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   /// Retries are the app's business; the cart is the shopper's. So the cycle
   /// just ends here — the cart is left exactly as it is, and the counter is
   /// cleared so a manual retry starts fresh.
-  void _handleValidationRetriesExhausted(BuildContext context, WidgetRef ref) {
+  void _handleValidationRetriesExhausted(WidgetRef ref) {
     ref.read(validationRetryCountProvider.notifier).state = 0;
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      _messenger?.showSnackBar(
         SnackBar(
           content: const Text(
             "We couldn't confirm some items. Please review your cart and try again.",
@@ -764,7 +811,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
   }
   
-  Future<void> _continueToCheckout(BuildContext context, WidgetRef ref) async {
+  Future<void> _continueToCheckout(WidgetRef ref) async {
     // Reset retry count since we're proceeding
     ref.read(validationRetryCountProvider.notifier).state = 0;
 
@@ -777,20 +824,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (context.mounted) {
       if (isLoggedIn) {
         // User is logged in, proceed to the new checkout flow
-        context.push('/checkout-flow');
+        _router?.push('/checkout-flow');
       } else {
         // Session died mid-checkout. Return to the cart after login so the
         // cart is re-validated instead of entering checkout unchecked.
         ref.read(pendingCheckoutProvider.notifier).state = true;
-        context.push('/auth/login?redirectRoute=/cart');
+        _router?.push('/auth/login?redirectRoute=/cart');
       }
     }
   }
   
   Future<void> _autoUpdateCartBasedOnValidation(
-    BuildContext context, 
-    WidgetRef ref, 
-    CartValidationResult result
+    WidgetRef ref,
+    CartValidationResult result,
   ) async {
     final cartNotifier = ref.read(cartProvider.notifier);
     final selectedOutletAsync = ref.read(selectedOutletProvider);
@@ -807,7 +853,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (result.isSaveError) {
       // Show retry in progress
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        _messenger?.showSnackBar(
           const SnackBar(
             content: Text('Retrying cart save operation...'),
             duration: Duration(seconds: 1),
@@ -824,7 +870,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       
       if (saveSuccess) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          _messenger?.showSnackBar(
             const SnackBar(
               content: Text('Cart updated successfully!'),
               backgroundColor: Colors.green,
@@ -837,7 +883,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           
           // Try proceeding with checkout again after successful retry
           if (context.mounted) {
-            _proceedToCheckout(context, ref);
+            _proceedToCheckout(ref);
           }
         }
         return;
@@ -848,7 +894,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           // the cause is a rejected field or an expired session, and it gave
           // the shopper nothing to act on and us nothing to debug.
           final reason = cartValidator.lastSaveError;
-          ScaffoldMessenger.of(context).showSnackBar(
+          _messenger?.showSnackBar(
             SnackBar(
               content: Text(
                 reason != null && reason.isNotEmpty
@@ -879,7 +925,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       // Show a single notification for all removed items
       if (context.mounted && result.removedItems.isNotEmpty) {
         final count = result.removedItems.length;
-        ScaffoldMessenger.of(context).showSnackBar(
+        _messenger?.showSnackBar(
           SnackBar(
             content: Text(
               '$count ${count == 1 ? 'item' : 'items'} removed (out of stock)'
@@ -905,7 +951,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
       if (context.mounted) {
         final count = result.quantityChangedItems.length;
-        ScaffoldMessenger.of(context).showSnackBar(
+        _messenger?.showSnackBar(
           SnackBar(
             content: Text(
               'Quantity updated for $count ${count == 1 ? 'item' : 'items'} (limited stock)'
@@ -928,7 +974,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       // Show notification for price updates
       if (context.mounted && result.priceChangedItems.isNotEmpty) {
         final count = result.priceChangedItems.length;
-        ScaffoldMessenger.of(context).showSnackBar(
+        _messenger?.showSnackBar(
           SnackBar(
             content: Text(
               'Prices updated for $count ${count == 1 ? 'item' : 'items'}'
@@ -951,7 +997,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         cartNotifier.addItemWithQuantity(item.product, item.quantity - 1);
         
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          _messenger?.showSnackBar(
             SnackBar(
               content: Text(
                 'Reduced quantity for ${item.product.productName} to address validation issues'
@@ -967,7 +1013,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         itemsToRemove.add(item.product);
         
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          _messenger?.showSnackBar(
             SnackBar(
               content: Text(
                 'Removed ${item.product.productName} to address validation issues'
@@ -1003,7 +1049,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (!madeChanges && !result.isValid) {
       ref.read(validationRetryCountProvider.notifier).state = 0;
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        _messenger?.showSnackBar(
           SnackBar(
             content: Text(
               result.validationMessage.isNotEmpty
@@ -1029,7 +1075,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       await Future.delayed(const Duration(milliseconds: 300));
 
       if (context.mounted) {
-        _proceedToCheckout(context, ref);
+        _proceedToCheckout(ref);
       }
     }
   }
