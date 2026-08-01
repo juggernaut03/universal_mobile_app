@@ -324,6 +324,17 @@ enum CartValidationState {
 // Maintain a counter for retry attempts to prevent infinite loops
 final validationRetryCountProvider = StateProvider<int>((ref) => 0);
 
+/// Set when a guest taps "Proceed to checkout" and is sent to the login screen,
+/// so the cart can pick the journey back up once they return signed in.
+///
+/// Checkout cannot start until the cart is validated, and validation is an
+/// authenticated call (`POST /api/cart/save-cart` is `protect`-ed). A guest
+/// therefore got "Access denied. No token provided." from a screen that never
+/// mentioned signing in. Redirecting straight to `/checkout-flow` after login
+/// would skip validation, so the login redirect returns to `/cart` and this
+/// flag re-runs the real checkout path — auth first, then validation.
+final pendingCheckoutProvider = StateProvider<bool>((ref) => false);
+
 // Define a state class for cart validation
 class CartValidationStateNotifier extends StateNotifier<CartValidationState> {
   final Ref _ref;

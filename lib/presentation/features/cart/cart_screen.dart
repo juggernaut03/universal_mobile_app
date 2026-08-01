@@ -19,8 +19,37 @@ import '../../../di/auth_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../providers/cart_validation_policy_provider.dart';
 
-class CartScreen extends ConsumerWidget {
+class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  ConsumerState<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends ConsumerState<CartScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // A guest who tapped "Proceed to checkout" was sent to login and has landed
+    // back here. Resume where they left off instead of making them find the
+    // button again — and go through _proceedToCheckout, so the cart is still
+    // validated before checkout opens.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (!ref.read(pendingCheckoutProvider)) return;
+
+      final signedIn = await ref.read(authRepositoryProvider).isSignedIn();
+      if (!mounted) return;
+
+      // Clear it either way: an abandoned login must not leave the cart primed
+      // to launch checkout on some unrelated later visit.
+      ref.read(pendingCheckoutProvider.notifier).state = false;
+      if (signedIn) {
+        _proceedToCheckout(context, ref);
+      }
+    });
+  }
 
   // Custom back navigation handler - matches the pattern from category screen
   Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {
@@ -44,7 +73,7 @@ class CartScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     // Auto-remove offer products when their offer locks back
     ref.watch(offerProductAutoRemovalProvider);
 
@@ -578,9 +607,27 @@ class CartScreen extends ConsumerWidget {
       return;
     }
     
+    // Sign-in is checked here, BEFORE validation, because validation is itself
+    // an authenticated call — POST /api/cart/save-cart is `protect`-ed. Running
+    // it first meant a guest's checkout died on "Access denied. No token
+    // provided." inside the cart-validation dialog, which offers only UPDATE
+    // CART and CANCEL and never mentions signing in. The auth check used to sit
+    // in _continueToCheckout, one step too late to help.
+    final isSignedIn = await ref.read(authRepositoryProvider).isSignedIn();
+    if (!isSignedIn) {
+      // Come back to the cart rather than straight to /checkout-flow: checkout
+      // does not validate the cart itself, so jumping there would skip stock
+      // and price checks entirely. pendingCheckoutProvider resumes the journey.
+      ref.read(pendingCheckoutProvider.notifier).state = true;
+      if (context.mounted) {
+        context.push('/auth/login?redirectRoute=/cart');
+      }
+      return;
+    }
+
     final selectedOutletAsync = ref.read(selectedOutletProvider);
     final cartValidationNotifier = ref.read(cartValidationStateProvider.notifier);
-    
+
     // Get current retry count
     final retryCount = ref.read(validationRetryCountProvider);
     
@@ -589,12 +636,14 @@ class CartScreen extends ConsumerWidget {
     // a cart against another tenant's inventory and let checkout proceed on it.
     final storeCode = selectedOutletAsync.value?.storeCode;
     if (storeCode == null || storeCode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select a store before checking out.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Select a store before checking out.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -718,20 +767,22 @@ class CartScreen extends ConsumerWidget {
   Future<void> _continueToCheckout(BuildContext context, WidgetRef ref) async {
     // Reset retry count since we're proceeding
     ref.read(validationRetryCountProvider.notifier).state = 0;
-    
-    // Check if user is logged in
+
+    // Re-checked rather than assumed: _proceedToCheckout gates on sign-in, but
+    // validation is a network round trip and the session can expire during it
+    // (ApiClient forces a logout on any 401). Sending an unauthenticated
+    // shopper into /checkout-flow would just bounce off its own route guard.
     final isLoggedIn = await ref.read(authRepositoryProvider).isSignedIn();
-    
+
     if (context.mounted) {
       if (isLoggedIn) {
         // User is logged in, proceed to the new checkout flow
-       context.push('/checkout-flow');
+        context.push('/checkout-flow');
       } else {
-        // User is not logged in, show login screen with redirect
-        context.push(
-          '/auth/login',
-          extra: {'redirectRoute': '/checkout-flow'},
-        );
+        // Session died mid-checkout. Return to the cart after login so the
+        // cart is re-validated instead of entering checkout unchecked.
+        ref.read(pendingCheckoutProvider.notifier).state = true;
+        context.push('/auth/login?redirectRoute=/cart');
       }
     }
   }

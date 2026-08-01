@@ -45,15 +45,21 @@ class ApiClient {
   /// to the login flow. Failures inside it are swallowed and logged.
   final Future<void> Function()? _onUnauthorized;
 
+  /// Renews the access token, returning the new one or null if the session is
+  /// genuinely over. Given a 401, this is tried before [_onUnauthorized].
+  final Future<String?> Function()? _refreshToken;
+
   ApiClient({
     http.Client? client,
     Logger? logger,
     Future<String?> Function()? readToken,
     Future<void> Function()? onUnauthorized,
+    Future<String?> Function()? refreshToken,
   }) : _client = client ?? http.Client(),
        _logger = logger ?? Logger(),
        _readToken = readToken,
-       _onUnauthorized = onUnauthorized;
+       _onUnauthorized = onUnauthorized,
+       _refreshToken = refreshToken;
 
   Map<String, String> _headers({String? token}) => {
         'Content-Type': 'application/json',
@@ -92,7 +98,7 @@ class ApiClient {
           .get(uri, headers: _headers())
           .timeout(const Duration(seconds: 15));
 
-      return _handleResponse(response, authed: false);
+      return _handleResponse(response);
     });
   }
 
@@ -110,103 +116,167 @@ class ApiClient {
               headers: _headers(), body: json.encode(requestBody))
           .timeout(const Duration(seconds: 15));
 
-      return _handleResponse(response, authed: false);
+      return _handleResponse(response);
     });
   }
 
-  /// POST with Authorization: Bearer header
-  Future<dynamic> postWithAuth(String url, {Map<String, dynamic>? body}) async {
+  /// POST with a caller-supplied bearer token.
+  ///
+  /// For the callers that already hold the token and must not go through the
+  /// session machinery — sign-out being the case that matters: routing it via
+  /// [postWithAuth] would let a 401 trigger a refresh and re-establish the very
+  /// session being torn down, and would need an ApiClient built from the auth
+  /// manager that is calling it.
+  ///
+  /// No refresh, no forced logout: the response is returned or thrown as-is.
+  Future<dynamic> postWithToken(
+    String url,
+    String token, {
+    Map<String, dynamic>? body,
+  }) async {
     return _run(() async {
-      final token = await _getToken();
-
       final Map<String, dynamic> requestBody = {
         'project_code': ApiConstants.projectCode,
         ...body ?? {},
       };
 
-      if (token == null || token.isEmpty) {
-        _logger.warning('POST with auth request to: $url (NO TOKEN AVAILABLE)');
-      } else {
-        _logger.log('POST with auth request to: $url');
-      }
+      _logger.log('POST with explicit token to: $url');
 
       final response = await _client
           .post(Uri.parse(url),
               headers: _headers(token: token), body: json.encode(requestBody))
           .timeout(const Duration(seconds: 15));
 
-      return _handleResponse(response, authed: true);
+      return _handleResponse(response);
+    });
+  }
+
+  /// Runs an authenticated request, renewing the session once if it 401s.
+  ///
+  /// [send] is called with the bearer token to use, so the retry re-sends the
+  /// same request under the new token. Every `*WithAuth` verb goes through here
+  /// so the 401 policy is defined once:
+  ///
+  ///   401 -> refresh -> retry once -> still 401? force logout.
+  ///
+  /// Previously a 401 forced logout immediately, so the instant an access token
+  /// lapsed the shopper was signed out mid-session with no attempt to renew.
+  Future<dynamic> _sendAuthed(
+    Future<http.Response> Function(String? token) send,
+  ) async {
+    return _run(() async {
+      final token = await _getToken();
+      var response = await send(token);
+
+      if (response.statusCode == 401 && _refreshToken != null) {
+        _logger.warning('401 on authenticated call — attempting token refresh');
+        String? renewed;
+        try {
+          renewed = await _refreshToken();
+        } catch (e) {
+          // Refresh itself failed to complete (offline, server down). Treat as
+          // "could not renew" and fall through to the original 401 rather than
+          // masking it with a different error.
+          _logger.error('Token refresh threw: $e');
+        }
+
+        if (renewed != null && renewed.isNotEmpty) {
+          _logger.log('Token refreshed — retrying the original request');
+          response = await send(renewed);
+        }
+      }
+
+      // Only now, with renewal ruled out, is a 401 a dead session.
+      if (response.statusCode == 401 && _onUnauthorized != null) {
+        _logger.warning('401 after refresh — forcing logout');
+        unawaited(_onUnauthorized().catchError((e) {
+          _logger.error('Forced logout failed: $e');
+        }));
+      }
+
+      return _handleResponse(response);
+    });
+  }
+
+  /// POST with Authorization: Bearer header
+  Future<dynamic> postWithAuth(String url, {Map<String, dynamic>? body}) async {
+    final Map<String, dynamic> requestBody = {
+      'project_code': ApiConstants.projectCode,
+      ...body ?? {},
+    };
+
+    return _sendAuthed((token) {
+      if (token == null || token.isEmpty) {
+        _logger.warning('POST with auth request to: $url (NO TOKEN AVAILABLE)');
+      } else {
+        _logger.log('POST with auth request to: $url');
+      }
+
+      return _client
+          .post(Uri.parse(url),
+              headers: _headers(token: token), body: json.encode(requestBody))
+          .timeout(const Duration(seconds: 15));
     });
   }
 
   /// GET with Authorization: Bearer header
   Future<dynamic> getWithAuth(String url, {Map<String, String>? additionalParams}) async {
-    return _run(() async {
-      final token = await _getToken();
+    final Map<String, String> queryParams = {
+      'project_code': ApiConstants.projectCode,
+      ...Uri.parse(url).queryParameters,
+      ...additionalParams ?? {},
+    };
 
-      final Map<String, String> queryParams = {
-        'project_code': ApiConstants.projectCode,
-        ...Uri.parse(url).queryParameters,
-        ...additionalParams ?? {},
-      };
+    final Uri uri = Uri.parse(url).replace(queryParameters: queryParams);
 
-      final Uri uri = Uri.parse(url).replace(queryParameters: queryParams);
-
+    return _sendAuthed((token) {
       if (token == null || token.isEmpty) {
         _logger.warning('GET with auth request to: $uri (NO TOKEN AVAILABLE)');
       } else {
         _logger.log('GET with auth request to: $uri');
       }
 
-      final response = await _client
+      return _client
           .get(uri, headers: _headers(token: token))
           .timeout(const Duration(seconds: 15));
-
-      return _handleResponse(response, authed: true);
     });
   }
 
   /// PUT with Authorization: Bearer header
   Future<dynamic> putWithAuth(String url, {Map<String, dynamic>? body}) async {
-    return _run(() async {
-      final token = await _getToken();
+    final Map<String, dynamic> requestBody = {
+      'project_code': ApiConstants.projectCode,
+      ...body ?? {},
+    };
 
-      final Map<String, dynamic> requestBody = {
-        'project_code': ApiConstants.projectCode,
-        ...body ?? {},
-      };
-
+    return _sendAuthed((token) {
       _logger.log('PUT with auth request to: $url');
 
-      final response = await _client
+      return _client
           .put(Uri.parse(url),
               headers: _headers(token: token), body: json.encode(requestBody))
           .timeout(const Duration(seconds: 15));
-
-      return _handleResponse(response, authed: true);
     });
   }
 
   /// DELETE with Authorization: Bearer header and optional JSON body
   Future<dynamic> deleteWithAuth(String url, {Map<String, dynamic>? body}) async {
-    return _run(() async {
-      final token = await _getToken();
+    final encodedBody = json.encode({
+      'project_code': ApiConstants.projectCode,
+      ...body ?? {},
+    });
 
+    return _sendAuthed((token) async {
       _logger.log('DELETE with auth request to: $url');
 
       final request = http.Request('DELETE', Uri.parse(url));
       request.headers.addAll(_headers(token: token));
-      request.body = json.encode({
-        'project_code': ApiConstants.projectCode,
-        ...body ?? {},
-      });
+      request.body = encodedBody;
 
       final streamed = await _client
           .send(request)
           .timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamed);
-
-      return _handleResponse(response, authed: true);
+      return http.Response.fromStream(streamed);
     });
   }
 
@@ -239,7 +309,12 @@ class ApiClient {
     }
   }
 
-  dynamic _handleResponse(http.Response response, {required bool authed}) {
+  /// Decodes a response, or throws [ApiException] describing the failure.
+  ///
+  /// Deliberately free of side effects. Deciding what a 401 means — renew, or
+  /// end the session — belongs to [_sendAuthed], which is the only place that
+  /// knows whether a refresh has already been tried.
+  dynamic _handleResponse(http.Response response) {
     _logger.log('Response status: ${response.statusCode}, body: ${response.body}');
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -256,16 +331,6 @@ class ApiClient {
         );
       }
     } else {
-      // A 401 on an authenticated call means the stored session is invalid
-      // (expired JWT, legacy access_key, deleted user) — force logout so the
-      // UI drops back to the login flow.
-      if (authed && response.statusCode == 401 && _onUnauthorized != null) {
-        _logger.warning('401 on authenticated call — forcing logout');
-        unawaited(_onUnauthorized().catchError((e) {
-          _logger.error('Forced logout failed: $e');
-        }));
-      }
-
       final errorType = _getErrorType(response.statusCode);
       throw ApiException(
         message: _getErrorMessage(response),

@@ -27,12 +27,22 @@ final class AuthSession {
   /// Ten days matches the existing backend contract.
   final Duration lifetime;
 
+  /// Long-lived credential that mints new access tokens without a fresh OTP.
+  ///
+  /// Empty when the backend issued no refresh token, in which case the session
+  /// simply ends at [expiresAt] as before.
+  final String refreshToken;
+
   const AuthSession({
     required this.mobile,
     required this.accessToken,
     required this.issuedAt,
     this.lifetime = const Duration(days: 10),
+    this.refreshToken = '',
   });
+
+  /// Whether this session can outlive its access token.
+  bool get isRenewable => refreshToken.isNotEmpty;
 
   /// Moment the credential stops being accepted.
   DateTime get expiresAt => issuedAt.add(lifetime);
@@ -60,12 +70,14 @@ final class AuthSession {
     String? accessToken,
     DateTime? issuedAt,
     Duration? lifetime,
+    String? refreshToken,
   }) =>
       AuthSession(
         mobile: mobile ?? this.mobile,
         accessToken: accessToken ?? this.accessToken,
         issuedAt: issuedAt ?? this.issuedAt,
         lifetime: lifetime ?? this.lifetime,
+        refreshToken: refreshToken ?? this.refreshToken,
       );
 
   @override

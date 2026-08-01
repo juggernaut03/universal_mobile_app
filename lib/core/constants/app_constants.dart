@@ -31,6 +31,7 @@ class ApiConstants {
   static const String authVerifyOtp = '$baseUrl/auth/verify-otp';
   static const String authProfile = '$baseUrl/auth/profile';
   static const String authLogout = '$baseUrl/auth/logout';
+  static const String authRefreshToken = '$baseUrl/auth/refresh-token';
   static const String authSaveFcmToken = '$baseUrl/auth/save-fcm-token';
 
   // ---- Location & stores ----
