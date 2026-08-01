@@ -112,6 +112,10 @@ class PaymentService implements IPaymentGateway {
   String? _currentRazorpayOrderId; // Store the created order ID
   String? _currentTempOrderId; // Store the temp order ID for tracking
 
+  /// Why the last order creation failed, in the server's own words.
+  String? _lastOrderError;
+  String? get lastOrderError => _lastOrderError;
+
   // Razorpay publishable key id only — orders are created and verified by the
   // backend (/api/razorpay/order, /api/razorpay/verify), which holds the secret.
   // Resolved per call, not once at class-load: the tenant's key id arrives
@@ -138,6 +142,19 @@ class PaymentService implements IPaymentGateway {
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
+  /// What to tell the shopper when the order could not be created.
+  ///
+  /// Says why whenever the server gave a reason. "Please try again" on its own
+  /// is a dead end when the cause is a rejected amount or an expired session —
+  /// retrying cannot change either, and it left nothing to debug from.
+  String _orderFailureMessage() {
+    final reason = _lastOrderError;
+    if (reason == null || reason.isEmpty) {
+      return 'Failed to create payment order. Please try again.';
+    }
+    return "Couldn't start payment: $reason";
+  }
+
   /// Create a Razorpay order using their Orders API with temp order ID tracking
   Future<Map<String, dynamic>?> _createRazorpayOrder({
     required double amount,
@@ -145,12 +162,14 @@ class PaymentService implements IPaymentGateway {
     String? receipt,
     String? tempOrderId,
   }) async {
+    _lastOrderError = null;
     try {
       _logger.log('Creating Razorpay order for amount: ${amount.toStringAsFixed(2)} $currency');
       _logger.log('Temp Order ID: ${tempOrderId ?? "Not provided"}');
-      
+
       if (_apiClient == null) {
         _logger.error('PaymentService has no ApiClient — cannot create order');
+        _lastOrderError = 'Payment service unavailable';
         return null;
       }
 
@@ -179,13 +198,30 @@ class PaymentService implements IPaymentGateway {
           'amount': response['amount'],
           'currency': response['currency'],
           'receipt': response['receipt'],
+          // The key the order was created under. Opening checkout with any
+          // other key makes Razorpay reject the order as belonging to a
+          // different account.
+          'key_id': response['key_id'],
           'status': 'created',
         };
       }
 
+      _lastOrderError = response is Map
+          ? (response['message'] ?? response['error'])?.toString()
+          : null;
       _logger.error('Failed to create Razorpay order: $response');
       return null;
+    } on ApiException catch (e) {
+      // Keep the server's words. This used to collapse to a bare null, so
+      // every cause — a rejected amount, an expired session, an unreachable
+      // server, a Razorpay outage — reached the shopper as the same
+      // "Failed to create payment order. Please try again.", with nothing in
+      // the UI or the logs to tell them apart.
+      _lastOrderError = e.message;
+      _logger.error('Error creating Razorpay order: ${e.message} (HTTP ${e.statusCode})');
+      return null;
     } catch (e) {
+      _lastOrderError = e.toString();
       _logger.error('Error creating Razorpay order: $e');
       return null;
     }
@@ -508,7 +544,7 @@ class PaymentService implements IPaymentGateway {
         if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
           _paymentCompleter!.complete(PaymentResult(
             success: false,
-            message: 'Failed to create payment order. Please try again.',
+            message: _orderFailureMessage(),
             error: Exception('Razorpay order creation failed'),
             fullPaymentData: {
               'order_creation_failed': true,
@@ -522,7 +558,7 @@ class PaymentService implements IPaymentGateway {
         
         return PaymentResult(
           success: false,
-          message: 'Failed to create payment order. Please try again.',
+          message: _orderFailureMessage(),
           error: Exception('Razorpay order creation failed'),
         );
       }
@@ -546,7 +582,14 @@ class PaymentService implements IPaymentGateway {
           : 'Customer';
 
       final options = {
-        'key': keyId,
+        // The key the backend created this order under, falling back to the
+        // configured one only if the backend did not report it. An order is
+        // owned by one Razorpay account; paying it with a key from another —
+        // which is exactly what a tenant with a key_id but no key_secret
+        // produces — is rejected at the sheet.
+        'key': (razorpayOrder['key_id'] as String?)?.isNotEmpty == true
+            ? razorpayOrder['key_id']
+            : keyId,
         'amount': razorpayOrder['amount'], // Use amount from created order
         'currency': razorpayOrder['currency'],
         // The tenant's name, not a literal: this is the merchant name the

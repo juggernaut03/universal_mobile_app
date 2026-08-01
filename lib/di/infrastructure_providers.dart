@@ -19,6 +19,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/auth/centralized_auth_manager.dart';
+import '../data/auth/token_refresher.dart';
 import '../core/network/api_client.dart';
 import '../core/utils/logger.dart';
 
@@ -63,10 +64,22 @@ final cacheManagerProvider = Provider<DefaultCacheManager>(
 /// Was declared inside core/auth/centralized_auth_manager.dart, which forced
 /// that core file to import presentation providers for logger/prefs/storage.
 final centralizedAuthManagerProvider = Provider<CentralizedAuthManager>((ref) {
+  final logger = ref.watch(loggerProvider);
+
+  // An auth-less ApiClient on purpose, and NOT apiClientProvider: that one is
+  // built from this manager, so resolving it here would be a cycle. Refresh
+  // also must not carry a bearer token — see TokenRefresher.
+  final refresher = TokenRefresher(
+    apiClient: ApiClient(logger: logger),
+    logger: logger,
+  );
+
   final manager = CentralizedAuthManager(
     secureStorage: ref.watch(secureStorageProvider),
     prefs: ref.watch(sharedPreferencesProvider),
-    logger: ref.watch(loggerProvider),
+    logger: logger,
+    refreshTokens: refresher.refresh,
+    revokeSession: refresher.revoke,
   );
   ref.onDispose(manager.dispose);
   return manager;
@@ -89,5 +102,9 @@ final apiClientProvider = Provider<ApiClient>((ref) {
     logger: ref.watch(loggerProvider),
     readToken: authManager.getValidAccessKey,
     onUnauthorized: authManager.logout,
+    // Given a 401, try to renew before giving up. Without this the app signs
+    // the shopper out the moment an access token lapses, which is what made a
+    // restart feel like the session had expired.
+    refreshToken: authManager.refreshAccessToken,
   );
 });

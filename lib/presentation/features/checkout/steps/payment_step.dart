@@ -184,13 +184,29 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
     return true;
   }
 
+  /// Shows [message], or does nothing if this step is no longer on screen.
+  ///
+  /// `ScaffoldMessenger.of(context)` walks the element tree, and doing that
+  /// from a deactivated element throws "Looking up a deactivated widget's
+  /// ancestor is unsafe". Every caller here runs after at least one `await`,
+  /// so the step may well have been disposed by the time it reports. That
+  /// throw was then caught by _placeOrder's own catch and displayed to the
+  /// shopper as "Order Failed" — for an order that had, in some cases,
+  /// already been paid for and confirmed.
   void _showErrorSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
       ),
     );
+  }
+
+  /// setState that tolerates the step having been disposed mid-flow.
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    setState(fn);
   }
 
   String _buildSpecialNotes(AuthSession? userProfile) {
@@ -252,7 +268,13 @@ Future<void> _placeOrder() async {
   setState(() {
     _isPlacingOrder = true;
   });
-  
+
+  // Whether the order reached the backend, and what it said. The catch below
+  // uses these to tell "the order failed" apart from "the screen fell over
+  // after the order was already placed".
+  var orderReachedBackend = false;
+  var orderConfirmed = false;
+
   try {
     // Access logger through provider
     final logger = ref.read(loggerProvider);
@@ -269,7 +291,7 @@ Future<void> _placeOrder() async {
     // Ensure we have a fresh session ready for this new order
     final sessionReady = await enhancedCartValidator.ensureSessionReadyForOrder();
     if (!sessionReady) {
-      setState(() {
+      _safeSetState(() {
         _isPlacingOrder = false;
       });
       _showErrorSnackBar("Failed to prepare order session. Please try again.");
@@ -284,7 +306,7 @@ Future<void> _placeOrder() async {
     final currentTempOrderId = freshIdentifiers['temp_order_id'];
     
     if (currentCartKey == null || currentDeviceId == null || currentTempOrderId == null) {
-      setState(() {
+      _safeSetState(() {
         _isPlacingOrder = false;
       });
       _showErrorSnackBar("Failed to generate order identifiers. Please try again.");
@@ -439,7 +461,7 @@ Future<void> _placeOrder() async {
     
     // Check if payment processing API call was successful
     if (!paymentProcessingResult.success) {
-      setState(() {
+      _safeSetState(() {
         _isPlacingOrder = false;
       });
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
@@ -628,6 +650,13 @@ Future<void> _placeOrder() async {
 
     // Store order result
     ref.read(orderConfirmationResultProvider.notifier).state = orderResult;
+
+    // From here the backend has an answer, so a later throw is a client-side
+    // problem rather than a failed order. `orderConfirmed` is set only in the
+    // branches below that actually complete the order — `orderResult.success`
+    // alone is not enough, since the confirmation call also succeeds when it
+    // is recording a FAILED payment.
+    orderReachedBackend = true;
     
     logger.log('=== STEP 3 COMPLETED: ORDER UPDATE RESULT ===');
     logger.log('Order API Success: ${orderResult.success}');
@@ -641,6 +670,7 @@ Future<void> _placeOrder() async {
         // Successful online payment
         ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
         await enhancedCartValidator.markOrderAsCompleted(tempOrderId);
+        orderConfirmed = true;
         
         logger.log('✅ ORDER SUCCESSFULLY PLACED AND CONFIRMED');
         logger.log('Order ID: ${orderResult.orderId}');
@@ -661,7 +691,11 @@ Future<void> _placeOrder() async {
         // Clear cart, checkout data cache, and show success
         await ref.read(cartProvider.notifier).clearCart();
         await CheckoutData.clearFromPrefs();  // Clear cached checkout data including special notes
-        setState(() {
+        // _safeSetState, and before the mounted check rather than after it:
+        // clearCart() and clearFromPrefs() are awaits, so the step can be gone
+        // by the time they return, and a plain setState then throws
+        // "setState() called after dispose()" on an order that succeeded.
+        _safeSetState(() {
           _isPlacingOrder = false;
         });
         if (!mounted) return;
@@ -672,6 +706,7 @@ Future<void> _placeOrder() async {
         // Cash on Delivery
         ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.completed;
         await enhancedCartValidator.markOrderAsCompleted(tempOrderId);
+        orderConfirmed = true;
         
         logger.log('✅ COD ORDER SUCCESSFULLY PLACED');
         logger.log('Order ID: ${orderResult.orderId}');
@@ -691,7 +726,11 @@ Future<void> _placeOrder() async {
         // Clear cart, checkout data cache, and show success
         await ref.read(cartProvider.notifier).clearCart();
         await CheckoutData.clearFromPrefs();  // Clear cached checkout data including special notes
-        setState(() {
+        // _safeSetState, and before the mounted check rather than after it:
+        // clearCart() and clearFromPrefs() are awaits, so the step can be gone
+        // by the time they return, and a plain setState then throws
+        // "setState() called after dispose()" on an order that succeeded.
+        _safeSetState(() {
           _isPlacingOrder = false;
         });
         if (!mounted) return;
@@ -727,7 +766,7 @@ Future<void> _placeOrder() async {
       
     } else {
       // API call itself failed
-      setState(() {
+      _safeSetState(() {
         _isPlacingOrder = false;
       });
       ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
@@ -743,13 +782,53 @@ Future<void> _placeOrder() async {
       _showErrorSnackBar('Order confirmation failed: ${orderResult.message}');
     }
     
-  } catch (e) {
-    setState(() {
+  } catch (e, stack) {
+    _safeSetState(() {
       _isPlacingOrder = false;
     });
+
+    final logger = ref.read(loggerProvider);
+
+    // An order the backend already confirmed must never be flipped to
+    // "failed" by a client-side throw. The money is taken and the order is
+    // real; overwriting the status here showed the shopper "Order Failed" for
+    // an order that had gone through, and markOrderAsFailed then tore down the
+    // session that was tracking it.
+    //
+    // This is exactly what happened with "Looking up a deactivated widget's
+    // ancestor is unsafe": a widget-lifecycle error, thrown after payment
+    // succeeded, presented as a failed order.
+    if (orderConfirmed) {
+      logger.error(
+          'Order was confirmed but the checkout screen threw afterwards: $e');
+      logger.error('$stack');
+
+      ref.read(orderProcessStatusProvider.notifier).state =
+          OrderProcessStatus.completed;
+
+      // Still clean up what the success path would have: the cart is paid for.
+      try {
+        ref.read(checkoutTimerProvider.notifier).stopTimer();
+        await ref.read(cartProvider.notifier).clearCart();
+        await CheckoutData.clearFromPrefs();
+      } catch (cleanupError) {
+        logger.error('Post-order cleanup failed: $cleanupError');
+      }
+
+      if (kDebugMode) {
+        print('\n⚠️  === ORDER PLACED, UI ERROR AFTERWARDS === ⚠️');
+        print('Error: $e');
+        print('Order status left as COMPLETED — check My Orders.\n');
+      }
+      return;
+    }
+
     ref.read(orderProcessStatusProvider.notifier).state = OrderProcessStatus.failed;
-    ref.read(orderErrorMessageProvider.notifier).state = 'Unexpected error: $e';
-    
+    ref.read(orderErrorMessageProvider.notifier).state = orderReachedBackend
+        // The backend answered and rejected it; that message is the useful one.
+        ? 'Order could not be completed. Please check My Orders before retrying.'
+        : 'Unexpected error: $e';
+
     // Mark order as failed - this will create a new session automatically
     final enhancedCartValidator = ref.read(enhancedCartValidatorProvider);
     final prefs = await SharedPreferences.getInstance();
@@ -757,14 +836,14 @@ Future<void> _placeOrder() async {
     if (tempOrderId != null) {
       await enhancedCartValidator.markOrderAsFailed(tempOrderId);
     }
-    
-    final logger = ref.read(loggerProvider);
+
     logger.error('Unexpected error during order placement: $e');
-    
+    logger.error('$stack');
+
     if (kDebugMode) print('\n💥 === UNEXPECTED ERROR === 💥');
     if (kDebugMode) print('Error: $e');
     if (kDebugMode) print('💥 === ORDER FLOW FAILED === 💥\n');
-    
+
     _showErrorSnackBar('An unexpected error occurred. Please try again.');
   }
 }

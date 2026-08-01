@@ -90,6 +90,7 @@ final class AuthRepositoryImpl implements IAuthRepository, ITokenStore {
         mobile: mobile,
         accessToken: response.accessKey,
         issuedAt: _clock(),
+        refreshToken: response.refreshToken,
       );
 
       await write(session);
@@ -158,6 +159,10 @@ final class AuthRepositoryImpl implements IAuthRepository, ITokenStore {
         mobile: session.mobile,
         accessKey: session.accessToken,
         loginTime: session.issuedAt,
+        refreshToken: session.refreshToken,
+        // The JWT's own `exp`, so expiry is the server's answer rather than a
+        // duration guessed on the client.
+        accessKeyExpiresAt: UserProfile.expiryFromJwt(session.accessToken),
       ),
     );
   }
@@ -171,5 +176,13 @@ final class AuthRepositoryImpl implements IAuthRepository, ITokenStore {
         mobile: profile.mobile,
         accessToken: profile.accessKey,
         issuedAt: profile.loginTime,
+        refreshToken: profile.refreshToken,
+        // A renewable session outlives its access token, so `lifetime` — which
+        // currentSession() checks — has to track the refresh window, not the
+        // 10-day default. Without this, a restart more than 10 days after login
+        // reported "Session expired" for a session the server would still renew.
+        lifetime: profile.hasRefreshToken
+            ? const Duration(days: 90)
+            : const Duration(days: 10),
       );
 }
