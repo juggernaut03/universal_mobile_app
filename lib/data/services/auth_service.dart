@@ -1,5 +1,6 @@
 // lib/data/services/auth_service.dart
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -85,10 +86,7 @@ class AuthService {
           mobileStr = validationResponse.mobileNumber.toString();
         }
         
-        await _saveUserCredentials(
-          mobileStr,
-          validationResponse.accessKey,
-        );
+        _registerDeviceForPush(mobileStr, validationResponse.accessKey);
       } else {
         _logger.error('OTP validation failed: ${validationResponse.message}');
       }
@@ -100,87 +98,31 @@ class AuthService {
     }
   }
 
-  /// Save user credentials and integrate with CentralizedAuthManager
-  /// This method now properly integrates with CentralizedAuthManager
-  Future<void> _saveUserCredentials(String mobile, String accessKey) async {
-    try {
-      final now = DateTime.now();
-      
-      // Create user profile for CentralizedAuthManager
-      final userProfile = UserProfile(
-        mobile: mobile,
-        accessKey: accessKey,
-        loginTime: now,
-      );
-      
-      _logger.log('User credentials received - integrating with CentralizedAuthManager');
-      
-      // Save FCM token after successful login (non-blocking)
-      _saveFcmTokenAfterLogin(userProfile);
-      
-      // Set up FCM token refresh listener
-      _setupFcmTokenRefreshListener(userProfile);
-      
-    } catch (e) {
-      _logger.error('Error handling user credentials: $e');
-      rethrow;
-    }
-  }
-
-  /// Save FCM token after successful login (runs in background)
-  Future<void> _saveFcmTokenAfterLogin(UserProfile userProfile) async {
-    try {
-      _logger.log('Initiating FCM token save after login...');
-      
-      // Run in background without blocking the login flow
-      Future.delayed(const Duration(milliseconds: 500), () async {
-        try {
-          final success = await saveFcmToken(
-            mobileNumber: userProfile.mobile,
-            accessKey: userProfile.accessKey,
-          );
-          
-          if (success) {
-            _logger.log('FCM token saved successfully after login');
-          } else {
-            _logger.warning('FCM token save failed after login');
-          }
-        } catch (e) {
-          _logger.error('Error saving FCM token after login: $e');
-        }
-      });
-    } catch (e) {
-      _logger.error('Error initiating FCM token save after login: $e');
-    }
-  }
-
-  /// Set up FCM token refresh listener for automatic updates
-  void _setupFcmTokenRefreshListener(UserProfile userProfile) {
-    try {
-      _logger.log('Setting up FCM token refresh listener for: ${userProfile.mobile}');
-      
-      _firebaseMessaging.onTokenRefresh.listen((newToken) async {
-        try {
-          _logger.log('FCM token refreshed, saving new token...');
-          
-          final success = await saveFcmToken(
-            mobileNumber: userProfile.mobile,
-            accessKey: userProfile.accessKey,
-            fcmToken: newToken,
-          );
-          
-          if (success) {
-            _logger.log('New FCM token saved successfully');
-          } else {
-            _logger.warning('Failed to save new FCM token');
-          }
-        } catch (e) {
-          _logger.error('Error handling FCM token refresh: $e');
-        }
-      });
-    } catch (e) {
-      _logger.error('Error setting up FCM token refresh listener: $e');
-    }
+  /// Registers this device for push after a successful OTP verification.
+  ///
+  /// Deliberately fire-and-forget: a failure to register for push must not
+  /// fail a login that has already succeeded.
+  ///
+  /// The ongoing job of keeping the server's copy of the FCM token current
+  /// belongs to [FcmTokenService], which reads a fresh bearer token per call
+  /// and holds a cancellable subscription. This class used to do that too, via
+  /// an `onTokenRefresh.listen` that was never cancelled and closed over the
+  /// access token as it stood at login — so every rotation after the first
+  /// authenticated with a JWT that had already been replaced.
+  void _registerDeviceForPush(String mobile, String accessKey) {
+    // The token is passed explicitly because this fires during login, before
+    // the profile lands in CentralizedAuthManager storage.
+    unawaited(() async {
+      try {
+        final success =
+            await saveFcmToken(mobileNumber: mobile, accessKey: accessKey);
+        success
+            ? _logger.log('FCM token saved after login')
+            : _logger.warning('FCM token save failed after login');
+      } catch (e) {
+        _logger.error('Error saving FCM token after login: $e');
+      }
+    }());
   }
 
   /// Save FCM token to server using the /save_fcm_token API
@@ -318,54 +260,15 @@ class AuthService {
     }
   }
 
-  /// Manually trigger FCM token save (for debugging or manual refresh)
-  Future<bool> refreshFcmToken() async {
-    try {
-      final userProfile = await getUserProfile();
-      if (userProfile == null) {
-        _logger.error('Cannot refresh FCM token: user not logged in');
-        return false;
-      }
-      
-      _logger.log('Manually refreshing FCM token for user: ${userProfile.mobile}');
-      
-      return await saveFcmToken(
-        mobileNumber: userProfile.mobile,
-        accessKey: userProfile.accessKey,
-      );
-    } catch (e) {
-      _logger.error('Error manually refreshing FCM token: $e');
-      return false;
-    }
-  }
-
-  /// Get user profile - DEPRECATED: Use CentralizedAuthManager instead
-  /// This method now delegates to CentralizedAuthManager
-  Future<UserProfile?> getUserProfile() async {
-    try {
-      _logger.log('⚠️ DEPRECATED: AuthService.getUserProfile() - Use CentralizedAuthManager instead');
-      // Note: Cannot directly access CentralizedAuthManager here due to circular dependency
-      // This method should not be used - access CentralizedAuthManager directly
-      return null;
-    } catch (e) {
-      _logger.error('Error getting user profile: $e');
-      return null;
-    }
-  }
-
-  /// Check if user is logged in - DEPRECATED: Use CentralizedAuthManager instead
-  /// This method now delegates to CentralizedAuthManager  
-  Future<bool> isLoggedIn() async {
-    try {
-      _logger.log('⚠️ DEPRECATED: AuthService.isLoggedIn() - Use CentralizedAuthManager instead');
-      // Note: Cannot directly access CentralizedAuthManager here due to circular dependency
-      // This method should not be used - access CentralizedAuthManager directly
-      return false;
-    } catch (e) {
-      _logger.error('Error checking login status: $e');
-      return false;
-    }
-  }
+  // `getUserProfile()`, `isLoggedIn()` and `refreshFcmToken()` used to live
+  // here. The first two were hardcoded to `return null` / `return false` with a
+  // comment explaining they could not reach CentralizedAuthManager — and
+  // `refreshFcmToken()` called `getUserProfile()`, so it reported "user not
+  // logged in" for every signed-in user and never saved anything.
+  //
+  // Session questions go to CentralizedAuthManager (or IAuthRepository); FCM
+  // upkeep goes to FcmTokenService, which has the auth manager injected and can
+  // answer both.
 
   /// Logout user - DEPRECATED: Use CentralizedAuthManager instead
   /// This method now only clears legacy storage
@@ -390,6 +293,12 @@ class AuthService {
     return await _getCurrentFcmToken();
   }
 
+  /// First 20 characters of [token], for logging. Safe on short values.
+  static String _preview(String? token) {
+    if (token == null || token.isEmpty) return 'null';
+    return token.length <= 20 ? token : '${token.substring(0, 20)}…';
+  }
+
   /// Check FCM token status for debugging
   Future<Map<String, dynamic>> getFcmTokenStatus() async {
     try {
@@ -399,8 +308,10 @@ class AuthService {
       final lastSaved = prefs.getString('fcm_token_last_saved');
       
       return {
-        'current_token': currentToken?.substring(0, 20) ?? 'null',
-        'stored_token': storedToken?.substring(0, 20) ?? 'null',
+        // Never a bare substring(0, 20): it throws on tokens shorter than 20
+        // characters, crashing the debug screen precisely when it is needed.
+        'current_token': _preview(currentToken),
+        'stored_token': _preview(storedToken),
         'tokens_match': currentToken == storedToken,
         'last_saved': lastSaved ?? 'never',
         'needs_update': await shouldUpdateFcmToken(),

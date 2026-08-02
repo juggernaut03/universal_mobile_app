@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 and below (android:fullBackupContent).
+
+  flutter_secure_storage keeps its ciphertext in SharedPreferences while the key
+  that decrypts it lives in the hardware-backed Keystore, which is never part of
+  a backup. Restoring the ciphertext onto a device that has no matching key
+  yields a decryption failure on first read, not a working session — so the
+  stored auth blob is excluded and the user simply signs in again.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+    <exclude domain="sharedpref" path="FlutterSecureStoragePrefs.xml" />
+</full-backup-content>

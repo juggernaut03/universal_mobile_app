@@ -1,6 +1,7 @@
 // lib/presentation/providers/auth_providers.dart
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/services/auth_service.dart';
 import '../../data/models/auth_models.dart';
 import '../../di/infrastructure_providers.dart';
 import '../../di/service_providers.dart';
@@ -65,103 +66,87 @@ final logoutProvider = Provider((ref) {
   };
 });
 
-// ========== NEW FCM TOKEN PROVIDERS ==========
+// ========== FCM TOKEN PROVIDERS ==========
+//
+// These read FcmTokenService, not AuthService. AuthService's FCM methods were
+// built around a profile it could not actually load — `getUserProfile()` was
+// hardcoded to return null — so `refreshFcmToken()` failed for every signed-in
+// user. FcmTokenService has the auth manager injected and authenticates through
+// ApiClient, so it reads a fresh bearer token on every call.
+//
+// See also `fcm_token_providers.dart` for the save/listen providers.
 
-// Provider to get FCM token status (for debugging)
-final fcmTokenStatusProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final authService = ref.watch(authServiceProvider);
-  return await authService.getFcmTokenStatus();
+/// FCM token diagnostics for the debug screen.
+final fcmTokenStatusProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  return ref.watch(fcmTokenServiceProvider).getFcmTokenStatus();
 });
 
-// Provider to manually refresh FCM token
+/// Manually push the current FCM token to the server.
 final refreshFcmTokenProvider = Provider<Future<bool> Function()>((ref) {
   return () async {
-    final authService = ref.read(authServiceProvider);
     final logger = ref.read(loggerProvider);
-    
+
     logger.log('Manually triggering FCM token refresh...');
-    final success = await authService.refreshFcmToken();
-    
+    final success = await ref.read(fcmTokenServiceProvider).refreshFcmToken();
+
     if (success) {
       logger.log('Manual FCM token refresh successful');
     } else {
       logger.error('Manual FCM token refresh failed');
     }
-    
+
     return success;
   };
 });
 
-// Provider to check if FCM token needs update
+/// Whether the server's copy of the FCM token is stale.
 final fcmTokenNeedsUpdateProvider = FutureProvider.autoDispose<bool>((ref) async {
-  final authService = ref.watch(authServiceProvider);
-  return await authService.shouldUpdateFcmToken();
+  return ref.watch(fcmTokenServiceProvider).shouldUpdateFcmToken();
 });
 
-// Provider to get current FCM token (for debugging)
+/// The device's current FCM token, for debugging.
 final currentFcmTokenProvider = FutureProvider.autoDispose<String?>((ref) async {
-  final authService = ref.watch(authServiceProvider);
-  return await authService.getCurrentFcmToken();
+  return ref.watch(fcmTokenServiceProvider).getCurrentFcmToken();
 });
 
-// Provider for FCM token operations (direct access to auth service FCM methods)
-final fcmTokenOperationsProvider = Provider<AuthService>((ref) {
-  return ref.watch(authServiceProvider);
-});
-
-// Auto FCM token save watcher (automatically saves FCM token when user logs in)
-final fcmTokenAutoSaveWatcherProvider = Provider<void>((ref) {
-  // Watch user profile changes
-  final userProfileAsync = ref.watch(userProfileProvider);
+/// Keeps the server's FCM token current while a user is signed in.
+///
+/// Replaces `fcmTokenAutoSaveWatcherProvider` and
+/// `fcmTokenBackgroundManagerProvider`. The first fired a bare `Future.delayed`
+/// from inside a provider body — untracked work that outlived the provider and
+/// called the always-failing AuthService path. The second did nothing at all
+/// beyond logging, on the since-removed assumption that AuthService had already
+/// set up the listener.
+final fcmTokenSyncProvider = Provider<void>((ref) {
   final logger = ref.read(loggerProvider);
-  
-  userProfileAsync.whenData((userProfile) {
-    if (userProfile != null) {
-      // User is logged in, check if FCM token needs to be saved
-      Future.delayed(const Duration(seconds: 1), () async {
-        try {
-          final authService = ref.read(authServiceProvider);
-          final needsUpdate = await authService.shouldUpdateFcmToken();
-          
-          if (needsUpdate) {
-            logger.log('FCM token needs update, triggering save...');
-            final success = await authService.refreshFcmToken();
-            
-            if (success) {
-              logger.log('Auto FCM token save successful');
-            } else {
-              logger.warning('Auto FCM token save failed');
-            }
-          } else {
-            logger.log('FCM token is up to date');
-          }
-        } catch (e) {
-          logger.error('Error in auto FCM token save: $e');
+
+  ref.listen<AsyncValue<UserProfile?>>(userProfileProvider, (previous, next) {
+    final profile = next.valueOrNull;
+    if (profile == null) return;
+
+    final service = ref.read(fcmTokenServiceProvider);
+    unawaited(() async {
+      try {
+        if (await service.shouldUpdateFcmToken()) {
+          logger.log('FCM token needs update, triggering save...');
+          final success = await service.saveFcmToken();
+          success
+              ? logger.log('Auto FCM token save successful')
+              : logger.warning('Auto FCM token save failed');
+        } else {
+          logger.log('FCM token is up to date');
         }
-      });
-    }
-  });
-  
-  return;
-});
+        await service.setupFcmTokenRefreshListener();
+      } catch (e) {
+        logger.error('Error in FCM token sync: $e');
+      }
+    }());
+  }, fireImmediately: true);
 
-// Background FCM token manager (sets up token refresh listener)
-final fcmTokenBackgroundManagerProvider = Provider<void>((ref) {
-  final userProfileAsync = ref.watch(userProfileProvider);
-  final logger = ref.read(loggerProvider);
-  
-  userProfileAsync.whenData((userProfile) {
-    if (userProfile != null) {
-      logger.log('Setting up FCM token background management for: ${userProfile.mobile}');
-      
-      // The AuthService already sets up the token refresh listener
-      // in _saveUserCredentials, so we don't need to do anything here.
-      // This provider exists mainly for monitoring and can be used
-      // for additional FCM token management logic if needed.
-    }
+  ref.onDispose(() {
+    unawaited(ref.read(fcmTokenServiceProvider).cancelTokenRefreshListener());
   });
-  
-  return;
 });
 
 // Login state enum

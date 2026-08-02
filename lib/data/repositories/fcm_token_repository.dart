@@ -47,13 +47,26 @@ class FcmTokenRepository {
     }
   }
 
-  /// Set up automatic token refresh handling
-  void setupTokenRefreshListener(UserProfile userProfile) {
+  /// Set up automatic token refresh handling.
+  ///
+  /// Takes no profile: the service resolves the signed-in user from the auth
+  /// manager when a rotation actually arrives. Passing a profile in encouraged
+  /// callers to capture credentials that go stale the moment the access token
+  /// is refreshed.
+  void setupTokenRefreshListener() {
     try {
-      _logger.log('Setting up FCM token refresh listener for: ${userProfile.mobile}');
       _fcmTokenService.setupFcmTokenRefreshListener();
     } catch (e) {
       _logger.error('Error setting up FCM token refresh listener: $e');
+    }
+  }
+
+  /// Stop listening for token rotations.
+  Future<void> cancelTokenRefreshListener() async {
+    try {
+      await _fcmTokenService.cancelTokenRefreshListener();
+    } catch (e) {
+      _logger.error('Error cancelling FCM token refresh listener: $e');
     }
   }
 }
