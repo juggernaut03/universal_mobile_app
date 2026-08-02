@@ -42,22 +42,31 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 
 /// Encrypted key-value storage for tokens and credentials.
 ///
-/// The options are not decoration:
-///
-/// `encryptedSharedPreferences` puts Android's copy under an AES key held in
-/// the Keystore instead of the plugin's legacy RSA-wrapped preferences file.
-///
 /// `first_unlock` lets iOS read the token after the first unlock following a
 /// boot rather than only while the device is actively unlocked. The default
 /// (`unlocked`) makes the keychain unreadable to background work — the FCM
 /// background message handler runs in exactly that state, and could not
-/// authenticate.
+/// authenticate. This is safe to change on an existing install: the iOS plugin
+/// passes accessibility only when *writing*, and `read()` queries on the
+/// account name alone (see `FlutterSecureStorage.swift`, `baseQuery`), so
+/// entries written under the old attribute stay readable.
 ///
-/// Neither is retroactive: entries written under the old settings stay
-/// readable, and the next write moves them over.
+/// Android is deliberately left on the plugin default.
+///
+/// `AndroidOptions(encryptedSharedPreferences: true)` was set here and had to
+/// be reverted: it is NOT a compatible change. Both modes share one
+/// preferences file, but EncryptedSharedPreferences encrypts key *names* as
+/// well as values, so a lookup in that mode never matches an entry written in
+/// the default mode. `read()` then returns null — no error, no exception —
+/// and the app reads "no stored session" and asks the user to sign in again.
+/// Every install that upgraded across that flag silently lost its session.
+///
+/// Switching modes needs a migration that reads through a legacy-configured
+/// client and rewrites through the new one. Until that exists, the default
+/// stands: it already encrypts values with an AES key wrapped by the Android
+/// Keystore, which is the property that matters here.
 final secureStorageProvider = Provider<FlutterSecureStorage>(
   (ref) => const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   ),
 );
