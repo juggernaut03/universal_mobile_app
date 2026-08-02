@@ -220,7 +220,14 @@ void main() {
       expect(loggedOut, isTrue);
     });
 
-    test('does not retry when there is no refresh capability', () async {
+    test('a 401 on a request that carried no token does NOT sign the user out',
+        () async {
+      // This test previously asserted the opposite, pinning a real bug: when
+      // the client fails to attach a token, the server's 401 says only "no
+      // credential was presented" — it is not a verdict on the stored session,
+      // which the server never saw. Signing out on it destroyed live sessions
+      // over a client-side slip, mid-checkout, with nothing on screen to say
+      // why the next call was suddenly unauthenticated.
       var requests = 0;
       var loggedOut = false;
 
@@ -242,7 +249,32 @@ void main() {
         throwsA(isA<ApiException>()),
       );
 
-      expect(requests, 1);
+      expect(requests, 1, reason: 'nothing to retry without a token');
+      expect(loggedOut, isFalse,
+          reason: 'the session was never presented, so it was never rejected');
+    });
+
+    test('a 401 on a request that DID carry a token still signs the user out',
+        () async {
+      // The counterpart: here the server saw the credential and refused it, so
+      // ending the session is the right call.
+      var loggedOut = false;
+
+      final client = ApiClient(
+        client: MockClient((_) async => http.Response(
+              jsonEncode({'success': false, 'message': 'Token is not valid.'}),
+              401,
+              headers: {'content-type': 'application/json'},
+            )),
+        readToken: () async => 'a-real-but-rejected-token',
+        onUnauthorized: () async => loggedOut = true,
+      );
+
+      await expectLater(
+        client.postWithAuth('https://x.test/api/cart/save-cart'),
+        throwsA(isA<ApiException>()),
+      );
+
       expect(loggedOut, isTrue);
     });
 

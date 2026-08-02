@@ -124,20 +124,30 @@ class CentralizedAuthManager {
   Future<void> _loadCachedProfile() async {
     try {
       final profileData = await _secureStorage.read(key: _userProfileKey);
-      if (profileData != null) {
-        final profile = UserProfile.fromJson(jsonDecode(profileData));
-        
-        // Validate if still valid
-        if (_isProfileValid(profile)) {
-          _cachedProfile = profile;
-          _lastValidation = DateTime.now();
-          _notifyProfileChanged(profile);
-          _notifyLoginStatusChanged(true);
-        } else {
-          await _clearExpiredProfile();
-        }
+      if (profileData == null) {
+        _logger.warning('[AUTH] no stored profile under $_userProfileKey');
+        return;
+      }
+
+      final profile = UserProfile.fromJson(jsonDecode(profileData));
+
+      // Validate if still valid
+      if (_isProfileValid(profile)) {
+        _cachedProfile = profile;
+        _lastValidation = DateTime.now();
+        _notifyProfileChanged(profile);
+        _notifyLoginStatusChanged(true);
+      } else {
+        _logger.warning('[AUTH] stored profile judged invalid — '
+            'accessKeyEmpty=${profile.accessKey.isEmpty} '
+            'hasRefresh=${profile.hasRefreshToken} '
+            'expiresAt=${profile.accessKeyExpiresAt} '
+            'loginTime=${profile.loginTime}');
+        await _clearExpiredProfile();
       }
     } catch (e) {
+      // A parse failure used to sign the user out. It is a storage/format
+      // problem, not evidence that the session ended.
       _logger.error('Error loading cached profile: $e');
       await _clearExpiredProfile();
     }
@@ -225,14 +235,36 @@ class CentralizedAuthManager {
   /// produces a failed request at all.
   Future<String?> getValidAccessKey() async {
     final profile = await getCurrentUserProfile();
-    if (profile == null) return null;
+    if (profile == null) {
+      // The single most consequential null in the app: every authenticated
+      // call silently goes out with no Authorization header and the backend
+      // answers "Access denied. No token provided.", which reads like a server
+      // fault rather than a lost local session.
+      _logger.warning('[AUTH] getValidAccessKey: NO PROFILE — request will be '
+          'sent unauthenticated');
+      return null;
+    }
 
     if (profile.hasRefreshToken && profile.accessKeyNeedsRefresh()) {
       _logger.log('Access token at/near expiry — refreshing before use');
       final refreshed = await refreshAccessToken();
       if (refreshed != null) return refreshed;
+
+      // Refresh failed on a token we already know is at/past expiry. Falling
+      // back to `profile.accessKey` here returned a credential we know is
+      // dead — and `profile` is a local captured before the refresh, so after
+      // a rejected refresh it was a token from a session that had just been
+      // cleared. Re-read instead: whatever survived is the truth.
+      _logger.warning('[AUTH] refresh yielded no token for an expiring session');
+      final current = _cachedProfile;
+      if (current == null || current.accessKey.isEmpty) return null;
+      return current.accessKey;
     }
 
+    if (profile.accessKey.isEmpty) {
+      _logger.warning('[AUTH] getValidAccessKey: profile has an EMPTY access '
+          'key (mobile=${profile.mobile})');
+    }
     return profile.accessKey;
   }
 
@@ -305,6 +337,12 @@ class CentralizedAuthManager {
 
   /// Logout and clear all data
   Future<void> logout() async {
+    // Logged with a stack because sign-out is reached from several places that
+    // are not the user pressing "log out" — a 401 that survives a refresh, a
+    // rejected refresh token, a profile judged expired on load. When the
+    // session vanishes mid-checkout, this line says which one did it.
+    _logger.warning('[AUTH] logout() called — clearing session\n'
+        '${StackTrace.current}');
     try {
       // Revoke server-side first, so the refresh token cannot outlive the
       // sign-out. Best-effort and never blocking: if the device is offline the

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:patelmart/domain/entities/auth_session.dart';
 
 void main() {
+  _expiryAuthorityTests();
   final issued = DateTime(2026, 7, 1, 12);
 
   AuthSession session({String token = 'jwt-abc'}) => AuthSession(
@@ -103,6 +104,72 @@ void main() {
 
     test('a re-issued token is a different session', () {
       expect(session(token: 'old'), isNot(session(token: 'new')));
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Expiry authority.
+//
+// There used to be two answers to "is this session valid": CentralizedAuthManager
+// had one rule, AuthSession.isValidAt had another built on a client-invented
+// `lifetime`. isSignedIn() consulted the first and currentSession() the second,
+// so they could disagree about the same session — and checkout, which asks
+// currentSession(), silently lost the shopper's identity at the till.
+// ---------------------------------------------------------------------------
+void _expiryAuthorityTests() {
+  group('expiry comes from the token, not a guessed lifetime', () {
+    final issued = DateTime.utc(2026, 1, 1);
+
+    test('tokenExpiresAt wins over issuedAt + lifetime', () {
+      final session = AuthSession(
+        mobile: '7666475554',
+        accessToken: 'jwt',
+        issuedAt: issued,
+        lifetime: const Duration(days: 10), // the old guess
+        tokenExpiresAt: issued.add(const Duration(days: 7)), // the truth
+      );
+
+      expect(session.expiresAt, issued.add(const Duration(days: 7)));
+      expect(session.isValidAt(issued.add(const Duration(days: 8))), isFalse);
+    });
+
+    test('falls back to the lifetime guess only when the token says nothing', () {
+      final session = AuthSession(
+        mobile: '7666475554',
+        accessToken: 'opaque',
+        issuedAt: issued,
+        lifetime: const Duration(days: 10),
+      );
+
+      expect(session.expiresAt, issued.add(const Duration(days: 10)));
+    });
+
+    test('a renewable session stays valid past its access token', () {
+      // The refresh token exists precisely to outlive the access token.
+      // Reporting this as expired is what signed people out mid-checkout while
+      // a perfectly good session sat on the device.
+      final session = AuthSession(
+        mobile: '7666475554',
+        accessToken: 'jwt',
+        issuedAt: issued,
+        tokenExpiresAt: issued.add(const Duration(days: 7)),
+        refreshToken: 'refresh',
+      );
+
+      expect(session.isRenewable, isTrue);
+      expect(session.isValidAt(issued.add(const Duration(days: 30))), isTrue);
+    });
+
+    test('an empty access token is never valid, renewable or not', () {
+      final session = AuthSession(
+        mobile: '7666475554',
+        accessToken: '',
+        issuedAt: issued,
+        refreshToken: 'refresh',
+      );
+
+      expect(session.isValidAt(issued), isFalse);
     });
   });
 }

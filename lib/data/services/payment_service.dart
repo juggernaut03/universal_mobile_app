@@ -349,7 +349,22 @@ class PaymentService implements IPaymentGateway {
     Map<String, dynamic> enhancedPaymentData,
     int currentTimestamp,
   ) async {
-    bool verified = true;
+    // "Rejected" and "could not ask" are different answers, and conflating
+    // them loses paid orders.
+    //
+    // The money is already taken by the time this runs — Razorpay has returned
+    // success. A timeout, a 5xx or a dropped connection on /razorpay/verify
+    // used to set verified=false, so the app told the shopper their payment had
+    // failed and the order was then recorded as failed. Charged, no order.
+    //
+    // This call is not the security boundary in any case: place-order re-runs
+    // the signature check server-side, fetches the payment from Razorpay and
+    // cross-checks the captured amount against its own total
+    // (utils/orderService.js resolvePaymentStatus). A client-side check cannot
+    // add trust — it only offers a faster failure. So an inconclusive result
+    // proceeds and lets the authoritative check decide; only an explicit
+    // negative verdict from the server stops the flow here.
+    bool rejected = false;
     try {
       if (_apiClient != null &&
           response.orderId != null &&
@@ -363,17 +378,28 @@ class PaymentService implements IPaymentGateway {
             'razorpay_signature': response.signature,
           },
         );
-        verified =
-            verifyResponse is Map && verifyResponse['success'] == true;
-        _logger.log('Razorpay verify result: $verified');
+        rejected = !(verifyResponse is Map && verifyResponse['success'] == true);
+        _logger.log('Razorpay verify result: ${rejected ? "REJECTED" : "ok"}');
       } else {
         _logger.warning(
-            'Razorpay verify skipped (missing client or payment fields)');
+            'Razorpay verify skipped (missing client or payment fields) — '
+            'place-order will verify');
+      }
+    } on ApiException catch (e) {
+      // 400 is the server's verdict that the signature does not check out.
+      // Anything else says only that we could not get an answer.
+      if (e.statusCode == 400) {
+        rejected = true;
+        _logger.error('Razorpay signature REJECTED by server: ${e.message}');
+      } else {
+        _logger.warning('Razorpay verify inconclusive (HTTP ${e.statusCode}: '
+            '${e.message}) — proceeding; place-order will verify');
       }
     } catch (e) {
-      _logger.error('Razorpay verify call failed: $e');
-      verified = false;
+      _logger.warning(
+          'Razorpay verify unreachable ($e) — proceeding; place-order will verify');
     }
+    final verified = !rejected;
 
     if (_paymentCompleter != null && !_paymentCompleter!.isCompleted) {
       if (!verified) {

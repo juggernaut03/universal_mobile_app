@@ -70,7 +70,14 @@ class ApiClient {
 
   /// Fetch the JWT with retries — new-login flows can race storage writes.
   Future<String?> _getToken() async {
-    if (_readToken == null) return null;
+    if (_readToken == null) {
+      // This client was built without a token source, so every `*WithAuth`
+      // call it makes is unauthenticated. See apiClientProvider — resolving an
+      // ApiClient from anywhere else is how this happens.
+      _logger.warning('[AUTH] ApiClient has NO token reader — sending '
+          'authenticated calls without a token');
+      return null;
+    }
     String? token;
     for (int attempt = 0; attempt < 3; attempt++) {
       token = await _readToken();
@@ -79,6 +86,9 @@ class ApiClient {
         await Future.delayed(Duration(milliseconds: 200 * (attempt + 1)));
         _logger.log('Retrying token retrieval, attempt ${attempt + 2}');
       }
+    }
+    if (token == null || token.isEmpty) {
+      _logger.warning('[AUTH] token reader returned nothing after 3 attempts');
     }
     return token;
   }
@@ -186,12 +196,25 @@ class ApiClient {
         }
       }
 
-      // Only now, with renewal ruled out, is a 401 a dead session.
+      // Only now, with renewal ruled out, is a 401 a dead session — and only
+      // if we actually presented a credential for the server to reject.
+      //
+      // When no token was sent, the 401 says nothing about the stored session:
+      // the server never saw it. Logging out here destroyed live sessions
+      // because of a client-side failure to attach the header, and the shopper
+      // was signed out mid-checkout for a bug that had nothing to do with
+      // their credentials.
       if (response.statusCode == 401 && _onUnauthorized != null) {
-        _logger.warning('401 after refresh — forcing logout');
-        unawaited(_onUnauthorized().catchError((e) {
-          _logger.error('Forced logout failed: $e');
-        }));
+        if (token == null || token.isEmpty) {
+          _logger.warning(
+              '[AUTH] 401 on a request that carried NO token — not logging '
+              'out; the session was never presented to the server');
+        } else {
+          _logger.warning('401 after refresh — forcing logout');
+          unawaited(_onUnauthorized().catchError((e) {
+            _logger.error('Forced logout failed: $e');
+          }));
+        }
       }
 
       return _handleResponse(response);
