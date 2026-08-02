@@ -337,8 +337,57 @@ class ApiClient {
   /// Deliberately free of side effects. Deciding what a 401 means — renew, or
   /// end the session — belongs to [_sendAuthed], which is the only place that
   /// knows whether a refresh has already been tried.
+  /// Response-body keys whose values must never reach a log.
+  ///
+  /// The sign-in and refresh responses carry `token` and `refreshToken` in the
+  /// body, and this method logged every body verbatim — so a plaintext refresh
+  /// token, good for 90 days and enough to mint access tokens at will, was
+  /// written to the device log on every login and every renewal.
+  static const Set<String> _sensitiveKeys = {
+    'token',
+    'refreshtoken',
+    'accesskey',
+    'access_token',
+    'password',
+    'otp',
+    'signature',
+    'razorpay_signature',
+  };
+
+  /// [body] with credential values replaced by their length.
+  ///
+  /// Redacting rather than dropping the log: the shape of the response is what
+  /// makes these logs worth having, and a `redacted 214 chars` placeholder
+  /// still distinguishes "the server sent a token" from "the field was empty"
+  /// — which is the question being asked when reading them.
+  String _redact(String body) {
+    try {
+      final decoded = json.decode(body);
+      return json.encode(_redactValue(decoded));
+    } catch (_) {
+      // Not JSON — an HTML error page or plain text. Nothing structured to
+      // redact, and these carry no credentials.
+      return body;
+    }
+  }
+
+  dynamic _redactValue(dynamic value) {
+    if (value is Map) {
+      return value.map((key, v) {
+        if (_sensitiveKeys.contains(key.toString().toLowerCase())) {
+          final length = v is String ? v.length : '$v'.length;
+          return MapEntry(key, '<redacted $length chars>');
+        }
+        return MapEntry(key, _redactValue(v));
+      });
+    }
+    if (value is List) return value.map(_redactValue).toList();
+    return value;
+  }
+
   dynamic _handleResponse(http.Response response) {
-    _logger.log('Response status: ${response.statusCode}, body: ${response.body}');
+    _logger.log('Response status: ${response.statusCode}, '
+        'body: ${_redact(response.body)}');
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return null;
