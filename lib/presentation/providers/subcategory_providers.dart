@@ -147,10 +147,18 @@ final productsProvider =
       subCategoryId: params.subCategoryId),
 );
 
-// All products provider ("0" means every product in the category)
+/// The value that means "every subcategory in this category".
+///
+/// The backend treats this — along with an absent field, "" and "all" — as
+/// "do not filter by subcategory". It was previously a bare "0" scattered
+/// across three call sites, and the backend read it as a literal subcategory
+/// id, so the ALL tab returned nothing on categories full of stock.
+const String kAllSubcategories = '0';
+
+// All products provider — every product in the category, across subcategories.
 final allProductsProvider =
     FutureProvider.family<List<ProductModel>, ProductFilterParams>(
-  (ref, params) => _runGetProducts(ref, params, subCategoryId: '0'),
+  (ref, params) => _runGetProducts(ref, params, subCategoryId: kAllSubcategories),
 );
 
 // Provider for controlling pull-to-refresh functionality

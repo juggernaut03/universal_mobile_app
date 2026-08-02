@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/widgets/back_button_wrapper.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../data/services/content_service.dart';
 import '../../../di/infrastructure_providers.dart';
+import '../../providers/support_content_providers.dart';
 
 class FAQScreen extends ConsumerStatefulWidget {
   const FAQScreen({super.key});
@@ -23,9 +25,31 @@ class _FAQScreenState extends ConsumerState<FAQScreen> {
   @override
   void initState() {
     super.initState();
+    // Built-in questions render immediately and remain the fallback: FAQs are
+    // reference material, so an unreachable backend or a tenant that has not
+    // filled these in should still leave something useful on screen.
     _initFAQData();
     filteredCategories = allCategories;
     _searchController.addListener(_filterFAQs);
+  }
+
+  /// Replaces the built-in list with the tenant's own, once it arrives.
+  ///
+  /// Re-applies the current search text so a shopper who was already typing
+  /// does not see their filter reset when the network catches up.
+  void _adoptRemoteFaqs(List<FaqGroup> groups) {
+    if (groups.isEmpty) return;
+    final mapped = groups
+        .map((g) => FAQCategory(
+              title: g.title,
+              faqs: g.faqs
+                  .map((f) => FAQ(question: f.question, answer: f.answer))
+                  .toList(),
+            ))
+        .toList();
+    if (!mounted) return;
+    allCategories = mapped;
+    _filterFAQs(); // does its own setState, and re-applies the search text
   }
 
   // Custom back navigation handler - matches the pattern from category and cart screens
@@ -194,6 +218,13 @@ class _FAQScreenState extends ConsumerState<FAQScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Swap in the tenant's own FAQs when they arrive. `ref.listen` rather than
+    // `watch` so the built-in list stays on screen while the request is in
+    // flight instead of the whole screen flipping to a spinner.
+    ref.listen<AsyncValue<List<FaqGroup>>>(faqsProvider, (_, next) {
+      next.whenData(_adoptRemoteFaqs);
+    });
+
     return PopScope(
       canPop: false, // Prevent default pop behavior
       onPopInvoked: (bool didPop) async {

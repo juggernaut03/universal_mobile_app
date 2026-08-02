@@ -1,9 +1,11 @@
 // lib/presentation/features/support/help_support_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../providers/support_content_providers.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../providers/store_details_providers.dart';
@@ -37,6 +39,10 @@ class HelpSupportScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final storeDetailsAsync = ref.watch(storeDetailsProvider);
+    // Tenant-authored guidance, edited in the admin panel. Rendered above the
+    // store's contact details, which stay as they are — the two answer
+    // different questions ("what do I do?" vs "who do I call?").
+    final helpContent = ref.watch(helpSupportContentProvider);
 
     return PopScope(
       canPop: false, // Prevent default pop behavior
@@ -96,6 +102,7 @@ class HelpSupportScreen extends ConsumerWidget {
               return SingleChildScrollView(
                 child: Column(
                   children: [
+                    _buildHelpContent(helpContent),
                     // Header section
                     Container(
                       width: double.infinity,
@@ -461,5 +468,41 @@ class HelpSupportScreen extends ConsumerWidget {
       await launchUrl(emailUri);
     }
   }
-}
 
+  /// The tenant's Help & Support page, or nothing at all.
+  ///
+  /// Deliberately renders an empty box while loading and on failure: the store
+  /// contact details below are the part a stuck shopper actually needs, and a
+  /// spinner or error banner sitting on top of them would get in the way of it.
+  Widget _buildHelpContent(AsyncValue<String> contentAsync) {
+    return contentAsync.maybeWhen(
+      data: (html) => html.trim().isEmpty
+          ? const SizedBox.shrink()
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Html(
+                data: html,
+                style: {
+                  'p': Style(
+                    fontSize: FontSize(15),
+                    color: Colors.black87,
+                    margin: Margins(bottom: Margin(12)),
+                  ),
+                  'h2': Style(
+                    fontSize: FontSize(20),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                    margin: Margins(bottom: Margin(10), top: Margin(4)),
+                  ),
+                  'li': Style(
+                    fontSize: FontSize(15),
+                    color: Colors.black87,
+                    margin: Margins(bottom: Margin(6)),
+                  ),
+                },
+              ),
+            ),
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+}

@@ -63,38 +63,33 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    section.title.isNotEmpty ? section.title : 'Flash sale',
-                    style: AppTextStyles.h4.copyWith(fontWeight: FontWeight.bold),
+          HomeSectionHeading(
+            title: section.title.isNotEmpty ? section.title : 'Flash sale',
+            trailing: endsAt == null
+                ? null
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.timer_outlined, size: 14, color: AppColors.error),
+                      const SizedBox(width: 4),
+                      Text('$label ', style: AppTextStyles.bodySmall.copyWith(fontSize: 11)),
+                      CountdownText(
+                        endsAt: endsAt,
+                        clock: ref.watch(clockProvider),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.error,
+                        ),
+                        // Drop the section the moment it lapses, without waiting
+                        // for the next feed refresh.
+                        onExpired: () => setState(() => _expired = true),
+                      ),
+                    ],
                   ),
-                ),
-                if (endsAt != null) ...[
-                  Icon(Icons.timer_outlined, size: 16, color: AppColors.error),
-                  const SizedBox(width: 4),
-                  Text('$label ', style: AppTextStyles.bodySmall),
-                  CountdownText(
-                    endsAt: endsAt,
-                    clock: ref.watch(clockProvider),
-                    style: AppTextStyles.bodySmall.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.error,
-                    ),
-                    // Drop the section the moment it lapses, without waiting
-                    // for the next feed refresh.
-                    onExpired: () => setState(() => _expired = true),
-                  ),
-                ],
-              ],
-            ),
           ),
-          const SizedBox(height: 12),
           SizedBox(
-            height: 250,
+            height: kHomeProductCardHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -148,16 +143,11 @@ class BuyAgainSection extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  section.title.isNotEmpty ? section.title : 'Buy again',
-                  style: AppTextStyles.h4.copyWith(fontWeight: FontWeight.bold),
-                ),
+              HomeSectionHeading(
+                title: section.title.isNotEmpty ? section.title : 'Buy again',
               ),
-              const SizedBox(height: 12),
               SizedBox(
-                height: 250,
+                height: kHomeProductCardHeight,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
