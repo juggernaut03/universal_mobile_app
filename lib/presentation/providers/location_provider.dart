@@ -116,8 +116,18 @@ class SelectedPincodeNotifier extends StateNotifier<String?> {
   final ILocationRepository _repository;
   final Logger _logger;
 
+  /// Completes once the saved pincode has been read from storage.
+  ///
+  /// The launch flow has to know whether a returning user already has an area
+  /// before it decides which screen to show. Without this it read `state` while
+  /// the load was still in flight, saw the initial null, and sent people who
+  /// had chosen a pincode months ago back to the pincode picker.
+  late final Future<void> _ready;
+
+  Future<void> get ready => _ready;
+
   SelectedPincodeNotifier(this._repository, this._logger) : super(null) {
-    _loadSavedPincode();
+    _ready = _loadSavedPincode();
   }
 
   Future<void> _loadSavedPincode() async {

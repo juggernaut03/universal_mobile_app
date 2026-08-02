@@ -60,9 +60,16 @@ class LaunchFlowNotifier extends StateNotifier<AppLaunchState> {
         state = AppLaunchState.firstLaunch;
         _logger.log('First launch detected');
       } else {
-        state = AppLaunchState.subsequentLaunch;
         _logger.log('Subsequent launch detected');
-        _checkCachedData();
+        // State deliberately stays `initializing` until storage has answered.
+        //
+        // It used to be set to subsequentLaunch here and the cache inspected on
+        // the very next line. The router treats subsequentLaunch as "go home",
+        // so a returning user whose saved area had not finished loading was
+        // sent to /home and then bounced to /pincode-selection a frame later.
+        // Holding at initializing keeps the splash up for the few milliseconds
+        // the reads take, and the first screen they see is the right one.
+        await _restoreCachedSelection();
       }
     } catch (e) {
       _logger.error('Error initializing launch flow: $e');
@@ -76,6 +83,30 @@ class LaunchFlowNotifier extends StateNotifier<AppLaunchState> {
     // After onboarding, we need to check for location permission/pincode
     // Start with location permission check
     state = AppLaunchState.needLocationPermission;
+  }
+
+  /// Waits for the saved pincode and outlet to load, then decides where to go.
+  ///
+  /// Both notifiers fill in asynchronously, and reading them is what creates
+  /// them — so inspecting `state` immediately always saw the initial null /
+  /// AsyncValue.loading(). A returning user with a pincode and store saved was
+  /// therefore routed to pincode selection, which is the "why is it asking me
+  /// again?" complaint.
+  ///
+  /// Bounded, because these reads sit between the shopper and the app: if
+  /// storage does not answer, fall through and let [_checkCachedData] decide on
+  /// whatever is known. That is the old behaviour, now reached only when
+  /// storage is genuinely stuck rather than merely slow.
+  Future<void> _restoreCachedSelection() async {
+    try {
+      await Future.wait([
+        _ref.read(selectedPincodeProvider.notifier).ready,
+        _ref.read(selectedOutletProvider.notifier).ready,
+      ]).timeout(const Duration(seconds: 5));
+    } catch (e) {
+      _logger.warning('Cached location did not load in time: $e');
+    }
+    _checkCachedData();
   }
 
   // Check if we have cached data for subsequent launch
