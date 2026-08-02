@@ -1,70 +1,73 @@
 // lib/presentation/providers/fcm_token_providers.dart
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:patelmart/data/models/auth_models.dart';
-import 'auth_providers.dart';
-import '../../di/repository_providers.dart';
+
 import '../../di/infrastructure_providers.dart';
+import '../../di/repository_providers.dart';
+import 'auth_providers.dart';
 
-// Import the service provider from the service file
-// (The fcmTokenServiceProvider is now defined in fcm_token_service.dart)
+// These providers read the session with `ref.watch(userProfileProvider.future)`
+// — the provider's future, not the AsyncValue's.
+//
+// They previously called `.future` on the AsyncValue returned by
+// `ref.watch(userProfileProvider)`. AsyncValue has no such member, and rather
+// than fix the call the error was silenced with:
+//
+//     extension on AsyncValue<UserProfile?> { get future => null; }
+//
+// which made every `await userProfileAsync.future` evaluate to null. Both
+// providers below therefore took the "user not logged in" branch on every run,
+// for every signed-in user, and FCM tokens were never saved to the server.
 
-// Provider for FcmTokenRepository
-
-// Provider to save FCM token for the current user
+/// Saves the current device's FCM token for the signed-in user, if it changed.
 final saveFcmTokenProvider = FutureProvider.autoDispose<bool>((ref) async {
-  final fcmRepository = ref.watch(fcmTokenRepositoryProvider);
-  final userProfileAsync = ref.watch(userProfileProvider);
-  
-  // Wait for user profile to be available
-  final userProfile = await userProfileAsync.future;
-  
+  final logger = ref.read(loggerProvider);
+  final userProfile = await ref.watch(userProfileProvider.future);
+
   if (userProfile == null) {
-    ref.read(loggerProvider).log('No user profile available for FCM token save');
+    logger.log('No user profile available for FCM token save');
     return false;
   }
-  
-  // Check if token needs to be updated
-  final shouldUpdate = await fcmRepository.shouldUpdateToken();
-  if (!shouldUpdate) {
-    ref.read(loggerProvider).log('FCM token does not need update');
-    return true; // Already up to date
+
+  final fcmRepository = ref.watch(fcmTokenRepositoryProvider);
+
+  if (!await fcmRepository.shouldUpdateToken()) {
+    logger.log('FCM token does not need update');
+    return true;
   }
-  
-  // Save the token
-  return await fcmRepository.saveTokenForCurrentUser(userProfile);
+
+  return fcmRepository.saveTokenForCurrentUser(userProfile);
 });
 
-extension on AsyncValue<UserProfile?> {
-  get future => null;
-}
-
-// Provider to set up FCM token refresh listener
+/// Keeps the server's copy of the FCM token current for as long as the user
+/// stays signed in.
+///
+/// The subscription is cancelled when this provider is disposed. The equivalent
+/// listener in AuthService was never cancelled and captured the access token
+/// live at login, so after the first refresh rotated that token it authenticated
+/// with a dead credential forever.
 final fcmTokenRefreshListenerProvider = Provider.autoDispose<void>((ref) {
   final fcmRepository = ref.watch(fcmTokenRepositoryProvider);
-  final userProfileAsync = ref.watch(userProfileProvider);
-  
-  userProfileAsync.whenData((userProfile) {
-    if (userProfile != null) {
-      fcmRepository.setupTokenRefreshListener(userProfile);
+
+  ref.listen<AsyncValue<dynamic>>(userProfileProvider, (previous, next) {
+    final profile = next.valueOrNull;
+    if (profile != null) {
+      fcmRepository.setupTokenRefreshListener();
     }
-  });
-  
-  return;
+  }, fireImmediately: true);
+
+  ref.onDispose(fcmRepository.cancelTokenRefreshListener);
 });
 
-// Manual provider to save FCM token
+/// Saves the FCM token on demand, regardless of whether it looks stale.
 final manualSaveFcmTokenProvider = Provider<Future<bool> Function()>((ref) {
   return () async {
-    final fcmRepository = ref.read(fcmTokenRepositoryProvider);
-    final userProfileAsync = ref.read(userProfileProvider);
-    
-    final userProfile = await userProfileAsync.future;
+    final userProfile = await ref.read(userProfileProvider.future);
     if (userProfile == null) {
       ref.read(loggerProvider).error('Cannot save FCM token: user not logged in');
       return false;
     }
-    
-    return await fcmRepository.saveTokenForCurrentUser(userProfile);
+
+    return ref.read(fcmTokenRepositoryProvider).saveTokenForCurrentUser(userProfile);
   };
 });

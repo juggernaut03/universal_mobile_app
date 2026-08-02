@@ -1,5 +1,7 @@
 // lib/data/services/fcm_token_service.dart
 
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/auth/centralized_auth_manager.dart';
@@ -12,7 +14,11 @@ class FcmTokenService {
   final ApiClient _apiClient;
   final Logger _logger;
   final FirebaseMessaging _firebaseMessaging;
-  
+
+  /// Held so the subscription can be cancelled; see [setupFcmTokenRefreshListener].
+  StreamSubscription<String>? _tokenRefreshSubscription;
+
+
   FcmTokenService({
     required CentralizedAuthManager authManager,
     required ApiClient apiClient,
@@ -191,8 +197,11 @@ class FcmTokenService {
       final lastSaved = prefs.getString('fcm_token_last_saved');
       
       return {
-        'current_token': currentToken?.substring(0, 20) ?? 'null',
-        'stored_token': storedToken?.substring(0, 20) ?? 'null',
+        // Truncated for the debug screen, never with a bare substring(0, 20):
+        // that throws on any token shorter than 20 characters, turning a
+        // diagnostic screen into a crash exactly when something is wrong.
+        'current_token': _preview(currentToken),
+        'stored_token': _preview(storedToken),
         'tokens_match': currentToken == storedToken,
         'last_saved': lastSaved ?? 'never',
         'needs_update': await shouldUpdateFcmToken(),
@@ -204,7 +213,19 @@ class FcmTokenService {
     }
   }
 
-  /// Set up FCM token refresh listener for automatic updates
+  /// First 20 characters of [token], for logging. Safe on short values.
+  static String _preview(String? token) {
+    if (token == null || token.isEmpty) return 'null';
+    return token.length <= 20 ? token : '${token.substring(0, 20)}…';
+  }
+
+  /// Set up FCM token refresh listener for automatic updates.
+  ///
+  /// Idempotent: calling it again replaces the existing subscription rather
+  /// than stacking another one. It is reached from a provider that rebuilds on
+  /// every session change, and the previous version subscribed each time
+  /// without cancelling, so a user who signed in and out repeatedly accumulated
+  /// listeners that all fired on the next token rotation.
   Future<void> setupFcmTokenRefreshListener() async {
     try {
       if (!await _authManager.isLoggedIn()) {
@@ -212,15 +233,22 @@ class FcmTokenService {
         return;
       }
 
+      await cancelTokenRefreshListener();
+
       final mobile = await _authManager.getUserMobile();
       _logger.log('Setting up FCM token refresh listener for: $mobile');
-      
-      _firebaseMessaging.onTokenRefresh.listen((newToken) async {
+
+      _tokenRefreshSubscription =
+          _firebaseMessaging.onTokenRefresh.listen((newToken) async {
         try {
           _logger.log('FCM token refreshed, saving new token...');
-          
+
+          // saveFcmToken goes through postWithAuth, so it reads a fresh bearer
+          // token from the auth manager at call time. Capturing the token at
+          // subscribe time — as the AuthService version did — meant every
+          // refresh after the first authenticated with a rotated-out JWT.
           final success = await saveFcmToken(fcmToken: newToken);
-          
+
           if (success) {
             _logger.log('New FCM token saved successfully');
           } else {
@@ -233,6 +261,12 @@ class FcmTokenService {
     } catch (e) {
       _logger.error('Error setting up FCM token refresh listener: $e');
     }
+  }
+
+  /// Stops listening for token rotations. Safe to call when not listening.
+  Future<void> cancelTokenRefreshListener() async {
+    await _tokenRefreshSubscription?.cancel();
+    _tokenRefreshSubscription = null;
   }
 }
 

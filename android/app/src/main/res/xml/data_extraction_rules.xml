@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ (android:dataExtractionRules).
+
+  Same reasoning as backup_rules.xml, applied to both transports:
+
+  <cloud-backup> is Auto Backup to Google Drive; <device-transfer> is the
+  device-to-device copy during setup. Keystore keys survive neither, so
+  restoring the encrypted auth blob produces an undecryptable payload. Reading
+  it throws, and the app treats an unreadable session as "sign in again" rather
+  than as a valid one.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStoragePrefs.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSecureStoragePrefs.xml" />
+    </device-transfer>
+</data-extraction-rules>

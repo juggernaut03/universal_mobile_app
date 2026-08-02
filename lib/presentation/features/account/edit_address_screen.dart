@@ -7,7 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:go_router/go_router.dart';
-import 'package:patelmart/data/auth/centralized_auth_manager.dart';
+// `userProfileProvider` comes from the presentation providers, which is where
+// the app's single instance lives. This screen used to pick up an identically
+// named duplicate declared inside centralized_auth_manager.dart — a different
+// provider object with its own cache, so the `ref.invalidate` below refreshed
+// nothing that any other screen was watching.
+import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/data/models/address_model.dart';

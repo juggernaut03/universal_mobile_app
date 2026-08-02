@@ -18,7 +18,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/auth/auth_local_data_source.dart';
 import '../data/auth/centralized_auth_manager.dart';
+import '../data/auth/session_expiry_policy.dart';
 import '../data/auth/token_refresher.dart';
 import '../core/network/api_client.dart';
 import '../core/utils/logger.dart';
@@ -39,8 +41,25 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 });
 
 /// Encrypted key-value storage for tokens and credentials.
+///
+/// The options are not decoration:
+///
+/// `encryptedSharedPreferences` puts Android's copy under an AES key held in
+/// the Keystore instead of the plugin's legacy RSA-wrapped preferences file.
+///
+/// `first_unlock` lets iOS read the token after the first unlock following a
+/// boot rather than only while the device is actively unlocked. The default
+/// (`unlocked`) makes the keychain unreadable to background work — the FCM
+/// background message handler runs in exactly that state, and could not
+/// authenticate.
+///
+/// Neither is retroactive: entries written under the old settings stay
+/// readable, and the next write moves them over.
 final secureStorageProvider = Provider<FlutterSecureStorage>(
-  (ref) => const FlutterSecureStorage(),
+  (ref) => const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  ),
 );
 
 /// Raw HTTP client.
@@ -75,15 +94,33 @@ final centralizedAuthManagerProvider = Provider<CentralizedAuthManager>((ref) {
   );
 
   final manager = CentralizedAuthManager(
-    secureStorage: ref.watch(secureStorageProvider),
-    prefs: ref.watch(sharedPreferencesProvider),
+    storage: ref.watch(authLocalDataSourceProvider),
     logger: logger,
+    expiryPolicy: ref.watch(sessionExpiryPolicyProvider),
     refreshTokens: refresher.refresh,
     revokeSession: refresher.revoke,
   );
   ref.onDispose(manager.dispose);
   return manager;
 });
+
+/// Where the signed-in session is persisted.
+///
+/// Behind an interface so the manager can be tested against an in-memory fake
+/// — session restore, the periodic validation timer and the corrupt-payload
+/// path previously had no test that could run without a device.
+final authLocalDataSourceProvider = Provider<AuthLocalDataSource>((ref) {
+  return SecureAuthLocalDataSource(
+    secureStorage: ref.watch(secureStorageProvider),
+    prefs: ref.watch(sharedPreferencesProvider),
+    logger: ref.watch(loggerProvider),
+  );
+});
+
+/// The one rule for session validity, renewal timing and expiry warnings.
+final sessionExpiryPolicyProvider = Provider<SessionExpiryPolicy>(
+  (ref) => const SessionExpiryPolicy(),
+);
 
 /// The application's HTTP client — the single choke point for backend traffic.
 ///

@@ -1,13 +1,11 @@
-// lib/core/auth/centralized_auth_manager.dart
+// lib/data/auth/centralized_auth_manager.dart
 
 import 'dart:async';
-import 'dart:convert';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:patelmart/di/infrastructure_providers.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/utils/logger.dart';
 import '../models/auth_models.dart';
+import 'auth_local_data_source.dart';
+import 'session_expiry_policy.dart';
 
 /// A freshly minted access/refresh pair from POST /api/auth/refresh-token.
 class RefreshedTokens {
@@ -20,37 +18,43 @@ class RefreshedTokens {
   });
 }
 
-/// Centralized authentication manager for access key and user data
+/// Single source of truth for the signed-in session.
+///
+/// Orchestration only. The three things it used to do inline now live behind
+/// collaborators it depends on abstractly:
+///
+///   * persistence and JSON  -> [AuthLocalDataSource]
+///   * "is this still valid" -> [SessionExpiryPolicy]
+///   * the refresh round-trip -> the [refreshTokens] callback
+///
+/// This file declares no Riverpod providers. It used to declare seven at the
+/// bottom, four of which duplicated declarations in
+/// `presentation/providers/auth_providers.dart` under the same names. Those
+/// were distinct provider objects with separate caches, so
+/// `ref.invalidate(userProfileProvider)` in a screen that imported this file
+/// invalidated a provider no other screen watched, and the rest of the app kept
+/// serving stale data. Wiring belongs in `lib/di/`.
 class CentralizedAuthManager {
-  final FlutterSecureStorage _secureStorage;
-  final SharedPreferences _prefs;
+  final AuthLocalDataSource _storage;
+  final SessionExpiryPolicy _expiry;
   final Logger _logger;
-  
-  // Cache to avoid repeated secure storage reads
+
   UserProfile? _cachedProfile;
   DateTime? _lastValidation;
   Timer? _validationTimer;
-  
-  // Stream controllers for reactive updates
-  final StreamController<UserProfile?> _profileController = StreamController<UserProfile?>.broadcast();
-  final StreamController<bool> _loginStatusController = StreamController<bool>.broadcast();
-  
+
+  final StreamController<UserProfile?> _profileController =
+      StreamController<UserProfile?>.broadcast();
+  final StreamController<bool> _loginStatusController =
+      StreamController<bool>.broadcast();
+
   static const Duration _validationInterval = Duration(minutes: 5);
-  static const Duration _accessKeyExpiry = Duration(days: 10);
-  
-  // Storage keys.
-  // v3: profiles hold JWT tokens from the universal backend. Bumping the key
-  // deterministically logs out installs holding a legacy access_key that the
-  // new backend would reject.
-  static const String _userProfileKey = 'user_profile_v3';
-  static const String _loginTimeKey = 'login_time_v2';
-  static const String _accessKeyKey = 'access_key_v2';
-  
+
   /// Performs the network half of a token refresh.
   ///
   /// A callback rather than an ApiClient: ApiClient asks this manager for the
   /// bearer token on every request, so holding one here would be a cycle. The
-  /// composition root wires it to AuthService.
+  /// composition root wires it to TokenRefresher.
   final Future<RefreshedTokens?> Function(String refreshToken)? _refreshTokens;
 
   /// Tells the server to revoke a refresh token on sign-out. Best-effort.
@@ -62,33 +66,45 @@ class CentralizedAuthManager {
   /// De-duplicates concurrent refreshes; see [refreshAccessToken].
   Future<String?>? _refreshInFlight;
 
+  /// Completes once the stored session has been loaded.
+  ///
+  /// Every public accessor awaits this. Initialisation used to be launched from
+  /// the constructor and never awaited, so `getValidAccessKey()` could return
+  /// null purely because storage had not finished loading — the app then sent
+  /// an unauthenticated request and the backend's "no token provided" looked
+  /// like a lost session. `ApiClient._getToken()` grew a three-attempt retry
+  /// loop with sleeps to paper over exactly this race.
+  late final Future<void> _ready;
+
   CentralizedAuthManager({
-    required FlutterSecureStorage secureStorage,
-    required SharedPreferences prefs,
+    required AuthLocalDataSource storage,
     required Logger logger,
+    SessionExpiryPolicy expiryPolicy = const SessionExpiryPolicy(),
     Future<RefreshedTokens?> Function(String refreshToken)? refreshTokens,
     Future<void> Function({
       required String accessToken,
       required String refreshToken,
     })? revokeSession,
-  }) : _secureStorage = secureStorage,
-       _prefs = prefs,
-       _logger = logger,
-       _refreshTokens = refreshTokens,
-       _revokeSession = revokeSession {
-    _initializeManager();
+  })  : _storage = storage,
+        _expiry = expiryPolicy,
+        _logger = logger,
+        _refreshTokens = refreshTokens,
+        _revokeSession = revokeSession {
+    _ready = _initialize();
   }
 
-  // Streams for reactive updates
+  /// Awaitable startup, for callers that want the session resolved before they
+  /// render — the router's first redirect being the one that matters.
+  Future<void> get ready => _ready;
+
   Stream<UserProfile?> get profileStream => _profileController.stream;
   Stream<bool> get loginStatusStream => _loginStatusController.stream;
 
-  /// Initialize the manager and load cached data
-  Future<void> _initializeManager() async {
+  Future<void> _initialize() async {
     try {
       // Legacy access_key sessions (pre-universal backend) are not migrated —
       // they are useless against the JWT-based backend. Just purge them.
-      await _cleanupLegacyStorage();
+      await _storage.purgeLegacy();
       await _loadCachedProfile();
       _startPeriodicValidation();
       _logger.log('CentralizedAuthManager initialized');
@@ -97,84 +113,49 @@ class CentralizedAuthManager {
     }
   }
 
-  /// Clean up legacy storage keys
-  Future<void> _cleanupLegacyStorage() async {
-    try {
-      _logger.log('Cleaning up legacy storage...');
-      
-      // Clean up legacy secure storage
-      await _secureStorage.delete(key: 'user_access_key');
-      await _secureStorage.delete(key: 'login_time');
-      await _secureStorage.delete(key: 'user_profile');
-      // v2 profiles hold legacy access_keys the universal backend rejects
-      await _secureStorage.delete(key: 'user_profile_v2');
-      
-      // Clean up legacy SharedPreferences
-      await _prefs.remove('user_profile');
-      await _prefs.remove('otp_validation_response');
-      await _prefs.remove('user_access_key');
-      
-      _logger.log('Legacy storage cleanup completed');
-    } catch (e) {
-      _logger.error('Error cleaning up legacy storage: $e');
-    }
-  }
-
-  /// Load cached profile from secure storage
+  /// Loads the stored profile into the cache.
+  ///
+  /// Three outcomes, kept distinct because conflating them is what signed
+  /// people out spuriously:
+  ///   * no profile        -> signed out, nothing to do
+  ///   * unreadable profile-> keep whatever is cached, do NOT sign out
+  ///   * expired profile   -> sign out
   Future<void> _loadCachedProfile() async {
+    final UserProfile? profile;
     try {
-      final profileData = await _secureStorage.read(key: _userProfileKey);
-      if (profileData == null) {
-        _logger.warning('[AUTH] no stored profile under $_userProfileKey');
-        return;
-      }
-
-      final profile = UserProfile.fromJson(jsonDecode(profileData));
-
-      // Validate if still valid
-      if (_isProfileValid(profile)) {
-        _cachedProfile = profile;
-        _lastValidation = DateTime.now();
-        _notifyProfileChanged(profile);
-        _notifyLoginStatusChanged(true);
-      } else {
-        _logger.warning('[AUTH] stored profile judged invalid — '
-            'accessKeyEmpty=${profile.accessKey.isEmpty} '
-            'hasRefresh=${profile.hasRefreshToken} '
-            'expiresAt=${profile.accessKeyExpiresAt} '
-            'loginTime=${profile.loginTime}');
-        await _clearExpiredProfile();
-      }
-    } catch (e) {
-      // A parse failure used to sign the user out. It is a storage/format
-      // problem, not evidence that the session ended.
-      _logger.error('Error loading cached profile: $e');
-      await _clearExpiredProfile();
+      profile = await _storage.read();
+    } on AuthStorageException catch (e) {
+      // Keystore key gone after a device restore, keychain still locked, or a
+      // corrupt blob. None of these say the session ended. Clearing here threw
+      // away live sessions for a storage problem.
+      _logger.error('[AUTH] session unreadable, keeping current state: $e');
+      return;
     }
+
+    if (profile == null) {
+      _logger.log('[AUTH] no stored session');
+      _cachedProfile = null;
+      _lastValidation = null;
+      return;
+    }
+
+    if (_expiry.isValid(profile)) {
+      _cachedProfile = profile;
+      _lastValidation = DateTime.now();
+      _notifyProfileChanged(profile);
+      _notifyLoginStatusChanged(true);
+      return;
+    }
+
+    _logger.warning('[AUTH] stored session expired — '
+        'accessKeyEmpty=${profile.accessKey.isEmpty} '
+        'hasRefresh=${profile.hasRefreshToken} '
+        'expiresAt=${profile.accessKeyExpiresAt} '
+        'loginTime=${profile.loginTime}');
+    await logout();
   }
 
-  /// Check if profile is still valid
-  ///
-  /// A session with a refresh token is valid regardless of the access token's
-  /// state — renewing it is exactly what the refresh token is for. Discarding
-  /// such a profile is what made a restart look like a logout: the stored
-  /// session was thrown away locally while the server still considered it live.
-  ///
-  /// Without a refresh token, fall back to the access token's real `exp`, and
-  /// only then to the legacy days-since-login rule (for profiles written before
-  /// expiry was recorded).
-  bool _isProfileValid(UserProfile profile) {
-    if (profile.accessKey.isEmpty) return false;
-    if (profile.hasRefreshToken) return true;
-
-    final expiry = profile.accessKeyExpiresAt;
-    if (expiry != null) return DateTime.now().isBefore(expiry);
-
-    final daysSinceLogin = DateTime.now().difference(profile.loginTime).inDays;
-    return daysSinceLogin < _accessKeyExpiry.inDays;
-  }
-
-  /// Save user profile after successful login
+  /// Save user profile after successful login.
   ///
   /// [notifyDelay] is the settle time given to auth-state listeners after a
   /// login. A token refresh passes zero: it changes the credential, not the
@@ -185,22 +166,14 @@ class CentralizedAuthManager {
     Duration notifyDelay = const Duration(milliseconds: 500),
   }) async {
     try {
-      // Save to secure storage
-      await _secureStorage.write(
-        key: _userProfileKey,
-        value: jsonEncode(profile.toJson()),
-      );
+      await _storage.write(profile);
 
-      // Cache in memory
       _cachedProfile = profile;
       _lastValidation = DateTime.now();
 
-      // Notify listeners immediately - this ensures reactive UI updates
       _notifyProfileChanged(profile);
       _notifyLoginStatusChanged(true);
 
-      // Force a longer delay to ensure all listeners are updated and auth state propagates
-      // This is crucial for new user login flow to prevent race conditions
       if (notifyDelay > Duration.zero) {
         await Future.delayed(notifyDelay);
       }
@@ -212,24 +185,22 @@ class CentralizedAuthManager {
     }
   }
 
-  /// Get current user profile
+  /// Get current user profile.
   Future<UserProfile?> getCurrentUserProfile() async {
+    await _ready;
     try {
-      // Return cached if recently validated
       if (_cachedProfile != null && _isRecentlyValidated()) {
         return _cachedProfile;
       }
-      
-      // Reload from storage if cache is stale
       await _loadCachedProfile();
       return _cachedProfile;
     } catch (e) {
       _logger.error('Error getting current user profile: $e');
-      return null;
+      return _cachedProfile;
     }
   }
 
-  /// Get valid access key, renewing it first if it is at or near expiry.
+  /// Get a valid access key, renewing it first if it is at or near expiry.
   ///
   /// Refreshing here rather than only on a 401 means the common case never
   /// produces a failed request at all.
@@ -245,16 +216,15 @@ class CentralizedAuthManager {
       return null;
     }
 
-    if (profile.hasRefreshToken && profile.accessKeyNeedsRefresh()) {
+    if (_expiry.needsRefresh(profile)) {
       _logger.log('Access token at/near expiry — refreshing before use');
       final refreshed = await refreshAccessToken();
       if (refreshed != null) return refreshed;
 
-      // Refresh failed on a token we already know is at/past expiry. Falling
-      // back to `profile.accessKey` here returned a credential we know is
-      // dead — and `profile` is a local captured before the refresh, so after
-      // a rejected refresh it was a token from a session that had just been
-      // cleared. Re-read instead: whatever survived is the truth.
+      // Refresh failed on a token we already know is at/past expiry. Returning
+      // the captured `profile.accessKey` handed back a credential known to be
+      // dead, and after a rejected refresh it came from a session that had just
+      // been cleared. Re-read instead: whatever survived is the truth.
       _logger.warning('[AUTH] refresh yielded no token for an expiring session');
       final current = _cachedProfile;
       if (current == null || current.accessKey.isEmpty) return null;
@@ -279,8 +249,8 @@ class CentralizedAuthManager {
   /// rotation of the refresh token, with all but one of the resulting tokens
   /// immediately invalidated by the next.
   Future<String?> refreshAccessToken() {
-    return _refreshInFlight ??= _performRefresh()
-        .whenComplete(() => _refreshInFlight = null);
+    return _refreshInFlight ??=
+        _performRefresh().whenComplete(() => _refreshInFlight = null);
   }
 
   Future<String?> _performRefresh() async {
@@ -323,19 +293,17 @@ class CentralizedAuthManager {
     }
   }
 
-  /// Get user mobile number
   Future<String?> getUserMobile() async {
     final profile = await getCurrentUserProfile();
     return profile?.mobile;
   }
 
-  /// Check if user is logged in
   Future<bool> isLoggedIn() async {
     final profile = await getCurrentUserProfile();
     return profile != null;
   }
 
-  /// Logout and clear all data
+  /// Clear the session locally, revoking it server-side first when possible.
   Future<void> logout() async {
     // Logged with a stack because sign-out is reached from several places that
     // are not the user pressing "log out" — a 401 that survives a refresh, a
@@ -347,11 +315,12 @@ class CentralizedAuthManager {
       // Revoke server-side first, so the refresh token cannot outlive the
       // sign-out. Best-effort and never blocking: if the device is offline the
       // local session must still be cleared, and the refresh token expires on
-      // its own. (A refresh racing this call could leave the rotated token
-      // live until it expires — rare, and not worth holding logout for.)
+      // its own.
       final refreshToken = _cachedProfile?.refreshToken ?? '';
       final accessToken = _cachedProfile?.accessKey ?? '';
-      if (refreshToken.isNotEmpty && accessToken.isNotEmpty && _revokeSession != null) {
+      if (refreshToken.isNotEmpty &&
+          accessToken.isNotEmpty &&
+          _revokeSession != null) {
         try {
           await _revokeSession(
             accessToken: accessToken,
@@ -363,19 +332,14 @@ class CentralizedAuthManager {
         }
       }
 
-      // Clear secure storage
-      await _secureStorage.delete(key: _userProfileKey);
-      await _secureStorage.delete(key: _accessKeyKey);
-      await _secureStorage.delete(key: _loginTimeKey);
-      
-      // Clear cache
+      await _storage.clear();
+
       _cachedProfile = null;
       _lastValidation = null;
-      
-      // Notify listeners
+
       _notifyProfileChanged(null);
       _notifyLoginStatusChanged(false);
-      
+
       _logger.log('User logged out successfully');
     } catch (e) {
       _logger.error('Error during logout: $e');
@@ -383,134 +347,69 @@ class CentralizedAuthManager {
     }
   }
 
-  /// Clear expired profile
-  Future<void> _clearExpiredProfile() async {
-    _logger.log('Clearing expired profile');
-    await logout();
-  }
-
-  /// Check if validation was done recently
   bool _isRecentlyValidated() {
     if (_lastValidation == null) return false;
-    final timeSinceValidation = DateTime.now().difference(_lastValidation!);
-    return timeSinceValidation < _validationInterval;
+    return DateTime.now().difference(_lastValidation!) < _validationInterval;
   }
 
-  /// Start periodic validation
   void _startPeriodicValidation() {
-    _validationTimer = Timer.periodic(_validationInterval, (timer) async {
+    _validationTimer?.cancel();
+    _validationTimer = Timer.periodic(_validationInterval, (_) async {
       final profile = _cachedProfile;
       if (profile == null) return;
 
       // Renew before discarding. A renewable session that merely has a stale
       // access token is not an expired session, and signing the shopper out of
       // one — potentially mid-checkout — is the outcome worth avoiding here.
-      if (profile.hasRefreshToken && profile.accessKeyNeedsRefresh()) {
+      if (_expiry.needsRefresh(profile)) {
         await refreshAccessToken();
         return;
       }
 
-      if (!_isProfileValid(profile)) {
-        await _clearExpiredProfile();
+      if (!_expiry.isValid(profile)) {
+        await logout();
       }
     });
   }
 
-  /// Notify profile change
   void _notifyProfileChanged(UserProfile? profile) {
     if (!_profileController.isClosed) {
       _profileController.add(profile);
     }
   }
 
-  /// Notify login status change
   void _notifyLoginStatusChanged(bool isLoggedIn) {
     if (!_loginStatusController.isClosed) {
       _loginStatusController.add(isLoggedIn);
     }
   }
 
-  /// Refresh profile validation
+  /// Force the next read to go to storage rather than the cache.
   Future<void> refreshValidation() async {
     _lastValidation = null;
     await getCurrentUserProfile();
   }
 
-  /// Check if access key is about to expire
+  /// Whether the session is close enough to expiry to warn the shopper.
+  ///
+  /// Answered by [SessionExpiryPolicy] like every other expiry question. This
+  /// used to apply its own "days since login >= 8" rule against a 10-day
+  /// constant, ignoring the token's real `exp` — so it disagreed with the rule
+  /// that actually decided whether the session was valid.
   bool isAccessKeyNearExpiry() {
-    if (_cachedProfile == null) return false;
-    
-    final now = DateTime.now();
-    final daysSinceLogin = now.difference(_cachedProfile!.loginTime).inDays;
-    return daysSinceLogin >= 8; // Warn 2 days before expiry
+    final profile = _cachedProfile;
+    return profile != null && _expiry.isNearExpiry(profile);
   }
 
-  /// Get days until access key expires
+  /// Whole days until the session expires, or 0 when signed out.
   int getDaysUntilExpiry() {
-    if (_cachedProfile == null) return 0;
-    
-    final now = DateTime.now();
-    final daysSinceLogin = now.difference(_cachedProfile!.loginTime).inDays;
-    return (_accessKeyExpiry.inDays - daysSinceLogin).clamp(0, _accessKeyExpiry.inDays);
+    final profile = _cachedProfile;
+    return profile == null ? 0 : _expiry.daysUntilExpiry(profile);
   }
 
-  /// Dispose resources
   void dispose() {
     _validationTimer?.cancel();
     _profileController.close();
     _loginStatusController.close();
   }
-}
-
-// centralizedAuthManagerProvider now declared in lib/di/infrastructure_providers.dart
-
-// Stream providers for reactive UI updates
-final userProfileStreamProvider = StreamProvider<UserProfile?>((ref) {
-  final manager = ref.watch(centralizedAuthManagerProvider);
-  return manager.profileStream;
-});
-
-final loginStatusStreamProvider = StreamProvider<bool>((ref) {
-  final manager = ref.watch(centralizedAuthManagerProvider);
-  return manager.loginStatusStream;
-});
-
-// Updated providers using centralized manager
-final isLoggedInProvider = FutureProvider<bool>((ref) async {
-  final manager = ref.watch(centralizedAuthManagerProvider);
-  return await manager.isLoggedIn();
-});
-
-final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
-  final manager = ref.watch(centralizedAuthManagerProvider);
-  return await manager.getCurrentUserProfile();
-});
-
-final validAccessKeyProvider = FutureProvider<String?>((ref) async {
-  final manager = ref.watch(centralizedAuthManagerProvider);
-  return await manager.getValidAccessKey();
-});
-
-final userMobileProvider = FutureProvider<String?>((ref) async {
-  final manager = ref.watch(centralizedAuthManagerProvider);
-  return await manager.getUserMobile();
-});
-
-// Helper provider for access key expiry status
-final accessKeyExpiryStatusProvider = Provider<AccessKeyExpiryStatus>((ref) {
-  final manager = ref.watch(centralizedAuthManagerProvider);
-  return AccessKeyExpiryStatus(
-    isNearExpiry: manager.isAccessKeyNearExpiry(),
-    daysUntilExpiry: manager.getDaysUntilExpiry(),
-  );
-});
-
-class AccessKeyExpiryStatus {
-  final bool isNearExpiry;
-  final int daysUntilExpiry;
-  
-  AccessKeyExpiryStatus({
-    required this.isNearExpiry,
-    required this.daysUntilExpiry,
-  });
 }
