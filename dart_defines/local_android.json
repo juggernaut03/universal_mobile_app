@@ -1,0 +1,5 @@
+{
+  "PROJECT_CODE": "RET5677",
+  "API_BASE_URL": "http://10.0.2.2:5008/api",
+  "RAZORPAY_KEY_ID": "rzp_test_5yy0US6kMQYbpU"
+}

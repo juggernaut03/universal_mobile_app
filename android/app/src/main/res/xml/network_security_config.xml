@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext HTTP is off everywhere by default (Android 9+ behaviour, restated
+  here so it survives a targetSdk change). Only the local development hosts are
+  exempt, so a locally-run backend can be tested over http:// without opening
+  the app up to plaintext traffic against any other host.
+
+  Deliberately NOT `android:usesCleartextTraffic="true"` on <application>: that
+  permits cleartext to every host in a shipped release build.
+
+  10.0.2.2      - the host machine, as seen from the Android emulator
+  127.0.0.1     - loopback, for `adb reverse tcp:5008 tcp:5008`
+  192.168.0.140 - this Mac on the LAN, for a physical device
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">192.168.0.140</domain>
+    </domain-config>
+</network-security-config>
