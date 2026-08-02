@@ -22,9 +22,10 @@ final class AuthSession {
   /// When the session was established.
   final DateTime issuedAt;
 
-  /// How long the credential remains valid from [issuedAt].
+  /// Fallback lifetime, used only when [tokenExpiresAt] is unknown.
   ///
-  /// Ten days matches the existing backend contract.
+  /// This is a guess the client makes about a value only the server knows.
+  /// Prefer [tokenExpiresAt]; see the note on [expiresAt].
   final Duration lifetime;
 
   /// Long-lived credential that mints new access tokens without a fresh OTP.
@@ -33,27 +34,48 @@ final class AuthSession {
   /// simply ends at [expiresAt] as before.
   final String refreshToken;
 
+  /// When [accessToken] actually stops being accepted, from its own `exp`.
+  ///
+  /// The authority on expiry. `issuedAt + lifetime` was a client-side guess
+  /// with no relationship to the token, and it disagreed with the rule
+  /// CentralizedAuthManager applies — so `isSignedIn()` could say yes while
+  /// `currentSession()` said "Session expired" for the very same session.
+  /// Checkout asks the second one, so a live shopper silently lost their
+  /// identity at the till.
+  final DateTime? tokenExpiresAt;
+
   const AuthSession({
     required this.mobile,
     required this.accessToken,
     required this.issuedAt,
     this.lifetime = const Duration(days: 10),
     this.refreshToken = '',
+    this.tokenExpiresAt,
   });
 
   /// Whether this session can outlive its access token.
   bool get isRenewable => refreshToken.isNotEmpty;
 
   /// Moment the credential stops being accepted.
-  DateTime get expiresAt => issuedAt.add(lifetime);
+  ///
+  /// The token's own `exp` when known, and only otherwise the guess.
+  DateTime get expiresAt => tokenExpiresAt ?? issuedAt.add(lifetime);
 
   /// Whether the session is expired at [now].
   ///
   /// Takes `now` rather than reading the clock, so expiry is testable.
   bool isExpiredAt(DateTime now) => !now.isBefore(expiresAt);
 
-  /// Whether the session is usable at [now]: has a token and has not expired.
-  bool isValidAt(DateTime now) => accessToken.isNotEmpty && !isExpiredAt(now);
+  /// Whether the session is usable at [now].
+  ///
+  /// A renewable session stays usable past its access token: renewing it is
+  /// precisely what the refresh token is for, and treating it as expired is
+  /// what signed people out with a perfectly good session on the device.
+  bool isValidAt(DateTime now) {
+    if (accessToken.isEmpty) return false;
+    if (isRenewable) return true;
+    return !isExpiredAt(now);
+  }
 
   /// Whole days remaining before expiry, floored at zero.
   int daysRemainingAt(DateTime now) {
@@ -71,6 +93,7 @@ final class AuthSession {
     DateTime? issuedAt,
     Duration? lifetime,
     String? refreshToken,
+    DateTime? tokenExpiresAt,
   }) =>
       AuthSession(
         mobile: mobile ?? this.mobile,
@@ -78,6 +101,7 @@ final class AuthSession {
         issuedAt: issuedAt ?? this.issuedAt,
         lifetime: lifetime ?? this.lifetime,
         refreshToken: refreshToken ?? this.refreshToken,
+        tokenExpiresAt: tokenExpiresAt ?? this.tokenExpiresAt,
       );
 
   @override

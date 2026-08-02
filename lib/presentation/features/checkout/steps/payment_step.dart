@@ -49,6 +49,13 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
   final TextEditingController _pickupNameController = TextEditingController();
   bool _isPlacingOrder = false;
 
+  /// Last reason the order was refused, shown inline above PLACE ORDER.
+  ///
+  /// Exists because a SnackBar is not a dependable channel here: when the
+  /// messenger is wedged, showAppSnackBar swallows the failure and the shopper
+  /// is left tapping a button that does nothing.
+  String? _validationError;
+
   @override
   void initState() {
     super.initState();
@@ -113,19 +120,39 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
     logger.log('Selected payment method: ${method.displayName} (${method.paymentModeName})');
   }
 
+  /// Reports [message] both ways: the SnackBar as before, and an inline
+  /// banner above PLACE ORDER.
+  ///
+  /// The SnackBar alone is not dependable — showAppSnackBar swallows failures
+  /// when the messenger is in a bad state, and it silently was here. Every one
+  /// of these checks then aborted the order with no feedback whatsoever: the
+  /// button simply did nothing.
+  bool _failValidation(String message) {
+    if (kDebugMode) print('[ORDER] validation failed: $message');
+    _safeSetState(() => _validationError = message);
+    _showErrorSnackBar(message);
+    return false;
+  }
+
   // Validate cart and ensure we have required data
   bool _validateOrderData() {
+    if (kDebugMode) {
+      print('[ORDER] validating | method=${_selectedPaymentMethod?.paymentModeName} '
+          '| delivery=${widget.checkoutData.deliveryMethod} '
+          '| address=${widget.checkoutData.selectedAddress != null} '
+          '| date=${widget.checkoutData.deliveryDate != null} '
+          '| slot=${widget.checkoutData.deliveryTimeSlot}');
+    }
+    _safeSetState(() => _validationError = null);
     // Check payment method
     if (_selectedPaymentMethod == null) {
-      _showErrorSnackBar('Please select a payment method');
-      return false;
+      return _failValidation('Please select a payment method');
     }
     
     // Check if we have a delivery address (for home delivery)
     if (widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery &&
         widget.checkoutData.selectedAddress == null) {
-      _showErrorSnackBar('Please select a delivery address');
-      return false;
+      return _failValidation('Please select a delivery address');
     }
 
     // Validate address fields for home delivery (critical for online payment)
@@ -135,51 +162,44 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
 
       // Check that address has required fields for payment
       if (address.mobileNumber.isEmpty || address.mobileNumber.trim().isEmpty) {
-        _showErrorSnackBar('Address is missing mobile number. Please select a different address or update this one.');
-        return false;
+        return _failValidation('Address is missing mobile number. Please select a different address or update this one.');
       }
 
 
 
       if (address.fullName.isEmpty || address.fullName.trim().isEmpty) {
-        _showErrorSnackBar('Address is missing recipient name. Please select a different address or update this one.');
-        return false;
+        return _failValidation('Address is missing recipient name. Please select a different address or update this one.');
       }
     }
 
     // Check if we have delivery date and time slot (for home delivery)
     if (widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery) {
       if (widget.checkoutData.deliveryDate == null) {
-        _showErrorSnackBar('Please select a delivery date');
-        return false;
+        return _failValidation('Please select a delivery date');
       }
       if (widget.checkoutData.deliveryTimeSlot == null ||
           widget.checkoutData.deliveryTimeSlot!.isEmpty) {
-        _showErrorSnackBar('Please select a delivery time slot');
-        return false;
+        return _failValidation('Please select a delivery time slot');
       }
     }
 
     // Check pickup name for self-pickup
     if (widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup) {
       if (widget.checkoutData.pickupName == null || widget.checkoutData.pickupName!.trim().isEmpty) {
-        _showErrorSnackBar('Please enter your pickup name');
-        return false;
+        return _failValidation('Please enter your pickup name');
       }
     }
     
     // Check cart not empty
     final cartItems = ref.read(cartItemsProvider);
     if (cartItems.isEmpty) {
-      _showErrorSnackBar('Your cart is empty');
-      return false;
+      return _failValidation('Your cart is empty');
     }
     
     // Check outlet selected
     final selectedOutlet = ref.read(selectedOutletProvider).value;
     if (selectedOutlet == null) {
-      _showErrorSnackBar('No store selected');
-      return false;
+      return _failValidation('No store selected');
     }
     
     return true;
@@ -255,18 +275,22 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
 // Replace your existing _placeOrder method with this version that uses your current implementation
 
 Future<void> _placeOrder() async {
+  if (kDebugMode) print('\n[ORDER] ===== PLACE ORDER TAPPED =====');
+
   // Save instructions
   widget.checkoutData.specialInstructions = _instructionsController.text;
-  
+
   // Save all checkout data
   await widget.checkoutData.saveToPrefs();
-  
+
   // Validate order data
   if (!_validateOrderData()) {
+    if (kDebugMode) print('[ORDER] STOP: pre-flight validation refused it');
     return;
   }
-  
-  setState(() {
+  if (kDebugMode) print('[ORDER] validation passed — starting payment flow');
+
+  _safeSetState(() {
     _isPlacingOrder = true;
   });
 
@@ -327,16 +351,28 @@ Future<void> _placeOrder() async {
     final cartItems = ref.read(cartItemsProvider);
     final selectedOutlet = ref.read(selectedOutletProvider).value!;
     
-    // Get the user profile to access the access key and mobile number
-    final userProfile = (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
-    String? accessKey;
-    String? mobileNo;
-    
-    if (userProfile != null) {
-      accessKey = userProfile.accessToken;
-      mobileNo = userProfile.mobile;
+    // Get the user profile to access the access key and mobile number.
+    //
+    // No session means no identity to place an order against, and every call
+    // below is authenticated. This used to fall through with accessKey and
+    // mobileNo left null: the order was attempted anyway and died deep in the
+    // flow as "Access denied. No token provided.", which reads like a server
+    // fault. Stop here and say the real thing instead.
+    final userProfile =
+        (await ref.read(authRepositoryProvider).currentSession()).valueOrNull;
+    if (userProfile == null) {
+      if (kDebugMode) print('[ORDER] STOP: no valid session at order time');
+      _safeSetState(() => _isPlacingOrder = false);
+      ref.read(orderProcessStatusProvider.notifier).state =
+          OrderProcessStatus.failed;
+      _failValidation(
+          'Your session has expired. Please sign in again to place this order.');
+      return;
     }
-    
+
+    final String accessKey = userProfile.accessToken;
+    final String mobileNo = userProfile.mobile;
+
     // Prepare delivery address
     Address deliveryAddress;
 
@@ -353,22 +389,23 @@ Future<void> _placeOrder() async {
         return;
       }
     } else {
-      // For self pickup, create address from outlet info
-      // Ensure mobile number has a valid value
-      final mobileForPayment = userProfile?.mobile.isNotEmpty == true
-          ? userProfile!.mobile
+      // For self pickup, create address from outlet info.
+      // userProfile is non-null from here — the session is checked above — so
+      // these no longer need to cope with an anonymous shopper.
+      final mobileForPayment = userProfile.mobile.isNotEmpty
+          ? userProfile.mobile
           : '9999999999'; // Fallback mobile for payment
 
       // Generate valid email from mobile or use default
-      final emailForPayment = userProfile?.mobile.isNotEmpty == true
-          ? '${userProfile!.mobile}@customer.patelrmart.com'
+      final emailForPayment = userProfile.mobile.isNotEmpty
+          ? '${userProfile.mobile}@customer.patelrmart.com'
           : 'orders@patelrmart.com';
 
       deliveryAddress = Address(
         id: 'pickup_address',
         fullName: widget.checkoutData.pickupName?.trim().isNotEmpty == true
             ? widget.checkoutData.pickupName!
-            : (userProfile?.mobile ?? 'Customer'),
+            : userProfile.mobile,
         mobileNumber: mobileForPayment,
         emailId: emailForPayment,
         deliveryAddrLine1: selectedOutlet.name,
@@ -1152,7 +1189,32 @@ Future<void> _placeOrder() async {
               top: 12.0,
               bottom: bottomPadding > 0 ? bottomPadding : 16.0,
             ),
-            child: SizedBox(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Why the order was refused, right where the shopper is
+                // looking. Previously this only ever went to a SnackBar, and
+                // when the messenger was wedged that meant no feedback at all.
+                if (_validationError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 18, color: AppColors.error),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _validationError!,
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.error),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
@@ -1181,6 +1243,8 @@ Future<void> _placeOrder() async {
                         ],
                       ),
               ),
+                ),
+              ],
             ),
           ),
         ],

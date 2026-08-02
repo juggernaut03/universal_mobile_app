@@ -172,17 +172,16 @@ final class AuthRepositoryImpl implements IAuthRepository, ITokenStore {
 
   // ---- internals ----
 
+  /// The one place a stored profile becomes a domain session.
+  ///
+  /// Expiry comes from the token's own `exp` (via [UserProfile]), so this
+  /// agrees with CentralizedAuthManager by construction rather than by two
+  /// separate rules happening to line up — which they did not.
   AuthSession _toSession(UserProfile profile) => AuthSession(
         mobile: profile.mobile,
         accessToken: profile.accessKey,
         issuedAt: profile.loginTime,
         refreshToken: profile.refreshToken,
-        // A renewable session outlives its access token, so `lifetime` — which
-        // currentSession() checks — has to track the refresh window, not the
-        // 10-day default. Without this, a restart more than 10 days after login
-        // reported "Session expired" for a session the server would still renew.
-        lifetime: profile.hasRefreshToken
-            ? const Duration(days: 90)
-            : const Duration(days: 10),
+        tokenExpiresAt: profile.accessKeyExpiresAt,
       );
 }

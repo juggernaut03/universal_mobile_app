@@ -1,5 +1,7 @@
 // lib/presentation/providers/cart_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:patelmart/presentation/providers/cart_validator_provider.dart'
+    show cartValidatorProvider;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/product_model.dart';
 import '../../data/models/cart_item.dart';
@@ -628,12 +630,16 @@ final cartCountProvider =
 final cartItemCountProvider =
     Provider<int>((ref) => ref.watch(cartProvider).itemCount);
 
-// Cart validator provider
-final cartValidatorProvider = Provider((ref) {
-  final logger = ref.watch(loggerProvider);
-  final apiClient = ref.watch(apiClientProvider);
-  return CartValidator(logger: logger, apiClient: apiClient);
-});
+// cartValidatorProvider is NOT declared here.
+//
+// A second, identical declaration used to live in this file. Riverpod treats
+// two Provider objects as two providers, so the app ran two CartValidator
+// instances over the same server cart — and state one recorded (the reason a
+// save failed, for instance) was invisible to whichever one the next caller
+// happened to resolve. `cart_screen.dart` had to import this file and
+// cart_validator_provider.dart under a prefix to disambiguate them.
+//
+// The single declaration lives in cart_validator_provider.dart.
 
 // Helper providers for cart session management
 
