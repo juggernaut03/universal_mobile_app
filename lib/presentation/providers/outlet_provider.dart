@@ -55,9 +55,18 @@ class SelectedOutletNotifier extends StateNotifier<AsyncValue<OutletModel?>> {
   final IOutletRepository _repository;
   final Logger _logger;
 
-  SelectedOutletNotifier(this._repository, this._logger) 
+  /// Completes once the saved outlet has been read from storage.
+  ///
+  /// See the note on SelectedPincodeNotifier.ready — the launch flow inspected
+  /// this notifier while it was still `AsyncValue.loading()`, whose `.value` is
+  /// null, and concluded no store had ever been chosen.
+  late final Future<void> _ready;
+
+  Future<void> get ready => _ready;
+
+  SelectedOutletNotifier(this._repository, this._logger)
       : super(const AsyncValue.loading()) {
-    _loadSavedOutlet();
+    _ready = _loadSavedOutlet();
   }
 
   Future<void> _loadSavedOutlet() async {
