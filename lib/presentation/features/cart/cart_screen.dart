@@ -1,6 +1,8 @@
 // lib/presentation/features/cart/cart_screen.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:patelmart/core/utils/app_snackbar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
@@ -27,26 +29,18 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
-  /// The messenger for this screen, captured while the element is still active.
+  /// The router for this screen, captured while the element is still active.
   ///
-  /// `ScaffoldMessenger.of(context)` walks the element tree, and that lookup
-  /// is illegal once the element is deactivated. A `mounted` check does NOT
-  /// cover it: `mounted` is `_widget != null`, which stays true through the
-  /// deactivated-but-not-yet-unmounted window, while the lookup requires the
-  /// element to be *active*. So `if (context.mounted) ScaffoldMessenger.of(...)`
-  /// after an `await` still throws "Looking up a deactivated widget's ancestor
-  /// is unsafe" — which is exactly what happened here.
+  /// `context.push`/`context.go` resolve GoRouter through the element tree, so
+  /// navigating after an `await` — which the checkout flow does at every step —
+  /// would hit the same deactivated-ancestor hazard. GoRouter itself is
+  /// app-level, so the captured reference stays valid.
   ///
-  /// Capturing the state up front, as the framework documents, means no lookup
-  /// happens after the gap. A messenger belonging to a torn-down route simply
-  /// drops the SnackBar, which is the behaviour we want.
-  ScaffoldMessengerState? _messenger;
-
-  /// The router for this screen, captured for the same reason as [_messenger].
-  ///
-  /// `context.push`/`context.go` resolve GoRouter through the element tree too,
-  /// so navigating after an `await` — which the checkout flow does at every
-  /// step — carries exactly the same hazard as showing a SnackBar does.
+  /// Calls through this are deliberately NOT wrapped in a `context.mounted`
+  /// check. It outlives this widget, so the guard protects nothing and instead
+  /// silently swallows the action: guarding the push to `/checkout-flow` turned
+  /// "checkout opens" into "the button does nothing" whenever the cart route
+  /// had been torn down — which is what happens right after an order.
   GoRouter? _router;
 
   /// Navigator for this screen, captured for the same reason again.
@@ -57,10 +51,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   /// [NavigatorState.context] is exactly that.
   NavigatorState? _navigator;
 
+  /// Last checkout-button state written to the debug log, so rebuilds that
+  /// change nothing stay quiet. Debug-only.
+  String? _lastLoggedButtonState;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _messenger = ScaffoldMessenger.of(context);
     _router = GoRouter.of(context);
     _navigator = Navigator.of(context, rootNavigator: true);
   }
@@ -236,7 +233,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               onPressed: () {
                 // Already in cart screen, show current cart status
                 if (cartCount > 0) {
-                  _messenger?.showSnackBar(
+                  showAppSnackBar(
                     SnackBar(
                       content: Text(
                         'You have $cartCount item${cartCount > 1 ? 's' : ''} in your cart (₹${cartTotal.toStringAsFixed(cartTotal.truncateToDouble() == cartTotal ? 0 : 2)})',
@@ -250,7 +247,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ),
                   );
                 } else {
-                  _messenger?.showSnackBar(
+                  showAppSnackBar(
                     const SnackBar(
                       content: Text('Your cart is empty'),
                       duration: Duration(seconds: 2),
@@ -438,7 +435,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ref.read(cartProvider.notifier).removeItem(item.product);
               
               // Show confirmation of item removal
-              _messenger?.showSnackBar(
+              showAppSnackBar(
                 SnackBar(
                   content: Text('${item.product.productName} removed from cart'),
                   duration: const Duration(seconds: 2),
@@ -517,7 +514,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 
                 // Show confirmation with UNDO option
                 if (currentCartItems.isNotEmpty) {
-                  _messenger?.showSnackBar(
+                  showAppSnackBar(
                     SnackBar(
                       content: const Text('Cart cleared'),
                       duration: const Duration(seconds: 3),
@@ -554,7 +551,24 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     required double minimumOrderValue,
   }) {
     final isLoading = cartValidationState == CartValidationState.loading;
-    
+
+    // Why the button is disabled is otherwise invisible: `canCheckout` folds
+    // together minimum order value, stock, outlet trading state and an empty
+    // cart, and a disabled ElevatedButton looks identical whichever one it is.
+    //
+    // Logged only when the answer changes — build() runs on every cart and
+    // provider tick, and a line per rebuild would bury the flow trace below.
+    if (kDebugMode) {
+      final state = '$canCheckout|$isLoading|$cartTotal|$minimumOrderValue';
+      if (state != _lastLoggedButtonState) {
+        _lastLoggedButtonState = state;
+        print('[CHECKOUT BTN] enabled=${!isLoading && canCheckout} '
+            '| canCheckout=$canCheckout | isLoading=$isLoading '
+            '| cartTotal=$cartTotal | minOrder=$minimumOrderValue '
+            '| validationState=$cartValidationState');
+      }
+    }
+
     return Container(
       padding: EdgeInsets.only(
         left: 16,
@@ -596,9 +610,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             height: 48,
             child: ElevatedButton(
               onPressed: isLoading || !canCheckout ? null : () {
+                if (kDebugMode) {
+                  print('\n[CHECKOUT] ===== PROCEED TO CHECKOUT TAPPED =====');
+                }
                 // Refresh cart session before checkout to extend it
                 ref.read(cartProvider.notifier).refreshSession();
-                
+
                 // Reset retry count before starting checkout
                 ref.read(validationRetryCountProvider.notifier).state = 0;
                 _proceedToCheckout(ref);
@@ -634,9 +651,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
   
   Future<void> _proceedToCheckout(WidgetRef ref) async {
+    // Every `return` below is a silent dead end from the shopper's side — the
+    // button just stops doing anything. Each one announces itself so the log
+    // says which gate closed.
+    if (kDebugMode) {
+      print('[CHECKOUT] _proceedToCheckout entered '
+          '| widgetMounted=$mounted '
+          '| router=${_router != null} | navigator=${_navigator != null}');
+    }
+
     final cartItems = ref.read(cartItemsProvider);
     if (cartItems.isEmpty) {
-      _messenger?.showSnackBar(
+      if (kDebugMode) print('[CHECKOUT] STOP: cart is empty');
+      showAppSnackBar(
         const SnackBar(
           content: Text('Your cart is empty. Add items to proceed.'),
           backgroundColor: Colors.red,
@@ -644,7 +671,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       );
       return;
     }
-    
+    if (kDebugMode) print('[CHECKOUT] cart has ${cartItems.length} line(s)');
+
     // Sign-in is checked here, BEFORE validation, because validation is itself
     // an authenticated call — POST /api/cart/save-cart is `protect`-ed. Running
     // it first meant a guest's checkout died on "Access denied. No token
@@ -652,14 +680,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     // CART and CANCEL and never mentions signing in. The auth check used to sit
     // in _continueToCheckout, one step too late to help.
     final isSignedIn = await ref.read(authRepositoryProvider).isSignedIn();
+    if (kDebugMode) print('[CHECKOUT] isSignedIn=$isSignedIn');
     if (!isSignedIn) {
       // Come back to the cart rather than straight to /checkout-flow: checkout
       // does not validate the cart itself, so jumping there would skip stock
       // and price checks entirely. pendingCheckoutProvider resumes the journey.
-      ref.read(pendingCheckoutProvider.notifier).state = true;
-      if (context.mounted) {
-        _router?.push('/auth/login?redirectRoute=/cart');
+      if (kDebugMode) {
+        print('[CHECKOUT] STOP: not signed in — pushing login '
+            '(router=${_router != null})');
       }
+      ref.read(pendingCheckoutProvider.notifier).state = true;
+      _router?.push('/auth/login?redirectRoute=/cart');
       return;
     }
 
@@ -673,28 +704,33 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     // stock-checks against a specific store, so guessing one here would clear
     // a cart against another tenant's inventory and let checkout proceed on it.
     final storeCode = selectedOutletAsync.value?.storeCode;
+    if (kDebugMode) {
+      print('[CHECKOUT] storeCode=${storeCode ?? "<null>"} '
+          '| retryCount=$retryCount (ceiling 2)');
+    }
     if (storeCode == null || storeCode.isEmpty) {
-      if (context.mounted) {
-        _messenger?.showSnackBar(
-          const SnackBar(
-            content: Text('Select a store before checking out.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (kDebugMode) print('[CHECKOUT] STOP: no store selected');
+      showAppSnackBar(
+        const SnackBar(
+          content: Text('Select a store before checking out.'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
-    // Show loading indicator
-    if (context.mounted) {
-      _messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('Validating your cart...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
-    
+    // No "Validating your cart…" toast here any more.
+    //
+    // It was redundant — the checkout button already watches
+    // cartValidationStateProvider and renders its own spinner while validation
+    // runs — and it was actively harmful: this single cosmetic line was where
+    // checkout died. showSnackBar throws when any Scaffold registered with the
+    // messenger has been deactivated, and that exception propagated straight
+    // out of this method, so the shopper tapped Proceed and nothing happened.
+    //
+    // The remaining SnackBars in this flow go through showAppSnackBar, which
+    // cannot throw. See lib/core/utils/app_snackbar.dart.
+
     // Validate the cart
     final validationResult = await cartValidationNotifier.validateCart(
       cartItems, 
@@ -706,7 +742,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     ref.read(validationRetryCountProvider.notifier).state = retryCount + 1;
     
     // Remove any existing snackbars
-    _messenger?.hideCurrentSnackBar();
+    hideAppSnackBar();
 
     // The navigator captured while this screen was active. Everything below
     // runs after awaiting validation, so this screen's own `context` may
@@ -719,16 +755,35 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     // no longer be used.
     final navigator = _navigator;
 
+    if (kDebugMode) {
+      print('[CHECKOUT] validation returned '
+          '${validationResult == null ? "NULL (error)" : "result"} '
+          '| navigatorMounted=${navigator?.mounted}');
+      if (validationResult != null) {
+        print('[CHECKOUT]   isValid=${validationResult.isValid} '
+            '| hasChanges=${validationResult.hasChanges} '
+            '| maxRetriesReached=${validationResult.maxRetriesReached} '
+            '| isSaveError=${validationResult.isSaveError}');
+        print('[CHECKOUT]   removed=${validationResult.removedItems.length} '
+            'qtyChanged=${validationResult.quantityChangedItems.length} '
+            'priceChanged=${validationResult.priceChangedItems.length} '
+            'issues=${validationResult.itemsWithIssues.length}');
+        print('[CHECKOUT]   message="${validationResult.validationMessage}"');
+      }
+    }
+
     // Check if we have a result and the navigator is still usable
     if (validationResult != null && navigator != null && navigator.mounted) {
       // Check if max retries reached
       if (validationResult.maxRetriesReached) {
+        if (kDebugMode) print('[CHECKOUT] STOP: retry ceiling reached');
         _handleValidationRetriesExhausted(ref);
         return;
       }
 
       // Always show validation dialog if the validation result indicates issues or changes
       if (validationResult.hasChanges || !validationResult.isValid) {
+        if (kDebugMode) print('[CHECKOUT] showing Quick Update dialog');
         // Show validation dialog for changes
         showDialog(
           context: navigator.context,
@@ -750,7 +805,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 // goes back to full — otherwise two cancels would leave the
                 // next genuine attempt to trip the retry ceiling immediately.
                 ref.read(validationRetryCountProvider.notifier).state = 0;
-                _messenger?.showSnackBar(
+                showAppSnackBar(
                   const SnackBar(
                     content: Text('Please update your cart before proceeding'),
                     backgroundColor: Colors.orange,
@@ -767,20 +822,27 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       } else {
         // Both hasChanges is false AND isValid is true - safe to proceed
+        if (kDebugMode) {
+          print('[CHECKOUT] cart is clean — continuing to checkout');
+        }
         _continueToCheckout(ref);
       }
     } else {
-      if (context.mounted) {
-        // Error occurred during validation
-        final errorMessage = cartValidationNotifier.errorMessage ?? 'Failed to validate cart';
-        _messenger?.showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      // Error occurred during validation
+      final errorMessage = cartValidationNotifier.errorMessage ?? 'Failed to validate cart';
+      if (kDebugMode) {
+        print('[CHECKOUT] STOP: no usable result '
+            '(result=${validationResult != null}, '
+            'navigator=${navigator != null}, '
+            'navigatorMounted=${navigator?.mounted}) — "$errorMessage"');
       }
+      showAppSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
   
@@ -798,17 +860,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   void _handleValidationRetriesExhausted(WidgetRef ref) {
     ref.read(validationRetryCountProvider.notifier).state = 0;
 
-    if (context.mounted) {
-      _messenger?.showSnackBar(
-        SnackBar(
-          content: const Text(
-            "We couldn't confirm some items. Please review your cart and try again.",
-          ),
-          backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 4),
+    showAppSnackBar(
+      SnackBar(
+        content: const Text(
+          "We couldn't confirm some items. Please review your cart and try again.",
         ),
-      );
-    }
+        backgroundColor: AppColors.error,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
   
   Future<void> _continueToCheckout(WidgetRef ref) async {
@@ -821,16 +881,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     // shopper into /checkout-flow would just bounce off its own route guard.
     final isLoggedIn = await ref.read(authRepositoryProvider).isSignedIn();
 
-    if (context.mounted) {
-      if (isLoggedIn) {
-        // User is logged in, proceed to the new checkout flow
-        _router?.push('/checkout-flow');
-      } else {
-        // Session died mid-checkout. Return to the cart after login so the
-        // cart is re-validated instead of entering checkout unchecked.
-        ref.read(pendingCheckoutProvider.notifier).state = true;
-        _router?.push('/auth/login?redirectRoute=/cart');
+    if (kDebugMode) {
+      print('[CHECKOUT] _continueToCheckout | isLoggedIn=$isLoggedIn '
+          '| router=${_router != null}');
+    }
+
+    if (isLoggedIn) {
+      // User is logged in, proceed to the new checkout flow
+      if (kDebugMode) print('[CHECKOUT] ==> pushing /checkout-flow');
+      _router?.push('/checkout-flow');
+    } else {
+      // Session died mid-checkout. Return to the cart after login so the
+      // cart is re-validated instead of entering checkout unchecked.
+      if (kDebugMode) {
+        print('[CHECKOUT] session lost during validation ==> pushing login');
       }
+      ref.read(pendingCheckoutProvider.notifier).state = true;
+      _router?.push('/auth/login?redirectRoute=/cart');
     }
   }
   
@@ -852,14 +919,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     // Check if this is a save error that requires a retry
     if (result.isSaveError) {
       // Show retry in progress
-      if (context.mounted) {
-        _messenger?.showSnackBar(
-          const SnackBar(
-            content: Text('Retrying cart save operation...'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
+      showAppSnackBar(
+        const SnackBar(
+          content: Text('Retrying cart save operation...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
       
       // Retry saving the cart
        final cartValidator = ref.read(validator.cartValidatorProvider);
@@ -869,43 +934,40 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       );
       
       if (saveSuccess) {
-        if (context.mounted) {
-          _messenger?.showSnackBar(
-            const SnackBar(
-              content: Text('Cart updated successfully!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          
-          // Reset retry count and try proceeding again
-          ref.read(validationRetryCountProvider.notifier).state = 0;
-          
-          // Try proceeding with checkout again after successful retry
-          if (context.mounted) {
-            _proceedToCheckout(ref);
-          }
-        }
+        showAppSnackBar(
+          const SnackBar(
+            content: Text('Cart updated successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Reset retry count and try proceeding again
+        ref.read(validationRetryCountProvider.notifier).state = 0;
+
+        // Try proceeding with checkout again after the successful retry.
+        // Unguarded for the same reason as the pushes above: _proceedToCheckout
+        // works off the captured handles, so a `context.mounted` check here
+        // only silently cancels the retry the shopper just asked for.
+        _proceedToCheckout(ref);
         return;
       } else {
-        if (context.mounted) {
-          // Show what the server actually objected to. "Failed to update cart.
-          // Please try again." was a dead end: retrying changes nothing when
-          // the cause is a rejected field or an expired session, and it gave
-          // the shopper nothing to act on and us nothing to debug.
-          final reason = cartValidator.lastSaveError;
-          _messenger?.showSnackBar(
-            SnackBar(
-              content: Text(
-                reason != null && reason.isNotEmpty
-                    ? "Couldn't update cart: $reason"
-                    : 'Failed to update cart. Please try again.',
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
+        // Show what the server actually objected to. "Failed to update cart.
+        // Please try again." was a dead end: retrying changes nothing when
+        // the cause is a rejected field or an expired session, and it gave
+        // the shopper nothing to act on and us nothing to debug.
+        final reason = cartValidator.lastSaveError;
+        showAppSnackBar(
+          SnackBar(
+            content: Text(
+              reason != null && reason.isNotEmpty
+                  ? "Couldn't update cart: $reason"
+                  : 'Failed to update cart. Please try again.',
             ),
-          );
-        }
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
         return;
       }
     }
@@ -925,7 +987,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       // Show a single notification for all removed items
       if (context.mounted && result.removedItems.isNotEmpty) {
         final count = result.removedItems.length;
-        _messenger?.showSnackBar(
+        showAppSnackBar(
           SnackBar(
             content: Text(
               '$count ${count == 1 ? 'item' : 'items'} removed (out of stock)'
@@ -949,18 +1011,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         madeChanges = true;
       }
 
-      if (context.mounted) {
-        final count = result.quantityChangedItems.length;
-        _messenger?.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Quantity updated for $count ${count == 1 ? 'item' : 'items'} (limited stock)'
-            ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 2),
+      final count = result.quantityChangedItems.length;
+      showAppSnackBar(
+        SnackBar(
+          content: Text(
+            'Quantity updated for $count ${count == 1 ? 'item' : 'items'} (limited stock)'
           ),
-        );
-      }
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
 
     // 3. Process price changes
@@ -974,7 +1034,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       // Show notification for price updates
       if (context.mounted && result.priceChangedItems.isNotEmpty) {
         final count = result.priceChangedItems.length;
-        _messenger?.showSnackBar(
+        showAppSnackBar(
           SnackBar(
             content: Text(
               'Prices updated for $count ${count == 1 ? 'item' : 'items'}'
@@ -996,33 +1056,29 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         cartNotifier.removeItem(item.product);
         cartNotifier.addItemWithQuantity(item.product, item.quantity - 1);
         
-        if (context.mounted) {
-          _messenger?.showSnackBar(
-            SnackBar(
-              content: Text(
-                'Reduced quantity for ${item.product.productName} to address validation issues'
-              ),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 2),
+        showAppSnackBar(
+          SnackBar(
+            content: Text(
+              'Reduced quantity for ${item.product.productName} to address validation issues'
             ),
-          );
-        }
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
         madeChanges = true;
       } else {
         // If quantity is already 1, mark for removal
         itemsToRemove.add(item.product);
         
-        if (context.mounted) {
-          _messenger?.showSnackBar(
-            SnackBar(
-              content: Text(
-                'Removed ${item.product.productName} to address validation issues'
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 2),
+        showAppSnackBar(
+          SnackBar(
+            content: Text(
+              'Removed ${item.product.productName} to address validation issues'
             ),
-          );
-        }
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
         madeChanges = true;
       }
     }
@@ -1048,19 +1104,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     //    complaint silently ate the cart one dialog at a time.
     if (!madeChanges && !result.isValid) {
       ref.read(validationRetryCountProvider.notifier).state = 0;
-      if (context.mounted) {
-        _messenger?.showSnackBar(
-          SnackBar(
-            content: Text(
-              result.validationMessage.isNotEmpty
-                  ? result.validationMessage
-                  : 'Some items are unavailable. Please adjust your cart and try again.',
-            ),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 4),
+      showAppSnackBar(
+        SnackBar(
+          content: Text(
+            result.validationMessage.isNotEmpty
+                ? result.validationMessage
+                : 'Some items are unavailable. Please adjust your cart and try again.',
           ),
-        );
-      }
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 4),
+        ),
+      );
       return;
     }
 
@@ -1074,9 +1128,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     if (madeChanges) {
       await Future.delayed(const Duration(milliseconds: 300));
 
-      if (context.mounted) {
-        _proceedToCheckout(ref);
-      }
+      // Unguarded: _proceedToCheckout uses the captured handles, so gating the
+      // retry on this widget's own liveness would silently abandon the cart
+      // the shopper just corrected.
+      _proceedToCheckout(ref);
     }
   }
 

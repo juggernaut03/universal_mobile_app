@@ -2,6 +2,7 @@
 // lib/presentation/features/checkout/checkout_flow_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:patelmart/main.dart' show scaffoldMessengerKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/data/models/delivery_slot_model.dart';
 import 'package:patelmart/presentation/providers/delivery_charges_provider.dart';
@@ -169,8 +170,11 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     } catch (e) {
       ref.read(loggerProvider).error('Error loading delivery slots: $e');
       // Show error to user
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      {
+        // App-level messenger: this runs after awaiting the slots call, and a
+        // `mounted` check does not cover the deactivated window that makes a
+        // route-scoped messenger throw. See scaffoldMessengerKey in main.dart.
+        scaffoldMessengerKey.currentState?.showSnackBar(
           SnackBar(
             content: Text('Failed to load delivery slots. Please try again.'),
             backgroundColor: Colors.red,
