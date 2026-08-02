@@ -34,6 +34,25 @@ import 'presentation/providers/app_shell_providers.dart';
 // Global navigator key for navigation from background
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+/// App-level messenger, attached to [MaterialApp.router.scaffoldMessengerKey].
+///
+/// Screens must NOT reach a messenger through their own `context` for anything
+/// shown after an `await`. `ScaffoldMessenger.of(context)` resolves to whatever
+/// messenger is nearest in the tree — one that belongs to the current route, and
+/// dies with it. Capturing that state up front does not save you either:
+/// `showSnackBar` performs its own ancestor lookup internally (`_isRoot` ->
+/// `findAncestorStateOfType`), so a captured-but-deactivated messenger still
+/// throws "Looking up a deactivated widget's ancestor is unsafe".
+///
+/// That throw is what aborted checkout: the "Validating your cart…" SnackBar
+/// blew up before validation could start, and the exception propagated out of
+/// _proceedToCheckout, so tapping the button did nothing at all.
+///
+/// This one is owned by MaterialApp itself, outlives every route, and is safe
+/// to call across any async gap.
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 // Background message handler - MUST be top-level function with enhanced iOS support
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {

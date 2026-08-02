@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/core/branding/app_branding.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
+import 'package:patelmart/main.dart' show scaffoldMessengerKey;
 import 'package:patelmart/presentation/routes/app_router.dart';
 import 'data/repositories/project_config_repository.dart';
 // POPUP IMPORTS
@@ -56,6 +57,10 @@ class _MyAppState extends ConsumerState<MyApp> {
     return MaterialApp.router(
       title: appTitle,
       debugShowCheckedModeBanner: false,
+
+      // App-owned messenger, so a SnackBar shown after an await survives the
+      // route that requested it. See scaffoldMessengerKey in main.dart.
+      scaffoldMessengerKey: scaffoldMessengerKey,
 
       // Theme configuration
       theme: ThemeData(

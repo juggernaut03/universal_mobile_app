@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:patelmart/main.dart' show scaffoldMessengerKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
@@ -106,8 +107,11 @@ class _CartSessionInfoWidgetState extends ConsumerState<CartSessionInfoWidget> {
             onPressed: () {
               cartNotifier.refreshSession().then((_) {
                 _updateRemainingTime();
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
+                // App-level messenger: this fires after refreshSession()
+                // resolves, by which point this widget's route may be gone,
+                // and a route-scoped messenger throws from its own ancestor
+                // lookup. See scaffoldMessengerKey in main.dart.
+                scaffoldMessengerKey.currentState?.showSnackBar(
                   const SnackBar(
                     content: Text('Cart session refreshed'),
                     duration: Duration(seconds: 2),
