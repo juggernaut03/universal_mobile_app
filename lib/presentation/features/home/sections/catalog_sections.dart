@@ -144,24 +144,18 @@ class FeedProductRailSection extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: background,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (heading.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(heading, style: AppTextStyles.h4.copyWith(fontWeight: FontWeight.bold)),
-            ),
-          const SizedBox(height: 12),
+          if (heading.isNotEmpty) HomeSectionHeading(title: heading),
           SizedBox(
-            height: 250,
+            height: kHomeProductCardHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: products.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder: (context, index) => HomeProductCard(product: products[index]),
             ),
           ),

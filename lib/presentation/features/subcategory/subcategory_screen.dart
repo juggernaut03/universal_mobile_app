@@ -153,7 +153,8 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
       await ref.refresh(subcategoriesProvider(query).future);
 
       final subcategoriesAsync = ref.read(subcategoriesProvider(query));
-      String subCategoryId = "0";
+      // Index 0 is the ALL tab; anything else names a real subcategory.
+      String subCategoryId = kAllSubcategories;
 
       if (_selectedIndex > 0) {
         subcategoriesAsync.whenData((subcategories) {
@@ -332,7 +333,7 @@ class _SubcategoryScreenState extends ConsumerState<SubcategoryScreen>
         : ProductFilterParams(
             deptId: widget.deptId,
             categoryId: widget.categoryId,
-            subCategoryId: "0",
+            subCategoryId: kAllSubcategories,
             storeCode: storeCode,
           );
     

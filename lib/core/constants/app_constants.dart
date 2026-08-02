@@ -108,6 +108,7 @@ class ApiConstants {
   // ---- Tenant config & content ----
   static const String projectConfig = '$baseUrl/project-config';
   static String contentPage(String slug) => '$baseUrl/content/$slug';
+  static const String faqs = '$baseUrl/faqs';
 
   // Storage keys
   static const String keyPincode = 'selected_pincode';
