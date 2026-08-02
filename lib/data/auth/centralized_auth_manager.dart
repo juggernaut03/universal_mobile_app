@@ -133,8 +133,23 @@ class CentralizedAuthManager {
     }
 
     if (profile == null) {
+      final cached = _cachedProfile;
+      if (cached != null) {
+        // Storage says there is no session while one is plainly live in memory.
+        // That is not a sign-out — nothing asked for one. It means the read
+        // came back empty: the iOS Simulator keychain does this intermittently,
+        // and a write that silently failed leaves the same trace.
+        //
+        // Trusting the empty read here signed the shopper out mid-checkout,
+        // because the cache is re-read every _validationInterval and one blank
+        // answer was enough. Only logout() ends a session.
+        _logger.warning('[AUTH] storage returned nothing while a session is '
+            'cached — keeping it and re-persisting');
+        unawaited(_repersist(cached));
+        return;
+      }
+
       _logger.log('[AUTH] no stored session');
-      _cachedProfile = null;
       _lastValidation = null;
       return;
     }
@@ -153,6 +168,19 @@ class CentralizedAuthManager {
         'expiresAt=${profile.accessKeyExpiresAt} '
         'loginTime=${profile.loginTime}');
     await logout();
+  }
+
+  /// Writes [profile] back after storage came up empty holding a live session.
+  ///
+  /// Best-effort and never throws: this runs to repair storage, and failing to
+  /// repair it must not disturb a session that is working from memory.
+  Future<void> _repersist(UserProfile profile) async {
+    try {
+      await _storage.write(profile);
+      _logger.log('[AUTH] cached session re-persisted');
+    } catch (e) {
+      _logger.warning('[AUTH] could not re-persist cached session: $e');
+    }
   }
 
   /// Save user profile after successful login.

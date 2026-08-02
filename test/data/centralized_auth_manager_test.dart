@@ -111,6 +111,76 @@ void main() {
     });
   });
 
+  group('storage comes back empty', () {
+    test('a live cached session survives an empty read', () async {
+      // The iOS Simulator keychain returns nothing intermittently, and a write
+      // that silently failed leaves the same trace. Treating that as a
+      // sign-out cleared the session mid-checkout: the cache is re-read every
+      // validation interval, so one blank answer was enough to stop an order
+      // with "Your session has expired".
+      final storage = FakeAuthStorage(
+        profile: profileWith(expiresAt: DateTime.now().add(const Duration(days: 2))),
+      );
+      final manager = managerFor(storage);
+      addTearDown(manager.dispose);
+      await manager.ready;
+
+      expect(await manager.isLoggedIn(), isTrue);
+
+      // Storage loses it, and the cache goes stale so the next call re-reads.
+      storage.profile = null;
+      await manager.refreshValidation();
+
+      expect(await manager.isLoggedIn(), isTrue,
+          reason: 'an empty read is not a sign-out');
+      expect(await manager.getValidAccessKey(), 'access-token');
+      expect(storage.clearCount, 0);
+    });
+
+    test('an empty read re-persists the cached session', () async {
+      // Self-heal: if the write was the thing that went missing, put it back.
+      final storage = FakeAuthStorage(
+        profile: profileWith(expiresAt: DateTime.now().add(const Duration(days: 2))),
+      );
+      final manager = managerFor(storage);
+      addTearDown(manager.dispose);
+      await manager.ready;
+
+      storage.profile = null;
+      await manager.refreshValidation();
+      await Future<void>.delayed(Duration.zero); // let the best-effort write run
+
+      expect(storage.profile, isNotNull);
+      expect(storage.profile!.accessKey, 'access-token');
+    });
+
+    test('with nothing cached, an empty read really is signed out', () async {
+      final storage = FakeAuthStorage();
+      final manager = managerFor(storage);
+      addTearDown(manager.dispose);
+      await manager.ready;
+
+      expect(await manager.isLoggedIn(), isFalse);
+      expect(await manager.getValidAccessKey(), isNull);
+    });
+
+    test('an explicit logout still clears, empty read or not', () async {
+      // The cache must not become a way to resurrect a session the user ended.
+      final storage = FakeAuthStorage(
+        profile: profileWith(expiresAt: DateTime.now().add(const Duration(days: 2))),
+      );
+      final manager = managerFor(storage);
+      addTearDown(manager.dispose);
+      await manager.ready;
+
+      await manager.logout();
+      await manager.refreshValidation();
+
+      expect(await manager.isLoggedIn(), isFalse);
+      expect(storage.profile, isNull);
+    });
+  });
+
   group('unreadable storage', () {
     test('does not sign the user out', () async {
       // A keystore failure says nothing about whether the session is live. The
