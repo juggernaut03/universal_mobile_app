@@ -65,6 +65,9 @@ class OrderStatusUtils {
   /// Colour for a classified status. Exhaustive — no `default:`.
   static Color colorFor(OrderStatus status) => switch (status) {
         OrderStatus.pending => Colors.orange,
+        OrderStatus.paymentProcessing => Colors.teal,
+        OrderStatus.accepted => Colors.green,
+        OrderStatus.acceptedByStore => Colors.teal,
         OrderStatus.processing => Colors.blue,
         OrderStatus.packaging => Colors.purple,
         OrderStatus.outForDelivery => Colors.amber,
@@ -76,6 +79,9 @@ class OrderStatusUtils {
   /// Icon for a classified status. Exhaustive — no `default:`.
   static IconData iconFor(OrderStatus status) => switch (status) {
         OrderStatus.pending => Icons.schedule,
+        OrderStatus.paymentProcessing => Icons.credit_card,
+        OrderStatus.accepted => Icons.check_circle_outline,
+        OrderStatus.acceptedByStore => Icons.storefront,
         OrderStatus.processing => Icons.check_circle_outline,
         OrderStatus.packaging => Icons.inventory_2,
         OrderStatus.outForDelivery => Icons.local_shipping,

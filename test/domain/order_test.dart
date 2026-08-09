@@ -102,6 +102,32 @@ void main() {
       expect(OrderStatus.parse('Cancelled'), OrderStatus.cancelled);
     });
 
+    test('maps the snake_case admin statuses', () {
+      // The admin panel's vocabulary is stored verbatim on the order, so the
+      // underscored spellings have to classify the same as the free-text ones.
+      expect(OrderStatus.parse('placed'), OrderStatus.pending);
+      expect(OrderStatus.parse('accepted'), OrderStatus.accepted);
+      expect(OrderStatus.parse('accepted_by_store'), OrderStatus.acceptedByStore);
+      expect(OrderStatus.parse('in_packaging'), OrderStatus.packaging);
+      expect(OrderStatus.parse('out_for_delivery'), OrderStatus.outForDelivery);
+      expect(
+        OrderStatus.parse('payment_processing'),
+        OrderStatus.paymentProcessing,
+      );
+      expect(OrderStatus.parse('cancelled'), OrderStatus.cancelled);
+    });
+
+    test('longer statuses win over the shorter ones they contain', () {
+      // 'accepted_by_store' contains 'accepted', and 'payment_processing'
+      // contains 'processing'; matching the shorter value first would collapse
+      // three distinct states into two.
+      expect(OrderStatus.parse('accepted_by_store'), isNot(OrderStatus.accepted));
+      expect(
+        OrderStatus.parse('payment_processing'),
+        isNot(OrderStatus.processing),
+      );
+    });
+
     test('handles the "proocessing" misspelling', () {
       // Four of the six OrderStatusUtils chains handled this typo and two did
       // not, so the same status classified differently depending on which
