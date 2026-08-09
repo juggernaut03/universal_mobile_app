@@ -22,6 +22,15 @@ enum OrderStatus {
   /// UI has always displayed it as "Pending".
   pending,
 
+  /// Prepaid order whose payment has not been confirmed yet.
+  paymentProcessing,
+
+  /// Accepted by the admin.
+  accepted,
+
+  /// Acknowledged by the fulfilling store.
+  acceptedByStore,
+
   /// Accepted and being prepared.
   processing,
 
@@ -49,11 +58,15 @@ enum OrderStatus {
   /// happens in exactly one place. The `proocessing` misspelling is handled here
   /// once, for every consumer.
   static OrderStatus parse(String? raw) {
-    final value = (raw ?? '').trim().toLowerCase();
+    // Underscores are folded to spaces so the backend's snake_case values
+    // ('out_for_delivery', 'accepted_by_store') match the same substrings as
+    // the free-text ones ('Out for Delivery').
+    final value = (raw ?? '').trim().toLowerCase().replaceAll('_', ' ');
     if (value.isEmpty) return OrderStatus.unknown;
 
     // Order matters: 'out for delivery' must be tested before 'delivered',
-    // since the former contains the latter as a substring.
+    // 'payment processing' before 'processing', and 'accepted by store' before
+    // 'accepted' — each earlier value contains a later one as a substring.
     if (value.contains('cancel')) return OrderStatus.cancelled;
     if (value.contains('out for delivery') ||
         value.contains('dispatch') ||
@@ -61,13 +74,22 @@ enum OrderStatus {
       return OrderStatus.outForDelivery;
     }
     if (value.contains('delivered')) return OrderStatus.delivered;
-    if (value.contains('packaging') || value.contains('packing')) {
+    if (value.contains('packaging') ||
+        value.contains('packing') ||
+        value.contains('packed')) {
       return OrderStatus.packaging;
     }
+    if (value.contains('payment processing')) {
+      return OrderStatus.paymentProcessing;
+    }
+    if (value.contains('accepted by store')) return OrderStatus.acceptedByStore;
+    if (value.contains('accepted')) return OrderStatus.accepted;
     if (value.contains('processing') || value.contains('proocessing')) {
       return OrderStatus.processing;
     }
-    if (value.contains('pending') || value.contains('confirmed')) {
+    if (value.contains('pending') ||
+        value.contains('confirmed') ||
+        value.contains('placed')) {
       return OrderStatus.pending;
     }
     return OrderStatus.unknown;
@@ -76,6 +98,9 @@ enum OrderStatus {
   /// Label shown to the user.
   String get label => switch (this) {
         OrderStatus.pending => 'Pending',
+        OrderStatus.paymentProcessing => 'Payment processing',
+        OrderStatus.accepted => 'Accepted',
+        OrderStatus.acceptedByStore => 'Accepted by store',
         OrderStatus.processing => 'Processing',
         OrderStatus.packaging => 'Packaging',
         OrderStatus.outForDelivery => 'Out for delivery',
@@ -87,6 +112,9 @@ enum OrderStatus {
   /// Sentence explaining the state.
   String get description => switch (this) {
         OrderStatus.pending => 'Your order is pending confirmation',
+        OrderStatus.paymentProcessing => 'We are confirming your payment',
+        OrderStatus.accepted => 'Your order has been accepted',
+        OrderStatus.acceptedByStore => 'The store has accepted your order',
         OrderStatus.processing => 'Your order is being processed and prepared',
         OrderStatus.packaging => 'Your order is being packaged for delivery',
         OrderStatus.outForDelivery => 'Your order is out for delivery',
@@ -106,7 +134,11 @@ enum OrderStatus {
   ///
   /// Once packing starts the order is physically committed.
   bool get canCancel =>
-      this == OrderStatus.pending || this == OrderStatus.processing;
+      this == OrderStatus.pending ||
+      this == OrderStatus.paymentProcessing ||
+      this == OrderStatus.accepted ||
+      this == OrderStatus.acceptedByStore ||
+      this == OrderStatus.processing;
 
   /// Whether the order's contents can be re-added to a cart.
   bool get canReorder => this != OrderStatus.cancelled;
@@ -129,6 +161,9 @@ final class OrderStatusAppearance {
   /// Semantic colour name. The widget layer maps this to a real Color.
   String get colorName => switch (status) {
         OrderStatus.pending => 'orange',
+        OrderStatus.paymentProcessing => 'teal',
+        OrderStatus.accepted => 'green',
+        OrderStatus.acceptedByStore => 'teal',
         OrderStatus.processing => 'blue',
         OrderStatus.packaging => 'purple',
         OrderStatus.outForDelivery => 'amber',
