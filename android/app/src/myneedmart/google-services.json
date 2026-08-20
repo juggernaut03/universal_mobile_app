@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "819153730823",
+    "project_id": "my-need-mart-46f0d",
+    "storage_bucket": "my-need-mart-46f0d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:819153730823:android:181191ea8f97cb102099a2",
+        "android_client_info": {
+          "package_name": "com.myneedmart.androidapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrhdEmYRGQIZVHTEIGTFITBmqaK1JvsbQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
