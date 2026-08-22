@@ -18,6 +18,7 @@ import '../data/repositories/favorites_repository.dart';
 import '../data/repositories/fcm_token_repository.dart';
 import '../data/repositories/home_feed_repository.dart';
 import '../data/repositories/location_repository.dart';
+import '../data/repositories/loyalty_repository.dart';
 import '../data/repositories/notifications_repository.dart';
 import '../data/repositories/onboarding_repository.dart';
 import '../data/repositories/order_repository.dart';
@@ -54,6 +55,15 @@ final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
 final notificationsRepositoryProvider = Provider<NotificationsRepository>((ref) {
   final deps = ref.watch(baseRepositoryDependenciesProvider);
   return NotificationsRepository(
+    authManager: deps.authManager,
+    apiClient: deps.apiClient,
+    logger: deps.logger,
+  );
+});
+
+final loyaltyRepositoryProvider = Provider<LoyaltyRepository>((ref) {
+  final deps = ref.watch(baseRepositoryDependenciesProvider);
+  return LoyaltyRepository(
     authManager: deps.authManager,
     apiClient: deps.apiClient,
     logger: deps.logger,

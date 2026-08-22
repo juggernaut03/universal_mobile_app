@@ -44,6 +44,7 @@ import '../../../data/models/home_feed_models.dart';
 import '../../../data/services/banner_service.dart';
 import '../../providers/seasonal_picks_widget_providers.dart';
 import '../../providers/notifications_provider.dart';
+import '../../providers/loyalty_provider.dart';
 import '../../providers/seasonal_category_widget_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -636,6 +637,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                _buildLoyaltyButton(),
                                 _buildNotificationButton(),
                                 IconButton(
                                   icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
@@ -717,6 +719,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             ),
                           ),
                         ),
+                        _buildLoyaltyButton(),
                         _buildNotificationButton(),
                         IconButton(
                           icon: const Icon(Icons.favorite_border_outlined, color: Colors.white),
@@ -738,6 +741,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         floatingActionButton: _buildFloatingActionButton(),
         floatingActionButtonLocation: FloatingActionButtonLocation.miniEndFloat,
       ),
+    );
+  }
+
+  /// Points-balance chip, same badge-over-icon shape as the notification
+  /// bell below it. Shows nothing (not even a "0") until the dashboard has
+  /// actually loaded once, so a signed-out/first-launch state doesn't flash
+  /// a wrong balance.
+  Widget _buildLoyaltyButton() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final dashboard = ref.watch(loyaltyDashboardProvider).valueOrNull;
+        if (dashboard == null) {
+          return IconButton(
+            icon: const Icon(Icons.stars_outlined, color: Colors.white),
+            onPressed: () => context.push('/loyalty'),
+          );
+        }
+        return TextButton.icon(
+          onPressed: () => context.push('/loyalty'),
+          icon: const Icon(Icons.stars_rounded, color: Colors.white, size: 18),
+          label: Text(
+            '${dashboard.availablePoints}',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: const Size(0, 0),
+          ),
+        );
+      },
     );
   }
 

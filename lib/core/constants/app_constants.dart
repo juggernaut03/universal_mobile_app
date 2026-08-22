@@ -105,6 +105,20 @@ class ApiConstants {
   static String notificationRead(String id) => '$baseUrl/notifications/$id/read';
   static const String notificationsReadAll = '$baseUrl/notifications/read-all';
 
+  // ---- Loyalty & Rewards ----
+  static const String loyaltyDashboard = '$baseUrl/loyalty';
+  static const String loyaltyBalance = '$baseUrl/loyalty/balance';
+  static const String loyaltyTransactions = '$baseUrl/loyalty/transactions';
+  static const String loyaltyRewards = '$baseUrl/loyalty/rewards';
+  static String loyaltyRedeem(String rewardId) => '$baseUrl/loyalty/rewards/$rewardId/redeem';
+  static const String loyaltyActiveRedemptions = '$baseUrl/loyalty/redemptions/active';
+  static String loyaltyRedemptionPreview(String redemptionId) => '$baseUrl/loyalty/redemptions/$redemptionId/preview';
+  static const String loyaltyTiers = '$baseUrl/loyalty/tiers';
+  static const String loyaltyChallenges = '$baseUrl/loyalty/challenges';
+  static String loyaltyClaimChallenge(String challengeId) => '$baseUrl/loyalty/challenges/$challengeId/claim';
+  static const String loyaltyReferral = '$baseUrl/loyalty/referral';
+  static const String loyaltyReferralApply = '$baseUrl/loyalty/referral/apply';
+
   // ---- Tenant config & content ----
   static const String projectConfig = '$baseUrl/project-config';
   static String contentPage(String slug) => '$baseUrl/content/$slug';

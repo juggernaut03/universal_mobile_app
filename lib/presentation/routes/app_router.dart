@@ -12,6 +12,11 @@ import 'package:patelmart/presentation/features/account/edit_address_screen.dart
 import 'package:patelmart/presentation/features/debug/access_key_debugger.dart';
 import 'package:patelmart/presentation/features/favorites/favorites_screen.dart';
 import 'package:patelmart/presentation/features/notifications/notifications_screen.dart';
+import 'package:patelmart/presentation/features/loyalty/loyalty_screen.dart';
+import 'package:patelmart/presentation/features/loyalty/loyalty_rewards_screen.dart';
+import 'package:patelmart/presentation/features/loyalty/loyalty_referral_screen.dart';
+import 'package:patelmart/presentation/features/loyalty/loyalty_challenges_screen.dart';
+import 'package:patelmart/presentation/features/loyalty/loyalty_transactions_screen.dart';
 import 'package:patelmart/presentation/features/orders/my_orders_screen.dart';
 import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import 'package:patelmart/presentation/features/orders/reorder_screen.dart';
@@ -440,6 +445,72 @@ final routerProvider = Provider<GoRouter>((ref) {
           final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/notifications';
+          }
+          return null;
+        },
+      ),
+
+      GoRoute(
+        path: '/loyalty',
+        name: RouteNames.loyalty,
+        builder: (context, state) => const LoyaltyScreen(),
+        redirect: (context, state) async {
+          final container = ProviderScope.containerOf(context);
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/loyalty';
+          }
+          return null;
+        },
+      ),
+      GoRoute(
+        path: '/loyalty/rewards',
+        name: RouteNames.loyaltyRewards,
+        builder: (context, state) => const LoyaltyRewardsScreen(),
+        redirect: (context, state) async {
+          final container = ProviderScope.containerOf(context);
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/loyalty/rewards';
+          }
+          return null;
+        },
+      ),
+      GoRoute(
+        path: '/loyalty/transactions',
+        name: RouteNames.loyaltyTransactions,
+        builder: (context, state) => const LoyaltyTransactionsScreen(),
+        redirect: (context, state) async {
+          final container = ProviderScope.containerOf(context);
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/loyalty/transactions';
+          }
+          return null;
+        },
+      ),
+      GoRoute(
+        path: '/loyalty/challenges',
+        name: RouteNames.loyaltyChallenges,
+        builder: (context, state) => const LoyaltyChallengesScreen(),
+        redirect: (context, state) async {
+          final container = ProviderScope.containerOf(context);
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/loyalty/challenges';
+          }
+          return null;
+        },
+      ),
+      GoRoute(
+        path: '/loyalty/referral',
+        name: RouteNames.loyaltyReferral,
+        builder: (context, state) => const LoyaltyReferralScreen(),
+        redirect: (context, state) async {
+          final container = ProviderScope.containerOf(context);
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/loyalty/referral';
           }
           return null;
         },

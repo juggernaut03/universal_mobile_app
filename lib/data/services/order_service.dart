@@ -82,6 +82,13 @@ class OrderService {
     int? paymentModeId,
     double? deliveryDistance,
     String? offerId,
+    // A LoyaltyRedemption id (from GET /api/loyalty/redemptions/active) the
+    // customer chose to apply. The server validates it, computes the
+    // discount itself, and marks it used atomically with the order - see
+    // utils/orderService.js's loyalty_redemption_id handling. Not yet wired
+    // to a checkout UI picker; the field exists so callers can pass it once
+    // one is built.
+    String? loyaltyRedemptionId,
   }) async {
     try {
       _logger.log('=== PLACING ORDER (universal backend) ===');
@@ -144,6 +151,8 @@ class OrderService {
         'delivery_charges': deliveryCharges,
         if (deliveryDistance != null) 'delivery_distance': deliveryDistance,
         if (offerId != null && offerId.isNotEmpty) 'offer_id': offerId,
+        if (loyaltyRedemptionId != null && loyaltyRedemptionId.isNotEmpty)
+          'loyalty_redemption_id': loyaltyRedemptionId,
       };
 
       _logger.log(
