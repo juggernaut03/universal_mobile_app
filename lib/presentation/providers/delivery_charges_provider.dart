@@ -109,6 +109,7 @@ class DeliveryChargesNotifier extends StateNotifier<DeliveryChargesState> {
         addressLongitude: coords.longitude,
         storeCode: selectedOutlet.storeCode,
         orderAmount: calculatedOrderAmount,
+        addressPincode: userAddress.deliveryAddrPincode,
       );
 
       if (!quote.available) {
