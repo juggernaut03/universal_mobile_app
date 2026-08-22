@@ -10,6 +10,7 @@ import 'package:patelmart/presentation/widgets/favorite_button.dart';
 import 'package:patelmart/presentation/providers/best_seller_providers.dart';
 // Add this import for outlet status
 import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
+import '../../../../core/branding/app_branding.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/widgets/cached_network_image_widget.dart';
@@ -675,7 +676,7 @@ Widget _buildProductsSection(BuildContext context, WidgetRef ref) {
               ),
               const SizedBox(height: 8),
               Text(
-                'Patel Mart',
+                AppBranding.instance.appName,
                 style: TextStyle(
                   color: AppColors.primary.withOpacity(0.8),
                   fontSize: 12,

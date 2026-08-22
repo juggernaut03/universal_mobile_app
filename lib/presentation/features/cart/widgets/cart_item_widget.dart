@@ -66,12 +66,30 @@ class CartItemWidget extends ConsumerWidget {
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.network(
-                          ApiConstants.fallbackImageUrl,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
-                        ),
+                        errorBuilder: (_, __, ___) {
+                          // Tenant fallback (admin panel > Mobile App >
+                          // Branding > App Logo) can itself be empty/unset.
+                          if (ApiConstants.fallbackImageUrl.isEmpty) {
+                            return Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey[100],
+                              child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400]),
+                            );
+                          }
+                          return Image.network(
+                            ApiConstants.fallbackImageUrl,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey[100],
+                              child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400]),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     if (product.isIpoProduct && product.ipoImg.isNotEmpty)

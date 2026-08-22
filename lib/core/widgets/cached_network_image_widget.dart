@@ -73,21 +73,34 @@ class CachedNetworkImageWidget extends StatelessWidget {
   
   Widget _buildErrorWidget() {
     if (errorWidget != null) return errorWidget!;
-    
+
+    final tenantFallback = ApiConstants.fallbackImageUrl;
+
+    // No tenant logo configured (Mobile App > Branding in the admin panel) —
+    // go straight to the local icon rather than falling through to another
+    // hardcoded remote image.
+    if (tenantFallback.isEmpty) {
+      return _buildLocalPlaceholder();
+    }
+
     return Image.network(
-      ApiConstants.fallbackImageUrl,
+      tenantFallback,
       width: width,
       height: height,
       fit: fit,
-      errorBuilder: (_, __, ___) => Container(
-        width: width,
-        height: height,
-        color: Colors.grey[200],
-        child: const Center(
-          child: Icon(
-            Icons.image_not_supported_outlined,
-            color: Colors.grey,
-          ),
+      errorBuilder: (_, __, ___) => _buildLocalPlaceholder(),
+    );
+  }
+
+  Widget _buildLocalPlaceholder() {
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey[200],
+      child: const Center(
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          color: Colors.grey,
         ),
       ),
     );
