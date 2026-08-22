@@ -200,7 +200,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       _buildMenuItem(
                         context,
                         icon: Icons.chat_bubble_outline,
-                        title: 'Help @ Patel Rmart',
+                        title: 'Help & Support',
                         onTap: () {
                           // Navigate to help (no login required)
                           context.push('/help-support');
