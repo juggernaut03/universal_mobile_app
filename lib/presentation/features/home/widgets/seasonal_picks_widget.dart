@@ -101,48 +101,69 @@ class SeasonalPicksWidget extends ConsumerWidget {
     );
   }
   
-  /// Build the horizontal category list - FIXED VERSION
+  /// Categories per row. The tile size is derived from this and the screen
+  /// width, not the other way round — so 2 categories and 8 categories render
+  /// at the identical size, and the row simply has empty trailing space or
+  /// scrolls, instead of the tiles growing to fill whatever count arrives.
+  static const int _tilesPerRow = 4;
+  static const double _tileSpacing = 10;
+  static const double _horizontalPadding = 16;
+
+  double _tileSize(BuildContext context) {
+    final usableWidth = MediaQuery.of(context).size.width - (_horizontalPadding * 2);
+    final size = (usableWidth - (_tileSpacing * (_tilesPerRow - 1))) / _tilesPerRow;
+    return size.clamp(64, 110);
+  }
+
+  /// Build the horizontal category list - fixed tile size, 4 per row
   Widget _buildCategories(BuildContext context, WidgetRef ref, String storeCode) {
     final categoriesAsync = ref.watch(categoriesProvider(storeCode));
-    
+    final tileSize = _tileSize(context);
+
     return categoriesAsync.when(
       data: (categories) {
         if (categories.isEmpty) return const SizedBox();
-        
+
         return Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          height: 200, // Reduced height since no text needed
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          height: tileSize + 24,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: categories.length,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
             itemBuilder: (context, index) {
               final category = categories[index];
-              return _buildCategoryItem(context, category, index == 0, index == categories.length - 1);
+              return _buildCategoryItem(
+                context,
+                category,
+                index == 0,
+                index == categories.length - 1,
+                tileSize,
+              );
             },
           ),
         );
       },
       loading: () => Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        height: 230,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        height: tileSize + 24,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
-          itemCount: 5, // Show placeholder items
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: _tilesPerRow, // Show placeholder items
+          padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
           itemBuilder: (context, index) {
             return Container(
-              width: 140,
+              width: tileSize,
+              height: tileSize,
               margin: EdgeInsets.only(
-                right: 12,
-                left: index == 0 ? 0 : 0,
+                right: index == _tilesPerRow - 1 ? 0 : _tileSpacing,
               ),
               decoration: BoxDecoration(
                 color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             );
           },
@@ -174,11 +195,17 @@ class SeasonalPicksWidget extends ConsumerWidget {
   }
   
   /// Build individual category item - IMAGE ONLY VERSION
-  Widget _buildCategoryItem(BuildContext context, SeasonalCategory category, bool isFirst, bool isLast) {
+  Widget _buildCategoryItem(
+    BuildContext context,
+    SeasonalCategory category,
+    bool isFirst,
+    bool isLast,
+    double size,
+  ) {
     return Container(
-      width: 180, // Wider since we're only showing image
+      width: size,
       margin: EdgeInsets.only(
-        right: isLast ? 0 : 12,
+        right: isLast ? 0 : _tileSpacing,
         left: isFirst ? 0 : 0,
       ),
       child: InkWell(
@@ -188,28 +215,28 @@ class SeasonalPicksWidget extends ConsumerWidget {
             context.push('/subcategory/${category.categoryId}/${category.departmentId}/${Uri.encodeComponent(category.categoryName)}');
           }
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           child: CachedNetworkImage(
             imageUrl: category.imageUrl,
-            width: 180,
-            height: 180, // Square aspect ratio for better display
+            width: size,
+            height: size, // Square aspect ratio for better display
             fit: BoxFit.cover,
             placeholder: (_, __) => Container(
-              width: 180,
-              height: 180,
+              width: size,
+              height: size,
               color: Colors.grey[200],
               child: const Center(
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
             errorWidget: (_, __, ___) => Container(
-              width: 180,
-              height: 180,
+              width: size,
+              height: size,
               color: Colors.grey[200],
               child: const Center(
-                child: Icon(Icons.image_not_supported, color: Colors.grey, size: 32),
+                child: Icon(Icons.image_not_supported, color: Colors.grey, size: 24),
               ),
             ),
           ),
