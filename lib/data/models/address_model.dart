@@ -255,7 +255,10 @@ class Address {
         deliveryAddrLine2: a.line2,
         deliveryAddrCity: a.city,
         deliveryAddrPincode: a.pincode,
-        isDefault: a.isDefault ? '1' : '0',
+        // The backend's is_default is a strict Mongoose enum of 'Yes'/'No' —
+        // '1'/'0' fails validation outright (every add-address call from this
+        // path 400'd until this was caught, 2026-08-22).
+        isDefault: a.isDefault ? 'Yes' : 'No',
         areaId: a.areaId,
         landmark: a.landmark,
         state: a.state,
