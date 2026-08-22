@@ -32,7 +32,12 @@ class _TypeStyle {
   factory _TypeStyle.forType(String type) => switch (type) {
         'order' => _TypeStyle(Icons.local_shipping_outlined, AppColors.info),
         'promotion' => _TypeStyle(Icons.local_offer_outlined, AppColors.warning),
-        'system' => _TypeStyle(Icons.settings_outlined, AppColors.textSecondary),
+        // 'system' is every admin-sent push (controllers/notifications.js's
+        // sendNotificationToUser hardcodes type: 'system' regardless of what
+        // the admin is actually announcing — an offer, a general update,
+        // whatever they typed into Send Push Notifications) — so a gear icon
+        // read as "system settings", not what these actually are: broadcast
+        // announcements. Falls through to the announcement icon below.
         _ => _TypeStyle(Icons.campaign_outlined, AppColors.primary),
       };
 }
