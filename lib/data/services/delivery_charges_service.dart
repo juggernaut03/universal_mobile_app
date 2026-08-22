@@ -73,10 +73,17 @@ class DeliveryChargesService {
     required double addressLongitude,
     required String storeCode,
     required double orderAmount,
+    // A store has one row per serviceable pincode (Outlet > Delivery Fees in
+    // the admin panel), each independently configurable — base charge,
+    // handling/package fees, max delivery radius can all differ by pincode.
+    // Without this the backend can't tell which row to use and picks
+    // whichever one Mongo returns first, silently ignoring the admin's
+    // config for every other pincode.
+    String? addressPincode,
   }) async {
     try {
       _logger.log(
-          'Fetching delivery charges - lat: $addressLatitude, lng: $addressLongitude, Store: $storeCode, Amount: $orderAmount');
+          'Fetching delivery charges - lat: $addressLatitude, lng: $addressLongitude, Store: $storeCode, Pincode: $addressPincode, Amount: $orderAmount');
 
       final response = await _client.post(
         Uri.parse(ApiConstants.deliveryChargesCalculate),
@@ -89,6 +96,8 @@ class DeliveryChargesService {
           'project_code': ApiConstants.projectCode,
           'address_latitude': addressLatitude.toString(),
           'address_longitude': addressLongitude.toString(),
+          if (addressPincode != null && addressPincode.isNotEmpty)
+            'address_pincode': addressPincode,
           'order_amount': orderAmount,
         }),
       ).timeout(const Duration(seconds: 10));
