@@ -250,7 +250,13 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                   final isLoadingDelivery = deliveryChargesState.isLoading;
                   final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
                   final distance = deliveryChargesState.distance;
-                  
+                  // See the matching comment in delivery_time_step.dart:
+                  // handling/packaging are store-configured flat fees that
+                  // free delivery does NOT waive.
+                  final distanceCharge = deliveryChargesState.distanceCharge;
+                  final handlingFee = deliveryChargesState.handlingFee;
+                  final packageFee = deliveryChargesState.packageFee;
+
                   // Calculate final total with delivery charges
                   final finalTotal = cartTotal + deliveryCharge;
                   
@@ -334,21 +340,78 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                               ],
                             ),
                             Text(
-                              isLoadingDelivery 
+                              isLoadingDelivery
                                   ? 'Calculating...'
-                                  : isFreeDelivery
+                                  : (isFreeDelivery && distanceCharge <= 0)
                                       ? 'FREE'
-                                      : '₹${deliveryCharge.toStringAsFixed(2)}',
+                                      : '₹${distanceCharge.toStringAsFixed(2)}',
                               style: AppTextStyles.bodyMedium.copyWith(
-                                color: isFreeDelivery ? AppColors.accent : null,
-                                fontWeight: isFreeDelivery ? FontWeight.bold : null,
+                                color: (isFreeDelivery && distanceCharge <= 0) ? AppColors.accent : null,
+                                fontWeight: (isFreeDelivery && distanceCharge <= 0) ? FontWeight.bold : null,
                               ),
                             ),
                           ],
                         ),
-                        
+
                         const SizedBox(height: 8),
-                        
+
+                        // Handling fee — store-configured flat charge (admin
+                        // panel), shown only when the store has one set.
+                        if (!isLoadingDelivery && handlingFee > 0) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.build_outlined,
+                                    size: 14,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Handling Fee',
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '₹${handlingFee.toStringAsFixed(2)}',
+                                style: AppTextStyles.bodyMedium,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
+                        // Packaging fee — same idea, shown only when set.
+                        if (!isLoadingDelivery && packageFee > 0) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 14,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Packaging Fee',
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '₹${packageFee.toStringAsFixed(2)}',
+                                style: AppTextStyles.bodyMedium,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
                         // Savings
                         if (cartSavings > 0) ...[
                           Row(
