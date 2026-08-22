@@ -11,6 +11,7 @@ import 'package:patelmart/presentation/features/account/add_address_screen.dart'
 import 'package:patelmart/presentation/features/account/edit_address_screen.dart';
 import 'package:patelmart/presentation/features/debug/access_key_debugger.dart';
 import 'package:patelmart/presentation/features/favorites/favorites_screen.dart';
+import 'package:patelmart/presentation/features/notifications/notifications_screen.dart';
 import 'package:patelmart/presentation/features/orders/my_orders_screen.dart';
 import 'package:patelmart/presentation/features/orders/order_detail_screen.dart';
 import 'package:patelmart/presentation/features/orders/reorder_screen.dart';
@@ -425,6 +426,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/favorites';
+          }
+          return null;
+        },
+      ),
+
+      GoRoute(
+        path: '/notifications',
+        name: RouteNames.notifications,
+        builder: (context, state) => const NotificationsScreen(),
+        redirect: (context, state) async {
+          final container = ProviderScope.containerOf(context);
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/notifications';
           }
           return null;
         },
