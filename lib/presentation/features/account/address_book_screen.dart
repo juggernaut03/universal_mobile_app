@@ -401,7 +401,13 @@ class AddressBookScreen extends ConsumerWidget {
       );
 
       if (error == null && success) {
-        ref.invalidate(addressListProvider);
+        // addressListProvider is *derived* from addressesProvider
+        // (`ref.watch(addressesProvider.future)`), which only re-fetches when
+        // addressRefreshProvider changes. Invalidating addressListProvider
+        // alone just re-maps the same stale cached list — no real network
+        // refetch — so a just-deleted/re-defaulted address kept showing
+        // (stale) until something else happened to bump the refresh counter.
+        ref.read(addressRefreshProvider.notifier).state++;
       }
     }
   }
@@ -487,7 +493,10 @@ class AddressBookScreen extends ConsumerWidget {
     );
 
     if (error == null && success) {
-      ref.invalidate(addressListProvider);
+      // See the comment in _setAsDefault above: bump the refresh counter, not
+      // just the derived provider, or the list re-renders the same stale
+      // cached data and the just-deleted address keeps showing.
+      ref.read(addressRefreshProvider.notifier).state++;
     }
   }
 }
