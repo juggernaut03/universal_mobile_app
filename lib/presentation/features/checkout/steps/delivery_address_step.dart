@@ -101,6 +101,17 @@ Future<void> _loadAddresses() async {
     
     // Update the checkout data
     widget.checkoutData.selectedAddress = _selectedAddress;
+
+    // The address above was restored/auto-picked, not tapped by the user —
+    // _selectAddress (which triggers the calculation) never ran for it. Left
+    // as-is, deliveryChargesState stayed at its pristine 0.0/no-error
+    // default, so Continue was enabled and the summary showed ₹0.00 for an
+    // address whose deliverability was never actually checked.
+    if (_selectedAddress != null) {
+      ref.read(deliveryChargesProvider.notifier).calculateDeliveryCharges(
+            userAddress: _selectedAddress!,
+          );
+    }
   } catch (e) {
     ref.read(loggerProvider).error('Error loading addresses: $e');
     // Handle error loading addresses
@@ -126,6 +137,14 @@ void _selectAddress(Address address) {
 
 @override
 Widget build(BuildContext context) {
+  // Blocks Continue when the selected address can't actually be delivered
+  // to (or the calculation hasn't resolved yet) — see the comment on the
+  // error banner in _buildOrderTotal for why this matters.
+  final deliveryChargesState = ref.watch(deliveryChargesProvider);
+  final canContinue = _selectedAddress != null &&
+      deliveryChargesState.error == null &&
+      !deliveryChargesState.isLoading;
+
   // Watch for address refresh trigger - THIS IS THE KEY FIX
   ref.listen(addressRefreshProvider, (previous, next) {
     if (mounted && previous != next) {
@@ -186,7 +205,7 @@ Widget build(BuildContext context) {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: _selectedAddress == null ? null : widget.onContinue,
+            onPressed: canContinue ? widget.onContinue : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -195,7 +214,9 @@ Widget build(BuildContext context) {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('CONTINUE'),
+            child: Text(
+              deliveryChargesState.isLoading ? 'CHECKING DELIVERY...' : 'CONTINUE',
+            ),
           ),
         ),
       ),
@@ -665,6 +686,38 @@ Widget build(BuildContext context) {
                     style: AppTextStyles.bodyMedium,
                   ),
                 ],
+              ),
+            ],
+
+            // Delivery error — most commonly "outside the store's delivery
+            // radius" for the selected address. This used to be silently
+            // swallowed: Continue stayed enabled and the summary kept
+            // showing whatever charge was last calculated (often ₹0.00,
+            // the initial default), so an undeliverable address could
+            // complete checkout with no delivery/handling/packaging fee at
+            // all charged.
+            if (deliveryChargesState.error != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[700], size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        deliveryChargesState.error!,
+                        style: AppTextStyles.bodySmall.copyWith(color: Colors.red[700]),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
 

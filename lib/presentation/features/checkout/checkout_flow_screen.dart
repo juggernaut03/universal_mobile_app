@@ -562,28 +562,34 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                           ),
                         ],
                         
-                        // Delivery error (if any)
+                        // Delivery error (if any) — most commonly the
+                        // address is outside the store's delivery radius.
+                        // This used to show a generic, misleading "will be
+                        // calculated at checkout" message with nothing
+                        // blocking checkout — the actual reason (e.g.
+                        // "Delivery not available beyond 5 km") is available
+                        // and now shown instead.
                         if (deliveryChargesState.error != null) ...[
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.all(8.0),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
+                              color: Colors.red.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.warning,
-                                  color: Colors.orange[700],
+                                  Icons.error_outline,
+                                  color: Colors.red[700],
                                   size: 16,
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Delivery charges will be calculated at checkout',
+                                    deliveryChargesState.error!,
                                     style: AppTextStyles.bodySmall.copyWith(
-                                      color: Colors.orange[700],
+                                      color: Colors.red[700],
                                     ),
                                   ),
                                 ),

@@ -1218,7 +1218,14 @@ Future<void> _placeOrder() async {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _isPlacingOrder || _selectedPaymentMethod == null
+                // Also blocks when the selected address turned out to be
+                // outside the store's delivery radius (or otherwise
+                // uncalculated) — see the matching comment in
+                // delivery_address_step.dart. Placing an order should not be
+                // reachable for an address delivery was never confirmed for.
+                onPressed: _isPlacingOrder ||
+                        _selectedPaymentMethod == null ||
+                        ref.watch(deliveryChargesProvider).error != null
                     ? null
                     : _placeOrder,
                 style: ElevatedButton.styleFrom(
