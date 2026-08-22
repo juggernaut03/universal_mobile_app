@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyCm7800l9cyvtgPuamrX8p_HBh8B10_zR8</string>
+	<string>AIzaSyC4ATmVhgyg3JZYKDYlIBJUqr3AEQXPmC8</string>
 	<key>GCM_SENDER_ID</key>
-	<string>819153730823</string>
+	<string>65652715036</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.myneedmart.iosapp</string>
+	<string>com.patelrmart.iosapp</string>
 	<key>PROJECT_ID</key>
-	<string>my-need-mart-46f0d</string>
+	<string>patelrmartnotifications</string>
 	<key>STORAGE_BUCKET</key>
-	<string>my-need-mart-46f0d.firebasestorage.app</string>
+	<string>patelrmartnotifications.appspot.com</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:819153730823:ios:a5209a47c999e6bf2099a2</string>
+	<string>1:65652715036:ios:3e9aa50a18bd787e9cb9d9</string>
+	<key>DATABASE_URL</key>
+	<string>https://patelrmartnotifications.firebaseio.com</string>
 </dict>
 </plist>
