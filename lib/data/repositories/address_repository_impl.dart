@@ -61,8 +61,11 @@ final class AddressRepositoryImpl implements IAddressRepository {
         deliveryAddrLine2: a.line2,
         deliveryAddrCity: a.city,
         deliveryAddrPincode: a.pincode,
-        // The DTO encodes this as a String; the entity carries a bool.
-        isDefault: a.isDefault ? '1' : '0',
+        // The backend's is_default is a strict Mongoose enum of 'Yes'/'No' —
+        // '1'/'0' 400'd on every add-address call until this was caught
+        // (2026-08-22). setDefaultAddress below already used 'Yes' correctly;
+        // this path just hadn't matched it.
+        isDefault: a.isDefault ? 'Yes' : 'No',
         areaId: a.areaId,
         landmark: a.landmark,
         state: a.state,
