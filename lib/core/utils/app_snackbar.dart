@@ -25,6 +25,17 @@ void showAppSnackBar(SnackBar snackBar, {Logger? logger}) {
   if (messenger == null) return;
 
   try {
+    // Every screen shares this one ScaffoldMessenger, and showSnackBar()
+    // queues rather than replaces: a fast sequence of actions (removing
+    // several cart lines, tapping +/- near a limit, a validation toast
+    // firing right after) each enqueue their own SnackBar, so a new one
+    // starts the moment the last one's duration elapses. The net effect
+    // reads as "a toast that never goes away", even though each instance
+    // individually still honors its own duration. clearSnackBars() drops
+    // anything showing/queued with no exit animation, so what we show next
+    // always starts clean and gets its full duration before anything else
+    // can appear.
+    messenger.clearSnackBars();
     messenger.showSnackBar(snackBar);
   } catch (e) {
     // Deliberately swallowed — see above. Logged so it stays visible.
