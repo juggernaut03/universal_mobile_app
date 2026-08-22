@@ -423,7 +423,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
 
           // Cart items
+          //
+          // Keyed by p_code so Flutter tracks each row by the product it
+          // represents, not by list position. Without this, removing a row
+          // from the middle of the list left every widget below it reusing
+          // the element (and any in-flight animation/gesture state) that
+          // used to belong to the row above it, instead of the list simply
+          // shrinking.
           ...cartItems.map((item) => CartItemWidget(
+            key: ValueKey(item.product.pCode),
             cartItem: item,
             onIncrementQuantity: () {
               ref.read(cartProvider.notifier).incrementQuantity(item.product);
