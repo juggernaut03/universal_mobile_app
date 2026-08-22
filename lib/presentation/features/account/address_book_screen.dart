@@ -357,50 +357,51 @@ class AddressBookScreen extends ConsumerWidget {
 
   // Updated implementation using centralized access key management
   // Set default via the universal backend (update-address with is_default Yes)
+  // See the comment on _deleteAddress above — same fix, same reason: pop via
+  // the dialog's own context, not the list row's.
   Future<void> _setAsDefault(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Setting address as default: ${address.id}');
 
-    // Show loading dialog
+    late BuildContext dialogContext;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator());
+      },
     );
 
+    bool success = false;
+    Object? error;
     try {
       final repository = ref.read(addressRepositoryProvider);
-      final success = await repository.setDefaultAddress(address.id);
-
-      if (context.mounted) {
-        Navigator.pop(context);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success
-                  ? 'Address set as default'
-                  : 'Failed to set address as default',
-            ),
-            backgroundColor: success ? Colors.green : Colors.red,
-          ),
-        );
-
-        if (success) {
-          ref.invalidate(addressListProvider);
-        }
-      }
+      success = await repository.setDefaultAddress(address.id);
     } catch (e) {
+      error = e;
       logger.error('Error setting address as default: $e');
+    }
 
-      if (context.mounted) {
-        Navigator.pop(context);
+    if (dialogContext.mounted) {
+      Navigator.of(dialogContext).pop();
+    }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error setting address as default: $e'),
-            backgroundColor: Colors.red,
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error != null
+                ? 'Error setting address as default: $error'
+                : success
+                    ? 'Address set as default'
+                    : 'Failed to set address as default',
           ),
-        );
+          backgroundColor: (error == null && success) ? Colors.green : Colors.red,
+        ),
+      );
+
+      if (error == null && success) {
+        ref.invalidate(addressListProvider);
       }
     }
   }
@@ -434,51 +435,59 @@ class AddressBookScreen extends ConsumerWidget {
   }
 
   // Delete via the universal backend (DELETE /api/address-crud/delete-address/:id)
+  //
+  // The loading dialog used to be dismissed with `Navigator.pop(context)`
+  // gated on the *list row's* `context.mounted` — but a row's Element can be
+  // torn down mid-request (list rebuild, scroll recycling) independently of
+  // the dialog, which lives on the app's own Navigator. When that happened,
+  // the guard silently skipped the pop and the spinner stayed on screen
+  // forever, even after the delete had already succeeded server-side. Popping
+  // via the dialog's own captured context fixes that: it only depends on the
+  // dialog itself still being up, which is exactly what we're closing.
   Future<void> _deleteAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
     logger.log('Deleting address: ${address.id}');
 
-    // Show loading dialog
+    late BuildContext dialogContext;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator());
+      },
     );
 
+    bool success = false;
+    Object? error;
     try {
       final repository = ref.read(addressRepositoryProvider);
-      final success = await repository.deleteAddress(address.id);
+      success = await repository.deleteAddress(address.id);
+    } catch (e) {
+      error = e;
+      logger.error('Error deleting address: $e');
+    }
 
-      if (context.mounted) {
-        Navigator.pop(context);
+    if (dialogContext.mounted) {
+      Navigator.of(dialogContext).pop();
+    }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error != null
+              ? 'Error deleting address: $error'
+              : success
                   ? 'Address deleted successfully'
                   : 'Failed to delete address',
-            ),
-            backgroundColor: success ? Colors.green : Colors.red,
-          ),
-        );
+        ),
+        backgroundColor: (error == null && success) ? Colors.green : Colors.red,
+      ),
+    );
 
-        if (success) {
-          ref.invalidate(addressListProvider);
-        }
-      }
-    } catch (e) {
-      logger.error('Error deleting address: $e');
-
-      if (context.mounted) {
-        Navigator.pop(context);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error deleting address: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    if (error == null && success) {
+      ref.invalidate(addressListProvider);
     }
   }
 }
