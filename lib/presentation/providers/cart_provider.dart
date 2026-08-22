@@ -1,4 +1,5 @@
 // lib/presentation/providers/cart_provider.dart
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart'
     show cartValidatorProvider;
@@ -47,6 +48,11 @@ class CartNotifier extends StateNotifier<Cart> {
   final CartStorageService _cartStorage;
   late final CartSessionManager _sessionManager;
   late final Logger _logger;
+
+  /// Debounces the background push to the server cart so a burst of taps
+  /// (holding "+", or a fast add/remove/add) collapses into one request
+  /// instead of one per keystroke.
+  Timer? _syncDebounce;
 
   /// Store the cart belongs to.
   ///
@@ -101,6 +107,46 @@ class CartNotifier extends StateNotifier<Cart> {
     } catch (e) {
       _logger.error('Error saving cart: $e');
     }
+    _scheduleServerSync();
+  }
+
+  /// Pushes the cart to the server a moment after the last change, so admins
+  /// can see what a shopper has in their cart before they ever reach
+  /// checkout — not just the two full-cart pushes that used to happen at
+  /// "Proceed to Checkout" and right before payment.
+  ///
+  /// Best-effort and silent: a failure here must never surface to the
+  /// shopper or block the local cart, which stays authoritative on-device
+  /// regardless of whether this push lands.
+  void _scheduleServerSync() {
+    _syncDebounce?.cancel();
+    _syncDebounce = Timer(const Duration(milliseconds: 1200), _syncToServer);
+  }
+
+  Future<void> _syncToServer() async {
+    final storeCode = _storeCode;
+    // No outlet selected yet means no cart worth syncing (and no store_code
+    // to satisfy the endpoint's required field).
+    if (storeCode.isEmpty) return;
+
+    try {
+      final cartValidator = _ref.read(cartValidatorProvider);
+      if (state.isEmpty) {
+        await cartValidator.clearServerCart(storeCode);
+      } else {
+        final items = state.lines.map(CartItem.fromLine).toList();
+        await cartValidator.saveCart(items, storeCode);
+      }
+    } catch (e) {
+      // Swallow — this is a background visibility push, not a user action.
+      _logger.error('Background cart sync failed: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _syncDebounce?.cancel();
+    super.dispose();
   }
 
   // ENHANCED: Add item to cart with session management
@@ -196,7 +242,8 @@ class CartNotifier extends StateNotifier<Cart> {
       
       // Clear cart data from persistent storage
       await _cartStorage.clearCart();
-      
+      _scheduleServerSync();
+
       // FIXED: Always create new session after cart clear to prepare for next order
       await _sessionManager.createNewOrderSession();
       
