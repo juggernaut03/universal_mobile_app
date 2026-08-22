@@ -14,12 +14,13 @@ import 'package:patelmart/core/utils/logger.dart';
 import 'package:patelmart/data/repositories/subcategory_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Map<String, dynamic> _row(String id, String categoryId) => {
+Map<String, dynamic> _row(String id, String categoryId, {List<String>? categoryIds}) => {
       'id': id,
       'idsub_category_master': id,
       'sub_category_name': 'Sub $id',
       'category_id': categoryId,
       'main_category_name': 'Category $categoryId',
+      if (categoryIds != null) 'category_ids': categoryIds,
     };
 
 String _body(List<Map<String, dynamic>> rows) =>
@@ -120,5 +121,29 @@ void main() {
     await repository.getSubcategories('10');
 
     expect(calls, ['GET all', 'GET all']);
+  });
+
+  test(
+      'the full-list fallback matches a subcategory cross-mapped into a '
+      'category via category_ids, even though its bare category_id points '
+      'elsewhere', () async {
+    final client = MockClient((request) async {
+      // Always the fallback path — never targeted — for this test.
+      return http.Response(
+        _body([
+          // Primary home is category 10, but also cross-mapped into 20.
+          _row('a', '10', categoryIds: ['10', '20']),
+          // Unrelated row, no mapping into 20 at all.
+          _row('b', '30'),
+        ]),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final repository = SubcategoryRepository(client: client, logger: Logger());
+    final subcategories = await repository.getSubcategories('20');
+
+    expect(subcategories.single.subCategoryName, 'Sub a');
   });
 }

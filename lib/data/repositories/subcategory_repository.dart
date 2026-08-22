@@ -178,9 +178,21 @@ class SubcategoryRepository {
     return data;
   }
 
+  /// A row matches [categoryId] either by its primary `category_id`, or by
+  /// being cross-mapped there via the backend's `category_ids` array (a
+  /// subcategory can now belong to more than one category) — falls back to
+  /// the bare field when `category_ids` isn't present, for older backends.
   List<dynamic> _filterByCategory(List<dynamic> rows, String categoryId) => rows
-      .where((json) => json is Map && json['category_id']?.toString() == categoryId)
+      .where((json) => json is Map && _matchesCategory(json, categoryId))
       .toList();
+
+  bool _matchesCategory(Map json, String categoryId) {
+    final categoryIds = json['category_ids'];
+    if (categoryIds is List) {
+      return categoryIds.map((id) => id.toString()).contains(categoryId);
+    }
+    return json['category_id']?.toString() == categoryId;
+  }
 
   List<SubcategoryModel> _toModels(List<dynamic> rows) => rows
       .whereType<Map<String, dynamic>>()
