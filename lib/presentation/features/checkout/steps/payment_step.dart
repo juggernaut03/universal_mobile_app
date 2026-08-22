@@ -1477,7 +1477,13 @@ Future<void> _placeOrder() async {
         final deliveryCharge = deliveryChargesState.deliveryCharge;
         final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
         final distance = deliveryChargesState.distance;
-        
+        // See the matching comment in delivery_time_step.dart: handling/
+        // packaging are store-configured flat fees that free delivery does
+        // NOT waive.
+        final distanceCharge = deliveryChargesState.distanceCharge;
+        final handlingFee = deliveryChargesState.handlingFee;
+        final packageFee = deliveryChargesState.packageFee;
+
         // Calculate final amount
         final finalAmount = cartTotal + deliveryCharge;
         
@@ -1567,16 +1573,77 @@ Future<void> _placeOrder() async {
                 Text(
                   deliveryChargesState.isLoading
                       ? 'Calculating...'
-                      : isFreeDelivery 
-                        ? 'FREE' 
-                        : '₹${deliveryCharge.toStringAsFixed(2)}',
+                      : (isFreeDelivery && distanceCharge <= 0)
+                        ? 'FREE'
+                        : '₹${distanceCharge.toStringAsFixed(2)}',
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: isFreeDelivery ? Colors.green : null,
-                    fontWeight: isFreeDelivery ? FontWeight.bold : null,
+                    color: (isFreeDelivery && distanceCharge <= 0) ? Colors.green : null,
+                    fontWeight: (isFreeDelivery && distanceCharge <= 0) ? FontWeight.bold : null,
                   ),
                 ),
               ],
             ),
+
+            // Handling fee — store-configured flat charge (admin panel),
+            // shown only when the store actually has one set.
+            if (!deliveryChargesState.isLoading && handlingFee > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.build_outlined,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Handling Fee',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '₹${handlingFee.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ],
+              ),
+            ],
+
+            // Packaging fee — same idea, shown only when set.
+            if (!deliveryChargesState.isLoading && packageFee > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Packaging Fee',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '₹${packageFee.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ],
+              ),
+            ],
             
             // Savings if any
             if (cartSavings > 0) ...[

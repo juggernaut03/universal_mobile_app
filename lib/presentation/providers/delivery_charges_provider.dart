@@ -18,12 +18,22 @@ class DeliveryChargesState {
   final bool freeDeliveryEligible;
   final double distance;
 
+  /// The three components of [deliveryCharge], for a line-item breakdown.
+  /// handlingFee/packageFee are store-configured flat charges that are NOT
+  /// waived by free delivery — see the note on DeliveryChargeQuote.
+  final double distanceCharge;
+  final double handlingFee;
+  final double packageFee;
+
   DeliveryChargesState({
     required this.isLoading,
     required this.deliveryCharge,
     this.error,
     required this.freeDeliveryEligible,
     required this.distance,
+    this.distanceCharge = 0.0,
+    this.handlingFee = 0.0,
+    this.packageFee = 0.0,
   });
 
   DeliveryChargesState copyWith({
@@ -32,6 +42,9 @@ class DeliveryChargesState {
     String? error,
     bool? freeDeliveryEligible,
     double? distance,
+    double? distanceCharge,
+    double? handlingFee,
+    double? packageFee,
   }) {
     return DeliveryChargesState(
       isLoading: isLoading ?? this.isLoading,
@@ -39,6 +52,9 @@ class DeliveryChargesState {
       error: error ?? this.error,
       freeDeliveryEligible: freeDeliveryEligible ?? this.freeDeliveryEligible,
       distance: distance ?? this.distance,
+      distanceCharge: distanceCharge ?? this.distanceCharge,
+      handlingFee: handlingFee ?? this.handlingFee,
+      packageFee: packageFee ?? this.packageFee,
     );
   }
 }
@@ -107,6 +123,9 @@ class DeliveryChargesNotifier extends StateNotifier<DeliveryChargesState> {
         deliveryCharge: quote.charge,
         freeDeliveryEligible: quote.freeDelivery || quote.charge <= 0,
         distance: quote.distanceKm,
+        distanceCharge: quote.distanceCharge,
+        handlingFee: quote.handlingFee,
+        packageFee: quote.packageFee,
       );
 
       logger.log(

@@ -11,9 +11,22 @@ import '../models/address_model.dart';
 import '../models/outlet_model.dart';
 
 /// Result of a delivery-charge calculation from the universal backend.
+///
+/// [charge] is the combined total (distance + handling + package) the
+/// backend calls `total_charges` — kept for callers that only need one
+/// number. The three components are broken out separately so the checkout
+/// summary can show them as line items instead of one opaque "Delivery Fee":
+/// handling_fee and package_fee are store-configured flat charges
+/// (models/Store.js) that are NOT waived by free delivery — only the
+/// distance-based component is (see calculateDeliveryCharge in
+/// utils/distanceCalculation.js), so lumping them together under "FREE" was
+/// misleading whenever a store had either fee set.
 class DeliveryChargeQuote {
   final bool available;
   final double charge;
+  final double distanceCharge;
+  final double handlingFee;
+  final double packageFee;
   final double distanceKm;
   final bool freeDelivery;
   final String reason;
@@ -21,6 +34,9 @@ class DeliveryChargeQuote {
   DeliveryChargeQuote({
     required this.available,
     required this.charge,
+    this.distanceCharge = 0.0,
+    this.handlingFee = 0.0,
+    this.packageFee = 0.0,
     required this.distanceKm,
     required this.freeDelivery,
     this.reason = '',
@@ -88,6 +104,9 @@ class DeliveryChargesService {
           available: data['delivery_available'] != false,
           charge: (data['total_charges'] ?? data['delivery_charge'] ?? 0)
               .toDouble(),
+          distanceCharge: (data['distance_charge'] ?? 0).toDouble(),
+          handlingFee: (data['handling_fee'] ?? 0).toDouble(),
+          packageFee: (data['package_fee'] ?? 0).toDouble(),
           distanceKm: (data['distance_km'] ?? 0).toDouble(),
           freeDelivery: data['free_delivery'] == true,
           reason: (data['reason'] ?? '').toString(),
