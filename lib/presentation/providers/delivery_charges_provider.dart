@@ -132,9 +132,23 @@ class DeliveryChargesNotifier extends StateNotifier<DeliveryChargesState> {
           'Delivery charges updated - Distance: ${quote.distanceKm}km, Charge: ₹${quote.charge}, Free: ${quote.freeDelivery}');
     } catch (e) {
       logger.error('Error calculating delivery charges: $e');
+      // Strip Dart's "Exception: " wrapper — the underlying message (e.g.
+      // "Delivery not available beyond 5 km") is already user-facing text
+      // from the backend's `reason` field.
       state = state.copyWith(
         isLoading: false,
-        error: 'Failed to calculate delivery charges: $e',
+        error: e.toString().replaceFirst('Exception: ', ''),
+        // A failed calculation must not leave a stale charge on screen —
+        // this used to leave deliveryCharge/handlingFee/packageFee at
+        // whatever they last were (often the 0.0 initial default), so an
+        // address outside the delivery radius silently showed "Delivery
+        // Fee: ₹0.00" and a correct-looking ₹0 total instead of blocking
+        // checkout.
+        deliveryCharge: 0.0,
+        distanceCharge: 0.0,
+        handlingFee: 0.0,
+        packageFee: 0.0,
+        freeDeliveryEligible: false,
       );
     }
   }

@@ -359,10 +359,15 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
               builder: (context, ref, child) {
                 final deliveryChargesState = ref.watch(deliveryChargesProvider);
                 final isCalculating = deliveryChargesState.isLoading;
-                
+                // Blocks Continue when the address can't actually be
+                // delivered to — this used to only check isCalculating, so
+                // an out-of-range address (isLoading false, error set) let
+                // checkout proceed anyway.
+                final deliveryUnavailable = deliveryChargesState.error != null;
+
                 return ElevatedButton(
-                  onPressed: (_selectedSlot == null || isCalculating || _isLoadingSlots || _isLoadingDates) 
-                    ? null 
+                  onPressed: (_selectedSlot == null || isCalculating || deliveryUnavailable || _isLoadingSlots || _isLoadingDates)
+                    ? null
                     : widget.onContinue,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -706,6 +711,33 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                       style: AppTextStyles.bodyMedium,
                     ),
                   ],
+                ),
+              ],
+
+              // Delivery error — see the matching comment in
+              // delivery_address_step.dart.
+              if (deliveryChargesState.error != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red[700], size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          deliveryChargesState.error!,
+                          style: AppTextStyles.bodySmall.copyWith(color: Colors.red[700]),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
 
