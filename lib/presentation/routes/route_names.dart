@@ -30,6 +30,7 @@ static const String reorder = 'reorder';
   static const String bestSeller = 'bestSeller';
   static const String savings = 'savings';
   static const String favorites = 'favorites';
+  static const String notifications = 'notifications';
 static const String search = 'search';
 static const String debugNotifications = 'debugNotifications';
 static const String debugAccessKey = 'debugAccessKey';
