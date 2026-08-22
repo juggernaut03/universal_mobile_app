@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../data/models/product_model.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../providers/outlet_status_provider.dart'; // Import for outlet status
@@ -11,9 +12,6 @@ import '../../../providers/outlet_status_provider.dart'; // Import for outlet st
 class SuggestedProductCard extends ConsumerWidget {
   final ProductModel product;
   final VoidCallback onTap; 
-
-  // Fallback image URL
-  static const String fallbackImageUrl = 'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp';
 
   const SuggestedProductCard({
     super.key,
@@ -253,9 +251,16 @@ class SuggestedProductCard extends ConsumerWidget {
         );
       },
       errorBuilder: (context, error, stackTrace) {
-        // If primary image fails, try the fallback image
+        // Tenant's own logo (Mobile App > Branding in the admin panel), not
+        // a hardcoded remote image — used to always be Patel Mart's
+        // default_img.webp regardless of which tenant was showing it.
+        final tenantFallback = ApiConstants.fallbackImageUrl;
+        if (tenantFallback.isEmpty) {
+          return _buildLocalPlaceholder();
+        }
+
         return Image.network(
-          fallbackImageUrl,
+          tenantFallback,
           fit: BoxFit.contain,
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
@@ -272,32 +277,34 @@ class SuggestedProductCard extends ConsumerWidget {
               ),
             );
           },
-          errorBuilder: (context, fallbackError, fallbackStackTrace) {
-            // If both primary and fallback images fail, show placeholder
-            return Container(
-              color: Colors.white, // Changed to white
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.shopping_bag_outlined,
-                    color: Colors.grey[400],
-                    size: 28,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Product image',
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+          // Tenant fallback itself failed to load too — show the local icon.
+          errorBuilder: (context, fallbackError, fallbackStackTrace) => _buildLocalPlaceholder(),
         );
       },
+    );
+  }
+
+  Widget _buildLocalPlaceholder() {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.shopping_bag_outlined,
+            color: Colors.grey[400],
+            size: 28,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Product image',
+            style: TextStyle(
+              color: Colors.grey[500],
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

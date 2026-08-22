@@ -1066,12 +1066,30 @@ class _ReorderProductItemWidgetState extends ConsumerState<_ReorderProductItemWi
                           color: Colors.grey[100],
                         );
                       },
-                      errorBuilder: (context, error, stackTrace) => Image.network(
-                        ApiConstants.fallbackImageUrl,
-                        width: double.infinity,
-                        height: 110,
-                        fit: BoxFit.contain,
-                      ),
+                      errorBuilder: (context, error, stackTrace) {
+                        // Tenant fallback (admin panel > Mobile App >
+                        // Branding > App Logo) can itself be empty/unset.
+                        if (ApiConstants.fallbackImageUrl.isEmpty) {
+                          return Container(
+                            width: double.infinity,
+                            height: 110,
+                            color: Colors.grey[100],
+                            child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400]),
+                          );
+                        }
+                        return Image.network(
+                          ApiConstants.fallbackImageUrl,
+                          width: double.infinity,
+                          height: 110,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: double.infinity,
+                            height: 110,
+                            color: Colors.grey[100],
+                            child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400]),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

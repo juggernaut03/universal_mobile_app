@@ -271,12 +271,32 @@ class _BestSellerProductCard extends ConsumerWidget {
                           color: Colors.grey[100],
                         );
                       },
-                      errorBuilder: (context, error, stackTrace) => Image.network(
-                        ApiConstants.fallbackImageUrl,
-                        width: double.infinity,
-                        height: 120,
-                        fit: BoxFit.contain,
-                      ),
+                      errorBuilder: (context, error, stackTrace) {
+                        // The tenant fallback (admin panel > Mobile App >
+                        // Branding > App Logo) can itself be empty/unset — a
+                        // bare retry with no errorBuilder of its own used to
+                        // fall through to Flutter's default broken-image icon.
+                        if (ApiConstants.fallbackImageUrl.isEmpty) {
+                          return Container(
+                            width: double.infinity,
+                            height: 120,
+                            color: Colors.grey[100],
+                            child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400]),
+                          );
+                        }
+                        return Image.network(
+                          ApiConstants.fallbackImageUrl,
+                          width: double.infinity,
+                          height: 120,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: double.infinity,
+                            height: 120,
+                            color: Colors.grey[100],
+                            child: Icon(Icons.shopping_bag_outlined, color: Colors.grey[400]),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),

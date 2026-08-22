@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/branding/app_branding.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/product_model.dart';
@@ -303,7 +304,7 @@ class _SingleProductScreenState extends ConsumerState<SingleProductScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Patel Mart',
+                AppBranding.instance.appName,
                 style: TextStyle(
                   color: AppColors.primary.withOpacity(0.8),
                   fontSize: 18,

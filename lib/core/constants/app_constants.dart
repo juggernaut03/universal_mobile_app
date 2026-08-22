@@ -116,14 +116,18 @@ class ApiConstants {
   static const String keyLocation = 'user_location';
   static const String keyApiInitialized = 'google_api_initialized';
 
-  // Fallback image
-  static const String fallbackImageUrl =
-      'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp';
-
-  // Backup fallback images if the primary one fails
-  static const List<String> backupFallbackImageUrls = [
-    'https://patelrmart.com/mgmt_panel/product_images/patel_webp/default_img.webp',
-  ];
+  // Fallback image shown wherever a product/order photo is missing or fails
+  // to load (see CachedNetworkImageWidget). This used to be hardcoded to
+  // Patel Mart's own CDN — patelrmart.com/.../default_img.webp — so every
+  // other tenant (My Need Mart, Grahak Peth, Sansar Pariwar...) showed
+  // Patel's placeholder image whenever their own was missing.
+  //
+  // Now sourced from this tenant's own logo, set in the admin panel under
+  // Mobile App > Branding (GET /api/project-config -> config.logo_url,
+  // applied to AppBranding.instance at startup). Empty when the tenant
+  // hasn't set one — CachedNetworkImageWidget falls back to a plain local
+  // icon in that case, not another hardcoded remote image.
+  static String get fallbackImageUrl => AppBranding.instance.logoUrl;
 
   // razorpay — key id only; the secret lives on the server, which creates
   // and verifies all Razorpay orders. The tenant's configured key id wins
