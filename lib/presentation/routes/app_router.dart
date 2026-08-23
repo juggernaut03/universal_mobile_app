@@ -13,6 +13,7 @@ import 'package:patelmart/presentation/features/debug/access_key_debugger.dart';
 import 'package:patelmart/presentation/features/favorites/favorites_screen.dart';
 import 'package:patelmart/presentation/features/notifications/notifications_screen.dart';
 import 'package:patelmart/presentation/features/loyalty/loyalty_screen.dart';
+import 'package:patelmart/presentation/features/loyalty/loyalty_coupons_screen.dart';
 import 'package:patelmart/presentation/features/loyalty/loyalty_rewards_screen.dart';
 import 'package:patelmart/presentation/features/loyalty/loyalty_referral_screen.dart';
 import 'package:patelmart/presentation/features/loyalty/loyalty_challenges_screen.dart';
@@ -472,6 +473,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
           if (!isLoggedIn) {
             return '/auth/login?redirectRoute=/loyalty/rewards';
+          }
+          return null;
+        },
+      ),
+      GoRoute(
+        path: '/loyalty/coupons',
+        name: RouteNames.loyaltyCoupons,
+        builder: (context, state) => const LoyaltyCouponsScreen(),
+        redirect: (context, state) async {
+          final container = ProviderScope.containerOf(context);
+          final isLoggedIn = await container.read(authRepositoryProvider).isSignedIn();
+          if (!isLoggedIn) {
+            return '/auth/login?redirectRoute=/loyalty/coupons';
           }
           return null;
         },

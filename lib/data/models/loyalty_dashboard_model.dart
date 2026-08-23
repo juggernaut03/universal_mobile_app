@@ -6,6 +6,7 @@ import 'loyalty_tier_model.dart';
 import 'loyalty_reward_model.dart';
 import 'loyalty_challenge_model.dart';
 import 'loyalty_transaction_model.dart';
+import 'loyalty_way_to_earn_model.dart';
 
 class LoyaltyReferralSummary {
   final String code;
@@ -28,6 +29,7 @@ class LoyaltyDashboard {
   final int availablePoints;
   final int pendingPoints;
   final LoyaltyTierStatus tier;
+  final List<LoyaltyWayToEarn> waysToEarn;
   final List<LoyaltyReward> rewards;
   final List<LoyaltyChallenge> challenges;
   final LoyaltyReferralSummary referral;
@@ -37,6 +39,7 @@ class LoyaltyDashboard {
     required this.availablePoints,
     required this.pendingPoints,
     required this.tier,
+    required this.waysToEarn,
     required this.rewards,
     required this.challenges,
     required this.referral,
@@ -49,6 +52,9 @@ class LoyaltyDashboard {
       availablePoints: (points['available'] as num?)?.toInt() ?? 0,
       pendingPoints: (points['pending'] as num?)?.toInt() ?? 0,
       tier: LoyaltyTierStatus.fromJson(json['tier'] is Map ? Map<String, dynamic>.from(json['tier'] as Map) : null),
+      waysToEarn: json['waysToEarn'] is List
+          ? (json['waysToEarn'] as List).whereType<Map>().map((e) => LoyaltyWayToEarn.fromJson(Map<String, dynamic>.from(e))).toList()
+          : const [],
       rewards: json['rewards'] is List
           ? (json['rewards'] as List).whereType<Map>().map((e) => LoyaltyReward.fromJson(Map<String, dynamic>.from(e))).toList()
           : const [],
@@ -71,6 +77,7 @@ class LoyaltyDashboard {
     availablePoints: 0,
     pendingPoints: 0,
     tier: LoyaltyTierStatus(code: null, name: null, multiplier: 1, currentSpend: 0, nextTier: null, nextTierSpend: null, progress: 0),
+    waysToEarn: [],
     rewards: [],
     challenges: [],
     referral: LoyaltyReferralSummary(code: '', successfulReferrals: null, earnedPoints: null),

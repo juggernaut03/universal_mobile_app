@@ -167,6 +167,24 @@ class LoyaltyRepository extends BaseRepository {
     ) ?? <LoyaltyRedemption>[];
   }
 
+  /// Every voucher this customer has ever redeemed, any status - "My
+  /// Coupons". Distinct from getActiveRedemptions(), which only has what's
+  /// still usable and is what the checkout picker reads from.
+  Future<List<LoyaltyRedemption>> getAllRedemptions() async {
+    return await makeAuthenticatedRequest<List<LoyaltyRedemption>>(
+      () async {
+        final response = await getWithAuth(ApiConstants.loyaltyRedemptions);
+        final map = _asMap(response);
+        if (map == null || map['data'] is! List) return <LoyaltyRedemption>[];
+        return (map['data'] as List)
+            .whereType<Map>()
+            .map((e) => LoyaltyRedemption.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      },
+      onAuthError: () => <LoyaltyRedemption>[],
+    ) ?? <LoyaltyRedemption>[];
+  }
+
   Future<List<LoyaltyTier>> getTiers() async {
     return await makeAuthenticatedRequest<List<LoyaltyTier>>(
       () async {
