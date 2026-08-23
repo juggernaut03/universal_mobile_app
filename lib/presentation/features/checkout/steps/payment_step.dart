@@ -26,7 +26,9 @@ import '../../../../di/infrastructure_providers.dart';
 import '../../../../di/auth_providers.dart';
 import '../../../../domain/entities/auth_session.dart';
 import 'package:flutter/foundation.dart';
+import '../../../providers/loyalty_provider.dart';
 import '../checkout_models.dart';
+import '../widgets/loyalty_reward_picker.dart';
 import 'order_success_dialog.dart';
 
 // Checkout step enum to track progress
@@ -438,10 +440,25 @@ Future<void> _placeOrder() async {
     // Get delivery charges
     final deliveryChargesState = ref.read(deliveryChargesProvider);
     final deliveryCharge = deliveryChargesState.deliveryCharge;
-    
+
+    // Loyalty reward voucher, if applied — see LoyaltyRewardRow. Re-checked
+    // here (not just trusted from when it was selected) in case the cart
+    // changed since, e.g. dropping below the voucher's minimum order value;
+    // estimateDiscount returns null in that case and nothing is deducted.
+    // The server enforces this authoritatively regardless (place-order
+    // rejects an id that no longer qualifies), this just keeps what's
+    // charged in sync with what's shown.
+    final selectedRedemption = ref.read(selectedLoyaltyRedemptionProvider);
+    final loyaltyDiscount = selectedRedemption?.estimateDiscount(
+          orderSubtotal: cartTotal,
+          deliveryCharges: deliveryCharge,
+        ) ??
+        0;
+    final loyaltyRedemptionId = loyaltyDiscount > 0 ? selectedRedemption?.id : null;
+
     // Calculate final amount
-    final finalAmount = cartTotal + deliveryCharge;
-    
+    final finalAmount = cartTotal + deliveryCharge - loyaltyDiscount;
+
     // Get delivery mode and payment mode
     final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery 
         ? "Home Delivery"
@@ -684,6 +701,7 @@ Future<void> _placeOrder() async {
       deliverySlotId: widget.checkoutData.deliverySlotId,
       paymentModeId: _selectedPaymentMethod?.idPaymentMode,
       deliveryDistance: ref.read(deliveryChargesProvider).distance,
+      loyaltyRedemptionId: loyaltyRedemptionId,
     );
 
     // Store order result
@@ -729,6 +747,10 @@ Future<void> _placeOrder() async {
         // Clear cart, checkout data cache, and show success
         await ref.read(cartProvider.notifier).clearCart();
         await CheckoutData.clearFromPrefs();  // Clear cached checkout data including special notes
+        // The applied voucher (if any) is now spent server-side — drop the
+        // selection and refetch so it stops appearing as available.
+        ref.read(selectedLoyaltyRedemptionProvider.notifier).state = null;
+        ref.read(loyaltyRefreshProvider.notifier).state++;
         // _safeSetState, and before the mounted check rather than after it:
         // clearCart() and clearFromPrefs() are awaits, so the step can be gone
         // by the time they return, and a plain setState then throws
@@ -764,6 +786,10 @@ Future<void> _placeOrder() async {
         // Clear cart, checkout data cache, and show success
         await ref.read(cartProvider.notifier).clearCart();
         await CheckoutData.clearFromPrefs();  // Clear cached checkout data including special notes
+        // The applied voucher (if any) is now spent server-side — drop the
+        // selection and refetch so it stops appearing as available.
+        ref.read(selectedLoyaltyRedemptionProvider.notifier).state = null;
+        ref.read(loyaltyRefreshProvider.notifier).state++;
         // _safeSetState, and before the mounted check rather than after it:
         // clearCart() and clearFromPrefs() are awaits, so the step can be gone
         // by the time they return, and a plain setState then throws
@@ -849,6 +875,8 @@ Future<void> _placeOrder() async {
         ref.read(checkoutTimerProvider.notifier).stopTimer();
         await ref.read(cartProvider.notifier).clearCart();
         await CheckoutData.clearFromPrefs();
+        ref.read(selectedLoyaltyRedemptionProvider.notifier).state = null;
+        ref.read(loyaltyRefreshProvider.notifier).state++;
       } catch (cleanupError) {
         logger.error('Post-order cleanup failed: $cleanupError');
       }
@@ -1491,9 +1519,19 @@ Future<void> _placeOrder() async {
         final handlingFee = deliveryChargesState.handlingFee;
         final packageFee = deliveryChargesState.packageFee;
 
+        // Loyalty reward voucher, if the customer applied one — see
+        // LoyaltyRewardRow. Display-only: the server independently computes
+        // and validates this at place-order time.
+        final selectedRedemption = ref.watch(selectedLoyaltyRedemptionProvider);
+        final loyaltyDiscount = selectedRedemption?.estimateDiscount(
+              orderSubtotal: cartTotal,
+              deliveryCharges: deliveryCharge,
+            ) ??
+            0;
+
         // Calculate final amount
-        final finalAmount = cartTotal + deliveryCharge;
-        
+        final finalAmount = cartTotal + deliveryCharge - loyaltyDiscount;
+
         return Column(
           children: [
             // Quick summary with item count
@@ -1683,9 +1721,11 @@ Future<void> _placeOrder() async {
                 ],
               ),
             ],
-            
+
+            LoyaltyRewardRow(orderSubtotal: cartTotal, deliveryCharges: deliveryCharge),
+
             const Divider(height: 16),
-            
+
             // Total
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

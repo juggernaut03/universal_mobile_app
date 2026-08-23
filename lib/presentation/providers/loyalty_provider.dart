@@ -50,6 +50,18 @@ final loyaltyActiveRedemptionsProvider = FutureProvider<List<LoyaltyRedemption>>
   return ref.read(loyaltyRepositoryProvider).getActiveRedemptions();
 });
 
+/// The reward voucher the customer picked at checkout, if any. Shared
+/// between the payment step's summary card and the "View Order details"
+/// bottom sheet in checkout_flow_screen.dart so both agree on what's
+/// applied. Cleared on successful order placement (see payment_step.dart) so
+/// a stale selection never carries into the next order.
+///
+/// This is a display-only convenience: the server independently validates
+/// and computes the actual discount at place-order time regardless of what
+/// the client shows (see utils/orderService.js's loyalty_redemption_id
+/// handling) - the client is never the source of truth for the amount.
+final selectedLoyaltyRedemptionProvider = StateProvider<LoyaltyRedemption?>((ref) => null);
+
 final loyaltyTiersProvider = FutureProvider<List<LoyaltyTier>>((ref) async {
   return ref.read(loyaltyRepositoryProvider).getTiers();
 });
