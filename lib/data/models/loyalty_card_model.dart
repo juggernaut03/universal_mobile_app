@@ -49,6 +49,15 @@ class LoyaltyCard {
   final String memberName;
   final String memberNumber;
   final LoyaltyCardTier? tier;
+
+  /// Effective card colors - [tier]'s colors once the customer has one,
+  /// else the tenant's configured default (Admin > Loyalty > Loyalty
+  /// Card). Always sent by the server (routes/loyalty.js's GET /card), so
+  /// these - not a hardcoded color in this app - are what the card widget
+  /// should render with.
+  final String cardPrimaryColor;
+  final String cardAccentColor;
+
   final String brandTitle;
   final String brandSubtitle;
   final String memberLabel;
@@ -62,6 +71,8 @@ class LoyaltyCard {
     required this.memberName,
     required this.memberNumber,
     required this.tier,
+    required this.cardPrimaryColor,
+    required this.cardAccentColor,
     required this.brandTitle,
     required this.brandSubtitle,
     required this.memberLabel,
@@ -77,6 +88,12 @@ class LoyaltyCard {
       memberName: (json['memberName'] ?? '').toString(),
       memberNumber: (json['memberNumber'] ?? '').toString(),
       tier: json['tier'] is Map ? LoyaltyCardTier.fromJson(Map<String, dynamic>.from(json['tier'] as Map)) : null,
+      // The '#1A1A1A'/'#D4AF37' fallbacks here are only for a malformed or
+      // pre-upgrade server response missing the field entirely - the
+      // server itself always resolves a real value (tier or tenant
+      // default), so this is defensive, not the source of truth.
+      cardPrimaryColor: (json['cardPrimaryColor'] ?? '#1A1A1A').toString(),
+      cardAccentColor: (json['cardAccentColor'] ?? '#D4AF37').toString(),
       brandTitle: (json['brandTitle'] ?? 'LOYALTY').toString(),
       brandSubtitle: (json['brandSubtitle'] ?? 'MEMBER').toString(),
       memberLabel: (json['memberLabel'] ?? 'LOYAL MEMBER').toString(),

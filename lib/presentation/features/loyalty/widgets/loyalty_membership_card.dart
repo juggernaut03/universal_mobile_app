@@ -83,8 +83,12 @@ class _LoyaltyMembershipCardState extends State<LoyaltyMembershipCard> with Sing
 
   @override
   Widget build(BuildContext context) {
-    final primary = _parseHex(widget.card.tier?.cardPrimaryColor ?? '#1A1A1A', fallback: const Color(0xFF1A1A1A));
-    final accent = _parseHex(widget.card.tier?.cardAccentColor ?? '#D4AF37', fallback: const Color(0xFFD4AF37));
+    // Always backend-driven: tier colors once the customer has a tier, else
+    // the tenant's configured default (LoyaltyCard.cardPrimaryColor/
+    // cardAccentColor - see routes/loyalty.js's GET /card). The fallback
+    // Color here only guards a malformed hex string, not a missing tier.
+    final primary = _parseHex(widget.card.cardPrimaryColor, fallback: const Color(0xFF1A1A1A));
+    final accent = _parseHex(widget.card.cardAccentColor, fallback: const Color(0xFFD4AF37));
 
     return GestureDetector(
       onTap: _flip,
