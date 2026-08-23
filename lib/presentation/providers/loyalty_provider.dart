@@ -50,6 +50,14 @@ final loyaltyActiveRedemptionsProvider = FutureProvider<List<LoyaltyRedemption>>
   return ref.read(loyaltyRepositoryProvider).getActiveRedemptions();
 });
 
+/// Every voucher ever redeemed, any status - backs the "My Coupons" screen.
+/// Distinct from loyaltyActiveRedemptionsProvider, which the checkout picker
+/// uses and only ever has what's still usable.
+final loyaltyAllRedemptionsProvider = FutureProvider<List<LoyaltyRedemption>>((ref) async {
+  ref.watch(loyaltyRefreshProvider);
+  return ref.read(loyaltyRepositoryProvider).getAllRedemptions();
+});
+
 /// The reward voucher the customer picked at checkout, if any. Shared
 /// between the payment step's summary card and the "View Order details"
 /// bottom sheet in checkout_flow_screen.dart so both agree on what's

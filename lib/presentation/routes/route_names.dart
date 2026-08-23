@@ -36,6 +36,7 @@ static const String reorder = 'reorder';
   static const String loyaltyTransactions = 'loyaltyTransactions';
   static const String loyaltyChallenges = 'loyaltyChallenges';
   static const String loyaltyReferral = 'loyaltyReferral';
+  static const String loyaltyCoupons = 'loyaltyCoupons';
 static const String search = 'search';
 static const String debugNotifications = 'debugNotifications';
 static const String debugAccessKey = 'debugAccessKey';

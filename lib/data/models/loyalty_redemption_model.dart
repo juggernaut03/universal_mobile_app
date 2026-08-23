@@ -14,6 +14,11 @@ class LoyaltyRedemption {
   final String couponCode;
   final int pointsSpent;
   final DateTime expiresAt;
+  // ACTIVE | USED | EXPIRED | CANCELLED - only meaningful on the "My
+  // Coupons" screen (getAllRedemptions); the checkout picker only ever
+  // fetches ACTIVE ones to begin with.
+  final String status;
+  final DateTime? usedAt;
 
   const LoyaltyRedemption({
     required this.id,
@@ -25,6 +30,8 @@ class LoyaltyRedemption {
     required this.couponCode,
     required this.pointsSpent,
     required this.expiresAt,
+    this.status = 'ACTIVE',
+    this.usedAt,
   });
 
   factory LoyaltyRedemption.fromJson(Map<String, dynamic> json) {
@@ -41,6 +48,8 @@ class LoyaltyRedemption {
       couponCode: (json['couponCode'] ?? '').toString(),
       pointsSpent: (json['pointsSpent'] as num?)?.toInt() ?? 0,
       expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? '') ?? DateTime.now(),
+      status: (json['status'] ?? 'ACTIVE').toString(),
+      usedAt: json['usedAt'] != null ? DateTime.tryParse(json['usedAt'].toString()) : null,
     );
   }
 

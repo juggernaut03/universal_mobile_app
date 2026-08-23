@@ -14,6 +14,7 @@ import '../../../core/widgets/error_widgets.dart';
 import '../../../data/models/loyalty_dashboard_model.dart';
 import '../../../data/models/loyalty_challenge_model.dart';
 import '../../../data/models/loyalty_transaction_model.dart';
+import '../../../data/models/loyalty_way_to_earn_model.dart';
 import '../../providers/loyalty_provider.dart';
 
 class LoyaltyScreen extends ConsumerStatefulWidget {
@@ -87,6 +88,27 @@ class _LoyaltyScreenState extends ConsumerState<LoyaltyScreen> {
             _TierProgressCard(dashboard: dashboard),
             const SizedBox(height: 16),
           ],
+
+          // How points are EARNED - distinct from the two sections below,
+          // which are both about SPENDING points already earned.
+          if (dashboard.waysToEarn.isNotEmpty) ...[
+            Text('Ways to Earn', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 90,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: dashboard.waysToEarn.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, i) => _WayToEarnCard(way: dashboard.waysToEarn[i]),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // The CATALOG you spend points on - "Rewards". What you get after
+          // redeeming one (a usable voucher/coupon) lives on My Coupons,
+          // reached from the row just below, not here.
           _SectionHeader(title: 'Rewards', onSeeAll: () => context.push('/loyalty/rewards')),
           const SizedBox(height: 8),
           if (dashboard.rewards.isEmpty)
@@ -105,6 +127,32 @@ class _LoyaltyScreenState extends ConsumerState<LoyaltyScreen> {
                 ),
               ),
             ),
+          const SizedBox(height: 12),
+
+          // What you already claimed by redeeming a reward above - the
+          // vouchers/coupons themselves, with codes and expiry, usable at
+          // checkout.
+          InkWell(
+            onTap: () => context.push('/loyalty/coupons'),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.confirmation_number_outlined, color: AppColors.success, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('My Coupons', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  ),
+                  Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
           _SectionHeader(title: 'Active Challenges', onSeeAll: () => context.push('/loyalty/challenges')),
           const SizedBox(height: 8),
@@ -238,6 +286,28 @@ class _EmptyRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(text, style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+    );
+  }
+}
+
+class _WayToEarnCard extends StatelessWidget {
+  final LoyaltyWayToEarn way;
+  const _WayToEarnCard({required this.way});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 120,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: AppColors.borderLight)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(way.label, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(way.description, style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }
