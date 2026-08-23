@@ -27,8 +27,10 @@ import '../../../../di/auth_providers.dart';
 import '../../../../domain/entities/auth_session.dart';
 import 'package:flutter/foundation.dart';
 import '../../../providers/loyalty_provider.dart';
+import '../../../providers/steal_deals_provider.dart' show selectedCartOfferProvider;
 import '../checkout_models.dart';
 import '../widgets/loyalty_reward_picker.dart';
+import '../widgets/cart_offer_picker.dart';
 import 'order_success_dialog.dart';
 
 // Checkout step enum to track progress
@@ -441,6 +443,24 @@ Future<void> _placeOrder() async {
     final deliveryChargesState = ref.read(deliveryChargesProvider);
     final deliveryCharge = deliveryChargesState.deliveryCharge;
 
+    // Cart-discount offer, if applied — see CartOfferRow. selectedCartOfferProvider
+    // is already kept in sync with eligibility by stealDealsOffersProvider's
+    // refetch cycle (cleared/reselected whenever the cart total changes), but
+    // `unlocked` is re-checked here too as a final guard against a stale
+    // selection slipping through between refetches. The server independently
+    // re-validates offer_id at place-order time regardless (utils/orderService.js's
+    // applyCartOffer) — this only keeps what's charged in sync with what's shown.
+    final selectedCartOffer = ref.read(selectedCartOfferProvider);
+    final cartOfferDiscount =
+        (selectedCartOffer != null && selectedCartOffer.unlocked) ? selectedCartOffer.effectiveDiscount : 0.0;
+    final offerId = cartOfferDiscount > 0 ? selectedCartOffer?.id : null;
+
+    // Subtotal after the cart offer, before loyalty — matches the backend's
+    // own stacking order (utils/orderService.js applies the cart discount
+    // first, then computes the loyalty redemption's discount against what's
+    // left), so this estimate and the server's authoritative one agree.
+    final subtotalAfterOffer = cartTotal - cartOfferDiscount;
+
     // Loyalty reward voucher, if applied — see LoyaltyRewardRow. Re-checked
     // here (not just trusted from when it was selected) in case the cart
     // changed since, e.g. dropping below the voucher's minimum order value;
@@ -450,14 +470,14 @@ Future<void> _placeOrder() async {
     // charged in sync with what's shown.
     final selectedRedemption = ref.read(selectedLoyaltyRedemptionProvider);
     final loyaltyDiscount = selectedRedemption?.estimateDiscount(
-          orderSubtotal: cartTotal,
+          orderSubtotal: subtotalAfterOffer,
           deliveryCharges: deliveryCharge,
         ) ??
         0;
     final loyaltyRedemptionId = loyaltyDiscount > 0 ? selectedRedemption?.id : null;
 
     // Calculate final amount
-    final finalAmount = cartTotal + deliveryCharge - loyaltyDiscount;
+    final finalAmount = subtotalAfterOffer + deliveryCharge - loyaltyDiscount;
 
     // Get delivery mode and payment mode
     final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery 
@@ -702,6 +722,7 @@ Future<void> _placeOrder() async {
       paymentModeId: _selectedPaymentMethod?.idPaymentMode,
       deliveryDistance: ref.read(deliveryChargesProvider).distance,
       loyaltyRedemptionId: loyaltyRedemptionId,
+      offerId: offerId,
     );
 
     // Store order result
@@ -751,6 +772,9 @@ Future<void> _placeOrder() async {
         // selection and refetch so it stops appearing as available.
         ref.read(selectedLoyaltyRedemptionProvider.notifier).state = null;
         ref.read(loyaltyRefreshProvider.notifier).state++;
+        // Same for a cart-discount offer — it's not a reusable coupon, so
+        // don't leave it selected for the next order.
+        ref.read(selectedCartOfferProvider.notifier).state = null;
         // _safeSetState, and before the mounted check rather than after it:
         // clearCart() and clearFromPrefs() are awaits, so the step can be gone
         // by the time they return, and a plain setState then throws
@@ -790,6 +814,9 @@ Future<void> _placeOrder() async {
         // selection and refetch so it stops appearing as available.
         ref.read(selectedLoyaltyRedemptionProvider.notifier).state = null;
         ref.read(loyaltyRefreshProvider.notifier).state++;
+        // Same for a cart-discount offer — it's not a reusable coupon, so
+        // don't leave it selected for the next order.
+        ref.read(selectedCartOfferProvider.notifier).state = null;
         // _safeSetState, and before the mounted check rather than after it:
         // clearCart() and clearFromPrefs() are awaits, so the step can be gone
         // by the time they return, and a plain setState then throws
@@ -877,6 +904,7 @@ Future<void> _placeOrder() async {
         await CheckoutData.clearFromPrefs();
         ref.read(selectedLoyaltyRedemptionProvider.notifier).state = null;
         ref.read(loyaltyRefreshProvider.notifier).state++;
+        ref.read(selectedCartOfferProvider.notifier).state = null;
       } catch (cleanupError) {
         logger.error('Post-order cleanup failed: $cleanupError');
       }
@@ -1519,18 +1547,28 @@ Future<void> _placeOrder() async {
         final handlingFee = deliveryChargesState.handlingFee;
         final packageFee = deliveryChargesState.packageFee;
 
+        // Cart-discount offer, if applied — see CartOfferRow. Display-only,
+        // same as the loyalty voucher below; the server re-validates and
+        // recomputes this at place-order time.
+        final selectedCartOffer = ref.watch(selectedCartOfferProvider);
+        final cartOfferDiscount =
+            (selectedCartOffer != null && selectedCartOffer.unlocked) ? selectedCartOffer.effectiveDiscount : 0.0;
+        final subtotalAfterOffer = cartTotal - cartOfferDiscount;
+
         // Loyalty reward voucher, if the customer applied one — see
-        // LoyaltyRewardRow. Display-only: the server independently computes
-        // and validates this at place-order time.
+        // LoyaltyRewardRow. Computed against what's left after the cart
+        // offer (matches the backend's stacking order — see the matching
+        // comment in _placeOrder). Display-only: the server independently
+        // computes and validates this at place-order time.
         final selectedRedemption = ref.watch(selectedLoyaltyRedemptionProvider);
         final loyaltyDiscount = selectedRedemption?.estimateDiscount(
-              orderSubtotal: cartTotal,
+              orderSubtotal: subtotalAfterOffer,
               deliveryCharges: deliveryCharge,
             ) ??
             0;
 
         // Calculate final amount
-        final finalAmount = cartTotal + deliveryCharge - loyaltyDiscount;
+        final finalAmount = subtotalAfterOffer + deliveryCharge - loyaltyDiscount;
 
         return Column(
           children: [
@@ -1722,7 +1760,9 @@ Future<void> _placeOrder() async {
               ),
             ],
 
-            LoyaltyRewardRow(orderSubtotal: cartTotal, deliveryCharges: deliveryCharge),
+            const CartOfferRow(),
+
+            LoyaltyRewardRow(orderSubtotal: subtotalAfterOffer, deliveryCharges: deliveryCharge),
 
             const Divider(height: 16),
 
