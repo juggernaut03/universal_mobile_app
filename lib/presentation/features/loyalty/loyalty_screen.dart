@@ -16,11 +16,32 @@ import '../../../data/models/loyalty_challenge_model.dart';
 import '../../../data/models/loyalty_transaction_model.dart';
 import '../../providers/loyalty_provider.dart';
 
-class LoyaltyScreen extends ConsumerWidget {
+class LoyaltyScreen extends ConsumerStatefulWidget {
   const LoyaltyScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LoyaltyScreen> createState() => _LoyaltyScreenState();
+}
+
+class _LoyaltyScreenState extends ConsumerState<LoyaltyScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Points/tier/challenges can change from something that happened
+    // entirely server-side (a referred order got delivered, a reward
+    // expired) with no in-app action of this shopper's own to trigger a
+    // refetch. loyaltyDashboardProvider is a plain (non-autoDispose)
+    // FutureProvider, so it stays cached app-wide until something bumps
+    // loyaltyRefreshProvider - without this, reopening this screen could
+    // keep showing a balance that was correct minutes or hours ago instead
+    // of the current one.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(loyaltyRefreshProvider.notifier).state++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final dashboardAsync = ref.watch(loyaltyDashboardProvider);
 
     return Scaffold(

@@ -2,6 +2,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/popup_providers.dart';
+import '../providers/loyalty_provider.dart';
 import '../../di/infrastructure_providers.dart';
 import 'package:flutter/foundation.dart';
 
@@ -26,9 +27,19 @@ class AppLifecycleHandler extends WidgetsBindingObserver {
           state == AppLifecycleState.resumed) {
         
         logger.log('App resumed from background - resetting popup state');
-        
+
         // Reset popup state for new session when app comes to foreground
         _ref.read(popupDisplayStateProvider.notifier).resetForNewSession();
+
+        // Loyalty points/tier/challenges can change from something that
+        // happened entirely server-side while this app was backgrounded
+        // (an order this account referred finally got delivered, a reward
+        // expired, an admin adjustment) - there's no realtime push wired to
+        // every one of those, so the dashboard was showing whatever it last
+        // fetched, sometimes stale by however long the app sat backgrounded.
+        // Refreshing on resume, not just on in-app actions, keeps the
+        // balance honest whenever the shopper is actually looking at it.
+        _ref.read(loyaltyRefreshProvider.notifier).state++;
       }
       
       _lastLifecycleState = state;
