@@ -4,6 +4,7 @@ import '../../core/result/result.dart';
 import '../../di/product_providers.dart';
 import '../../domain/usecases/product/get_product_by_code.dart';
 import '../../data/models/product_model.dart';
+import '../../data/models/cart_offer_model.dart';
 import 'outlet_provider.dart';
 import 'cart_provider.dart';
 import '../../di/service_providers.dart';
@@ -80,6 +81,29 @@ final offerPanelColorsProvider = Provider<OfferPanelColors>((ref) {
   return ref.watch(_offerPanelColorsState);
 });
 
+/// Every cart_discount offer for the current cart - a distinct concept from
+/// the product_deal offers above (StealDealOffer). Kept in sync inside
+/// stealDealsOffersProvider's fetch below, as a side effect, so both
+/// features share the one GET /offers/for-cart request/debounce cycle
+/// instead of firing two requests for the same endpoint on every cart
+/// change (see the OfferPanelColors side-channel above for the existing
+/// precedent of this pattern).
+final _cartOffersState = StateProvider<List<CartOffer>>((ref) => const []);
+final cartOffersProvider = Provider<List<CartOffer>>((ref) => ref.watch(_cartOffersState));
+
+/// The cart-discount offer currently applied to checkout, if any.
+///
+/// Auto-set to the server's best_offer whenever fresh offers arrive and the
+/// current selection is no longer present/unlocked among them (cart
+/// dropped below its threshold, or the offer expired) - so a shopper who
+/// never touches this gets the best eligible discount automatically, the
+/// same as the web PWA. Unlike the PWA, a deliberate tap on a different
+/// unlocked offer is *not* clobbered by the next refetch as long as that
+/// choice stays valid - only overwritten once it genuinely stops applying.
+/// Cleared on successful order placement (payment_step.dart), same as
+/// selectedLoyaltyRedemptionProvider.
+final selectedCartOfferProvider = StateProvider<CartOffer?>((ref) => null);
+
 /// Provider that fetches offers from the get_offer API and returns
 /// the product details for each offer's offer_p_code (array of codes).
 /// Uses keepAlive + previous data caching to avoid flickering on cart changes.
@@ -97,6 +121,8 @@ final stealDealsOffersProvider =
   // sensible stand-in for "no outlet yet", so show nothing until one is picked.
   if (storeCode == null || storeCode.isEmpty) {
     logger.log('StealDeals: no outlet selected yet — skipping fetch');
+    ref.read(_cartOffersState.notifier).state = const [];
+    ref.read(selectedCartOfferProvider.notifier).state = null;
     return const [];
   }
 
@@ -145,6 +171,29 @@ final stealDealsOffersProvider =
       unlockTxtColor: apiResponse.pannelUnlockTxtColor,
       unlockBgColor: apiResponse.pannelUnlockBgColor,
     );
+
+    // Sync cart-discount offers (separate from the product_deals handled
+    // below) and re-sync the applied selection against fresh data.
+    final cartOffers =
+        apiResponse.cartDiscountOffers.map((o) => CartOffer.fromJson(o)).toList();
+    ref.read(_cartOffersState.notifier).state = cartOffers;
+
+    final currentSelection = ref.read(selectedCartOfferProvider);
+    final selectionStillValid = currentSelection != null &&
+        cartOffers.any((o) => o.id == currentSelection.id && o.unlocked);
+    if (!selectionStillValid) {
+      final bestOfferId = apiResponse.bestOffer?['_id']?.toString();
+      CartOffer? best;
+      if (bestOfferId != null) {
+        for (final o in cartOffers) {
+          if (o.id == bestOfferId) {
+            best = o;
+            break;
+          }
+        }
+      }
+      ref.read(selectedCartOfferProvider.notifier).state = best;
+    }
 
     final offers = apiResponse.offers;
     logger.log('StealDeals: get_offer API returned ${offers.length} offers');

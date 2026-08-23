@@ -179,6 +179,17 @@ class ApiService {
           ? response['data'] as Map<String, dynamic>
           : <String, dynamic>{};
 
+      // cart_discount offers (whole-cart % / flat discount) - a distinct
+      // concept from the product_deals below, read from the same response so
+      // both features share this one fetch instead of each hitting the
+      // endpoint separately. See CartOffer/cartOffersProvider.
+      final rawCartOffers = data['offers'];
+      final cartDiscountOffers = rawCartOffers is List
+          ? rawCartOffers.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+          : <Map<String, dynamic>>[];
+      final bestOffer =
+          data['best_offer'] is Map ? Map<String, dynamic>.from(data['best_offer'] as Map) : null;
+
       final List<Map<String, dynamic>> offers = [];
 
       final deals = data['product_deals'];
@@ -208,8 +219,13 @@ class ApiService {
         }
       }
 
-      _logger.log('offers/for-cart returned ${offers.length} product deal(s)');
-      return OfferApiResponse(offers: offers);
+      _logger.log(
+          'offers/for-cart returned ${offers.length} product deal(s), ${cartDiscountOffers.length} cart offer(s)');
+      return OfferApiResponse(
+        offers: offers,
+        cartDiscountOffers: cartDiscountOffers,
+        bestOffer: bestOffer,
+      );
     } catch (e) {
       _logger.error('Error fetching offers: $e');
       rethrow;
@@ -232,6 +248,13 @@ class OfferApiResponse {
   final String pannelUnlockTxtColor;
   final String pannelUnlockBgColor;
 
+  /// Raw cart_discount offers and the server's pick of the best one, as
+  /// returned by GET /offers/for-cart's `offers`/`best_offer` fields.
+  /// Kept as raw maps here (parsed into CartOffer by the caller) so this
+  /// service stays a thin transport layer, same as [offers] above.
+  final List<Map<String, dynamic>> cartDiscountOffers;
+  final Map<String, dynamic>? bestOffer;
+
   OfferApiResponse({
     required this.offers,
     this.pannelBgColor = '',
@@ -239,5 +262,7 @@ class OfferApiResponse {
     this.pannelDescriptTxtColor = '',
     this.pannelUnlockTxtColor = '',
     this.pannelUnlockBgColor = '',
+    this.cartDiscountOffers = const [],
+    this.bestOffer,
   });
 }
