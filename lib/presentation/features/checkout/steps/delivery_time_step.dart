@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/data/models/delivery_slot_model.dart';
 import 'package:patelmart/presentation/providers/delivery_charges_provider.dart';
 import 'package:patelmart/presentation/providers/delivery_slot_provider.dart';
+import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/utils/responsive_utils.dart';
@@ -117,10 +118,13 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
   }
 
   void _initializeAvailableDates() {
-    // Generate dates for the next 3 days (fallback)
+    // Fallback only (deliveryDatesProvider threw or returned nothing) - still
+    // respects the store's own delivery-start offset so a next-day-only or
+    // 2-days-out store doesn't fall back to showing "Today" as bookable.
+    final offset = ref.read(selectedOutletProvider).valueOrNull?.deliveryStartOffsetDays ?? 0;
     final now = DateTime.now();
     _availableDates = List.generate(3, (index) {
-      return DateTime(now.year, now.month, now.day + index);
+      return DateTime(now.year, now.month, now.day + offset + index);
     });
   }
 

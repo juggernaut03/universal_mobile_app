@@ -60,6 +60,7 @@ final deliveryDatesProvider = FutureProvider<List<String>>((ref) async {
       
       return await deliverySlotService.fetchDeliveryDates(
         storeCode: outlet.storeCode,
+        startOffsetDays: outlet.deliveryStartOffsetDays,
       );
     },
     loading: () => throw Exception('Loading outlet information...'),

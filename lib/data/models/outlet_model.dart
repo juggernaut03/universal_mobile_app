@@ -14,6 +14,7 @@ class OutletModel {
   final int minOrderAmount;
   final String openTime;
   final String deliveryTime;
+  final int deliveryStartOffsetDays;
   final String offerName;
   final String latitude;
   final String longitude;
@@ -31,6 +32,7 @@ class OutletModel {
     required this.minOrderAmount,
     required this.openTime,
     required this.deliveryTime,
+    this.deliveryStartOffsetDays = 0,
     required this.offerName,
     required this.latitude,
     required this.longitude,
@@ -70,6 +72,7 @@ class OutletModel {
       minOrderAmount: minOrder,
       openTime: json['store_open_time'] ?? '',
       deliveryTime: json['delivery_time'] ?? json['store_delivery_time'] ?? '',
+      deliveryStartOffsetDays: (json['delivery_start_offset_days'] as num?)?.toInt() ?? 0,
       offerName: json['offer'] ?? json['store_offer_name'] ?? '',
       latitude: (location['latitude'] ?? json['latitude'] ?? '').toString(),
       longitude: (location['longitude'] ?? json['longitude'] ?? '').toString(),
@@ -100,6 +103,7 @@ class OutletModel {
       'min_order_amount': minOrderAmount,
       'store_open_time': openTime,
       'store_delivery_time': deliveryTime,
+      'delivery_start_offset_days': deliveryStartOffsetDays,
       'store_offer_name': offerName,
       'latitude': latitude,
       'longitude': longitude,
@@ -125,6 +129,7 @@ class OutletModel {
         minOrderAmount: minOrderAmount,
         openTime: openTime,
         deliveryTime: deliveryTime,
+        deliveryStartOffsetDays: deliveryStartOffsetDays,
         offerName: offerName,
         contactPhone: contactPhone,
         storeMessage: storeMessage,
@@ -143,6 +148,7 @@ class OutletModel {
         minOrderAmount: outlet.minOrderAmount,
         openTime: outlet.openTime,
         deliveryTime: outlet.deliveryTime,
+        deliveryStartOffsetDays: outlet.deliveryStartOffsetDays,
         offerName: outlet.offerName,
         latitude: outlet.location?.latitude.toString() ?? '',
         longitude: outlet.location?.longitude.toString() ?? '',
