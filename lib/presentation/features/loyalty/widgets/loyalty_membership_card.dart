@@ -37,7 +37,19 @@ IconData _iconFor(String name) => switch (name) {
 
 class LoyaltyMembershipCard extends StatefulWidget {
   final LoyaltyCard card;
-  const LoyaltyMembershipCard({super.key, required this.card});
+  // Points come from the dashboard call (loyaltyDashboardProvider), not
+  // GET /api/loyalty/card - the card endpoint is about identity/styling,
+  // the dashboard already owns the balance as the single source of truth
+  // for it elsewhere on this screen. Passed in rather than fetched again.
+  final int availablePoints;
+  final int pendingPoints;
+
+  const LoyaltyMembershipCard({
+    super.key,
+    required this.card,
+    required this.availablePoints,
+    this.pendingPoints = 0,
+  });
 
   @override
   State<LoyaltyMembershipCard> createState() => _LoyaltyMembershipCardState();
@@ -94,7 +106,13 @@ class _LoyaltyMembershipCardState extends State<LoyaltyMembershipCard> with Sing
                       transform: Matrix4.identity()..rotateY(math.pi),
                       child: _CardBack(card: widget.card, primary: primary, accent: accent),
                     )
-                  : _CardFront(card: widget.card, primary: primary, accent: accent),
+                  : _CardFront(
+                      card: widget.card,
+                      primary: primary,
+                      accent: accent,
+                      availablePoints: widget.availablePoints,
+                      pendingPoints: widget.pendingPoints,
+                    ),
             );
           },
         ),
@@ -130,7 +148,15 @@ class _CardFront extends StatelessWidget {
   final LoyaltyCard card;
   final Color primary;
   final Color accent;
-  const _CardFront({required this.card, required this.primary, required this.accent});
+  final int availablePoints;
+  final int pendingPoints;
+  const _CardFront({
+    required this.card,
+    required this.primary,
+    required this.accent,
+    required this.availablePoints,
+    this.pendingPoints = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -160,11 +186,28 @@ class _CardFront extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: 14,
-            right: 16,
-            child: Transform.rotate(
-              angle: math.pi / 2,
-              child: Icon(Icons.wifi_rounded, color: accent.withOpacity(0.7), size: 22),
+            top: 16,
+            right: 18,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$availablePoints',
+                  style: TextStyle(color: accent, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'PTS',
+                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 9, letterSpacing: 2),
+                ),
+                if (pendingPoints > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '+$pendingPoints pending',
+                      style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 8.5),
+                    ),
+                  ),
+              ],
             ),
           ),
           Padding(
