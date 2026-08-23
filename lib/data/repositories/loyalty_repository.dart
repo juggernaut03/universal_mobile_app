@@ -6,6 +6,7 @@
 // computes a balance or discount client-side.
 
 import '../../core/constants/app_constants.dart';
+import '../models/loyalty_card_model.dart';
 import '../models/loyalty_tier_model.dart';
 import '../models/loyalty_reward_model.dart';
 import '../models/loyalty_challenge_model.dart';
@@ -49,6 +50,18 @@ class LoyaltyRepository extends BaseRepository {
       },
       onAuthError: () => LoyaltyDashboard.empty,
     ) ?? LoyaltyDashboard.empty;
+  }
+
+  Future<LoyaltyCard?> getCard() async {
+    return await makeAuthenticatedRequest<LoyaltyCard?>(
+      () async {
+        final response = await getWithAuth(ApiConstants.loyaltyCard);
+        final map = _asMap(response);
+        if (map == null || map['data'] is! Map) return null;
+        return LoyaltyCard.fromJson(Map<String, dynamic>.from(map['data'] as Map));
+      },
+      onAuthError: () => null,
+    );
   }
 
   Future<List<LoyaltyTransaction>> getTransactions({int page = 1, int limit = 20}) async {

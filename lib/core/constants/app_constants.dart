@@ -115,6 +115,7 @@ class ApiConstants {
   static const String loyaltyRedemptions = '$baseUrl/loyalty/redemptions';
   static String loyaltyRedemptionPreview(String redemptionId) => '$baseUrl/loyalty/redemptions/$redemptionId/preview';
   static const String loyaltyTiers = '$baseUrl/loyalty/tiers';
+  static const String loyaltyCard = '$baseUrl/loyalty/card';
   static const String loyaltyChallenges = '$baseUrl/loyalty/challenges';
   static String loyaltyClaimChallenge(String challengeId) => '$baseUrl/loyalty/challenges/$challengeId/claim';
   static const String loyaltyReferral = '$baseUrl/loyalty/referral';

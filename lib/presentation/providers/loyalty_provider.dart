@@ -8,6 +8,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/loyalty_card_model.dart';
 import '../../data/models/loyalty_tier_model.dart';
 import '../../data/repositories/loyalty_repository.dart';
 import '../../data/models/loyalty_reward_model.dart';
@@ -27,6 +28,14 @@ final loyaltyRefreshProvider = StateProvider<int>((ref) => 0);
 final loyaltyDashboardProvider = FutureProvider<LoyaltyDashboard>((ref) async {
   ref.watch(loyaltyRefreshProvider);
   return ref.read(loyaltyRepositoryProvider).getDashboard();
+});
+
+/// The membership card (front + back content, tier-colored). Separate from
+/// the dashboard call since it's a distinct section with its own loading
+/// state, even though both live on the same screen.
+final loyaltyCardProvider = FutureProvider<LoyaltyCard?>((ref) async {
+  ref.watch(loyaltyRefreshProvider);
+  return ref.read(loyaltyRepositoryProvider).getCard();
 });
 
 /// Just the points, for cheap places like the home app-bar chip that don't
