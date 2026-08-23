@@ -16,6 +16,7 @@ import '../../../data/models/loyalty_challenge_model.dart';
 import '../../../data/models/loyalty_transaction_model.dart';
 import '../../../data/models/loyalty_way_to_earn_model.dart';
 import '../../providers/loyalty_provider.dart';
+import 'widgets/loyalty_membership_card.dart';
 
 class LoyaltyScreen extends ConsumerStatefulWidget {
   const LoyaltyScreen({super.key});
@@ -84,6 +85,31 @@ class _LoyaltyScreenState extends ConsumerState<LoyaltyScreen> {
         children: [
           _PointsCard(dashboard: dashboard),
           const SizedBox(height: 16),
+
+          // The physical-style membership card - tap to flip. Fully
+          // backend-driven (Admin > Loyalty > Tiers for colors, Admin >
+          // Loyalty > Loyalty Card for the shared front/back content), kept
+          // as its own provider/section since it can be slower or fail
+          // independently of the rest of the dashboard without blocking it.
+          Consumer(
+            builder: (context, ref, _) {
+              final cardAsync = ref.watch(loyaltyCardProvider);
+              return cardAsync.when(
+                data: (card) => card == null
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: LoyaltyMembershipCard(card: card),
+                      ),
+                loading: () => const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: AspectRatio(aspectRatio: 1.65, child: Center(child: CircularProgressIndicator())),
+                ),
+                error: (_, __) => const SizedBox.shrink(),
+              );
+            },
+          ),
+
           if (dashboard.tier.code != null) ...[
             _TierProgressCard(dashboard: dashboard),
             const SizedBox(height: 16),
