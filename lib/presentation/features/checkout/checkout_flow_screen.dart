@@ -7,8 +7,10 @@ import 'package:patelmart/presentation/providers/delivery_charges_provider.dart'
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/loyalty_provider.dart';
 import '../../providers/checkout_timer_provider.dart';
 import '../checkout/widgets/checkout_timer_widget.dart';
+import '../checkout/widgets/loyalty_reward_picker.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../../../facebook_pixel/facebook_pixel_integration.dart';
 import '../../../di/infrastructure_providers.dart';
@@ -257,9 +259,18 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                   final handlingFee = deliveryChargesState.handlingFee;
                   final packageFee = deliveryChargesState.packageFee;
 
+                  // Loyalty reward voucher, if applied — see LoyaltyRewardRow
+                  // in payment_step.dart, where this is actually selected.
+                  final selectedRedemption = ref.watch(selectedLoyaltyRedemptionProvider);
+                  final loyaltyDiscount = selectedRedemption?.estimateDiscount(
+                        orderSubtotal: cartTotal,
+                        deliveryCharges: deliveryCharge,
+                      ) ??
+                      0;
+
                   // Calculate final total with delivery charges
-                  final finalTotal = cartTotal + deliveryCharge;
-                  
+                  final finalTotal = cartTotal + deliveryCharge - loyaltyDiscount;
+
                   return Container(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -441,7 +452,9 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                           ),
                           const SizedBox(height: 8),
                         ],
-                        
+
+                        LoyaltyRewardRow(orderSubtotal: cartTotal, deliveryCharges: deliveryCharge),
+
                         // Divider before total
                         const Divider(),
                         

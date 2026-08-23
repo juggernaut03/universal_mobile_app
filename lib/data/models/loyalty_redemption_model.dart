@@ -43,4 +43,33 @@ class LoyaltyRedemption {
       expiresAt: DateTime.tryParse(json['expiresAt']?.toString() ?? '') ?? DateTime.now(),
     );
   }
+
+  /// Display-only estimate of the discount this voucher would produce
+  /// against [orderSubtotal]/[deliveryCharges] right now - mirrors
+  /// previewRedemptionDiscount() in the backend's utils/loyaltyRedemption.js
+  /// so the checkout summary shows the same number the server will actually
+  /// apply. Not authoritative: place-order recomputes this itself from the
+  /// voucher id, exactly like every other total on this screen is a client
+  /// estimate the server re-derives (see finalAmount in payment_step.dart).
+  ///
+  /// Returns null if [orderSubtotal] doesn't meet minimumOrderValue, or for
+  /// FREE_PRODUCT/SPECIAL_OFFER (fulfilled manually, no checkout-time amount)
+  /// - callers should treat null as "can't apply this voucher right now".
+  double? estimateDiscount({required double orderSubtotal, double deliveryCharges = 0}) {
+    if (orderSubtotal < minimumOrderValue) return null;
+
+    switch (rewardType) {
+      case 'FIXED_DISCOUNT':
+      case 'CASHBACK':
+        return discountValue;
+      case 'PERCENTAGE_DISCOUNT':
+        var amount = orderSubtotal * discountValue / 100;
+        if (maximumDiscount != null) amount = amount > maximumDiscount! ? maximumDiscount! : amount;
+        return amount;
+      case 'FREE_SHIPPING':
+        return deliveryCharges;
+      default:
+        return null;
+    }
+  }
 }
