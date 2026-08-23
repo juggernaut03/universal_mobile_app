@@ -223,6 +223,20 @@ final stealDealsOffersProvider =
         continue;
       }
 
+      // deal_price/original_price per p_code, straight off this offer's own
+      // deal_products (spread into `offer` via `...deal` in
+      // ApiService.getOffer()) — keyed here once instead of re-scanning the
+      // list per product below.
+      final Map<String, Map<String, dynamic>> dealProductByPCode = {};
+      final rawDealProducts = offer['deal_products'];
+      if (rawDealProducts is List) {
+        for (final dp in rawDealProducts) {
+          if (dp is! Map) continue;
+          final code = dp['p_code']?.toString() ?? '';
+          if (code.isNotEmpty) dealProductByPCode[code] = Map<String, dynamic>.from(dp);
+        }
+      }
+
       // Fetch all products for this offer.
       // A failure on one code must not abandon the whole offer, so each Err is
       // logged and skipped — but now with a typed reason instead of a bare null.
@@ -234,7 +248,27 @@ final stealDealsOffersProvider =
         switch (result) {
           case Ok(:final value):
             if (value.isAvailable) {
-              products.add(ProductModel.fromEntity(value));
+              var product = ProductModel.fromEntity(value);
+
+              // Deal products are sold at the offer's own deal_price, not
+              // the product's regular catalog price — the catalog fetch
+              // above only exists to get name/image/stock; the price it
+              // returns must be overridden here. Without this, the app
+              // showed and added-to-cart the product at its normal price
+              // regardless of what the admin configured for the deal.
+              final dealProduct = dealProductByPCode[pCode];
+              if (dealProduct != null) {
+                final dealPrice = double.tryParse(dealProduct['deal_price']?.toString() ?? '');
+                final originalPrice = double.tryParse(dealProduct['original_price']?.toString() ?? '');
+                if (dealPrice != null) {
+                  product = product.copyWith(
+                    ourPrice: dealPrice,
+                    productMrp: originalPrice ?? product.productMrp,
+                  );
+                }
+              }
+
+              products.add(product);
             }
           case Err(:final failure):
             logger.error(
@@ -334,6 +368,44 @@ final offerProductCodesProvider = Provider<Set<String>>((ref) {
     }
   }
   return codes;
+});
+
+/// Which unlocked product_deal offer a p_code belongs to, and that deal's
+/// max_quantity - everything payment_step.dart needs to build the
+/// `deal_items` sent to /orders/place-order so the backend's applyDeals()
+/// (utils/orderService.js) actually re-prices the item at deal_price
+/// instead of the catalog price repriceCart() would otherwise charge.
+/// Without this, the deal price shown in the app (see the copyWith above)
+/// was never actually charged - the server always re-derives unit_price
+/// from ProductMaster unless deal_items tells it which lines are deals.
+class DealProductOfferInfo {
+  final String offerId;
+  final int maxQuantity;
+  const DealProductOfferInfo({required this.offerId, required this.maxQuantity});
+}
+
+final dealProductOfferInfoProvider = Provider<Map<String, DealProductOfferInfo>>((ref) {
+  final offersAsync = ref.watch(stealDealsOffersProvider);
+  final offers = offersAsync.valueOrNull;
+  if (offers == null || offers.isEmpty) return {};
+
+  final Map<String, DealProductOfferInfo> map = {};
+  for (final offer in offers) {
+    if (!offer.isUnlocked) continue;
+    final offerId = (offer.offer['_id'] ?? '').toString();
+    if (offerId.isEmpty) continue;
+
+    final dealProducts = offer.offer['deal_products'];
+    if (dealProducts is! List) continue;
+    for (final dp in dealProducts) {
+      if (dp is! Map) continue;
+      final pCode = dp['p_code']?.toString() ?? '';
+      if (pCode.isEmpty) continue;
+      final maxQty = int.tryParse(dp['max_quantity']?.toString() ?? '') ?? 1;
+      map[pCode] = DealProductOfferInfo(offerId: offerId, maxQuantity: maxQty);
+    }
+  }
+  return map;
 });
 
 /// Set of ALL offer product codes (locked + unlocked).

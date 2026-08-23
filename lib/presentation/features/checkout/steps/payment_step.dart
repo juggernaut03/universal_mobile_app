@@ -27,7 +27,8 @@ import '../../../../di/auth_providers.dart';
 import '../../../../domain/entities/auth_session.dart';
 import 'package:flutter/foundation.dart';
 import '../../../providers/loyalty_provider.dart';
-import '../../../providers/steal_deals_provider.dart' show selectedCartOfferProvider;
+import '../../../providers/steal_deals_provider.dart'
+    show selectedCartOfferProvider, dealProductOfferInfoProvider;
 import '../checkout_models.dart';
 import '../widgets/loyalty_reward_picker.dart';
 import '../widgets/cart_offer_picker.dart';
@@ -476,6 +477,22 @@ Future<void> _placeOrder() async {
         0;
     final loyaltyRedemptionId = loyaltyDiscount > 0 ? selectedRedemption?.id : null;
 
+    // Product-deal ("Steal Deals") lines, if any are in the cart — see
+    // dealProductOfferInfoProvider. Quantity is capped to the deal's own
+    // max_quantity; the server applies the same cap independently
+    // (utils/orderService.js's applyDeals), this just keeps the two in sync.
+    final dealProductInfo = ref.read(dealProductOfferInfoProvider);
+    final dealItems = <Map<String, dynamic>>[];
+    for (final item in cartItems) {
+      final info = dealProductInfo[item.product.pCode];
+      if (info == null) continue;
+      dealItems.add({
+        'offer_id': info.offerId,
+        'p_code': item.product.pCode,
+        'quantity': item.quantity > info.maxQuantity ? info.maxQuantity : item.quantity,
+      });
+    }
+
     // Calculate final amount
     final finalAmount = subtotalAfterOffer + deliveryCharge - loyaltyDiscount;
 
@@ -723,6 +740,7 @@ Future<void> _placeOrder() async {
       deliveryDistance: ref.read(deliveryChargesProvider).distance,
       loyaltyRedemptionId: loyaltyRedemptionId,
       offerId: offerId,
+      dealItems: dealItems,
     );
 
     // Store order result

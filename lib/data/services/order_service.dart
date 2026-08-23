@@ -89,6 +89,14 @@ class OrderService {
     // to a checkout UI picker; the field exists so callers can pass it once
     // one is built.
     String? loyaltyRedemptionId,
+    // Product-deal ("Steal Deals") lines in this order, as {offer_id,
+    // p_code, quantity} - required for the server to actually charge
+    // dealProduct.deal_price for them (utils/orderService.js's
+    // applyDeals()). The client's own displayed/charged price already
+    // reflects the deal (see steal_deals_provider.dart), but the server
+    // independently re-prices every item from ProductMaster and only skips
+    // that for lines named here.
+    List<Map<String, dynamic>>? dealItems,
   }) async {
     try {
       _logger.log('=== PLACING ORDER (universal backend) ===');
@@ -153,6 +161,7 @@ class OrderService {
         if (offerId != null && offerId.isNotEmpty) 'offer_id': offerId,
         if (loyaltyRedemptionId != null && loyaltyRedemptionId.isNotEmpty)
           'loyalty_redemption_id': loyaltyRedemptionId,
+        if (dealItems != null && dealItems.isNotEmpty) 'deal_items': dealItems,
       };
 
       _logger.log(
