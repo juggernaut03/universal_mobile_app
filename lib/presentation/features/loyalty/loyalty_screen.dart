@@ -83,10 +83,9 @@ class _LoyaltyScreenState extends ConsumerState<LoyaltyScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          _PointsCard(dashboard: dashboard),
-          const SizedBox(height: 16),
-
-          // The physical-style membership card - tap to flip. Fully
+          // The physical-style membership card - tap to flip. Carries the
+          // points balance itself now (top-right of the front), so there's
+          // no separate plain balance card duplicating it. Fully
           // backend-driven (Admin > Loyalty > Tiers for colors, Admin >
           // Loyalty > Loyalty Card for the shared front/back content), kept
           // as its own provider/section since it can be slower or fail
@@ -99,7 +98,11 @@ class _LoyaltyScreenState extends ConsumerState<LoyaltyScreen> {
                     ? const SizedBox.shrink()
                     : Padding(
                         padding: const EdgeInsets.only(bottom: 16),
-                        child: LoyaltyMembershipCard(card: card),
+                        child: LoyaltyMembershipCard(
+                          card: card,
+                          availablePoints: dashboard.availablePoints,
+                          pendingPoints: dashboard.pendingPoints,
+                        ),
                       ),
                 loading: () => const Padding(
                   padding: EdgeInsets.only(bottom: 16),
@@ -198,44 +201,6 @@ class _LoyaltyScreenState extends ConsumerState<LoyaltyScreen> {
             _EmptyRow(text: 'No activity yet — start shopping to earn points!')
           else
             ...dashboard.recentTransactions.map((tx) => _TransactionRow(tx: tx)),
-        ],
-      ),
-    );
-  }
-}
-
-class _PointsCard extends StatelessWidget {
-  final LoyaltyDashboard dashboard;
-  const _PointsCard({required this.dashboard});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.primary, AppColors.primaryDark]),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 14, offset: const Offset(0, 6))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (dashboard.tier.name != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-              child: Text('${dashboard.tier.name} Member', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-          const SizedBox(height: 12),
-          Text(
-            '${dashboard.availablePoints} Points',
-            style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold),
-          ),
-          if (dashboard.pendingPoints > 0) ...[
-            const SizedBox(height: 4),
-            Text('+${dashboard.pendingPoints} pending', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
-          ],
         ],
       ),
     );
