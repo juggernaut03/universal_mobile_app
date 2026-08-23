@@ -73,6 +73,13 @@ final class Outlet {
 
   final String openTime;
   final String deliveryTime;
+
+  /// Which day delivery slots start being offered on, relative to today -
+  /// 0 = same day, 1 = next day only, 2 = day after tomorrow, etc. Admin
+  /// > Outlet > Stores. Distinct from [deliveryTime], which is free-text
+  /// display copy the app never parses.
+  final int deliveryStartOffsetDays;
+
   final String offerName;
   final String contactPhone;
 
@@ -98,6 +105,7 @@ final class Outlet {
     this.location,
     this.openTime = '',
     this.deliveryTime = '',
+    this.deliveryStartOffsetDays = 0,
     this.offerName = '',
     this.contactPhone = '',
     this.storeMessage = '',
@@ -154,6 +162,7 @@ final class Outlet {
     int? minOrderAmount,
     String? openTime,
     String? deliveryTime,
+    int? deliveryStartOffsetDays,
     String? offerName,
     String? contactPhone,
     String? storeMessage,
@@ -169,6 +178,7 @@ final class Outlet {
         minOrderAmount: minOrderAmount ?? this.minOrderAmount,
         openTime: openTime ?? this.openTime,
         deliveryTime: deliveryTime ?? this.deliveryTime,
+        deliveryStartOffsetDays: deliveryStartOffsetDays ?? this.deliveryStartOffsetDays,
         offerName: offerName ?? this.offerName,
         contactPhone: contactPhone ?? this.contactPhone,
         storeMessage: storeMessage ?? this.storeMessage,

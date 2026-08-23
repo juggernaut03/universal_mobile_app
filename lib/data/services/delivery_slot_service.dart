@@ -103,19 +103,24 @@ class DeliverySlotService {
   }
 
   /// Get available delivery dates for a specific store.
-  /// The universal backend has no delivery-dates endpoint — selectable dates
-  /// are generated client-side (today + next 6 days) in dd/MM/yyyy format.
+  /// The universal backend has no delivery-dates endpoint - selectable dates
+  /// are generated client-side (dd/MM/yyyy format), starting [startOffsetDays]
+  /// from today (0 = same-day, 1 = next-day only, 2 = day after tomorrow,
+  /// ...) per the store's own Admin > Outlet > Stores setting
+  /// (Outlet.deliveryStartOffsetDays) and running 7 days from there.
   Future<List<String>> fetchDeliveryDates({
     required String storeCode,
+    int startOffsetDays = 0,
   }) async {
     final now = DateTime.now();
     final dates = List.generate(7, (i) {
-      final date = DateTime(now.year, now.month, now.day + i);
+      final date = DateTime(now.year, now.month, now.day + startOffsetDays + i);
       final d = date.day.toString().padLeft(2, '0');
       final m = date.month.toString().padLeft(2, '0');
       return '$d/$m/${date.year}';
     });
-    _logger.log('Generated ${dates.length} delivery dates for store $storeCode');
+    _logger.log(
+        'Generated ${dates.length} delivery dates for store $storeCode (offset: $startOffsetDays days)');
     return dates;
   }
 }
