@@ -15,6 +15,7 @@ import '../../providers/cart_validator_provider.dart';
 import '../../providers/outlet_provider.dart';
 import 'widgets/cart_item_widget.dart';
 import 'widgets/tabbed_offers_widget.dart';
+import '../checkout/widgets/cart_offer_picker.dart';
 import 'widgets/cart_validation_dialog.dart';
 import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
 import '../../../di/auth_providers.dart';
@@ -355,6 +356,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ],
             ),
           ),
+
+          // Cart-discount offer (₹/％ off the whole cart) — distinct from
+          // the product-deal offers above (TabbedOffersWidget). Renders
+          // nothing when there's no eligible cart_discount offer, so this
+          // is invisible unless one applies. Previously this only showed on
+          // the checkout payment step, which read as "not working" since a
+          // shopper looking at the Cart page (where product deals already
+          // show) had no sign a cart discount existed at all.
+          const CartOfferRow(),
         ],
       ),
     );
