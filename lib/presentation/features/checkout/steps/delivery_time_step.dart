@@ -48,13 +48,14 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     // Load data asynchronously
     _loadData();
     
-    // Ensure delivery charges are calculated on initial load
+    // Ensure delivery/packing charges are calculated on initial load
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Only calculate if we have a selected address in checkout data
       if (widget.checkoutData.selectedAddress != null) {
         ref.read(deliveryChargesProvider.notifier).calculateDeliveryCharges(
           userAddress: widget.checkoutData.selectedAddress!,
         );
+      } else if (widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup) {
+        ref.read(deliveryChargesProvider.notifier).calculatePackingFeeForPickup();
       }
     });
   }
@@ -563,9 +564,13 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
         final distanceCharge = deliveryChargesState.distanceCharge;
         final handlingFee = deliveryChargesState.handlingFee;
         final packageFee = deliveryChargesState.packageFee;
-        
-        // Calculate final total with delivery charges
-        final finalTotal = cartTotal + deliveryCharge;
+        final packingFee = deliveryChargesState.packingFee;
+        final isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+
+        // Calculate final total — self-pickup carries only the packing fee,
+        // never the delivery/handling/packaging charges.
+        final extraCharge = isSelfPickup ? packingFee : deliveryCharge;
+        final finalTotal = cartTotal + extraCharge;
         
         return Padding(
           padding: const EdgeInsets.all(16.0),
@@ -587,7 +592,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
               ),
               
               // Distance information
-              if (distance > 0) ...[
+              if (!isSelfPickup && distance > 0) ...[
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -614,56 +619,59 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                 ),
               ],
               
-              // Delivery fee
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.local_shipping,
-                        size: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Delivery Fee:',
-                        style: AppTextStyles.bodyMedium,
-                      ),
-                      if (isLoading)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primary,
+              // Delivery fee — not charged for self-pickup.
+              if (!isSelfPickup) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.local_shipping,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Delivery Fee:',
+                          style: AppTextStyles.bodyMedium,
+                        ),
+                        if (isLoading)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
+                            child: SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  Text(
-                    isLoading
-                      ? 'Calculating...'
-                      // Only the distance-based charge is waived by free
-                      // delivery — handling/packaging fees below are not.
-                      : (isFreeDelivery && distanceCharge <= 0)
-                        ? 'FREE'
-                        : '₹${distanceCharge.toStringAsFixed(2)}',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: (isFreeDelivery && distanceCharge <= 0) ? Colors.green : null,
-                      fontWeight: (isFreeDelivery && distanceCharge <= 0) ? FontWeight.bold : null,
+                      ],
                     ),
-                  ),
-                ],
-              ),
+                    Text(
+                      isLoading
+                        ? 'Calculating...'
+                        // Only the distance-based charge is waived by free
+                        // delivery — handling/packaging fees below are not.
+                        : (isFreeDelivery && distanceCharge <= 0)
+                          ? 'FREE'
+                          : '₹${distanceCharge.toStringAsFixed(2)}',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: (isFreeDelivery && distanceCharge <= 0) ? Colors.green : null,
+                        fontWeight: (isFreeDelivery && distanceCharge <= 0) ? FontWeight.bold : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
 
               // Handling fee — store-configured flat charge (admin panel),
-              // shown only when the store actually has one set.
-              if (!isLoading && handlingFee > 0) ...[
+              // shown only when the store actually has one set. Not charged
+              // for self-pickup.
+              if (!isSelfPickup && !isLoading && handlingFee > 0) ...[
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -690,8 +698,9 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                 ),
               ],
 
-              // Packaging fee — same idea, shown only when set.
-              if (!isLoading && packageFee > 0) ...[
+              // Packaging fee — same idea, shown only when set. Not charged
+              // for self-pickup (that's the separate Packing Fee row below).
+              if (!isSelfPickup && !isLoading && packageFee > 0) ...[
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -712,6 +721,35 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
                     ),
                     Text(
                       '₹${packageFee.toStringAsFixed(2)}',
+                      style: AppTextStyles.bodyMedium,
+                    ),
+                  ],
+                ),
+              ],
+
+              // Packing fee — self-pickup only, admin-controlled (Outlet >
+              // Delivery Fees > "Charge packing fee on self-pickup orders").
+              if (isSelfPickup && !isLoading && packingFee > 0) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.inventory_2_outlined,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Packing Fee:',
+                          style: AppTextStyles.bodyMedium,
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '₹${packingFee.toStringAsFixed(2)}',
                       style: AppTextStyles.bodyMedium,
                     ),
                   ],
@@ -798,7 +836,7 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
               ),
               
               // Free delivery message for eligible orders
-              if (isFreeDelivery && distance > 0) ...[
+              if (!isSelfPickup && isFreeDelivery && distance > 0) ...[
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

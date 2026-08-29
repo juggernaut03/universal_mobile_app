@@ -96,6 +96,12 @@ final class Outlet {
   /// `hasPickupOnly` / `hasBothServices` getters on OutletStatus.
   final Set<FulfilmentMethod> fulfilmentMethods;
 
+  /// Whether this outlet charges a packing fee on self-pickup orders. Purely
+  /// informational — the authoritative amount and enablement at order time
+  /// come from POST /delivery-charges/calculate (fulfillment_type: 'pickup')
+  /// and ultimately from placeOrder itself, not from this cached flag.
+  final bool packingFeeEnabledForPickup;
+
   const Outlet({
     required this.id,
     required this.storeCode,
@@ -111,6 +117,7 @@ final class Outlet {
     this.storeMessage = '',
     this.isEnabled = true,
     this.fulfilmentMethods = const {FulfilmentMethod.homeDelivery},
+    this.packingFeeEnabledForPickup = false,
   });
 
   // ---- business rules ----
@@ -168,6 +175,7 @@ final class Outlet {
     String? storeMessage,
     bool? isEnabled,
     Set<FulfilmentMethod>? fulfilmentMethods,
+    bool? packingFeeEnabledForPickup,
   }) =>
       Outlet(
         id: id ?? this.id,
@@ -184,6 +192,8 @@ final class Outlet {
         storeMessage: storeMessage ?? this.storeMessage,
         isEnabled: isEnabled ?? this.isEnabled,
         fulfilmentMethods: fulfilmentMethods ?? this.fulfilmentMethods,
+        packingFeeEnabledForPickup:
+            packingFeeEnabledForPickup ?? this.packingFeeEnabledForPickup,
       );
 
   /// Identity is the store code — the stable business key.

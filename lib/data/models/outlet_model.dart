@@ -23,6 +23,7 @@ class OutletModel {
   final String contactPhone;
   final String storeMessage;
   final bool isEnabled;
+  final bool packingFeeEnabledForPickup;
 
   OutletModel({
     required this.id,
@@ -41,6 +42,7 @@ class OutletModel {
     this.contactPhone = '',
     this.storeMessage = '',
     this.isEnabled = true,
+    this.packingFeeEnabledForPickup = false,
   });
 
   // Parses the universal backend's /api/stores/by-pincode shape
@@ -91,6 +93,11 @@ class OutletModel {
       isEnabled: json['is_enabled'] == null
           ? true
           : json['is_enabled'] == true || json['is_enabled'] == 'Enabled',
+      packingFeeEnabledForPickup: deliveryOptions['packing_fee_enabled_for_pickup'] is bool
+          ? deliveryOptions['packing_fee_enabled_for_pickup'] as bool
+          : json['packing_fee_enabled_for_pickup'] is bool
+              ? json['packing_fee_enabled_for_pickup'] as bool
+              : false,
     );
   }
 
@@ -112,6 +119,7 @@ class OutletModel {
       'contact_phone': contactPhone,
       'store_message': storeMessage,
       'is_enabled': isEnabled,
+      'packing_fee_enabled_for_pickup': packingFeeEnabledForPickup,
     };
   }
 
@@ -138,6 +146,7 @@ class OutletModel {
           if (homeDelivery) FulfilmentMethod.homeDelivery,
           if (selfPickup) FulfilmentMethod.selfPickup,
         },
+        packingFeeEnabledForPickup: packingFeeEnabledForPickup,
       );
 
   factory OutletModel.fromEntity(Outlet outlet) => OutletModel(
@@ -157,5 +166,6 @@ class OutletModel {
         contactPhone: outlet.contactPhone,
         storeMessage: outlet.storeMessage,
         isEnabled: outlet.isEnabled,
+        packingFeeEnabledForPickup: outlet.packingFeeEnabledForPickup,
       );
 }

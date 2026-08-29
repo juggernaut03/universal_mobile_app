@@ -10,6 +10,7 @@ import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../providers/cart_provider.dart';
+import '../../../providers/delivery_charges_provider.dart';
 // FACEBOOK PIXEL IMPORTS
 import '../checkout_models.dart';
 
@@ -45,7 +46,13 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
       _selectedMethod = method;
     });
     widget.checkoutData.deliveryMethod = method;
-    
+
+    // deliveryChargesProvider is never re-triggered on its own when the
+    // fulfillment method changes mid-checkout — without this reset, a stale
+    // delivery/handling/packaging fee from a prior Home Delivery quote (or a
+    // stale packing fee) keeps showing after switching methods.
+    ref.read(deliveryChargesProvider.notifier).reset();
+
     // Note: We no longer skip directly to payment for self-pickup
     // User will now select a pickup time slot in the next step
   }
