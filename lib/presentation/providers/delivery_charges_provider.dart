@@ -25,6 +25,12 @@ class DeliveryChargesState {
   final double handlingFee;
   final double packageFee;
 
+  /// The self-pickup packing fee. Kept as its own field rather than reusing
+  /// [packageFee], so [deliveryCharge]/[packageFee] remain literally "the
+  /// delivery-order numbers" and [packingFee] is unambiguously "the pickup
+  /// number".
+  final double packingFee;
+
   DeliveryChargesState({
     required this.isLoading,
     required this.deliveryCharge,
@@ -34,6 +40,7 @@ class DeliveryChargesState {
     this.distanceCharge = 0.0,
     this.handlingFee = 0.0,
     this.packageFee = 0.0,
+    this.packingFee = 0.0,
   });
 
   DeliveryChargesState copyWith({
@@ -45,6 +52,7 @@ class DeliveryChargesState {
     double? distanceCharge,
     double? handlingFee,
     double? packageFee,
+    double? packingFee,
   }) {
     return DeliveryChargesState(
       isLoading: isLoading ?? this.isLoading,
@@ -55,6 +63,7 @@ class DeliveryChargesState {
       distanceCharge: distanceCharge ?? this.distanceCharge,
       handlingFee: handlingFee ?? this.handlingFee,
       packageFee: packageFee ?? this.packageFee,
+      packingFee: packingFee ?? this.packingFee,
     );
   }
 }
@@ -127,6 +136,7 @@ class DeliveryChargesNotifier extends StateNotifier<DeliveryChargesState> {
         distanceCharge: quote.distanceCharge,
         handlingFee: quote.handlingFee,
         packageFee: quote.packageFee,
+        packingFee: 0.0,
       );
 
       logger.log(
@@ -149,6 +159,48 @@ class DeliveryChargesNotifier extends StateNotifier<DeliveryChargesState> {
         distanceCharge: 0.0,
         handlingFee: 0.0,
         packageFee: 0.0,
+        packingFee: 0.0,
+        freeDeliveryEligible: false,
+      );
+    }
+  }
+
+  /// Packing-fee-only quote for a self-pickup order — no address needed.
+  Future<void> calculatePackingFeeForPickup({double? orderAmount}) async {
+    final logger = _ref.read(loggerProvider);
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final selectedOutlet = _ref.read(selectedOutletProvider).valueOrNull;
+      if (selectedOutlet == null) {
+        throw Exception('No outlet selected');
+      }
+      final double amount = orderAmount ?? _ref.read(cartTotalProvider);
+      final quote = await _deliveryChargesService.getPackingFeeForPickup(
+        storeCode: selectedOutlet.storeCode,
+        orderAmount: amount,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        deliveryCharge: 0.0,
+        distanceCharge: 0.0,
+        handlingFee: 0.0,
+        packageFee: 0.0,
+        packingFee: quote.packingFee,
+        distance: 0.0,
+        freeDeliveryEligible: false,
+      );
+      logger.log(
+          'Packing fee updated - ₹${quote.packingFee} (enabled: ${quote.packingFeeEnabled})');
+    } catch (e) {
+      logger.error('Error calculating packing fee: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString().replaceFirst('Exception: ', ''),
+        deliveryCharge: 0.0,
+        distanceCharge: 0.0,
+        handlingFee: 0.0,
+        packageFee: 0.0,
+        packingFee: 0.0,
         freeDeliveryEligible: false,
       );
     }

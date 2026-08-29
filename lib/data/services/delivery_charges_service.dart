@@ -31,6 +31,12 @@ class DeliveryChargeQuote {
   final bool freeDelivery;
   final String reason;
 
+  /// The self-pickup packing fee, kept distinct from [packageFee] (which is
+  /// always the home-delivery packaging component) — see
+  /// getPackingFeeForPickup below.
+  final double packingFee;
+  final bool packingFeeEnabled;
+
   DeliveryChargeQuote({
     required this.available,
     required this.charge,
@@ -40,6 +46,8 @@ class DeliveryChargeQuote {
     required this.distanceKm,
     required this.freeDelivery,
     this.reason = '',
+    this.packingFee = 0.0,
+    this.packingFeeEnabled = false,
   });
 
   /// Fail-soft default: deliverable with no charge (matches legacy behavior
@@ -126,6 +134,50 @@ class DeliveryChargesService {
       }
     } catch (e) {
       _logger.error('Error getting delivery charges: $e');
+      return DeliveryChargeQuote.fallback();
+    }
+  }
+
+  /// Packing-fee-only quote for a self-pickup order — no coordinates needed.
+  /// See routes/deliveryCharges.js's pickup branch.
+  Future<DeliveryChargeQuote> getPackingFeeForPickup({
+    required String storeCode,
+    required double orderAmount,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse(ApiConstants.deliveryChargesCalculate),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Project-Code': ApiConstants.projectCode,
+        },
+        body: jsonEncode({
+          'store_code': storeCode,
+          'project_code': ApiConstants.projectCode,
+          'fulfillment_type': 'pickup',
+          'order_amount': orderAmount,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final data = decoded is Map && decoded['data'] is Map
+            ? decoded['data'] as Map
+            : {};
+        return DeliveryChargeQuote(
+          available: data['delivery_available'] != false,
+          charge: (data['total_charges'] ?? 0).toDouble(),
+          distanceKm: 0.0,
+          freeDelivery: false,
+          packingFee: (data['packing_fee'] ?? 0).toDouble(),
+          packingFeeEnabled: data['packing_fee_enabled'] == true,
+          reason: (data['reason'] ?? '').toString(),
+        );
+      }
+      _logger.error('Failed to fetch packing fee: ${response.statusCode} - ${response.body}');
+      return DeliveryChargeQuote.fallback();
+    } catch (e) {
+      _logger.error('Error getting packing fee: $e');
       return DeliveryChargeQuote.fallback();
     }
   }

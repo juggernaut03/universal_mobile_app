@@ -111,6 +111,7 @@ class OrderService {
 
       final bool isOnlinePayment =
           paymentMode.toLowerCase().contains('online');
+      final bool isPickup = deliveryMode.toLowerCase().contains('pickup');
 
       // A failed online payment never reaches the server — there is no
       // pre-payment order row on the universal backend.
@@ -128,7 +129,7 @@ class OrderService {
       if (cartItems.isEmpty) {
         throw Exception('Cart items cannot be empty');
       }
-      if (deliveryAddress.id.isEmpty) {
+      if (!isPickup && deliveryAddress.id.isEmpty) {
         throw Exception(
             'Delivery address is missing its server id — re-select the address');
       }
@@ -151,7 +152,8 @@ class OrderService {
         'cart_validated': true,
         'delivery_slot_id': deliverySlotId ?? _getDeliverySlotId(deliverySlot),
         'delivery_date': _toIsoDate(deliveryDate),
-        'address_id': deliveryAddress.id,
+        'fulfillment_type': isPickup ? 'pickup' : 'delivery',
+        if (!isPickup) 'address_id': deliveryAddress.id,
         'payment_mode_id': paymentModeId ?? _getPaymentModeId(paymentMode),
         if (specialNotes != null && specialNotes.trim().isNotEmpty)
           'order_notes': specialNotes.trim(),

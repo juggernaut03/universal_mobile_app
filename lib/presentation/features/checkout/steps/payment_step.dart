@@ -394,7 +394,11 @@ Future<void> _placeOrder() async {
         return;
       }
     } else {
-      // For self pickup, create address from outlet info.
+      // Self pickup: no real address. This stub exists only to satisfy the
+      // non-null Address type consumed below for logging and Razorpay's
+      // prefill (customerName/Email/Phone) — its id is never sent to the
+      // backend (see order_service.dart's confirmOrder, which omits
+      // address_id entirely for pickup orders).
       // userProfile is non-null from here — the session is checked above — so
       // these no longer need to cope with an anonymous shopper.
       final mobileForPayment = userProfile.mobile.isNotEmpty
@@ -407,22 +411,19 @@ Future<void> _placeOrder() async {
           : 'orders@patelrmart.com';
 
       deliveryAddress = Address(
-        id: 'pickup_address',
+        id: '',
         fullName: widget.checkoutData.pickupName?.trim().isNotEmpty == true
             ? widget.checkoutData.pickupName!
             : userProfile.mobile,
         mobileNumber: mobileForPayment,
         emailId: emailForPayment,
-        deliveryAddrLine1: selectedOutlet.name,
-        deliveryAddrLine2: selectedOutlet.address,
-        deliveryAddrCity: 'Store Location',
-        deliveryAddrPincode: ref.read(selectedPincodeProvider) ?? '',
+        deliveryAddrLine1: '',
+        deliveryAddrLine2: '',
+        deliveryAddrCity: '',
+        deliveryAddrPincode: '',
         state: '',
-        landmark: selectedOutlet.name,
         areaId: selectedOutlet.storeCode,
         isDefault: 'No',
-        latitude: selectedOutlet.latitude,
-        longitude: selectedOutlet.longitude,
       );
     }
     
@@ -440,9 +441,14 @@ Future<void> _placeOrder() async {
       cartSavings += item.savings;
     }
     
-    // Get delivery charges
+    // Get delivery/packing charges
     final deliveryChargesState = ref.read(deliveryChargesProvider);
     final deliveryCharge = deliveryChargesState.deliveryCharge;
+    final isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+    // Self-pickup carries only the packing fee, never the delivery/handling
+    // charge — this is the amount actually charged via Razorpay below, so
+    // getting it right matters more than the display-only widgets.
+    final extraCharge = isSelfPickup ? deliveryChargesState.packingFee : deliveryCharge;
 
     // Cart-discount offer, if applied — see CartOfferRow. selectedCartOfferProvider
     // is already kept in sync with eligibility by stealDealsOffersProvider's
@@ -494,7 +500,7 @@ Future<void> _placeOrder() async {
     }
 
     // Calculate final amount
-    final finalAmount = subtotalAfterOffer + deliveryCharge - loyaltyDiscount;
+    final finalAmount = subtotalAfterOffer + extraCharge - loyaltyDiscount;
 
     // Get delivery mode and payment mode
     final deliveryMode = widget.checkoutData.deliveryMethod == DeliveryMethod.homeDelivery 
@@ -1564,6 +1570,8 @@ Future<void> _placeOrder() async {
         final distanceCharge = deliveryChargesState.distanceCharge;
         final handlingFee = deliveryChargesState.handlingFee;
         final packageFee = deliveryChargesState.packageFee;
+        final packingFee = deliveryChargesState.packingFee;
+        final isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
 
         // Cart-discount offer, if applied — see CartOfferRow. Display-only,
         // same as the loyalty voucher below; the server re-validates and
@@ -1585,8 +1593,9 @@ Future<void> _placeOrder() async {
             ) ??
             0;
 
-        // Calculate final amount
-        final finalAmount = subtotalAfterOffer + deliveryCharge - loyaltyDiscount;
+        // Calculate final amount — self-pickup carries only the packing fee.
+        final extraCharge = isSelfPickup ? packingFee : deliveryCharge;
+        final finalAmount = subtotalAfterOffer + extraCharge - loyaltyDiscount;
 
         return Column(
           children: [
@@ -1608,7 +1617,7 @@ Future<void> _placeOrder() async {
             ),
             
             // Distance information
-            if (distance > 0) ...[
+            if (!isSelfPickup && distance > 0) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1638,56 +1647,59 @@ Future<void> _placeOrder() async {
             ],
             
             const SizedBox(height: 8),
-            
-            // Delivery charges
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.local_shipping,
-                      size: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Delivery Fee',
-                      style: AppTextStyles.bodyMedium.copyWith(
+
+            // Delivery charges — not charged for self-pickup.
+            if (!isSelfPickup) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.local_shipping,
+                        size: 14,
                         color: AppColors.textSecondary,
                       ),
-                    ),
-                    if (deliveryChargesState.isLoading)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4.0),
-                        child: SizedBox(
-                          width: 10,
-                          height: 10,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Delivery Fee',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
                         ),
                       ),
-                  ],
-                ),
-                Text(
-                  deliveryChargesState.isLoading
-                      ? 'Calculating...'
-                      : (isFreeDelivery && distanceCharge <= 0)
-                        ? 'FREE'
-                        : '₹${distanceCharge.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: (isFreeDelivery && distanceCharge <= 0) ? Colors.green : null,
-                    fontWeight: (isFreeDelivery && distanceCharge <= 0) ? FontWeight.bold : null,
+                      if (deliveryChargesState.isLoading)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4.0),
+                          child: SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-              ],
-            ),
+                  Text(
+                    deliveryChargesState.isLoading
+                        ? 'Calculating...'
+                        : (isFreeDelivery && distanceCharge <= 0)
+                          ? 'FREE'
+                          : '₹${distanceCharge.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: (isFreeDelivery && distanceCharge <= 0) ? Colors.green : null,
+                      fontWeight: (isFreeDelivery && distanceCharge <= 0) ? FontWeight.bold : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
 
             // Handling fee — store-configured flat charge (admin panel),
-            // shown only when the store actually has one set.
-            if (!deliveryChargesState.isLoading && handlingFee > 0) ...[
+            // shown only when the store actually has one set. Not charged
+            // for self-pickup.
+            if (!isSelfPickup && !deliveryChargesState.isLoading && handlingFee > 0) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1716,8 +1728,9 @@ Future<void> _placeOrder() async {
               ),
             ],
 
-            // Packaging fee — same idea, shown only when set.
-            if (!deliveryChargesState.isLoading && packageFee > 0) ...[
+            // Packaging fee — same idea, shown only when set. Not charged
+            // for self-pickup (see Packing Fee below).
+            if (!isSelfPickup && !deliveryChargesState.isLoading && packageFee > 0) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1745,7 +1758,38 @@ Future<void> _placeOrder() async {
                 ],
               ),
             ],
-            
+
+            // Packing fee — self-pickup only, admin-controlled (Outlet >
+            // Delivery Fees > "Charge packing fee on self-pickup orders").
+            if (isSelfPickup && !deliveryChargesState.isLoading && packingFee > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Packing Fee',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '₹${packingFee.toStringAsFixed(2)}',
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ],
+              ),
+            ],
+
             // Savings if any
             if (cartSavings > 0) ...[
               const SizedBox(height: 8),
@@ -1805,7 +1849,7 @@ Future<void> _placeOrder() async {
             ),
             
             // Free delivery notification
-            if (isFreeDelivery && distance > 0) ...[
+            if (!isSelfPickup && isFreeDelivery && distance > 0) ...[
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,

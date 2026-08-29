@@ -258,9 +258,14 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                   final distanceCharge = deliveryChargesState.distanceCharge;
                   final handlingFee = deliveryChargesState.handlingFee;
                   final packageFee = deliveryChargesState.packageFee;
+                  final packingFee = deliveryChargesState.packingFee;
+                  final isSelfPickup = _checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
 
                   // Loyalty reward voucher, if applied — see LoyaltyRewardRow
                   // in payment_step.dart, where this is actually selected.
+                  // deliveryCharge is already 0 for self-pickup (see
+                  // calculatePackingFeeForPickup), so a FREE_SHIPPING voucher
+                  // correctly yields ₹0 discount without special-casing here.
                   final selectedRedemption = ref.watch(selectedLoyaltyRedemptionProvider);
                   final loyaltyDiscount = selectedRedemption?.estimateDiscount(
                         orderSubtotal: cartTotal,
@@ -268,8 +273,10 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                       ) ??
                       0;
 
-                  // Calculate final total with delivery charges
-                  final finalTotal = cartTotal + deliveryCharge - loyaltyDiscount;
+                  // Calculate final total — self-pickup carries only the
+                  // packing fee, never the delivery/handling/packaging charges.
+                  final extraCharge = isSelfPickup ? packingFee : deliveryCharge;
+                  final finalTotal = cartTotal + extraCharge - loyaltyDiscount;
 
                   return Container(
                     padding: const EdgeInsets.all(16.0),
@@ -293,7 +300,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                         const SizedBox(height: 8),
                         
                         // Distance Information (if available)
-                        if (distance > 0) ...[
+                        if (!isSelfPickup && distance > 0) ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -320,55 +327,58 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                           const SizedBox(height: 8),
                         ],
                         
-                        // Delivery Fee (Dynamic)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.local_shipping,
-                                  size: 14,
-                                  color: AppColors.textSecondary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Delivery Fee',
-                                  style: AppTextStyles.bodyMedium,
-                                ),
-                                if (isLoadingDelivery)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 8.0),
-                                    child: SizedBox(
-                                      width: 12,
-                                      height: 12,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.primary,
+                        // Delivery Fee (Dynamic) — not charged for self-pickup.
+                        if (!isSelfPickup) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.local_shipping,
+                                    size: 14,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Delivery Fee',
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
+                                  if (isLoadingDelivery)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 8.0),
+                                      child: SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.primary,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              ],
-                            ),
-                            Text(
-                              isLoadingDelivery
-                                  ? 'Calculating...'
-                                  : (isFreeDelivery && distanceCharge <= 0)
-                                      ? 'FREE'
-                                      : '₹${distanceCharge.toStringAsFixed(2)}',
-                              style: AppTextStyles.bodyMedium.copyWith(
-                                color: (isFreeDelivery && distanceCharge <= 0) ? AppColors.accent : null,
-                                fontWeight: (isFreeDelivery && distanceCharge <= 0) ? FontWeight.bold : null,
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
+                              Text(
+                                isLoadingDelivery
+                                    ? 'Calculating...'
+                                    : (isFreeDelivery && distanceCharge <= 0)
+                                        ? 'FREE'
+                                        : '₹${distanceCharge.toStringAsFixed(2)}',
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: (isFreeDelivery && distanceCharge <= 0) ? AppColors.accent : null,
+                                  fontWeight: (isFreeDelivery && distanceCharge <= 0) ? FontWeight.bold : null,
+                                ),
+                              ),
+                            ],
+                          ),
 
-                        const SizedBox(height: 8),
+                          const SizedBox(height: 8),
+                        ],
 
                         // Handling fee — store-configured flat charge (admin
-                        // panel), shown only when the store has one set.
-                        if (!isLoadingDelivery && handlingFee > 0) ...[
+                        // panel), shown only when the store has one set. Not
+                        // charged for self-pickup.
+                        if (!isSelfPickup && !isLoadingDelivery && handlingFee > 0) ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -395,8 +405,9 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                           const SizedBox(height: 8),
                         ],
 
-                        // Packaging fee — same idea, shown only when set.
-                        if (!isLoadingDelivery && packageFee > 0) ...[
+                        // Packaging fee — same idea, shown only when set. Not
+                        // charged for self-pickup (see Packing Fee below).
+                        if (!isSelfPickup && !isLoadingDelivery && packageFee > 0) ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -416,6 +427,36 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                               ),
                               Text(
                                 '₹${packageFee.toStringAsFixed(2)}',
+                                style: AppTextStyles.bodyMedium,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
+                        // Packing fee — self-pickup only, admin-controlled
+                        // (Outlet > Delivery Fees > "Charge packing fee on
+                        // self-pickup orders").
+                        if (isSelfPickup && !isLoadingDelivery && packingFee > 0) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 14,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Packing Fee',
+                                    style: AppTextStyles.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '₹${packingFee.toStringAsFixed(2)}',
                                 style: AppTextStyles.bodyMedium,
                               ),
                             ],
@@ -481,7 +522,7 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
                         ),
                         
                         // Free delivery message for eligible orders
-                        if (isFreeDelivery && distance > 0) ...[
+                        if (!isSelfPickup && isFreeDelivery && distance > 0) ...[
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.all(8.0),
