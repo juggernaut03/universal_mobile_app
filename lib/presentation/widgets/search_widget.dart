@@ -18,6 +18,13 @@ class SearchWidget extends ConsumerStatefulWidget {
   final String hintText;
   final bool enabled;
 
+  /// When true, this renders as a tap target that looks like the search bar
+  /// but never accepts typed input or keyboard focus — [onTap] fires instead.
+  /// Used on the home screen, where search should always open the dedicated
+  /// search page rather than letting the user type inline.
+  final bool readOnly;
+  final VoidCallback? onTap;
+
   const SearchWidget({
     super.key,
     this.onSearch,
@@ -25,6 +32,8 @@ class SearchWidget extends ConsumerStatefulWidget {
     this.showSuggestions = true,
     this.hintText = 'Search for products',
     this.enabled = true,
+    this.readOnly = false,
+    this.onTap,
   });
 
   @override
@@ -316,8 +325,11 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
           controller: _controller,
           focusNode: _focusNode,
           enabled: widget.enabled,
-          onChanged: _onTextChanged,
-          onSubmitted: _onSubmitted,
+          readOnly: widget.readOnly,
+          showCursor: widget.readOnly ? false : null,
+          onTap: widget.readOnly ? widget.onTap : null,
+          onChanged: widget.readOnly ? null : _onTextChanged,
+          onSubmitted: widget.readOnly ? null : _onSubmitted,
           textInputAction: TextInputAction.search,
           inputFormatters: [NoEmojiInputFormatter()],
           textAlign: TextAlign.start, // Ensure text starts from left when typing
@@ -328,7 +340,7 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
               fontSize: 12,
             ),
             prefixIcon: const Icon(Icons.search, color: Colors.grey, size: 20),
-            suffixIcon: _controller.text.isNotEmpty
+            suffixIcon: (!widget.readOnly && _controller.text.isNotEmpty)
                 ? IconButton(
                     icon: const Icon(Icons.clear, color: Colors.grey, size: 20),
                     onPressed: () {

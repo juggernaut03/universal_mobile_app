@@ -59,8 +59,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   
   // Controllers and scroll management
   late ScrollController _scrollController;
-  late TextEditingController _searchController;
-  
+
   // Single animation controller for smooth transitions
   late AnimationController _headerAnimationController;
   late Animation<double> _headerOpacity;
@@ -96,8 +95,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     
     // Initialize controllers
     _scrollController = ScrollController();
-    _searchController = TextEditingController();
-    
+
     // Single animation controller for all header animations
     _headerAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -124,10 +122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     
     // Optimized scroll listener
     _scrollController.addListener(_onScrollOptimized);
-    
-    // Search controller listener
-    _searchController.addListener(_onSearchChanged);
-    
+
     // Preload critical data and initialize popup
     _preloadCriticalData();
     _initializePopupWithDelay();
@@ -137,7 +132,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void dispose() {
     _scrollController.removeListener(_onScrollOptimized);
     _scrollController.dispose();
-    _searchController.dispose();
     _headerAnimationController.dispose();
     super.dispose();
   }
@@ -260,10 +254,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       final progress = ((offset - _headerFadeStart) / (_headerFadeEnd - _headerFadeStart)).clamp(0.0, 1.0);
       _headerAnimationController.animateTo(progress);
     }
-  }
-
-  void _onSearchChanged() {
-    // Debounced search handling can be added here if needed
   }
 
   // Preload critical data to prevent loading delays
@@ -665,15 +655,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                   ),
                   
-                  // Search bar
+                  // Search bar — tap-only, opens the dedicated search page
+                  // rather than accepting typed input inline on the home
+                  // screen.
                   SliverToBoxAdapter(
                     child: SearchWidget(
-                      controller: _searchController,
-                      onSearch: (query) {
-                        if (query.isNotEmpty) {
-                          context.push('/search?query=${Uri.encodeComponent(query)}');
-                        }
-                      },
+                      readOnly: true,
+                      onTap: () => context.push('/search'),
                       showSuggestions: false,
                     ),
                   ),
@@ -709,12 +697,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           child: Container(
                             margin: const EdgeInsets.symmetric(horizontal: 8),
                             child: SearchWidget(
-                              controller: _searchController,
-                              onSearch: (query) {
-                                if (query.isNotEmpty) {
-                                  context.push('/search?query=${Uri.encodeComponent(query)}');
-                                }
-                              },
+                              readOnly: true,
+                              onTap: () => context.push('/search'),
                               showSuggestions: false,
                             ),
                           ),

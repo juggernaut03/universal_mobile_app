@@ -6,7 +6,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
-import '../../data/models/product_model.dart';
 import '../../di/infrastructure_providers.dart';
 import 'outlet_provider.dart';
 
@@ -125,13 +124,14 @@ class SearchNotifier extends StateNotifier<SearchState> {
         results = response;
       }
 
-      // Filter out out-of-stock or zero-price products
-      results = results.where((item) {
-        final qty = int.tryParse(item['store_quantity']?.toString() ?? '0') ?? 0;
-        final price = ProductModel.parseDecimal128OrNumber(item['our_price']);
-        return qty > 0 && price > 0;
-      }).toList();
-      
+      // No stock/price filtering here — the backend already scopes matches to
+      // this store and pcode_status: 'Y' (see routes/products.js), and no
+      // other listing in the app (category, home sections) hides zero-stock
+      // items either. This used to also drop every product whose
+      // store_quantity happened to be the schema's own default of 0
+      // (ProductMaster.js), silently returning "No Results Found" for
+      // products the backend had actually found.
+
       // Only update state if this search is still current
       if (state.query == query) {
         state = state.copyWith(
