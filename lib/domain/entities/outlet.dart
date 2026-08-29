@@ -132,6 +132,22 @@ final class Outlet {
   /// least one way to fulfil it.
   bool get canAcceptOrders => isEnabled && fulfilmentMethods.isNotEmpty;
 
+  /// Whether at least one fulfilment method is offered, regardless of
+  /// whether the outlet is currently trading.
+  bool get hasAnyServiceAvailable => fulfilmentMethods.isNotEmpty;
+
+  /// True when delivery is offered but pickup is not.
+  bool get hasDeliveryOnly => offersHomeDelivery && !offersSelfPickup;
+
+  /// True when pickup is offered but delivery is not.
+  bool get hasPickupOnly => offersSelfPickup && !offersHomeDelivery;
+
+  /// True when both fulfilment methods are offered.
+  bool get hasBothServices => offersHomeDelivery && offersSelfPickup;
+
+  /// Kept for symmetry with the retired OutletStatus.isFullyOperational.
+  bool get isFullyOperational => canAcceptOrders;
+
   /// Whether [orderTotal] clears the outlet's minimum.
   bool meetsMinimumOrder(double orderTotal) => orderTotal >= minOrderAmount;
 

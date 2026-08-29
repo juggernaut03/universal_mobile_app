@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/features/outlet_status/outlet_status_banner.dart';
-import 'package:patelmart/data/models/outlet_status_model.dart';
-import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
+import 'package:patelmart/domain/entities/outlet.dart';
+import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../providers/cart_provider.dart';
@@ -39,6 +39,16 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
   void initState() {
     super.initState();
     _selectedMethod = widget.checkoutData.deliveryMethod;
+    // Closes the staleness gap: the selected outlet may have been cached
+    // before an admin changed Store.self_pickup/home_delivery. Re-validate
+    // on entry to this step so the customer sees an up-to-date set of
+    // fulfilment options without relaunching the app or re-picking the
+    // store.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(selectedOutletProvider.notifier).refreshStatus();
+      }
+    });
   }
 
   void _selectDeliveryMethod(DeliveryMethod method) {
@@ -59,38 +69,41 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
 
   @override
   Widget build(BuildContext context) {
-    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
-    
-    return outletStatusAsync.when(
-      data: (status) => _buildContent(context, status),
+    final selectedOutletAsync = ref.watch(selectedOutletProvider);
+
+    return selectedOutletAsync.when(
+      data: (outletModel) => _buildContent(context, outletModel?.toEntity()),
       loading: () => _buildLoadingState(),
       error: (error, stackTrace) => _buildErrorState(error.toString()),
     );
   }
 
-  Widget _buildContent(BuildContext context, OutletStatus? rawStatus) {
-    // Null is "the backend does not report outlet status", not "the store is
-    // broken" — it is what every store returns today. Blocking checkout on it
-    // made the whole flow unreachable, so fall back to fully operational, as
-    // the cart and delivery-method providers already do.
-    final status = rawStatus ?? OutletStatus.unknown();
+  Widget _buildContent(BuildContext context, Outlet? outlet) {
+    if (outlet == null) {
+      // Checkout's delivery-method step should be unreachable without a
+      // selected store; treat this as an error rather than fail open the
+      // way the retired OutletStatus.unknown() did (that existed only
+      // because the backend had no status endpoint — a fiction that no
+      // longer applies now that real Outlet data drives this screen).
+      return _buildErrorState('No store selected. Please choose a store first.');
+    }
 
     // If store is completely unavailable
-    if (!status.isEnabled) {
-      return _buildStoreClosedState(status.statusMessage);
+    if (!outlet.isEnabled) {
+      return _buildStoreClosedState(outlet.statusMessage);
     }
 
     // If no delivery methods are available
-    if (!status.hasAnyServiceAvailable) {
-      return _buildNoServicesState(status.statusMessage);
+    if (!outlet.hasAnyServiceAvailable) {
+      return _buildNoServicesState(outlet.statusMessage);
     }
 
     // Auto-select if only one method is available
-    if (status.hasDeliveryOnly && _selectedMethod != DeliveryMethod.homeDelivery) {
+    if (outlet.hasDeliveryOnly && _selectedMethod != DeliveryMethod.homeDelivery) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _selectDeliveryMethod(DeliveryMethod.homeDelivery);
       });
-    } else if (status.hasPickupOnly && _selectedMethod != DeliveryMethod.selfPickup) {
+    } else if (outlet.hasPickupOnly && _selectedMethod != DeliveryMethod.selfPickup) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _selectDeliveryMethod(DeliveryMethod.selfPickup);
       });
@@ -121,7 +134,7 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
         const SizedBox(height: 24),
         
         // Home Delivery Option (only if available)
-        if (status.homeDeliveryAvailable)
+        if (outlet.offersHomeDelivery)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: _buildDeliveryOption(
@@ -132,12 +145,12 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
               isEnabled: true,
             ),
           ),
-        
-        if (status.homeDeliveryAvailable && status.selfPickupAvailable)
+
+        if (outlet.hasBothServices)
           const SizedBox(height: 16),
-        
+
         // Self Pickup Option (only if available)
-        if (status.selfPickupAvailable)
+        if (outlet.offersSelfPickup)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: _buildDeliveryOption(
