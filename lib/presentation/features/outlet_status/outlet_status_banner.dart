@@ -19,32 +19,32 @@ class OutletStatusBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final outletStatusAsync = ref.watch(currentOutletStatusProvider);
-    final statusMessage = ref.watch(outletStatusMessageProvider);
-    
-    return outletStatusAsync.when(
-      data: (status) {
-        if (status == null) return const SizedBox.shrink();
-        
+    final selectedOutletAsync = ref.watch(selectedOutletProvider);
+
+    return selectedOutletAsync.when(
+      data: (outletModel) {
+        if (outletModel == null) return const SizedBox.shrink();
+        final outlet = outletModel.toEntity();
+
         // If showOnlyIfUnavailable is true, only show when there are issues
-        if (showOnlyIfUnavailable && status.isFullyOperational) {
+        if (showOnlyIfUnavailable && outlet.isFullyOperational) {
           return const SizedBox.shrink();
         }
-        
+
         // Determine banner color based on status
         Color backgroundColor;
         Color textColor;
         IconData icon;
-        
-        if (!status.isEnabled) {
+
+        if (!outlet.isEnabled) {
           backgroundColor = AppColors.errorLight;
           textColor = AppColors.error;
           icon = Icons.store_outlined;
-        } else if (!status.hasAnyServiceAvailable) {
+        } else if (!outlet.hasAnyServiceAvailable) {
           backgroundColor = AppColors.warningLight;
           textColor = AppColors.warning;
           icon = Icons.delivery_dining_outlined;
-        } else if (!status.hasBothServices) {
+        } else if (!outlet.hasBothServices) {
           backgroundColor = AppColors.infoLight;
           textColor = AppColors.info;
           icon = Icons.info_outline;
@@ -76,16 +76,16 @@ class OutletStatusBanner extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _getStatusTitle(status),
+                      _getStatusTitle(outlet),
                       style: AppTextStyles.labelMedium.copyWith(
                         color: textColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (statusMessage != null && statusMessage.isNotEmpty) ...[
+                    if (outlet.statusMessage.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
-                        statusMessage,
+                        outlet.statusMessage,
                         style: AppTextStyles.bodySmall.copyWith(
                           color: textColor,
                         ),
@@ -94,11 +94,11 @@ class OutletStatusBanner extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (!status.isFullyOperational)
+              if (!outlet.isFullyOperational)
                 IconButton(
                   icon: Icon(Icons.refresh, color: textColor, size: 20),
                   onPressed: () {
-                    ref.read(refreshOutletStatusProvider)();
+                    ref.read(selectedOutletProvider.notifier).refreshStatus();
                   },
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -112,14 +112,14 @@ class OutletStatusBanner extends ConsumerWidget {
     );
   }
 
-  String _getStatusTitle(OutletStatus status) {
-    if (!status.isEnabled) {
+  String _getStatusTitle(Outlet outlet) {
+    if (!outlet.isEnabled) {
       return 'Store Temporarily Closed';
-    } else if (!status.hasAnyServiceAvailable) {
+    } else if (!outlet.hasAnyServiceAvailable) {
       return 'No Services Available';
-    } else if (status.hasDeliveryOnly) {
+    } else if (outlet.hasDeliveryOnly) {
       return 'Home Delivery Only';
-    } else if (status.hasPickupOnly) {
+    } else if (outlet.hasPickupOnly) {
       return 'Store Pickup Only';
     } else {
       return 'All Services Available';
