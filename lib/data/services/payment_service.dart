@@ -602,7 +602,7 @@ class PaymentService implements IPaymentGateway {
           : '9999999999'; // Fallback phone for payment gateway
       final validatedEmail = (customerEmail?.isNotEmpty == true)
           ? customerEmail
-          : 'orders@patelrmart.com';
+          : 'orders@example.com';
       final validatedName = (customerName.isNotEmpty)
           ? customerName
           : 'Customer';

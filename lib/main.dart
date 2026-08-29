@@ -19,6 +19,7 @@ import 'presentation/handlers/app_lifecycle_handler.dart';
 import 'presentation/providers/popup_providers.dart';
 // NOTIFICATION IMPORTS
 import 'data/repositories/project_config_repository.dart';
+import 'core/branding/app_branding.dart';
 import 'data/services/firebase_notification_service.dart';
 // FCM TOKEN IMPORTS
 import 'presentation/providers/auth_providers.dart';
@@ -794,8 +795,11 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
   Widget build(BuildContext context) {
     // Show enhanced loading screen until app is ready
     if (!_appFullyInitialized) {
+      // main() applies the cached branding (ProjectConfigRepository.
+      // applyCachedBranding) before runApp, so AppBranding.instance.appName
+      // already holds this tenant's name by the time this widget builds.
       return MaterialApp(
-        title: 'PatelMart',
+        title: AppBranding.instance.appName,
         home: Scaffold(
           backgroundColor: Colors.white,
           body: Center(
@@ -805,15 +809,15 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
                 // App logo placeholder
                 const FlutterLogo(size: 80),
                 const SizedBox(height: 24),
-                
+
                 // Loading indicator
                 const CircularProgressIndicator(),
                 const SizedBox(height: 16),
-                
+
                 // Loading text
-                const Text(
-                  'Loading PatelMart...',
-                  style: TextStyle(
+                Text(
+                  'Loading ${AppBranding.instance.appName}...',
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),

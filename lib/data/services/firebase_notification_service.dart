@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../main.dart';
+import '../../core/branding/app_branding.dart';
 import '../../domain/repositories/i_notification_service.dart';
 
 // firebaseNotificationServiceProvider now declared in lib/di/service_providers.dart
@@ -624,7 +625,7 @@ class FirebaseNotificationService implements INotificationService {
       await _localNotifications.show(
         999,
         'Test Notification',
-        'This is a test notification from PatelMart',
+        'This is a test notification from ${AppBranding.instance.appName}',
         details,
       );
       

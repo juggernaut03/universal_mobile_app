@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/branding/app_branding.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../providers/auth_providers.dart';
 // FACEBOOK PIXEL IMPORTS
@@ -163,7 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   
                   // Welcome Text
                   Text(
-  "Welcome to Patel's R Mart",
+  "Welcome to ${AppBranding.instance.appName}",
   style: AppTextStyles.h4.copyWith(
     color: AppColors.primary,
     fontWeight: FontWeight.bold,
