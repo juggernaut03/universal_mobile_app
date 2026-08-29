@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
-import 'package:patelmart/data/models/outlet_status_model.dart';
-import 'package:patelmart/presentation/providers/outlet_status_provider.dart';
+import 'package:patelmart/domain/entities/outlet.dart';
+import 'package:patelmart/presentation/providers/outlet_provider.dart';
 
 
 class OutletStatusBanner extends ConsumerWidget {
