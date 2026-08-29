@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/branding/app_branding.dart';
 import 'package:patelmart/core/widgets/brand_logo.dart';
 import '../../providers/support_content_providers.dart';
 import '../../../di/infrastructure_providers.dart';
@@ -137,7 +138,7 @@ class AboutUsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '© 2025 Patel\'s Rmart. All rights reserved.',
+                        '© 2025 ${AppBranding.instance.appName}. All rights reserved.',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -284,72 +285,23 @@ class AboutUsScreen extends ConsumerWidget {
   }
 
   Widget _buildContactContent(BuildContext context, WidgetRef ref) {
+    // Contact details (phone/email/address) are shown on the Help & Support
+    // screen instead, sourced live per-tenant from storeDetailsProvider —
+    // duplicating them here as static text meant every tenant showed the
+    // same hardcoded company's details regardless of which store they were
+    // actually shopping with.
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Contact Information
-          _buildContactItem(
-            icon: Icons.email,
-            title: 'Email',
-            detail: 'customercare@patelsrmart.com',
-          ),
-          const SizedBox(height: 12),
-          _buildContactItem(
-            icon: Icons.phone,
-            title: 'Customer Support',
-            detail: '+91 8188252372 (9 AM - 7 PM)',
-          ),
-          const SizedBox(height: 12),
-          _buildContactItem(
-            icon: Icons.location_on,
-            title: 'Corporate Office',
-            detail: 'Patel Retail Ltd., Plot No. 23, MIDC Area, Ambarnath East, Thane - 421501',
-          ),
-          const SizedBox(height: 24),
-          
-          // Connect With Us section - Only Facebook and Instagram
           Text(
-            'Connect With Us',
-            style: AppTextStyles.h6.copyWith(
-              fontWeight: FontWeight.bold,
+            'Have a question? Our support team is here to help.',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Facebook
-              _buildSocialButton(
-                icon: Icons.facebook,
-                color: Colors.blue.shade800,
-                label: 'Facebook',
-                onPressed: () async {
-                  await _launchUrl(
-                    'https://www.facebook.com/patelsrmart?mibextid=ZbWKwL',
-                    ref,
-                  );
-                },
-              ),
-              const SizedBox(width: 32),
-              // Instagram
-              _buildSocialButton(
-                icon: Icons.camera_alt,
-                color: Colors.pink.shade600,
-                label: 'Instagram',
-                onPressed: () async {
-                  await _launchUrl(
-                    'https://www.instagram.com/patelsrmart?igsh=MWluczZnNjVzejVrYw==',
-                    ref,
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          
-          // Help button
           Center(
             child: ElevatedButton.icon(
               onPressed: () {
@@ -367,89 +319,6 @@ class AboutUsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildContactItem({
-    required IconData icon,
-    required String title,
-    required String detail,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primaryLighter.withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            color: AppColors.primary,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: AppTextStyles.labelLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                detail,
-                style: AppTextStyles.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSocialButton({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required VoidCallback onPressed,
-  }) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(30),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 28,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:patelmart/presentation/widgets/back_button_wrapper.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/branding/app_branding.dart';
 import '../../../data/services/content_service.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../providers/support_content_providers.dart';
@@ -76,17 +77,17 @@ class _FAQScreenState extends ConsumerState<FAQScreen> {
   void _initFAQData() {
     allCategories = [
       FAQCategory(
-        title: 'Patel Rmart',
+        title: AppBranding.instance.appName,
         faqs: [
           FAQ(
-            question: 'What is Patel Rmart?',
+            question: 'What is ${AppBranding.instance.appName}?',
             answer:
-                'Patel Rmart is a retail chain offering groceries, personal care items, household essentials, and more at competitive prices. Founded in 1990, we aim to provide quality products with excellent customer service.',
+                '${AppBranding.instance.appName} is a retail chain offering groceries, personal care items, household essentials, and more at competitive prices, with a focus on quality products and excellent customer service.',
           ),
           FAQ(
-            question: 'What are Patel Rmart\'s operating hours?',
+            question: 'What are ${AppBranding.instance.appName}\'s operating hours?',
             answer:
-                'Most Patel Rmart stores operate from 8:00 AM to 10:00 PM, seven days a week. However, hours may vary by location. You can check specific store hours in the Store Information section.',
+                'Store operating hours vary by location. You can check specific store hours in the Store Information section.',
           ),
         ],
       ),

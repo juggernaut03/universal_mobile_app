@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/branding/app_branding.dart';
 import '../../providers/support_content_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 
@@ -134,10 +135,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
                 
                 // Quick Actions Section
                 _buildQuickActionsSection(),
-                
-                // Contact Information Section
-                _buildContactSection(),
-                
+
                 // Footer
                 _buildFooter(),
               ],
@@ -389,21 +387,14 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Contact our support team for assistance with $contentType:',
+                      'Contact our support team for assistance with $contentType.',
                       style: AppTextStyles.bodyMedium,
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Icon(Icons.phone, size: 16, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          '+91 8188252372',
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    OutlinedButton.icon(
+                      onPressed: () => context.push('/help-support'),
+                      icon: const Icon(Icons.help_outline, size: 16),
+                      label: const Text('Get Help & Support'),
                     ),
                   ],
                 ),
@@ -494,132 +485,6 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
     );
   }
 
-  Widget _buildContactSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLighter.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.support_agent,
-                    color: AppColors.primary,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Customer Support',
-                  style: AppTextStyles.h5.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Have questions about our policies? We\'re here to help!',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            _buildContactItem(
-              icon: Icons.phone,
-              title: 'Phone Support',
-              detail: '+91 8188252372',
-              subtitle: 'Available 9 AM - 7 PM',
-            ),
-            const SizedBox(height: 12),
-            _buildContactItem(
-              icon: Icons.email,
-              title: 'Email Support',
-              detail: 'customercare@patelsrmart.com',
-              subtitle: 'Get response within 24 hours',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContactItem({
-    required IconData icon,
-    required String title,
-    required String detail,
-    String? subtitle,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primaryLighter.withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            color: AppColors.primary,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: AppTextStyles.labelLarge.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                detail,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildFooter() {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -640,7 +505,7 @@ class _RefundTncScreenState extends ConsumerState<RefundTncScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '© 2025 Patel\'s Rmart. All rights reserved.',
+            '© 2025 ${AppBranding.instance.appName}. All rights reserved.',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textSecondary,
             ),
