@@ -451,24 +451,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             },
             onRemove: () {
               ref.read(cartProvider.notifier).removeItem(item.product);
-              
-              // Show confirmation of item removal
-              showAppSnackBar(
-                SnackBar(
-                  content: Text('${item.product.productName} removed from cart'),
-                  duration: const Duration(seconds: 2),
-                  action: SnackBarAction(
-                    label: 'UNDO',
-                    onPressed: () {
-                      // Add the item back to cart
-                      ref.read(cartProvider.notifier).addItemWithQuantity(
-                        item.product, 
-                        item.quantity
-                      );
-                    },
-                  ),
-                ),
-              );
             },
           )),
           
