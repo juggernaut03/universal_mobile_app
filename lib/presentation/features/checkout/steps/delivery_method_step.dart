@@ -391,7 +391,7 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
-                ref.read(refreshOutletStatusProvider)();
+                ref.read(selectedOutletProvider.notifier).refreshStatus();
               },
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
@@ -489,7 +489,7 @@ class _DeliveryMethodStepState extends ConsumerState<DeliveryMethodStep> {
               children: [
                 OutlinedButton.icon(
                   onPressed: () {
-                    ref.read(refreshOutletStatusProvider)();
+                    ref.read(selectedOutletProvider.notifier).refreshStatus();
                   },
                   icon: const Icon(Icons.refresh),
                   label: const Text('Refresh'),
