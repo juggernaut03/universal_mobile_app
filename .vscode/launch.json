@@ -2,19 +2,92 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "PatelMart (dev tenant)",
+      "name": "Pagariya (dev)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "toolArgs": ["--dart-define-from-file=dart_defines/dev.json"]
+      "toolArgs": [
+        "--flavor",
+        "pagariya",
+        "--dart-define-from-file=dart_defines/dev.json"
+      ]
     },
     {
-      "name": "PatelMart (dev tenant, profile)",
+      "name": "Pagariya (prod API)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "flutterMode": "profile",
-      "toolArgs": ["--dart-define-from-file=dart_defines/dev.json"]
+      "toolArgs": [
+        "--flavor",
+        "pagariya",
+        "--dart-define-from-file=dart_defines/pagariya_prod.json"
+      ]
+    },
+    {
+      "name": "My Need Mart (dev)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--flavor",
+        "myneedmart",
+        "--dart-define-from-file=dart_defines/myneedmart_dev.json"
+      ]
+    },
+    {
+      "name": "My Need Mart (prod API)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--flavor",
+        "myneedmart",
+        "--dart-define-from-file=dart_defines/myneedmart_prod.json"
+      ]
+    },
+    {
+      "name": "Grahak Peth (dev)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--flavor",
+        "grahakpeth",
+        "--dart-define-from-file=dart_defines/grahakpeth_dev.json"
+      ]
+    },
+    {
+      "name": "Grahak Peth (prod API)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--flavor",
+        "grahakpeth",
+        "--dart-define-from-file=dart_defines/grahakpeth_prod.json"
+      ]
+    },
+    {
+      "name": "Sansar Pariwar (dev)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--flavor",
+        "sansarpariwar",
+        "--dart-define-from-file=dart_defines/sansarpariwar_dev.json"
+      ]
+    },
+    {
+      "name": "Sansar Pariwar (prod API)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--flavor",
+        "sansarpariwar",
+        "--dart-define-from-file=dart_defines/sansarpariwar_prod.json"
+      ]
     }
   ]
 }

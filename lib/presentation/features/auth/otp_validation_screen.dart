@@ -146,6 +146,16 @@ class _OtpValidationScreenState extends ConsumerState<OtpValidationScreen> {
         ref.read(loginStateProvider.notifier).state = LoginState.success;
         ref.read(loggerProvider).log('Signed in as ${session.mobile}');
 
+        // userProfileProvider/isLoggedInProvider are plain FutureProviders —
+        // on a fresh install they get cached as null/false at app boot,
+        // before this login ever happens, and nothing re-runs them
+        // afterwards. Without this, the profile screen (and anything else
+        // watching these) kept serving that stale pre-login value until the
+        // next full app relaunch tore the provider container down. Mirrors
+        // what logoutProvider already does on sign-out.
+        ref.invalidate(userProfileProvider);
+        ref.invalidate(isLoggedInProvider);
+
         await FacebookPixelIntegration.trackUserAuth(
           ref,
           eventType: 'login',
