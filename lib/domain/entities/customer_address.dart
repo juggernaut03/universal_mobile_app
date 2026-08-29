@@ -19,7 +19,6 @@ final class CustomerAddress {
   final String line2;
   final String landmark;
   final String city;
-  final String state;
   final String pincode;
 
   /// Whether this is the customer's default delivery address.
@@ -44,7 +43,6 @@ final class CustomerAddress {
     this.email = '',
     this.line2 = '',
     this.landmark = '',
-    this.state = '',
     this.isDefault = false,
     this.areaId = '',
     this.location,
@@ -63,7 +61,6 @@ final class CustomerAddress {
         line2,
         landmark,
         city,
-        state,
         pincode,
       ].where((part) => part.trim().isNotEmpty).join(', ');
 
@@ -76,7 +73,6 @@ final class CustomerAddress {
     String? line2,
     String? landmark,
     String? city,
-    String? state,
     String? pincode,
     bool? isDefault,
     String? areaId,
@@ -91,7 +87,6 @@ final class CustomerAddress {
         line2: line2 ?? this.line2,
         landmark: landmark ?? this.landmark,
         city: city ?? this.city,
-        state: state ?? this.state,
         pincode: pincode ?? this.pincode,
         isDefault: isDefault ?? this.isDefault,
         areaId: areaId ?? this.areaId,

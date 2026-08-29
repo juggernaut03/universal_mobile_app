@@ -528,7 +528,6 @@ class EnhancedPaymentFlow {
           deliveryAddrLine2: selectedOutlet.address,
           deliveryAddrCity: 'Store Location',
           deliveryAddrPincode: ref.read(selectedPincodeProvider) ?? '',
-          state: '',
           landmark: selectedOutlet.name,
           areaId: selectedOutlet.storeCode,
           isDefault: 'No',

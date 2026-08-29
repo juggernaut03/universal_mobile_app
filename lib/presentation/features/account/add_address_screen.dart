@@ -40,7 +40,6 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
   final TextEditingController _wingFloorController = TextEditingController();
   final TextEditingController _landmarkController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
-  final TextEditingController _stateController = TextEditingController();
   final TextEditingController _contactNumberController = TextEditingController();
   
   bool _isLoading = false;
@@ -147,7 +146,6 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
     _wingFloorController.dispose();
     _landmarkController.dispose();
     _cityController.dispose();
-    _stateController.dispose();
     _contactNumberController.dispose();
     super.dispose();
   }
@@ -198,7 +196,6 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
         _localityController.text.trim(),
         _areaController.text.trim(),
         _cityController.text.trim(),
-        _stateController.text.trim(),
         _pincodeController.text.trim(),
       ].where((part) => part.isNotEmpty).join(', ');
       
@@ -280,7 +277,6 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
           _localityController.text = place.street ?? '';
           // Don't update pincode from location as it's disabled
           _cityController.text = place.locality ?? '';
-          _stateController.text = place.administrativeArea ?? '';
         });
       }
     } catch (e) {
@@ -589,19 +585,6 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter city';
-                      }
-                      return null;
-                    },
-                  ),
-                  
-                  _buildFormField(
-                    controller: _stateController,
-                    label: 'State',
-                    isRequired: true,
-                    inputFormatters: _getAsciiOnlyFormatters(),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter state';
                       }
                       return null;
                     },
