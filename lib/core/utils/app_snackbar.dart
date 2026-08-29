@@ -31,11 +31,23 @@ void showAppSnackBar(SnackBar snackBar, {Logger? logger}) {
     // firing right after) each enqueue their own SnackBar, so a new one
     // starts the moment the last one's duration elapses. The net effect
     // reads as "a toast that never goes away", even though each instance
-    // individually still honors its own duration. clearSnackBars() drops
-    // anything showing/queued with no exit animation, so what we show next
-    // always starts clean and gets its full duration before anything else
-    // can appear.
-    messenger.clearSnackBars();
+    // individually still honors its own duration.
+    //
+    // clearSnackBars() does not fix this: per ScaffoldMessengerState's own
+    // source, it runs the current bar's normal *exit animation*
+    // (reverse(), ~250ms) rather than removing it immediately, and
+    // showSnackBar() only starts the new bar's entrance once that finishes
+    // — the auto-dismiss timer is armed only after the entrance animation
+    // reaches AnimationStatus.completed. A second call arriving before that
+    // resolves (another quick removal, a second toast) interrupts the
+    // in-flight reverse and restarts the cycle, so under any moderately
+    // active cart-editing session the timer that's supposed to end the
+    // message may never get armed, and it reads as "stuck".
+    // removeCurrentSnackBar() instead removes the old bar synchronously
+    // with no animation, so by the time showSnackBar() runs the queue is
+    // empty and the new bar's entrance — and therefore its dismiss timer —
+    // starts cleanly every single time.
+    messenger.removeCurrentSnackBar();
     messenger.showSnackBar(snackBar);
   } catch (e) {
     // Deliberately swallowed — see above. Logged so it stays visible.

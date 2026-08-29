@@ -421,7 +421,6 @@ Future<void> _placeOrder() async {
         deliveryAddrLine2: '',
         deliveryAddrCity: '',
         deliveryAddrPincode: '',
-        state: '',
         areaId: selectedOutlet.storeCode,
         isDefault: 'No',
       );

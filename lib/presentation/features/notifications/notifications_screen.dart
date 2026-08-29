@@ -42,11 +42,31 @@ class _TypeStyle {
       };
 }
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Opening this screen is itself the "seen" signal — clear the bell badge
+    // automatically instead of requiring the user to tap "Mark all read"
+    // every time. markAllNotificationsReadProvider already bumps
+    // notificationsRefreshProvider on success, which both this screen's list
+    // and the home-screen badge (unreadNotificationCountProvider) watch, so
+    // no separate refresh/invalidate is needed here.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(markAllNotificationsReadProvider)();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notificationsAsync = ref.watch(notificationsListProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
 

@@ -68,7 +68,6 @@ final class AddressRepositoryImpl implements IAddressRepository {
         isDefault: a.isDefault ? 'Yes' : 'No',
         areaId: a.areaId,
         landmark: a.landmark,
-        state: a.state,
         latitude: a.location?.latitude.toString(),
         longitude: a.location?.longitude.toString(),
       );

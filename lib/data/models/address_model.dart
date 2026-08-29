@@ -15,7 +15,6 @@ class Address {
   final String isDefault;
   final String areaId;
   final String landmark;
-  final String state;
   final String? latitude;  // Added latitude field
   final String? longitude; // Added longitude field
 
@@ -31,7 +30,6 @@ class Address {
     required this.isDefault,
     required this.areaId,
     this.landmark = '',
-    this.state = '',
     this.latitude = '',  // Default to empty string
     this.longitude = '', // Default to empty string
   });
@@ -130,7 +128,6 @@ class Address {
       isDefault: json['is_default'] ?? 'No',
       areaId: areaId,
       landmark: landmarkValue,
-      state: json['state'] ?? '',
       latitude: latitude, // Add latitude
       longitude: longitude, // Add longitude
     );
@@ -159,7 +156,6 @@ class Address {
       'area': areaId,
       'landmark': landmark,
       'landmart': landmark, // Include both spellings for compatibility
-      'state': state,
       'latitude': latitude, // Include latitude
       'longitude': longitude, // Include longitude
     };
@@ -199,7 +195,6 @@ class Address {
     String? isDefault,
     String? areaId,
     String? landmark,
-    String? state,
     String? latitude,
     String? longitude,
   }) {
@@ -215,7 +210,6 @@ class Address {
       isDefault: isDefault ?? this.isDefault,
       areaId: areaId ?? this.areaId,
       landmark: landmark ?? this.landmark,
-      state: state ?? this.state,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
     );
@@ -237,7 +231,6 @@ class Address {
       line2: deliveryAddrLine2,
       landmark: landmark,
       city: deliveryAddrCity,
-      state: state,
       pincode: deliveryAddrPincode,
       isDefault: flag == '1' || flag == 'true' || flag == 'yes',
       areaId: areaId,
@@ -261,7 +254,6 @@ class Address {
         isDefault: a.isDefault ? 'Yes' : 'No',
         areaId: a.areaId,
         landmark: a.landmark,
-        state: a.state,
         latitude: a.location?.latitude.toString(),
         longitude: a.location?.longitude.toString(),
       );

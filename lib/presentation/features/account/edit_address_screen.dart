@@ -47,7 +47,6 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
   late TextEditingController _wingFloorController;
   late TextEditingController _landmarkController;
   late TextEditingController _cityController;
-  late TextEditingController _stateController;
   late TextEditingController _contactNumberController;
   
   bool _isLoading = true;
@@ -90,8 +89,7 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
       _wingFloorController = TextEditingController(text: _address.deliveryAddrLine1);
       _landmarkController = TextEditingController(text: _address.landmark);
       _cityController = TextEditingController(text: _address.deliveryAddrCity);
-      _stateController = TextEditingController(text: _address.state);
-      
+
       // For pincode and contact number, use current app data instead of stored address data
       await _loadCurrentAppData();
       
@@ -203,7 +201,6 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
     _wingFloorController.dispose();
     _landmarkController.dispose();
     _cityController.dispose();
-    _stateController.dispose();
     _contactNumberController.dispose();
     super.dispose();
   }
@@ -254,7 +251,6 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         _localityController.text.trim(),
         _areaController.text.trim(),
         _cityController.text.trim(),
-        _stateController.text.trim(),
         _pincodeController.text.trim(),
       ].where((part) => part.isNotEmpty).join(', ');
       
@@ -333,11 +329,19 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         success = await repository.updateAddress(updatedAddress);
       }
       
-      // Refresh address list if successful
+      // Refresh address list if successful. addressListProvider is only a
+      // projection of addressesProvider — invalidating it alone reruns the
+      // projection over the same cached data. addressRefreshProvider is the
+      // actual cache key addressesProvider watches, so it must be bumped to
+      // force a real refetch (same pattern as add_address_screen.dart and
+      // address_book_screen.dart's delete/set-default handlers). Without
+      // this, an edit only became visible after a full app relaunch tore
+      // down the provider container.
       if (success) {
         try {
-          // Import the updated address list provider from address_book_screen
+          ref.read(addressRefreshProvider.notifier).state++;
           ref.invalidate(addressListProvider);
+          ref.invalidate(addressesProvider);
           logger.log('Address list provider refreshed');
         } catch (e) {
           logger.warning('Could not refresh address list provider: $e');
@@ -560,19 +564,6 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter city';
-                      }
-                      return null;
-                    },
-                  ),
-                  
-                  _buildFormField(
-                    controller: _stateController,
-                    label: 'State',
-                    isRequired: true,
-                    inputFormatters: _getAsciiOnlyFormatters(),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter state';
                       }
                       return null;
                     },

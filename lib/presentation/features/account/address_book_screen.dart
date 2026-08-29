@@ -204,11 +204,7 @@ class AddressBookScreen extends ConsumerWidget {
   }
 
   String _formatCityLine(Address address) {
-    final cityState = [address.deliveryAddrCity, address.state]
-        .where((p) => p.trim().isNotEmpty)
-        .toSet()
-        .join(', ');
-    return [cityState, address.deliveryAddrPincode]
+    return [address.deliveryAddrCity, address.deliveryAddrPincode]
         .where((p) => p.trim().isNotEmpty)
         .join(' - ');
   }
