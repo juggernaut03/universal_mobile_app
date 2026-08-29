@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:patelmart/core/branding/app_branding.dart';
 import 'package:patelmart/data/models/address_model.dart';
 import 'package:patelmart/data/models/payment_method_model.dart';
 import 'package:patelmart/data/services/payment_service.dart';
@@ -184,7 +185,7 @@ class EnhancedPaymentFlow {
       // Start payment - UPDATED to match your PaymentService implementation
       final paymentResult = await paymentService.startPayment(
         amount: amount,
-        description: 'Order Payment - PatelMart',
+        description: 'Order Payment - ${AppBranding.instance.appName}',
         customerName: deliveryAddress.fullName,
         customerEmail: deliveryAddress.emailId,
         customerPhone: deliveryAddress.mobileNumber,

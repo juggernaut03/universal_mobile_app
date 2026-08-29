@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import '../core/branding/app_branding.dart';
 import 'facebook_pixel_config.dart';
 
 /// Facebook Pixel Service
@@ -25,7 +26,7 @@ class FacebookPixelService {
         'appId': FacebookPixelConfig.facebookAppId,
         'clientToken': FacebookPixelConfig.clientToken,
         'pixelId': FacebookPixelConfig.pixelId,
-        'displayName': 'Patel\'s R Mart',
+        'displayName': AppBranding.instance.appName,
         'enableAutoLogAppEvents': FacebookPixelConfig.enableAutoLogAppEvents,
         'enableAdvertiserIdCollection': FacebookPixelConfig.enableAdvertiserIdCollection,
         'enableCodelessEvents': FacebookPixelConfig.enableCodelessEvents,
@@ -90,7 +91,7 @@ class FacebookPixelService {
     await trackEvent(
       FacebookPixelConfig.customEvents['app_launch']!,
       parameters: {
-        'app_name': 'Patel\'s R Mart',
+        'app_name': AppBranding.instance.appName,
         'platform': defaultTargetPlatform.toString(),
       },
     );

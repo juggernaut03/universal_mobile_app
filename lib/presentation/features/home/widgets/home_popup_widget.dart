@@ -370,55 +370,14 @@ class _HomePopupWidgetState extends ConsumerState<HomePopupWidget>
     );
   }
 
+  // No per-tenant default popup image exists on the backend, so when a
+  // tenant hasn't configured one (or its URL is invalid/empty) this shows a
+  // generic placeholder rather than another tenant's own promotional image —
+  // this used to fetch Patel Rmart's own CDN image as a "default", which
+  // showed that unrelated brand's offer graphic to every other tenant.
   Widget _buildFallbackImage() {
-    const fallbackUrl = 'https://patelrmart.com/mgmt_panel/product_images/popup/popup.webp';
-    
-    ref.read(loggerProvider).log('🛡️ Loading fallback popup image: $fallbackUrl');
-    
-    return CachedNetworkImage(
-      imageUrl: fallbackUrl,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => Container(
-        color: AppColors.neutral200,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 50,
-                height: 50,
-                child: CircularProgressIndicator(
-                  color: AppColors.primary,
-                  strokeWidth: 4,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Loading Default Offer...',
-                style: TextStyle(
-                  color: AppColors.neutral700,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      errorWidget: (context, url, error) {
-        ref.read(loggerProvider).error('🚫 Fallback popup image also failed: $error');
-        return _buildImageError('Unable to load offer image');
-      },
-      httpHeaders: {
-        'User-Agent': 'Patel Mart Mobile App/1.0',
-        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-      },
-      fadeInDuration: const Duration(milliseconds: 300),
-      fadeOutDuration: const Duration(milliseconds: 100),
-    );
+    ref.read(loggerProvider).log('📭 No popup image configured, showing placeholder');
+    return _buildImageError('No offer image available');
   }
 
   Widget _buildImageError(String message) {

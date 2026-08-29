@@ -1,8 +1,10 @@
 // lib/core/widgets/brand_logo.dart
 //
 // Tenant logo widget: renders the admin-managed logo_url (or
-// splash_logo_url) from project-config, falling back to the bundled asset
-// so the app still shows something offline / for unconfigured tenants.
+// splash_logo_url) from project-config, falling back to a generic store
+// icon so the app still shows something offline / for unconfigured tenants
+// — not a bundled brand-specific image, since the same asset ships in every
+// tenant's build and would show one tenant's real logo to every other one.
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +18,7 @@ class BrandLogo extends StatelessWidget {
   /// Prefer the splash logo when set (falls back to the regular logo).
   final bool splash;
 
-  /// Color for the fallback icon when neither URL nor asset can render.
+  /// Color for the fallback icon when no URL is configured or it fails to load.
   final Color? fallbackColor;
 
   const BrandLogo({
@@ -34,25 +36,20 @@ class BrandLogo extends StatelessWidget {
         ? branding.splashLogoUrl
         : branding.logoUrl;
 
-    final assetFallback = Image.asset(
-      'assets/images/patelLogo.png',
-      height: height,
-      fit: fit,
-      errorBuilder: (context, error, stackTrace) => Icon(
-        Icons.store,
-        size: height,
-        color: fallbackColor ?? AppColors.primary,
-      ),
+    final iconFallback = Icon(
+      Icons.store,
+      size: height,
+      color: fallbackColor ?? AppColors.primary,
     );
 
-    if (url.isEmpty) return assetFallback;
+    if (url.isEmpty) return iconFallback;
 
     return CachedNetworkImage(
       imageUrl: url,
       height: height,
       fit: fit,
       placeholder: (context, _) => SizedBox(height: height),
-      errorWidget: (context, _, __) => assetFallback,
+      errorWidget: (context, _, __) => iconFallback,
     );
   }
 }

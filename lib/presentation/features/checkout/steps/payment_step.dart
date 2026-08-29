@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:patelmart/core/utils/app_snackbar.dart';
+import 'package:patelmart/core/branding/app_branding.dart';
 import '../../../../core/utils/input_formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:patelmart/data/models/address_model.dart';
@@ -407,8 +408,8 @@ Future<void> _placeOrder() async {
 
       // Generate valid email from mobile or use default
       final emailForPayment = userProfile.mobile.isNotEmpty
-          ? '${userProfile.mobile}@customer.patelrmart.com'
-          : 'orders@patelrmart.com';
+          ? '${userProfile.mobile}@customer.example.com'
+          : 'orders@example.com';
 
       deliveryAddress = Address(
         id: '',
@@ -605,7 +606,7 @@ Future<void> _placeOrder() async {
       // Start Razorpay payment
       paymentResult = await paymentService.startPayment(
         amount: finalAmount,
-        description: 'Order Payment - PatelMart',
+        description: 'Order Payment - ${AppBranding.instance.appName}',
         customerName: deliveryAddress.fullName,
         customerEmail: deliveryAddress.emailId,
         customerPhone: deliveryAddress.mobileNumber,
