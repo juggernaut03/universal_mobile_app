@@ -11,6 +11,7 @@ import '../../core/result/result.dart';
 import '../../di/location_providers.dart';
 import '../../domain/repositories/i_outlet_repository.dart';
 import '../../domain/usecases/outlet/get_outlets_for_pincode.dart';
+import '../../domain/usecases/outlet/refresh_outlet_status.dart';
 
 // Provider for the Outlet Repository
 
@@ -43,6 +44,7 @@ final selectedOutletProvider =
   return SelectedOutletNotifier(
     ref.watch(outletRepositoryDomainProvider),
     ref.watch(loggerProvider),
+    ref.watch(refreshOutletStatusUseCaseProvider),
   );
 });
 
@@ -54,6 +56,7 @@ final selectedOutletProvider =
 class SelectedOutletNotifier extends StateNotifier<AsyncValue<OutletModel?>> {
   final IOutletRepository _repository;
   final Logger _logger;
+  final RefreshOutletStatus _refreshOutletStatus;
 
   /// Completes once the saved outlet has been read from storage.
   ///
@@ -64,7 +67,7 @@ class SelectedOutletNotifier extends StateNotifier<AsyncValue<OutletModel?>> {
 
   Future<void> get ready => _ready;
 
-  SelectedOutletNotifier(this._repository, this._logger)
+  SelectedOutletNotifier(this._repository, this._logger, this._refreshOutletStatus)
       : super(const AsyncValue.loading()) {
     _ready = _loadSavedOutlet();
   }
@@ -104,6 +107,28 @@ class SelectedOutletNotifier extends StateNotifier<AsyncValue<OutletModel?>> {
     }
   }
   
+  /// Re-checks the currently selected outlet's fulfilment methods against
+  /// the backend, so an admin toggling Store.self_pickup/home_delivery (or
+  /// closing the store) mid-session is reflected without a full app
+  /// relaunch or re-picking the store. Silent on failure — a transient
+  /// network blip must not strand checkout with no delivery method shown;
+  /// the cached state is left untouched.
+  Future<void> refreshStatus() async {
+    final current = state.value;
+    if (current == null) return;
+
+    final result = await _refreshOutletStatus(
+      RefreshOutletStatusParams(storeCode: current.storeCode),
+    );
+    switch (result) {
+      case Ok(:final value):
+        _logger.log('Refreshed outlet status for ${current.storeCode}');
+        state = AsyncValue.data(OutletModel.fromEntity(value));
+      case Err(:final failure):
+        _logger.log('Outlet status refresh failed, keeping cached outlet: ${failure.message}');
+    }
+  }
+
   // Clear the selected outlet
   Future<bool> clearOutlet() async {
     _logger.log('Clearing outlet');
