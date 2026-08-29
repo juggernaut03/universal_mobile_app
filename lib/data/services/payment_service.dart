@@ -263,12 +263,12 @@ class PaymentService implements IPaymentGateway {
       "amount_refunded": 0,
       "refund_status": null,
       "captured": true,
-      "description": _currentDescription ?? "Order Payment - PatelMart",
+      "description": _currentDescription ?? "Order Payment - ${AppBranding.instance.appName}",
       "card_id": null,
       "bank": null,
       "wallet": null,
       "vpa": null, // Will be filled by webhook if UPI
-      "email": _currentCustomerEmail ?? "orders@patelrmart.com",
+      "email": _currentCustomerEmail ?? "",
       "contact": _currentCustomerPhone,
       "notes": {
         "customer_name": _currentCustomerName,

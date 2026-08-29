@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/branding/app_branding.dart';
 import '../../providers/support_content_providers.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../di/infrastructure_providers.dart';
@@ -460,7 +461,7 @@ class HelpSupportScreen extends ConsumerWidget {
       scheme: 'mailto',
       path: email,
       queryParameters: {
-        'subject': 'Support Request - PatelMart',
+        'subject': 'Support Request - ${AppBranding.instance.appName}',
       },
     );
     
