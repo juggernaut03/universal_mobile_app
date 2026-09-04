@@ -19,6 +19,7 @@ val flavorKeystoreFiles = mapOf(
     "myneedmart" to "key.myneedmart.properties",
     "grahakpeth" to "key.grahakpeth.properties",
     "sansarpariwar" to "key.sansarpariwar.properties",
+    "shreemegamart" to "key.shreemegamart.properties",
 )
 
 plugins {
@@ -106,6 +107,12 @@ android {
             applicationId = "com.sansarpariwar.androidapp"
             resValue("string", "app_name", "Sansar Pariwar")
             signingConfig = signingConfigs.findByName("sansarpariwar") ?: signingConfigs.getByName("debug")
+        }
+        create("shreemegamart") {
+            dimension = "tenant"
+            applicationId = "com.shreemegamart.androidapp"
+            resValue("string", "app_name", "Shree Mega Mart")
+            signingConfig = signingConfigs.findByName("shreemegamart") ?: signingConfigs.getByName("debug")
         }
     }
 

@@ -8,6 +8,7 @@ Each tenant build needs a `--dart-define-from-file` so `PROJECT_CODE` is set at 
 | `myneedmart_dev.json` / `myneedmart_prod.json` | My Need Mart | RET6978 |
 | `grahakpeth_dev.json` / `grahakpeth_prod.json` | Grahak Peth | RET9575 |
 | `sansarpariwar_dev.json` / `sansarpariwar_prod.json` | Sansar Pariwar | RET6602 |
+| `shreemegamart_dev.json` / `shreemegamart_prod.json` | Shree Mega Mart | RET2690 |
 
 `*_dev.json` → dev API (`dev-universal-backendapi.shalviadvision.com`).
 

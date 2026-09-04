@@ -17,7 +17,7 @@ usage() {
   cat <<'EOF'
 Usage: build_tenant.sh <tenant> <platform> [version]
 
-Tenants:  myneedmart | pagariya | grahakpeth | sansarpariwar
+Tenants:  myneedmart | pagariya | grahakpeth | sansarpariwar | shreemegamart
 Platforms: apk | appbundle | ipa
 Version:  optional CFBundleShortVersionString / versionName (e.g. 4.0.14)
 
@@ -34,7 +34,7 @@ TENANT="$1"
 PLATFORM="$2"
 VERSION="${3:-}"
 
-VALID_TENANTS=(myneedmart pagariya grahakpeth sansarpariwar)
+VALID_TENANTS=(myneedmart pagariya grahakpeth sansarpariwar shreemegamart)
 VALID_PLATFORMS=(apk appbundle ipa)
 
 if [[ ! " ${VALID_TENANTS[*]} " =~ " ${TENANT} " ]]; then
