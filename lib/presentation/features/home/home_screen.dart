@@ -394,6 +394,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         })
       );
 
+      // 8. Server-driven home layout itself (which sections exist, and in
+      // what order) — distinct from the per-section content refreshes above.
+      // Without this, an admin reordering/adding sections in the Home
+      // Builder never shows up until the app is fully relaunched.
+      if (ref.read(homeFeedEnabledProvider)) {
+        refreshOperations.add(
+          ref.read(homeFeedRefreshProvider)().catchError((e) {
+            ref.read(loggerProvider).error('Home feed layout refresh failed: $e');
+          })
+        );
+      }
+
       // Wait for all refresh operations to complete
       await Future.wait(refreshOperations);
 
