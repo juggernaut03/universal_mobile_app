@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/popup_providers.dart';
 import '../providers/loyalty_provider.dart';
+import '../providers/home_feed_providers.dart';
 import '../../di/infrastructure_providers.dart';
 import 'package:flutter/foundation.dart';
 
@@ -40,6 +41,13 @@ class AppLifecycleHandler extends WidgetsBindingObserver {
         // Refreshing on resume, not just on in-app actions, keeps the
         // balance honest whenever the shopper is actually looking at it.
         _ref.read(loyaltyRefreshProvider.notifier).state++;
+
+        // Same reasoning for the server-driven home layout: an admin can
+        // reorder/add/remove Home Builder sections at any time, entirely
+        // server-side, and this provider is not auto-refreshing — without
+        // this it would keep showing whatever order was fetched when the
+        // app was first opened this session, however long ago that was.
+        _ref.invalidate(homeFeedProvider);
       }
       
       _lastLifecycleState = state;
