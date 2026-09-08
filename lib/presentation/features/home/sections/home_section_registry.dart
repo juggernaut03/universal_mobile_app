@@ -104,6 +104,12 @@ class HomeSectionRegistry {
     final sectionId = section.sourceSequence;
     if (sectionId == null) return const SizedBox.shrink();
 
+    // Admin-set "how many rows show before View All", at the grid's fixed 4
+    // columns. Falls back to the widget's own default (one row) when unset,
+    // so an existing section's layout does not change under it.
+    const columnsPerRow = 4;
+    final collapsedRows = (section.config['collapsed_rows'] as num?)?.toInt();
+
     return PopularCategorySectionWidget(
       sectionId: sectionId,
       showTitle: true,
@@ -112,6 +118,8 @@ class HomeSectionRegistry {
       itemHeight: 95,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       spacing: 6,
+      collapsedItemCount:
+          collapsedRows != null && collapsedRows > 0 ? collapsedRows * columnsPerRow : 4,
     );
   }
 
