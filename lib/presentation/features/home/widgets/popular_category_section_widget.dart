@@ -25,6 +25,14 @@ class PopularCategorySectionWidget extends ConsumerStatefulWidget {
   final String? titleOverride;
   final double spacing;
 
+  /// How many tiles show once collapsed, before "View All" is tapped.
+  ///
+  /// Admin-configurable per section (`HomeSection.config.collapsed_rows` ×
+  /// the fixed 4-column grid) — was a hardcoded `firstRowCount = 4` (one
+  /// row), so every section collapsed the same way regardless of how many
+  /// tiles it actually had.
+  final int collapsedItemCount;
+
   const PopularCategorySectionWidget({
     super.key,
     required this.sectionId,
@@ -35,6 +43,7 @@ class PopularCategorySectionWidget extends ConsumerStatefulWidget {
     this.itemHeight = 95,
     this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
     this.spacing = 6,
+    this.collapsedItemCount = 4,
   });
 
   @override
@@ -55,7 +64,7 @@ class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySe
         }
 
         final categories = categoryResponse.displayableItems;
-        const int firstRowCount = 4;
+        final firstRowCount = widget.collapsedItemCount;
         final displayCategories = _expanded
             ? categories
             : categories.sublist(0, categories.length < firstRowCount ? categories.length : firstRowCount);
