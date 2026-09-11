@@ -58,6 +58,32 @@ class PromotionalBanner {
   int get hashCode => id.hashCode;
 }
 
+/// Turns a banner's `action: {type, value}` (as saved by the admin panel's
+/// Banner dialog — Action Type + a bare Action Value, e.g. type "product",
+/// value "12345") into the `redirect_link` string format
+/// `openBannerTarget`/`_handleBannerRedirection` actually parse
+/// (`product_details/12345`, `?category_id=456`, or a raw URL).
+///
+/// Both call sites that build a PromotionalBanner from a raw feed/API item
+/// used to take `action.value` alone and drop `action.type` entirely, so a
+/// "product" or "category" banner's redirect_link was just a bare id/SKU —
+/// it matched none of the routing checks, and tapping the banner silently
+/// did nothing. This is the fix, factored out once so it can't drift between
+/// the two call sites (the legacy /api/banners path and the home feed path).
+String buildBannerRedirectLink(String actionType, String actionValue) {
+  if (actionValue.isEmpty) return '';
+  switch (actionType) {
+    case 'product':
+      return 'product_details/$actionValue';
+    case 'category':
+      return '?category_id=$actionValue';
+    case 'url':
+      return actionValue;
+    default:
+      return '';
+  }
+}
+
 // Service to fetch and manage promotional banners
 class BannerService {
   final ApiClient _apiClient;
@@ -235,7 +261,10 @@ class BannerService {
 
         result.add({
           '_id': (b['id'] ?? '').toString(),
-          'redirect_link': (action['value'] ?? '').toString(),
+          'redirect_link': buildBannerRedirectLink(
+            (action['type'] ?? 'none').toString(),
+            (action['value'] ?? '').toString(),
+          ),
           'banner_img': imageUrl,
           'is_active': b['is_active'] == false ? 'Disabled' : 'Enabled',
           'banner_type_id': 1,

@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
@@ -343,7 +344,7 @@ Color? homeSectionBackground(String hex) {
 /// Shared so every banner placement resolves targets identically — the hero
 /// carousel has always understood four formats, and a strip that only handled
 /// in-app paths would swallow three of them as dead taps.
-void openBannerTarget(BuildContext context, String target) {
+Future<void> openBannerTarget(BuildContext context, String target) async {
   if (target.isEmpty) return;
 
   if (target.startsWith('product_details/')) {
@@ -367,6 +368,11 @@ void openBannerTarget(BuildContext context, String target) {
     return;
   }
 
-  // External URLs need url_launcher, which the hero has never wired up either;
-  // ignored rather than pushed onto the router as a bogus path.
+  if (target.startsWith('http')) {
+    final uri = Uri.tryParse(target);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+    return;
+  }
 }

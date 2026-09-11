@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/data/services/banner_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -598,11 +599,11 @@ Widget _buildFullWidthBannerCarousel(BuildContext context, List<PromotionalBanne
   );
 }
   
-  void _handleBannerRedirection(BuildContext context, String redirectLink) {
+  Future<void> _handleBannerRedirection(BuildContext context, String redirectLink) async {
+    final logger = ref.read(loggerProvider);
     try {
-      final logger = ref.read(loggerProvider);
       logger.log('Banner tapped, redirecting to: $redirectLink');
-      
+
       // Handle different types of redirections
       if (redirectLink.startsWith('product_details/')) {
         final productId = redirectLink.replaceFirst('product_details/', '');
@@ -616,18 +617,24 @@ Widget _buildFullWidthBannerCarousel(BuildContext context, List<PromotionalBanne
         final categoryId = uri.queryParameters['category_id'];
         final deptId = uri.queryParameters['dept_id'] ?? '1';
         final categoryName = uri.queryParameters['category_name'] ?? 'Category';
-        
+
         if (categoryId != null) {
           context.push('/subcategory/$categoryId/$deptId/$categoryName');
         }
       } else if (redirectLink.startsWith('http')) {
-        // External URL - you might want to use url_launcher for this
-        logger.log('External URL redirection not implemented: $redirectLink');
+        // External URL — was logged as "not implemented" and left as a
+        // no-op; this is the actual launch.
+        final uri = Uri.tryParse(redirectLink);
+        if (uri != null && await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          logger.error('Could not launch external URL: $redirectLink');
+        }
       } else {
         logger.log('Unknown redirection format: $redirectLink');
       }
     } catch (e) {
-      ref.read(loggerProvider).error('Error handling banner redirection: $e');
+      logger.error('Error handling banner redirection: $e');
     }
   }
 }
