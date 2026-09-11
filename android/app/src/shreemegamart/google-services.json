@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "shreemegamart-placeholder",
-    "storage_bucket": "shreemegamart-placeholder.firebasestorage.app"
+    "project_number": "247339472735",
+    "project_id": "shree-mega-mart-f82b3",
+    "storage_bucket": "shree-mega-mart-f82b3.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:247339472735:android:b5f558420103db117908ea",
         "android_client_info": {
           "package_name": "com.shreemegamart.androidapp"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyPLACEHOLDER0000000000000000000000000"
+          "current_key": "AIzaSyCxsgkE9Awmx6o4XS3oSZjeHrXyQLtZQPc"
         }
       ],
       "services": {
