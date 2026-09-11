@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../presentation/widgets/back_button_wrapper.dart';
+import '../../../presentation/widgets/confirmation_dialog.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/services/cart_validator.dart';
 import '../../providers/cart_provider.dart';
@@ -17,7 +18,8 @@ import 'widgets/cart_item_widget.dart';
 import 'widgets/tabbed_offers_widget.dart';
 import '../checkout/widgets/cart_offer_picker.dart';
 import 'widgets/cart_validation_dialog.dart';
-import 'package:patelmart/presentation/providers/cart_validator_provider.dart' as validator;
+import 'package:patelmart/presentation/providers/cart_validator_provider.dart'
+    as validator;
 import '../../../di/auth_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../providers/cart_validation_policy_provider.dart';
@@ -90,12 +92,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   // Custom back navigation handler - matches the pattern from category screen
   Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {
     final logger = ref.read(loggerProvider);
-    logger.log('Hardware back button pressed on CartScreen - navigating to home');
-    
+    logger.log(
+      'Hardware back button pressed on CartScreen - navigating to home',
+    );
+
     try {
       // Navigate to home using go
       context.go('/home');
-      
+
       // Return false to prevent default back navigation
       return false;
     } catch (e) {
@@ -118,7 +122,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cartSavings = ref.watch(cartSavingsProvider);
     final cartValidationState = ref.watch(cartValidationStateProvider);
     final selectedOutletAsync = ref.watch(selectedOutletProvider);
-    
+
     // Minimum order value comes from the outlet. There is no default: a cart
     // cannot be judged before its store is known, and the previous fallback of
     // 499.0 was a threshold invented in this widget.
@@ -129,20 +133,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     // which also covers stock, outlet trading state and an empty cart — none of
     // which this screen used to check.
     final canCheckout = ref.watch(canCheckoutProvider);
-    
+
     // Back in stock items (mock data for demonstration)
     final backInStockItems = 2;
-    
+
     // Saved for later items (mock data for demonstration)
     final savedItems = 1;
-    
+
     return PopScope(
       canPop: false, // Prevent default pop behavior
       onPopInvoked: (bool didPop) async {
         if (!didPop) {
           final logger = ref.read(loggerProvider);
-          logger.log('PopScope: Back navigation intercepted on CartScreen - going to home');
-          
+          logger.log(
+            'PopScope: Back navigation intercepted on CartScreen - going to home',
+          );
+
           // Navigate to home
           if (context.mounted) {
             context.go('/home');
@@ -158,26 +164,33 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             body: Column(
               children: [
                 // Add the Cart Session Info Widget for visual feedback on session state
-                
+
                 // Cart Summary section
                 _buildCartSummary(context, cartSavings, cartTotal),
-                
+
                 // Divider
                 const Divider(height: 1),
-                
+
                 // Main content - scrollable
                 Expanded(
-                  child: cartItems.isEmpty
-                      ? _buildEmptyCart(context)
-                      : _buildCartContent(context, ref, cartItems, backInStockItems, savedItems),
+                  child:
+                      cartItems.isEmpty
+                          ? _buildEmptyCart(context)
+                          : _buildCartContent(
+                            context,
+                            ref,
+                            cartItems,
+                            backInStockItems,
+                            savedItems,
+                          ),
                 ),
-                
+
                 // Checkout button
                 if (cartItems.isNotEmpty)
                   _buildCheckoutButton(
-                    context, 
+                    context,
                     ref,
-                    canCheckout: canCheckout, 
+                    canCheckout: canCheckout,
                     cartTotal: cartTotal,
                     cartValidationState: cartValidationState,
                     minimumOrderValue: minimumOrderValue,
@@ -190,11 +203,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  PreferredSizeWidget _buildEnhancedAppBar(BuildContext context, WidgetRef ref) {
+  PreferredSizeWidget _buildEnhancedAppBar(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
     final cartCount = ref.watch(cartCountProvider);
     final cartTotal = ref.watch(cartTotalProvider);
     final logger = ref.read(loggerProvider);
-    
+
     return AppBar(
       backgroundColor: AppColors.primary,
       elevation: 0,
@@ -208,10 +224,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
       title: const Text(
         'Cart',
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w500,
-        ),
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
       ),
       centerTitle: true,
       actions: [
@@ -224,7 +237,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           },
           tooltip: 'View Favorites',
         ),
-        
+
         // Simplified Cart icon with only quantity badge
         Stack(
           alignment: Alignment.center,
@@ -260,7 +273,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               },
               tooltip: 'Cart Summary',
             ),
-            
+
             // Simple quantity badge - only shows count
             if (cartCount > 0)
               Positioned(
@@ -296,7 +309,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
           ],
         ),
-        
+
         const SizedBox(width: 8),
       ],
     );
@@ -327,9 +340,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Offer note
           Container(
             padding: const EdgeInsets.all(8),
@@ -406,9 +419,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ),
             child: Text(
               'Continue Shopping',
-              style: AppTextStyles.buttonMedium.copyWith(
-                color: Colors.white,
-              ),
+              style: AppTextStyles.buttonMedium.copyWith(color: Colors.white),
             ),
           ),
         ],
@@ -417,9 +428,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   Widget _buildCartContent(
-    BuildContext context, 
+    BuildContext context,
     WidgetRef ref,
-    List<CartItem> cartItems, 
+    List<CartItem> cartItems,
     int backInStockItems,
     int savedItems,
   ) {
@@ -428,9 +439,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       child: Column(
         children: [
           // Offers section at the top - tabbed layout
-          const RepaintBoundary(
-            child: TabbedOffersWidget(),
-          ),
+          const RepaintBoundary(child: TabbedOffersWidget()),
 
           // Cart items
           //
@@ -440,24 +449,29 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           // the element (and any in-flight animation/gesture state) that
           // used to belong to the row above it, instead of the list simply
           // shrinking.
-          ...cartItems.map((item) => CartItemWidget(
-            key: ValueKey(item.product.pCode),
-            cartItem: item,
-            onIncrementQuantity: () {
-              ref.read(cartProvider.notifier).incrementQuantity(item.product);
-            },
-            onDecrementQuantity: () {
-              ref.read(cartProvider.notifier).decrementQuantity(item.product);
-            },
-            onRemove: () {
-              ref.read(cartProvider.notifier).removeItem(item.product);
-            },
-          )),
-          
+          ...cartItems.map(
+            (item) => CartItemWidget(
+              key: ValueKey(item.product.pCode),
+              cartItem: item,
+              onIncrementQuantity: () {
+                ref.read(cartProvider.notifier).incrementQuantity(item.product);
+              },
+              onDecrementQuantity: () {
+                ref.read(cartProvider.notifier).decrementQuantity(item.product);
+              },
+              onRemove: () {
+                ref.read(cartProvider.notifier).removeItem(item.product);
+              },
+            ),
+          ),
+
           // Remove all button
           if (cartItems.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -477,69 +491,59 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     minimumSize: Size.zero,
                   ),
                 ),
               ),
             ),
-          
+
           const Divider(),
         ],
       ),
     );
   }
 
-  void _showClearCartDialog(BuildContext context, WidgetRef ref) {
+  Future<void> _showClearCartDialog(BuildContext context, WidgetRef ref) async {
     // Store the current cart items in case the user decides to undo
     final currentCartItems = List<CartItem>.from(ref.read(cartItemsProvider));
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Clear Cart'),
-          content: const Text('Are you sure you want to remove all items from your cart?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('CANCEL'),
-            ),
-            TextButton(
-              onPressed: () {
-                // Clear the cart
-                ref.read(cartProvider.notifier).clearCart();
-                Navigator.of(context).pop();
-                
-                // Show confirmation with UNDO option
-                if (currentCartItems.isNotEmpty) {
-                  showAppSnackBar(
-                    SnackBar(
-                      content: const Text('Cart cleared'),
-                      duration: const Duration(seconds: 3),
-                      action: SnackBarAction(
-                        label: 'UNDO',
-                        onPressed: () {
-                          // Restore all items
-                          for (final item in currentCartItems) {
-                            ref.read(cartProvider.notifier).addItemWithQuantity(
-                              item.product,
-                              item.quantity,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: const Text('CLEAR'),
-            ),
-          ],
-        );
-      },
+
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Clear Cart',
+      message: 'Are you sure you want to remove all items from your cart?',
+      icon: Icons.remove_shopping_cart_outlined,
+      confirmLabel: 'Clear',
     );
+    if (confirmed != true) return;
+
+    // Clear the cart
+    ref.read(cartProvider.notifier).clearCart();
+
+    // Show confirmation with UNDO option
+    if (currentCartItems.isNotEmpty) {
+      showAppSnackBar(
+        SnackBar(
+          content: const Text('Cart cleared'),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'UNDO',
+            onPressed: () {
+              // Restore all items
+              for (final item in currentCartItems) {
+                ref
+                    .read(cartProvider.notifier)
+                    .addItemWithQuantity(item.product, item.quantity);
+              }
+            },
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildCheckoutButton(
@@ -562,10 +566,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       final state = '$canCheckout|$isLoading|$cartTotal|$minimumOrderValue';
       if (state != _lastLoggedButtonState) {
         _lastLoggedButtonState = state;
-        print('[CHECKOUT BTN] enabled=${!isLoading && canCheckout} '
-            '| canCheckout=$canCheckout | isLoading=$isLoading '
-            '| cartTotal=$cartTotal | minOrder=$minimumOrderValue '
-            '| validationState=$cartValidationState');
+        print(
+          '[CHECKOUT BTN] enabled=${!isLoading && canCheckout} '
+          '| canCheckout=$canCheckout | isLoading=$isLoading '
+          '| cartTotal=$cartTotal | minOrder=$minimumOrderValue '
+          '| validationState=$cartValidationState',
+        );
       }
     }
 
@@ -603,61 +609,71 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
-          
+
           // Checkout button
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: isLoading || !canCheckout ? null : () {
-                if (kDebugMode) {
-                  print('\n[CHECKOUT] ===== PROCEED TO CHECKOUT TAPPED =====');
-                }
-                // Refresh cart session before checkout to extend it
-                ref.read(cartProvider.notifier).refreshSession();
+              onPressed:
+                  isLoading || !canCheckout
+                      ? null
+                      : () {
+                        if (kDebugMode) {
+                          print(
+                            '\n[CHECKOUT] ===== PROCEED TO CHECKOUT TAPPED =====',
+                          );
+                        }
+                        // Refresh cart session before checkout to extend it
+                        ref.read(cartProvider.notifier).refreshSession();
 
-                // Reset retry count before starting checkout
-                ref.read(validationRetryCountProvider.notifier).state = 0;
-                _proceedToCheckout(ref);
-              },
+                        // Reset retry count before starting checkout
+                        ref.read(validationRetryCountProvider.notifier).state =
+                            0;
+                        _proceedToCheckout(ref);
+                      },
               style: ElevatedButton.styleFrom(
-                backgroundColor: canCheckout ? AppColors.primary : AppColors.neutral300,
+                backgroundColor:
+                    canCheckout ? AppColors.primary : AppColors.neutral300,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: isLoading 
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text(
-                    'PROCEED TO CHECKOUT',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+              child:
+                  isLoading
+                      ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : const Text(
+                        'PROCEED TO CHECKOUT',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
             ),
           ),
         ],
       ),
     );
   }
-  
+
   Future<void> _proceedToCheckout(WidgetRef ref) async {
     // Every `return` below is a silent dead end from the shopper's side — the
     // button just stops doing anything. Each one announces itself so the log
     // says which gate closed.
     if (kDebugMode) {
-      print('[CHECKOUT] _proceedToCheckout entered '
-          '| widgetMounted=$mounted '
-          '| router=${_router != null} | navigator=${_navigator != null}');
+      print(
+        '[CHECKOUT] _proceedToCheckout entered '
+        '| widgetMounted=$mounted '
+        '| router=${_router != null} | navigator=${_navigator != null}',
+      );
     }
 
     final cartItems = ref.read(cartItemsProvider);
@@ -686,8 +702,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       // does not validate the cart itself, so jumping there would skip stock
       // and price checks entirely. pendingCheckoutProvider resumes the journey.
       if (kDebugMode) {
-        print('[CHECKOUT] STOP: not signed in — pushing login '
-            '(router=${_router != null})');
+        print(
+          '[CHECKOUT] STOP: not signed in — pushing login '
+          '(router=${_router != null})',
+        );
       }
       ref.read(pendingCheckoutProvider.notifier).state = true;
       _router?.push('/auth/login?redirectRoute=/cart');
@@ -695,18 +713,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
 
     final selectedOutletAsync = ref.read(selectedOutletProvider);
-    final cartValidationNotifier = ref.read(cartValidationStateProvider.notifier);
+    final cartValidationNotifier = ref.read(
+      cartValidationStateProvider.notifier,
+    );
 
     // Get current retry count
     final retryCount = ref.read(validationRetryCountProvider);
-    
+
     // Get the store code from the selected outlet. Validation prices and
     // stock-checks against a specific store, so guessing one here would clear
     // a cart against another tenant's inventory and let checkout proceed on it.
     final storeCode = selectedOutletAsync.value?.storeCode;
     if (kDebugMode) {
-      print('[CHECKOUT] storeCode=${storeCode ?? "<null>"} '
-          '| retryCount=$retryCount (ceiling 2)');
+      print(
+        '[CHECKOUT] storeCode=${storeCode ?? "<null>"} '
+        '| retryCount=$retryCount (ceiling 2)',
+      );
     }
     if (storeCode == null || storeCode.isEmpty) {
       if (kDebugMode) print('[CHECKOUT] STOP: no store selected');
@@ -733,14 +755,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     // Validate the cart
     final validationResult = await cartValidationNotifier.validateCart(
-      cartItems, 
+      cartItems,
       storeCode,
       retryCount,
     );
-    
+
     // Increment retry count for next time
     ref.read(validationRetryCountProvider.notifier).state = retryCount + 1;
-    
+
     // Remove any existing snackbars
     hideAppSnackBar();
 
@@ -756,18 +778,24 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final navigator = _navigator;
 
     if (kDebugMode) {
-      print('[CHECKOUT] validation returned '
-          '${validationResult == null ? "NULL (error)" : "result"} '
-          '| navigatorMounted=${navigator?.mounted}');
+      print(
+        '[CHECKOUT] validation returned '
+        '${validationResult == null ? "NULL (error)" : "result"} '
+        '| navigatorMounted=${navigator?.mounted}',
+      );
       if (validationResult != null) {
-        print('[CHECKOUT]   isValid=${validationResult.isValid} '
-            '| hasChanges=${validationResult.hasChanges} '
-            '| maxRetriesReached=${validationResult.maxRetriesReached} '
-            '| isSaveError=${validationResult.isSaveError}');
-        print('[CHECKOUT]   removed=${validationResult.removedItems.length} '
-            'qtyChanged=${validationResult.quantityChangedItems.length} '
-            'priceChanged=${validationResult.priceChangedItems.length} '
-            'issues=${validationResult.itemsWithIssues.length}');
+        print(
+          '[CHECKOUT]   isValid=${validationResult.isValid} '
+          '| hasChanges=${validationResult.hasChanges} '
+          '| maxRetriesReached=${validationResult.maxRetriesReached} '
+          '| isSaveError=${validationResult.isSaveError}',
+        );
+        print(
+          '[CHECKOUT]   removed=${validationResult.removedItems.length} '
+          'qtyChanged=${validationResult.quantityChangedItems.length} '
+          'priceChanged=${validationResult.priceChangedItems.length} '
+          'issues=${validationResult.itemsWithIssues.length}',
+        );
         print('[CHECKOUT]   message="${validationResult.validationMessage}"');
       }
     }
@@ -788,37 +816,40 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         showDialog(
           context: navigator.context,
           barrierDismissible: false,
-          builder: (dialogContext) => CartValidationDialog(
-            result: validationResult,
-            // The dialog's second button. It reads as CONTINUE when the server
-            // called the cart valid (a price change alone is), and as CANCEL
-            // otherwise — either way it closes, which is the only way out of a
-            // barrierDismissible:false dialog.
-            onContinue: () {
-              // Only proceed if validation was ultimately successful
-              if (validationResult.isValid) {
-                Navigator.pop(dialogContext);
-                _continueToCheckout(ref);
-              } else {
-                Navigator.pop(dialogContext);
-                // Backing out ends this checkout attempt, so the retry budget
-                // goes back to full — otherwise two cancels would leave the
-                // next genuine attempt to trip the retry ceiling immediately.
-                ref.read(validationRetryCountProvider.notifier).state = 0;
-                showAppSnackBar(
-                  const SnackBar(
-                    content: Text('Please update your cart before proceeding'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              }
-            },
-            onUpdateCart: () {
-              // Close dialog and update cart based on validation
-              Navigator.pop(dialogContext);
-              _autoUpdateCartBasedOnValidation(ref, validationResult);
-            },
-          ),
+          builder:
+              (dialogContext) => CartValidationDialog(
+                result: validationResult,
+                // The dialog's second button. It reads as CONTINUE when the server
+                // called the cart valid (a price change alone is), and as CANCEL
+                // otherwise — either way it closes, which is the only way out of a
+                // barrierDismissible:false dialog.
+                onContinue: () {
+                  // Only proceed if validation was ultimately successful
+                  if (validationResult.isValid) {
+                    Navigator.pop(dialogContext);
+                    _continueToCheckout(ref);
+                  } else {
+                    Navigator.pop(dialogContext);
+                    // Backing out ends this checkout attempt, so the retry budget
+                    // goes back to full — otherwise two cancels would leave the
+                    // next genuine attempt to trip the retry ceiling immediately.
+                    ref.read(validationRetryCountProvider.notifier).state = 0;
+                    showAppSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Please update your cart before proceeding',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
+                },
+                onUpdateCart: () {
+                  // Close dialog and update cart based on validation
+                  Navigator.pop(dialogContext);
+                  _autoUpdateCartBasedOnValidation(ref, validationResult);
+                },
+              ),
         );
       } else {
         // Both hasChanges is false AND isValid is true - safe to proceed
@@ -829,12 +860,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       }
     } else {
       // Error occurred during validation
-      final errorMessage = cartValidationNotifier.errorMessage ?? 'Failed to validate cart';
+      final errorMessage =
+          cartValidationNotifier.errorMessage ?? 'Failed to validate cart';
       if (kDebugMode) {
-        print('[CHECKOUT] STOP: no usable result '
-            '(result=${validationResult != null}, '
-            'navigator=${navigator != null}, '
-            'navigatorMounted=${navigator?.mounted}) — "$errorMessage"');
+        print(
+          '[CHECKOUT] STOP: no usable result '
+          '(result=${validationResult != null}, '
+          'navigator=${navigator != null}, '
+          'navigatorMounted=${navigator?.mounted}) — "$errorMessage"',
+        );
       }
       showAppSnackBar(
         SnackBar(
@@ -845,7 +879,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       );
     }
   }
-  
+
   /// Stop after the automatic fix-and-retry cycle has run out of attempts.
   ///
   /// This used to "take more drastic action": halve the quantity of every line
@@ -870,7 +904,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
     );
   }
-  
+
   Future<void> _continueToCheckout(WidgetRef ref) async {
     // Reset retry count since we're proceeding
     ref.read(validationRetryCountProvider.notifier).state = 0;
@@ -882,8 +916,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final isLoggedIn = await ref.read(authRepositoryProvider).isSignedIn();
 
     if (kDebugMode) {
-      print('[CHECKOUT] _continueToCheckout | isLoggedIn=$isLoggedIn '
-          '| router=${_router != null}');
+      print(
+        '[CHECKOUT] _continueToCheckout | isLoggedIn=$isLoggedIn '
+        '| router=${_router != null}',
+      );
     }
 
     if (isLoggedIn) {
@@ -900,7 +936,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       _router?.push('/auth/login?redirectRoute=/cart');
     }
   }
-  
+
   Future<void> _autoUpdateCartBasedOnValidation(
     WidgetRef ref,
     CartValidationResult result,
@@ -915,7 +951,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
     // Track the changes we made
     bool madeChanges = false;
-    
+
     // Check if this is a save error that requires a retry
     if (result.isSaveError) {
       // Show retry in progress
@@ -925,14 +961,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           duration: Duration(seconds: 1),
         ),
       );
-      
+
       // Retry saving the cart
-       final cartValidator = ref.read(validator.cartValidatorProvider);
-       final saveSuccess = await cartValidator.retrySaveCart(
-        ref.read(cartItemsProvider), 
-        storeCode
+      final cartValidator = ref.read(validator.cartValidatorProvider);
+      final saveSuccess = await cartValidator.retrySaveCart(
+        ref.read(cartItemsProvider),
+        storeCode,
       );
-      
+
       if (saveSuccess) {
         showAppSnackBar(
           const SnackBar(
@@ -971,11 +1007,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         return;
       }
     }
-    
+
     // Gather items to remove and prices to update
     final List<ProductModel> itemsToRemove = [];
     final Map<String, double> priceUpdates = {};
-    
+
     // 1. Process items that need to be removed
     if (result.removedItems.isNotEmpty) {
       for (final item in result.removedItems) {
@@ -983,14 +1019,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         itemsToRemove.add(item.product);
         madeChanges = true;
       }
-      
+
       // Show a single notification for all removed items
       if (context.mounted && result.removedItems.isNotEmpty) {
         final count = result.removedItems.length;
         showAppSnackBar(
           SnackBar(
             content: Text(
-              '$count ${count == 1 ? 'item' : 'items'} removed (out of stock)'
+              '$count ${count == 1 ? 'item' : 'items'} removed (out of stock)',
             ),
             backgroundColor: AppColors.error,
             duration: const Duration(seconds: 2),
@@ -998,7 +1034,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       }
     }
-    
+
     // 2. Process server-capped quantities (low stock / per-order maximum).
     //
     // Previously unhandled, which is what made the dialog loop: the server
@@ -1015,7 +1051,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       showAppSnackBar(
         SnackBar(
           content: Text(
-            'Quantity updated for $count ${count == 1 ? 'item' : 'items'} (limited stock)'
+            'Quantity updated for $count ${count == 1 ? 'item' : 'items'} (limited stock)',
           ),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 2),
@@ -1030,14 +1066,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         priceUpdates[item.product.pCode] = item.newPrice;
         madeChanges = true;
       }
-      
+
       // Show notification for price updates
       if (context.mounted && result.priceChangedItems.isNotEmpty) {
         final count = result.priceChangedItems.length;
         showAppSnackBar(
           SnackBar(
             content: Text(
-              'Prices updated for $count ${count == 1 ? 'item' : 'items'}'
+              'Prices updated for $count ${count == 1 ? 'item' : 'items'}',
             ),
             backgroundColor: Colors.blue,
             duration: const Duration(seconds: 2),
@@ -1045,21 +1081,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         );
       }
     }
-    
+
     // 4. Process generic validation issues if we didn't make other changes
     if (!madeChanges && result.genericValidationItem != null) {
       final item = result.genericValidationItem!;
-      
+
       // Try updating the quantity before the more drastic measures
       if (item.quantity > 1) {
         // Reduce quantity by 1
         cartNotifier.removeItem(item.product);
         cartNotifier.addItemWithQuantity(item.product, item.quantity - 1);
-        
+
         showAppSnackBar(
           SnackBar(
             content: Text(
-              'Reduced quantity for ${item.product.productName} to address validation issues'
+              'Reduced quantity for ${item.product.productName} to address validation issues',
             ),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 2),
@@ -1069,11 +1105,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       } else {
         // If quantity is already 1, mark for removal
         itemsToRemove.add(item.product);
-        
+
         showAppSnackBar(
           SnackBar(
             content: Text(
-              'Removed ${item.product.productName} to address validation issues'
+              'Removed ${item.product.productName} to address validation issues',
             ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
@@ -1082,7 +1118,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         madeChanges = true;
       }
     }
-    
+
     // 5. Apply all changes in one operation if we made some
     if (itemsToRemove.isNotEmpty ||
         priceUpdates.isNotEmpty ||
@@ -1134,5 +1170,4 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       _proceedToCheckout(ref);
     }
   }
-
 }

@@ -10,11 +10,11 @@ import '../../../di/repository_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../../di/auth_providers.dart';
 import '../../providers/profile_edit_providers.dart';
+import '../../widgets/confirmation_dialog.dart';
 
 // Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
 
 // State class for profile editing form
-
 
 class MyProfileScreen extends ConsumerStatefulWidget {
   const MyProfileScreen({super.key});
@@ -42,13 +42,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Pre-fill controllers with empty values to prevent visual flicker
     _firstNameController.text = '';
     _lastNameController.text = '';
     _mobileController.text = '';
     _emailController.text = '';
-    
+
     // Load user profile in the next frame after widgets are built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadUserProfile();
@@ -69,39 +69,41 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     try {
       final logger = ref.read(loggerProvider);
       logger.log('Starting to load user profile');
-      
+
       // Show loading state
-      ref.read(profileEditingProvider.notifier).state = 
-          ProfileEditState(isLoading: true, isAuthenticated: true);
+      ref.read(profileEditingProvider.notifier).state = ProfileEditState(
+        isLoading: true,
+        isAuthenticated: true,
+      );
 
       // First check if user is logged in directly
       final isLoggedIn = await _checkAuthentication();
-      
+
       if (!isLoggedIn) {
         logger.log('User not logged in, redirecting to login');
-        
+
         ref.read(profileEditingProvider.notifier).state = ProfileEditState(
           isLoading: false,
           isAuthenticated: false,
           errorMessage: 'User not logged in',
         );
-        
+
         if (mounted) {
           context.go('/auth/login?redirectRoute=/profile');
         }
         return; // Important: stop execution here
       }
-      
+
       // If we're still here, user is logged in
       logger.log('User is logged in, proceeding to load profile');
-      
+
       // Use centralized auth manager to get access key
       final authManager = ref.read(centralizedAuthManagerProvider);
       _accessKey = await authManager.getValidAccessKey();
-      
+
       if (_accessKey == null || _accessKey!.isEmpty) {
         logger.error('No valid access key found for profile loading');
-        
+
         ref.read(profileEditingProvider.notifier).state = ProfileEditState(
           isLoading: false,
           isAuthenticated: true, // Keep as true since they are logged in
@@ -109,15 +111,17 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         );
         return;
       }
-      
+
       // Get the current user profile from auth provider
       final userProfile = await ref.read(userProfileProvider.future);
-      
+
       if (userProfile == null) {
         // This is an edge case - user is logged in but profile is null
         // This shouldn't normally happen, but let's handle it anyway
-        logger.error('User logged in but profile is null - possible data issue');
-        
+        logger.error(
+          'User logged in but profile is null - possible data issue',
+        );
+
         ref.read(profileEditingProvider.notifier).state = ProfileEditState(
           isLoading: false,
           isAuthenticated: true, // Keep as true since they are logged in
@@ -125,44 +129,45 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         );
         return;
       }
-      
+
       // We have a valid profile, proceed
       logger.log('User profile retrieved: ${userProfile.mobile}');
-      
+
       // Store mobile for API calls
       _mobileNumber = userProfile.mobile;
-      
+
       // Initial update to form with mobile number
       _mobileController.text = userProfile.mobile;
-      
+
       // Create base profile state with mobile number
       var profileState = ProfileEditState(
         mobileNumber: userProfile.mobile,
         isLoading: false,
         isAuthenticated: true,
       );
-      
+
       // Fetch profile details from API if we have credentials
       if (_accessKey != null && _mobileNumber != null) {
         try {
           final profileRepository = ref.read(profileRepositoryProvider);
           logger.log('Fetching profile from API...');
-          
+
           final profileData = await profileRepository.getUserProfile();
-          
+
           logger.log('Profile data received: $profileData');
-          
+
           // Update state with API data if available
           if (profileData.isNotEmpty) {
             profileState = ProfileEditState.fromJson(profileData);
             logger.log('Profile data parsed successfully');
-            
+
             // Update controllers with data from API
             _firstNameController.text = profileState.firstName;
             _lastNameController.text = profileState.lastName;
-            _mobileController.text = profileState.mobileNumber.isNotEmpty 
-                ? profileState.mobileNumber 
-                : userProfile.mobile;
+            _mobileController.text =
+                profileState.mobileNumber.isNotEmpty
+                    ? profileState.mobileNumber
+                    : userProfile.mobile;
             _emailController.text = profileState.email;
           } else {
             logger.log('No profile data from API, using base state');
@@ -174,15 +179,14 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           // Don't set error message for API failures - user can still update profile
         }
       }
-      
+
       // Set the final state (either with API data or just mobile number)
       ref.read(profileEditingProvider.notifier).state = profileState;
       logger.log('Profile state set successfully');
-      
     } catch (e) {
       final logger = ref.read(loggerProvider);
       logger.error('Error loading user profile: $e');
-      
+
       // For general errors, keep user on profile page if possible
       ref.read(profileEditingProvider.notifier).state = ProfileEditState(
         isLoading: false,
@@ -194,7 +198,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
 
   Future<void> _saveProfile() async {
     final logger = ref.read(loggerProvider);
-    
+
     // Validate form
     if (!_formKey.currentState!.validate()) {
       logger.log('Form validation failed');
@@ -204,11 +208,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     // Check if we have access key and mobile using centralized manager
     final authManager = ref.read(centralizedAuthManagerProvider);
     final currentAccessKey = await authManager.getValidAccessKey();
-    
+
     if (currentAccessKey == null || _mobileNumber == null) {
       logger.error('Missing authentication details for profile save');
-      ref.read(profileEditingProvider.notifier).state = 
-          ref.read(profileEditingProvider).copyWith(
+      ref.read(profileEditingProvider.notifier).state = ref
+          .read(profileEditingProvider)
+          .copyWith(
             errorMessage: 'Missing authentication details. Please login again.',
           );
       return;
@@ -224,8 +229,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     // as a side effect of this same setState-driven rebuild is a known
     // trigger for that exact assertion. isSaving only drives the Save
     // button's own inline spinner, so the Form stays mounted throughout.
-    ref.read(profileEditingProvider.notifier).state =
-        ref.read(profileEditingProvider).copyWith(
+    ref.read(profileEditingProvider.notifier).state = ref
+        .read(profileEditingProvider)
+        .copyWith(
           isSaving: true,
           errorMessage: null, // Clear previous errors
         );
@@ -240,15 +246,17 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       final success = await profileRepository.updateUserProfile(
         firstName: _firstNameController.text,
         lastName: _lastNameController.text,
-        emailId: _emailController.text.isNotEmpty ? _emailController.text : null,
+        emailId:
+            _emailController.text.isNotEmpty ? _emailController.text : null,
       );
 
       if (success) {
         logger.log('Profile updated successfully');
 
         // Update the state with success
-        ref.read(profileEditingProvider.notifier).state =
-            ref.read(profileEditingProvider).copyWith(
+        ref.read(profileEditingProvider.notifier).state = ref
+            .read(profileEditingProvider)
+            .copyWith(
               isSaving: false,
               isSuccess: true,
               errorMessage: null,
@@ -282,8 +290,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
         logger.error('Profile update failed');
 
         // Update state with error
-        ref.read(profileEditingProvider.notifier).state =
-            ref.read(profileEditingProvider).copyWith(
+        ref.read(profileEditingProvider.notifier).state = ref
+            .read(profileEditingProvider)
+            .copyWith(
               isSaving: false,
               isSuccess: false,
               errorMessage: 'Failed to update profile',
@@ -293,8 +302,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       logger.error('Error saving profile: $e');
 
       // Update state with error
-      ref.read(profileEditingProvider.notifier).state =
-          ref.read(profileEditingProvider).copyWith(
+      ref.read(profileEditingProvider.notifier).state = ref
+          .read(profileEditingProvider)
+          .copyWith(
             isSaving: false,
             isSuccess: false,
             errorMessage: 'Failed to update profile: ${e.toString()}',
@@ -303,27 +313,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   }
 
   Future<void> _confirmDeleteAccount() async {
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text(
-          'Are you sure you want to delete your account? This action cannot be undone.'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
+    final shouldDelete = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Account',
+      message:
+          'Are you sure you want to delete your account? This action cannot be undone.',
     );
 
     if (shouldDelete == true) {
@@ -335,20 +329,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     try {
       final logger = ref.read(loggerProvider);
       logger.log('Deleting user account...');
-      
+
       // Show loading indicator
-      ref.read(profileEditingProvider.notifier).state = 
-          ref.read(profileEditingProvider).copyWith(isLoading: true);
-      
+      ref.read(profileEditingProvider.notifier).state = ref
+          .read(profileEditingProvider)
+          .copyWith(isLoading: true);
+
       // For demo, simulate network delay
       await Future.delayed(const Duration(seconds: 1));
-      
+
       // Note: CentralizedAuthManager clears cache automatically on logout
       // No manual cache clearing needed
-      
+
       // Logout the user
       await ref.read(logoutProvider)();
-      
+
       // Navigate to login screen
       if (mounted) {
         logger.log('Account deleted, navigating to login');
@@ -356,13 +351,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       }
     } catch (e) {
       ref.read(loggerProvider).error('Error deleting account: $e');
-      
+
       // Update state with error
-      ref.read(profileEditingProvider.notifier).state = 
-          ref.read(profileEditingProvider).copyWith(
-            isLoading: false, 
-            errorMessage: 'Failed to delete account',
-          );
+      ref.read(profileEditingProvider.notifier).state = ref
+          .read(profileEditingProvider)
+          .copyWith(isLoading: false, errorMessage: 'Failed to delete account');
     }
   }
 
@@ -372,18 +365,18 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     _lastNameController.dispose();
     _mobileController.dispose();
     _emailController.dispose();
-    
+
     _firstNameFocus.dispose();
     _lastNameFocus.dispose();
     _emailFocus.dispose();
-    
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileEditingProvider);
-    
+
     return Scaffold(
       backgroundColor: Colors.white, // Set white background
       appBar: AppBar(
@@ -395,200 +388,212 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           onPressed: () => context.go('/account'),
         ),
       ),
-      body: profileState.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : !profileState.isAuthenticated
+      body:
+          profileState.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : !profileState.isAuthenticated
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('Please login to view your profile'),
-                      SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => context.go('/auth/login?redirectRoute=/profile'),
-                        child: Text('Login'),
-                      ),
-                    ],
-                  ),
-                )
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Please login to view your profile'),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed:
+                          () =>
+                              context.go('/auth/login?redirectRoute=/profile'),
+                      child: Text('Login'),
+                    ),
+                  ],
+                ),
+              )
               : SafeArea(
-                  child: Form(
-                    key: _formKey,
-                    child: ListView(
-                      padding: const EdgeInsets.all(16.0),
-                      children: [
-                        // First Name
-                        _buildFormLabel('First Name', true),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          controller: _firstNameController,
-                          focusNode: _firstNameFocus,
-                          hintText: 'Enter your first name',
-                          nextFocus: _lastNameFocus,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your first name';
-                            }
-                            return null;
-                          },
-                        ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Last Name
-                        _buildFormLabel('Last Name', true),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          controller: _lastNameController,
-                          focusNode: _lastNameFocus,
-                          hintText: 'Enter your last name',
-                          nextFocus: _emailFocus,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your last name';
-                            }
-                            return null;
-                          },
-                        ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Mobile Number (disabled)
-                        _buildFormLabel('Your Mobile Number', true),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _mobileController,
-                          enabled: false, // Disabled since users can't change their mobile number
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.grey[200],
-                            hintText: 'Your mobile number',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 16,
-                            ),
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16.0),
+                    children: [
+                      // First Name
+                      _buildFormLabel('First Name', true),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        controller: _firstNameController,
+                        focusNode: _firstNameFocus,
+                        hintText: 'Enter your first name',
+                        nextFocus: _lastNameFocus,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your first name';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Last Name
+                      _buildFormLabel('Last Name', true),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        controller: _lastNameController,
+                        focusNode: _lastNameFocus,
+                        hintText: 'Enter your last name',
+                        nextFocus: _emailFocus,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your last name';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Mobile Number (disabled)
+                      _buildFormLabel('Your Mobile Number', true),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _mobileController,
+                        enabled:
+                            false, // Disabled since users can't change their mobile number
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.grey[200],
+                          hintText: 'Your mobile number',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
                           ),
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
                           ),
                         ),
-                        
-                        const SizedBox(height: 24),
-                        
-                        // Email (optional)
-                        _buildFormLabel('Your Email Id (optional)', false),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          controller: _emailController,
-                          focusNode: _emailFocus,
-                          hintText: 'Enter your email address',
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.done,
-                          validator: (value) {
-  if (value != null && value.isNotEmpty) {
-    // Simple email validation
-    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-    if (!emailRegex.hasMatch(value)) {
-      return 'Please enter a valid email address';
-    }
-  }
-  return null;
-},
-                        ),
-                        
-                        const SizedBox(height: 40),
-                        
-                        // Save Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: profileState.isSaving ? null : _saveProfile,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary, // Purple color from screenshot
-                              foregroundColor: Colors.white,
-                              textStyle: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.0,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(28),
-                              ),
-                              elevation: 0,
+                        style: TextStyle(color: Colors.grey.shade700),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Email (optional)
+                      _buildFormLabel('Your Email Id (optional)', false),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        controller: _emailController,
+                        focusNode: _emailFocus,
+                        hintText: 'Enter your email address',
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.done,
+                        validator: (value) {
+                          if (value != null && value.isNotEmpty) {
+                            // Simple email validation
+                            final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+                            if (!emailRegex.hasMatch(value)) {
+                              return 'Please enter a valid email address';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Save Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed:
+                              profileState.isSaving ? null : _saveProfile,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                AppColors
+                                    .primary, // Purple color from screenshot
+                            foregroundColor: Colors.white,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.0,
                             ),
-                            child: profileState.isSaving
-                                ? const CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(28),
+                            ),
+                            elevation: 0,
+                          ),
+                          child:
+                              profileState.isSaving
+                                  ? const CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   )
-                                : const Text('SAVE CHANGES'),
+                                  : const Text('SAVE CHANGES'),
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Delete Account
+                      Center(
+                        child: TextButton(
+                          onPressed:
+                              profileState.isSaving
+                                  ? null
+                                  : _confirmDeleteAccount,
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Delete My Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
+                      ),
 
-                        const SizedBox(height: 40),
-
-                        // Delete Account
-                        Center(
-                          child: TextButton(
-                            onPressed: profileState.isSaving ? null : _confirmDeleteAccount,
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      // Error message (only show if it's not an authentication error)
+                      if (profileState.errorMessage != null &&
+                          profileState.isAuthenticated)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 20.0),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
                             ),
-                            child: const Text(
-                              'Delete My Account',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              border: Border.all(color: Colors.red.shade200),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ),
-                        ),
-                        
-                        // Error message (only show if it's not an authentication error)
-                        if (profileState.errorMessage != null && profileState.isAuthenticated)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 20.0),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                border: Border.all(color: Colors.red.shade200),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.error_outline,
-                                    color: Colors.red.shade600,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      profileState.errorMessage!,
-                                      style: TextStyle(
-                                        color: Colors.red.shade600,
-                                        fontSize: 14,
-                                      ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red.shade600,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    profileState.errorMessage!,
+                                    style: TextStyle(
+                                      color: Colors.red.shade600,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
+              ),
     );
   }
 
@@ -663,4 +668,3 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     );
   }
 }
-
