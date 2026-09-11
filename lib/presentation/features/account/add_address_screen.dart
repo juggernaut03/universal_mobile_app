@@ -8,7 +8,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
-import 'package:patelmart/presentation/providers/address_provider.dart' as address_book;
 import 'package:patelmart/presentation/providers/address_provider.dart';
 import 'package:patelmart/presentation/providers/auth_providers.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
@@ -340,55 +339,40 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
       if (failure == null) {
         // Address saved successfully
         logger.log('Address added successfully');
-        
-        // **** CRITICAL FIX: Trigger address refresh ****
-        // This ensures the checkout flow sees the new address immediately
-        try {
-          // 1. Trigger refresh counter increment (if exists)
-          try {
-            ref.read(addressRefreshProvider.notifier).state++;
-          } catch (e) {
-            logger.warning('addressRefreshProvider not found, skipping: $e');
-          }
-          
-          // 2. Refresh the address list provider (used by checkout flow)
-          ref.invalidate(address_book.addressListProvider);
-          
-          // 3. Refresh the main address providers
-          ref.invalidate(addressesProvider);
-          
-          logger.log('Address providers refreshed successfully');
-        } catch (e) {
-          logger.error('Error refreshing address providers: $e');
-          // Continue even if refresh fails
-        }
-        
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Address added successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          
-          // Small delay to ensure providers are refreshed before navigation
-          await Future.delayed(const Duration(milliseconds: 300));
 
-          if (!mounted) return;
+        // addressOperationsProvider.add() already bumps addressRefreshProvider
+        // itself on success (see onAddressChanged in address_provider.dart),
+        // which is what addressesProvider/addressListProvider watch to
+        // refetch. Re-bumping it again here and separately invalidating both
+        // derived providers was redundant, and forced three extra synchronous
+        // rebuilds of whatever ancestor widget watches them while this
+        // callback was still running — that churn is what was throwing
+        // "Looking up a deactivated widget's ancestor is unsafe": one of
+        // those rebuilds could deactivate this screen's own Element between
+        // the invalidations and the ScaffoldMessenger/navigation calls
+        // below. The address itself always saved fine; only this
+        // cleanup-and-navigate tail crashed. Dropping the redundant
+        // invalidation removes the extra churn that caused it.
+        if (!mounted) return;
 
-          // Navigate based on where we came from
-          if (widget.returnToCheckout) {
-            logger.log('Navigating back to checkout flow');
-            context.go('/checkout-flow');
-          } else {
-            logger.log('Navigating back to address book');
-            context.go('/address-book');
-          }
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Address added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate based on where we came from
+        if (widget.returnToCheckout) {
+          logger.log('Navigating back to checkout flow');
+          context.go('/checkout-flow');
+        } else {
+          logger.log('Navigating back to address book');
+          context.go('/address-book');
         }
       } else {
         // Failed to add address

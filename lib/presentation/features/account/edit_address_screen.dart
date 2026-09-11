@@ -329,14 +329,34 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         success = await repository.updateAddress(updatedAddress);
       }
       
+      // Show success/failure message and navigate first, *then* bump the
+      // refresh provider below. Bumping it triggers a synchronous rebuild of
+      // whatever ancestor watches the address providers, which can
+      // deactivate this screen's own Element — doing that *before* the
+      // ScaffoldMessenger/navigation calls (as this used to) meant the
+      // ancestor lookup inside ScaffoldMessenger.of(context) could become
+      // unsafe mid-callback, throwing "Looking up a deactivated widget's
+      // ancestor is unsafe" even though the address had already saved fine.
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Address updated successfully' : 'Failed to update address'),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+
       // Refresh address list if successful. addressListProvider is only a
       // projection of addressesProvider — invalidating it alone reruns the
       // projection over the same cached data. addressRefreshProvider is the
       // actual cache key addressesProvider watches, so it must be bumped to
-      // force a real refetch (same pattern as add_address_screen.dart and
-      // address_book_screen.dart's delete/set-default handlers). Without
-      // this, an edit only became visible after a full app relaunch tore
-      // down the provider container.
+      // force a real refetch (same pattern as address_book_screen.dart's
+      // delete/set-default handlers). Without this, an edit only became
+      // visible after a full app relaunch tore down the provider container.
       if (success) {
         try {
           ref.read(addressRefreshProvider.notifier).state++;
@@ -346,28 +366,12 @@ class _EditAddressScreenState extends ConsumerState<EditAddressScreen> {
         } catch (e) {
           logger.warning('Could not refresh address list provider: $e');
         }
-      }
-      
-      // Show success/failure message and navigate
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Address updated successfully' : 'Failed to update address'),
-            backgroundColor: success ? Colors.green : Colors.red,
-          ),
-        );
-        
+
         // Navigate based on where we came from
-        if (success) {
-          if (widget.returnToCheckout) {
-            context.go('/checkout-flow');
-          } else {
-            context.go('/address-book');
-          }
+        if (widget.returnToCheckout) {
+          context.go('/checkout-flow');
+        } else {
+          context.go('/address-book');
         }
       }
     } catch (e) {
