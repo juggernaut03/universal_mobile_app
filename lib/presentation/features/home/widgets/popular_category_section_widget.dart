@@ -5,6 +5,7 @@ import 'package:patelmart/core/constants/app_colors.dart';
 import 'package:patelmart/core/constants/app_text_styles.dart';
 import 'package:patelmart/core/widgets/cached_network_image_widget.dart';
 import 'package:patelmart/core/widgets/error_widgets.dart';
+import 'package:patelmart/domain/entities/promo_section.dart';
 import 'package:patelmart/presentation/providers/popular_category_section_providers.dart';
 
 /// One popular-category promo strip.
@@ -130,7 +131,7 @@ class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySe
     );
   }
 
-  Widget _buildExpandedGrid(BuildContext context, List<dynamic> categories) {
+  Widget _buildExpandedGrid(BuildContext context, List<PromoItem> categories) {
     const int fixedColumns = 4;
     return GridView.builder(
       shrinkWrap: true,
@@ -152,11 +153,11 @@ class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySe
     );
   }
 
-  Widget _buildCategoryCard(BuildContext context, dynamic category) {
+  Widget _buildCategoryCard(BuildContext context, PromoItem category) {
     return GestureDetector(
       onTap: () {
         context.push(
-          '/subcategory/${category.categoryId}/${category.deptId}/${Uri.encodeComponent(category.categoryName)}',
+          '/subcategory/${category.categoryCode}/${category.departmentCode}/${Uri.encodeComponent(category.label)}',
         );
       },
       child: Column(
@@ -167,8 +168,8 @@ class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySe
             height: 90,
             width: double.infinity,
             child: CachedNetworkImageWidget(
-              imageUrl: category.imageLink,
-              cacheKey: 'popular_category_${category.categoryId}',
+              imageUrl: category.imageUrl,
+              cacheKey: 'popular_category_${category.categoryCode}',
               fit: BoxFit.contain,
               errorWidget: Icon(
                 Icons.image_not_supported_outlined,
@@ -179,7 +180,7 @@ class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySe
           ),
           const SizedBox(height: 6),
           Text(
-            category.categoryName,
+            category.label,
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
