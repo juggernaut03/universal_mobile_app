@@ -8,9 +8,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../providers/seasonal_category_widget_providers.dart';
 
-
-
-
 /// Utility function to convert hex color string to Color
 Color hexToColor(String hexString) {
   try {
@@ -22,9 +19,6 @@ Color hexToColor(String hexString) {
     return Colors.white; // Fallback color
   }
 }
-
-
-
 
 /// Main seasonal category widget with horizontal scrolling and pull-to-refresh
 class SeasonalCategoryWidget extends ConsumerWidget {
@@ -57,30 +51,32 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Check loading state first - prevents shuffling during refresh
     final isLoading = ref.watch(seasonalCategoryLoadingProvider);
-    
+
     // Show loading immediately if refreshing (prevents showing stale data)
     if (isLoading) {
       return _buildLoadingState();
     }
-    
+
     // Get the current outlet to determine store code
     final outletAsync = ref.watch(selectedOutletProvider);
-    
+
     return outletAsync.when(
       data: (outlet) {
         if (outlet == null) return const SizedBox.shrink();
-        
+
         final params = SeasonalCategoryParams(
           storeCode: outlet.storeCode,
           departmentId: departmentId,
         );
-        
+
         final categoriesAsync = ref.watch(seasonalCategoryProvider(params));
-        
+
         return categoriesAsync.when(
-          data: (response) => enablePullToRefresh 
-              ? _buildWithRefresh(context, ref, response, params)
-              : _buildCategorySection(context, response),
+          data:
+              (response) =>
+                  enablePullToRefresh
+                      ? _buildWithRefresh(context, ref, response, params)
+                      : _buildCategorySection(context, response),
           loading: () => _buildLoadingState(),
           error: (error, stackTrace) => _buildErrorState(context, error, ref),
         );
@@ -91,12 +87,17 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   }
 
   /// Build wrapper with pull-to-refresh functionality
-  Widget _buildWithRefresh(BuildContext context, WidgetRef ref, SeasonalCategoryResponse response, SeasonalCategoryParams params) {
+  Widget _buildWithRefresh(
+    BuildContext context,
+    WidgetRef ref,
+    SeasonalCategoryResponse response,
+    SeasonalCategoryParams params,
+  ) {
     return RefreshIndicator(
       onRefresh: () async {
         final refreshFunction = ref.read(seasonalCategoryRefreshProvider);
         await refreshFunction();
-        
+
         // Optional: Show a brief success message
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -120,7 +121,10 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   }
 
   /// Build the main category section with background color from API
-  Widget _buildCategorySection(BuildContext context, SeasonalCategoryResponse response) {
+  Widget _buildCategorySection(
+    BuildContext context,
+    SeasonalCategoryResponse response,
+  ) {
     if (response.categories.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -129,7 +133,6 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     final displayTitle = titleOverride ?? response.title;
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
@@ -138,11 +141,12 @@ class SeasonalCategoryWidget extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Only show title if showTitle is enabled AND title is not empty
-          if (showTitle && displayTitle.isNotEmpty) _buildSectionHeader(context, displayTitle),
-          
+          if (showTitle && displayTitle.isNotEmpty)
+            _buildSectionHeader(context, displayTitle),
+
           // Horizontal scrolling categories
           _buildHorizontalCategories(context, response.categories),
-          
+
           const SizedBox(height: 8),
         ],
       ),
@@ -192,7 +196,10 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   }
 
   /// Build horizontal scrolling category list
-  Widget _buildHorizontalCategories(BuildContext context, List<SeasonalCategory> categories) {
+  Widget _buildHorizontalCategories(
+    BuildContext context,
+    List<SeasonalCategory> categories,
+  ) {
     return Container(
       height: itemHeight + 20, // Extra space for text
       margin: const EdgeInsets.only(top: 12),
@@ -221,9 +228,9 @@ class SeasonalCategoryWidget extends ConsumerWidget {
           children: [
             // Card-shaped image with fixed dimensions
             _buildCardImage(category),
-            
+
             const SizedBox(height: 8),
-            
+
             // Category name with fixed height container
             _buildCategoryName(category),
           ],
@@ -255,47 +262,46 @@ class SeasonalCategoryWidget extends ConsumerWidget {
           fit: BoxFit.cover,
           width: imageHeight,
           height: imageHeight,
-          placeholder: (context, url) => Container(
-            width: imageHeight,
-            height: imageHeight,
-            color: Colors.grey[50],
-            child: Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppColors.primary.withOpacity(0.7),
+          placeholder:
+              (context, url) => Container(
+                width: imageHeight,
+                height: imageHeight,
+                color: Colors.grey[50],
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primary.withOpacity(0.7),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          errorWidget: (context, url, error) => Container(
-            width: imageHeight,
-            height: imageHeight,
-            color: Colors.grey[50],
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.image_not_supported_outlined,
-                  color: Colors.grey[400],
-                  size: 20,
+          errorWidget:
+              (context, url, error) => Container(
+                width: imageHeight,
+                height: imageHeight,
+                color: Colors.grey[50],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Colors.grey[400],
+                      size: 20,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'No image',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 8),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'No image',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 8,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
+              ),
         ),
       ),
     );
@@ -305,7 +311,9 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   Widget _buildCategoryName(SeasonalCategory category) {
     return Text(
       category.categoryName,
-      key: ValueKey('seasonal_cat_name_${category.id}'), // Prevents widget recycling issues
+      key: ValueKey(
+        'seasonal_cat_name_${category.id}',
+      ), // Prevents widget recycling issues
       style: AppTextStyles.bodySmall.copyWith(
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
@@ -339,7 +347,6 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   /// Build loading state with shimmer effect
   Widget _buildLoadingState() {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(12),
@@ -374,7 +381,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
                 ],
               ),
             ),
-          
+
           // Categories shimmer
           Container(
             height: itemHeight + 20,
@@ -387,7 +394,7 @@ class SeasonalCategoryWidget extends ConsumerWidget {
               itemBuilder: (context, index) => _buildLoadingItem(),
             ),
           ),
-          
+
           const SizedBox(height: 8),
         ],
       ),
@@ -411,9 +418,9 @@ class SeasonalCategoryWidget extends ConsumerWidget {
               color: Colors.grey[200],
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Text placeholder with fixed height
           Container(
             width: itemWidth * 0.8,
@@ -432,7 +439,6 @@ class SeasonalCategoryWidget extends ConsumerWidget {
   Widget _buildErrorState(BuildContext context, Object error, WidgetRef ref) {
     return Container(
       height: showTitle ? 120 : 80,
-      margin: const EdgeInsets.symmetric(vertical: 4),
       padding: padding,
       decoration: BoxDecoration(
         color: Colors.grey[50],
@@ -457,7 +463,9 @@ class SeasonalCategoryWidget extends ConsumerWidget {
             const SizedBox(height: 4),
             TextButton(
               onPressed: () async {
-                final refreshFunction = ref.read(seasonalCategoryRefreshProvider);
+                final refreshFunction = ref.read(
+                  seasonalCategoryRefreshProvider,
+                );
                 await refreshFunction();
               },
               child: Text(
@@ -474,5 +482,3 @@ class SeasonalCategoryWidget extends ConsumerWidget {
     );
   }
 }
-
-

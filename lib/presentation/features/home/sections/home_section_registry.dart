@@ -22,11 +22,8 @@ import '../widgets/seasonal_category_widget.dart';
 import '../widgets/seasonal_picks_widget.dart';
 import '../widgets/single_offer_section_widget.dart';
 
-typedef HomeSectionBuilder = Widget Function(
-  BuildContext context,
-  WidgetRef ref,
-  HomeSection section,
-);
+typedef HomeSectionBuilder =
+    Widget Function(BuildContext context, WidgetRef ref, HomeSection section);
 
 class HomeSectionRegistry {
   const HomeSectionRegistry._();
@@ -55,7 +52,11 @@ class HomeSectionRegistry {
   static bool canRender(String type) => _builders.containsKey(type);
 
   /// Draws [section], or nothing if this build does not know the type.
-  static Widget build(BuildContext context, WidgetRef ref, HomeSection section) {
+  static Widget build(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) {
     final builder = _builders[section.type];
     if (builder == null) return const SizedBox.shrink();
 
@@ -75,7 +76,11 @@ class HomeSectionRegistry {
   // by section sequence; wiring them to the items the feed already carries is
   // the next step and is what removes the extra calls.
 
-  static Widget _categoryStrip(BuildContext context, WidgetRef ref, HomeSection section) {
+  static Widget _categoryStrip(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) {
     return const SeasonalCategoryWidget(
       departmentId: 2,
       itemWidth: 100,
@@ -88,9 +93,17 @@ class HomeSectionRegistry {
     );
   }
 
-  static Widget _heroCarousel(BuildContext context, WidgetRef ref, HomeSection section) {
+  static Widget _heroCarousel(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) {
+    // horizontal-only — the feed loop's uniform gap (see home_screen.dart)
+    // already provides vertical spacing between sections; this used to add
+    // its own vertical:4 on top, making the hero's gap 16px against
+    // everyone else's 12.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: const PromotionalBannerWidget(
         showPageIndicator: true,
         autoPlay: true,
@@ -100,7 +113,11 @@ class HomeSectionRegistry {
     );
   }
 
-  static Widget _categoryGrid(BuildContext context, WidgetRef ref, HomeSection section) {
+  static Widget _categoryGrid(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) {
     final sectionId = section.sourceSequence;
     if (sectionId == null) return const SizedBox.shrink();
 
@@ -119,19 +136,28 @@ class HomeSectionRegistry {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       spacing: 6,
       collapsedItemCount:
-          collapsedRows != null && collapsedRows > 0 ? collapsedRows * columnsPerRow : 4,
+          collapsedRows != null && collapsedRows > 0
+              ? collapsedRows * columnsPerRow
+              : 4,
     );
   }
 
   /// The second banner placement, and how advertisements reach home. Drawn
   /// from the items the feed carries, so it costs no extra request.
-  static Widget _bannerStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
-      BannerStripSection(section: section);
+  static Widget _bannerStrip(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) => BannerStripSection(section: section);
 
   /// A product rail is backed by either best sellers or top sellers, and the
   /// two can share a sequence. Dispatching on sequence alone would render the
   /// best-seller rail in the top-seller slot.
-  static Widget _productRail(BuildContext context, WidgetRef ref, HomeSection section) {
+  static Widget _productRail(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) {
     if (section.sourceCollection == HomeSectionSource.topSellers) {
       return FeedProductRailSection(section: section);
     }
@@ -139,15 +165,16 @@ class HomeSectionRegistry {
     final sectionId = section.sourceSequence;
     if (sectionId == null) return const SizedBox.shrink();
 
-    return BestSellerWidget(
-      bestSellerId: sectionId,
-      height: 320,
-    );
+    return BestSellerWidget(bestSellerId: sectionId, height: 320);
   }
 
   /// Cart-dependent, so the server sends an empty placeholder and the client
   /// fills it from its own offers call. A slot with no matching offer collapses.
-  static Widget _offerStrip(BuildContext context, WidgetRef ref, HomeSection section) {
+  static Widget _offerStrip(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) {
     final index = section.sourceIndex;
     if (index == null) return const SizedBox.shrink();
 
@@ -158,37 +185,58 @@ class HomeSectionRegistry {
     return SingleOfferSectionWidget(offer: offers[index]);
   }
 
-  static Widget _seasonalPicks(BuildContext context, WidgetRef ref, HomeSection section) {
+  static Widget _seasonalPicks(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) {
     return const SeasonalPicksWidget();
   }
 
   /// Deal-of-the-day is a flash sale with one item; the presentation is the
   /// same, so it shares the renderer rather than duplicating it.
-  static Widget _flashSale(BuildContext context, WidgetRef ref, HomeSection section) =>
-      FlashSaleSection(section: section);
+  static Widget _flashSale(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) => FlashSaleSection(section: section);
 
-  static Widget _buyAgain(BuildContext context, WidgetRef ref, HomeSection section) =>
-      BuyAgainSection(section: section);
+  static Widget _buyAgain(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) => BuyAgainSection(section: section);
 
   static Widget _freeDeliveryProgress(
     BuildContext context,
     WidgetRef ref,
     HomeSection section,
-  ) =>
-      FreeDeliveryProgressSection(section: section);
+  ) => FreeDeliveryProgressSection(section: section);
 
-  static Widget _uspStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
-      UspStripSection(section: section);
+  static Widget _uspStrip(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) => UspStripSection(section: section);
 
   /// Filled from on-device history; the server never sees it.
-  static Widget _recentlyViewed(BuildContext context, WidgetRef ref, HomeSection section) =>
-      RecentlyViewedSection(section: section);
+  static Widget _recentlyViewed(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) => RecentlyViewedSection(section: section);
 
-  static Widget _couponStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
-      CouponStripSection(section: section);
+  static Widget _couponStrip(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) => CouponStripSection(section: section);
 
-  static Widget _brandStrip(BuildContext context, WidgetRef ref, HomeSection section) =>
-      BrandStripSection(section: section);
+  static Widget _brandStrip(
+    BuildContext context,
+    WidgetRef ref,
+    HomeSection section,
+  ) => BrandStripSection(section: section);
 }
 
 /// Counts a section as seen once it is actually built.
@@ -213,7 +261,9 @@ class _TrackedSectionState extends ConsumerState<_TrackedSection> {
     // After the frame: reporting during build would rebuild providers mid-build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(homeAnalyticsServiceProvider).recordImpression(
+      ref
+          .read(homeAnalyticsServiceProvider)
+          .recordImpression(
             sectionId: widget.section.id,
             sectionType: widget.section.type,
           );
@@ -229,10 +279,13 @@ class _TrackedSectionState extends ConsumerState<_TrackedSection> {
     // fires only when something inside was actually hit, not on empty space.
     return Listener(
       behavior: HitTestBehavior.deferToChild,
-      onPointerUp: (_) => ref.read(homeAnalyticsServiceProvider).recordClick(
-            sectionId: widget.section.id,
-            sectionType: widget.section.type,
-          ),
+      onPointerUp:
+          (_) => ref
+              .read(homeAnalyticsServiceProvider)
+              .recordClick(
+                sectionId: widget.section.id,
+                sectionType: widget.section.type,
+              ),
       child: widget.child,
     );
   }

@@ -17,7 +17,6 @@ import 'package:patelmart/presentation/providers/popular_category_section_provid
 class PopularCategorySectionWidget extends ConsumerStatefulWidget {
   final int sectionId;
 
-  
   final bool showTitle;
   final bool showViewAll;
   final double itemWidth;
@@ -48,10 +47,12 @@ class PopularCategorySectionWidget extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<PopularCategorySectionWidget> createState() => _PopularCategorySectionWidgetState();
+  ConsumerState<PopularCategorySectionWidget> createState() =>
+      _PopularCategorySectionWidgetState();
 }
 
-class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySectionWidget> {
+class _PopularCategorySectionWidgetState
+    extends ConsumerState<PopularCategorySectionWidget> {
   bool _expanded = true;
 
   @override
@@ -66,68 +67,76 @@ class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySe
 
         final categories = categoryResponse.displayableItems;
         final firstRowCount = widget.collapsedItemCount;
-        final displayCategories = _expanded
-            ? categories
-            : categories.sublist(0, categories.length < firstRowCount ? categories.length : firstRowCount);
+        final displayCategories =
+            _expanded
+                ? categories
+                : categories.sublist(
+                  0,
+                  categories.length < firstRowCount
+                      ? categories.length
+                      : firstRowCount,
+                );
 
         // Logic: Override > API Title
         final displayTitle = widget.titleOverride ?? categoryResponse.title;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.showTitle && displayTitle.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.only(
-                    left: widget.padding.horizontal / 2,
-                    right: widget.padding.horizontal / 2,
-                    bottom: 12,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        displayTitle,
-                        style: AppTextStyles.h6.copyWith(
-                          fontWeight: FontWeight.bold,
+        // No margin of its own — the home feed's section loop already adds a
+        // uniform gap after every section (see home_screen.dart); this
+        // used to add its own 16px bottom margin on top of that, making
+        // this specific section type's gap 28px against everyone else's 12.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.showTitle && displayTitle.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: widget.padding.horizontal / 2,
+                  right: widget.padding.horizontal / 2,
+                  bottom: 12,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      displayTitle,
+                      style: AppTextStyles.h6.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (widget.showViewAll && categories.length > firstRowCount)
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _expanded = !_expanded;
+                          });
+                        },
+                        child: Text(
+                          _expanded ? 'Show Less' : 'View All',
+                          style: TextStyle(color: AppColors.primary),
                         ),
                       ),
-                      if (widget.showViewAll && categories.length > firstRowCount)
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _expanded = !_expanded;
-                            });
-                          },
-                          child: Text(
-                            _expanded ? 'Show Less' : 'View All',
-                            style: TextStyle(color: AppColors.primary),
-                          ),
-                        ),
-                    ],
-                  ),
+                  ],
                 ),
-              _buildExpandedGrid(context, displayCategories),
-            ],
-          ),
+              ),
+            _buildExpandedGrid(context, displayCategories),
+          ],
         );
       },
-      loading: () => const SizedBox(
-        height: 150,
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      error: (error, stackTrace) => Center(
-        child: AppErrorWidget(
-          errorType: ErrorType.generic,
-          message: 'Error loading categories: $error',
-          onRetry: () => ref.refresh(promoSectionProvider(widget.sectionId)),
-        ),
-      ),
+      loading:
+          () => const SizedBox(
+            height: 150,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+      error:
+          (error, stackTrace) => Center(
+            child: AppErrorWidget(
+              errorType: ErrorType.generic,
+              message: 'Error loading categories: $error',
+              onRetry:
+                  () => ref.refresh(promoSectionProvider(widget.sectionId)),
+            ),
+          ),
     );
   }
 
@@ -136,9 +145,7 @@ class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySe
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.symmetric(
-        horizontal: widget.padding.horizontal / 2,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: widget.padding.horizontal / 2),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: fixedColumns,
         mainAxisExtent: 130,
@@ -184,10 +191,7 @@ class _PopularCategorySectionWidgetState extends ConsumerState<PopularCategorySe
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
           ),
         ],
       ),
