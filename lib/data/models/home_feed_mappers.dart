@@ -127,12 +127,17 @@ extension HomeSectionPromoMapper on HomeSection {
       }
       if (imageUrl.isEmpty) continue;
 
-      // A banner routes through `action`; an advertisement has a flat
-      // `redirect_url`.
+      // A banner routes through `action` (type + a bare id/SKU/URL — needs
+      // buildBannerRedirectLink to turn it into the format the routing
+      // functions actually parse); an advertisement already carries a
+      // pre-formatted flat `redirect_url` string.
       final action = _map(item['action']);
-      final redirect = _str(action['value']).isNotEmpty
-          ? _str(action['value'])
-          : _str(item['redirect_url']);
+      final actionRedirect = buildBannerRedirectLink(
+        _str(action['type']).isEmpty ? 'none' : _str(action['type']),
+        _str(action['value']),
+      );
+      final redirect =
+          actionRedirect.isNotEmpty ? actionRedirect : _str(item['redirect_url']);
 
       banners.add(
         PromotionalBanner.fromJson({
