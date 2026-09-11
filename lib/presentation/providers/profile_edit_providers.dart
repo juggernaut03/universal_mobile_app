@@ -10,6 +10,7 @@ class ProfileEditState {
   final String email;
   final String mobileNumber;
   final bool isLoading;
+  final bool isSaving;
   final String? errorMessage;
   final bool isSuccess;
   final bool isAuthenticated; // Added to track authentication status
@@ -20,6 +21,7 @@ class ProfileEditState {
     this.email = '',
     this.mobileNumber = '',
     this.isLoading = false,
+    this.isSaving = false,
     this.errorMessage,
     this.isSuccess = false,
     this.isAuthenticated = true, // Default to true
@@ -31,6 +33,7 @@ class ProfileEditState {
     String? email,
     String? mobileNumber,
     bool? isLoading,
+    bool? isSaving,
     String? errorMessage,
     bool? isSuccess,
     bool? isAuthenticated,
@@ -41,6 +44,7 @@ class ProfileEditState {
       email: email ?? this.email,
       mobileNumber: mobileNumber ?? this.mobileNumber,
       isLoading: isLoading ?? this.isLoading,
+      isSaving: isSaving ?? this.isSaving,
       errorMessage: errorMessage,
       isSuccess: isSuccess ?? this.isSuccess,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
