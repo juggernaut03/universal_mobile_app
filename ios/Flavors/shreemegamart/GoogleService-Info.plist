@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyDeL1r92W6LdDBGkiTk6oycjPx7PNHM5lw</string>
+	<key>GCM_SENDER_ID</key>
+	<string>247339472735</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.shreemegamart.iosapp</string>
+	<key>PROJECT_ID</key>
+	<string>shree-mega-mart-f82b3</string>
+	<key>STORAGE_BUCKET</key>
+	<string>shree-mega-mart-f82b3.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:247339472735:ios:040393eb9d9c43487908ea</string>
+</dict>
+</plist>
