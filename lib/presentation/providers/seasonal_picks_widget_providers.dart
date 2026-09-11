@@ -12,12 +12,14 @@ import 'outlet_provider.dart';
 /// A simple model for the seasonal banner data
 class SeasonalBanner {
   final String imageUrl;
+  final String backgroundColor;
 
-  SeasonalBanner({required this.imageUrl});
+  SeasonalBanner({required this.imageUrl, this.backgroundColor = ''});
 
   factory SeasonalBanner.fromJson(Map<String, dynamic> json) {
     return SeasonalBanner(
       imageUrl: json['banner_img'] ?? '',
+      backgroundColor: (json['background_color'] ?? '').toString(),
     );
   }
 }
@@ -91,7 +93,10 @@ class SeasonalApi {
       final imageUrl =
           (bannerUrls['mobile'] ?? bannerUrls['desktop'] ?? '').toString();
       if (imageUrl.isNotEmpty) {
-        banners.add(SeasonalBanner(imageUrl: imageUrl));
+        banners.add(SeasonalBanner(
+          imageUrl: imageUrl,
+          backgroundColor: (section['background_color'] ?? '').toString(),
+        ));
         break; // one banner, as with the legacy widget
       }
     }

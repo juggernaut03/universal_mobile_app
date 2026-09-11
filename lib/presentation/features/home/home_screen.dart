@@ -669,12 +669,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   
                   // Search bar — tap-only, opens the dedicated search page
                   // rather than accepting typed input inline on the home
-                  // screen.
+                  // screen. Wrapped in the header's own pink so the search
+                  // row reads as part of the header block instead of
+                  // sitting on the white body background right below it —
+                  // matches the floating sticky-header version further down,
+                  // which already does this.
                   SliverToBoxAdapter(
-                    child: SearchWidget(
-                      readOnly: true,
-                      onTap: () => context.push('/search'),
-                      showSuggestions: false,
+                    child: Container(
+                      color: AppColors.primary,
+                      child: SearchWidget(
+                        readOnly: true,
+                        onTap: () => context.push('/search'),
+                        showSuggestions: false,
+                      ),
                     ),
                   ),
                 ];
@@ -924,12 +931,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           const SizedBox(height: 8),
           _buildOrderTracking(),
           const SizedBox(height: 4),
-          for (final section in sections)
+          // A fixed gap between every pair of sections, on top of whatever
+          // margin each section already carries internally. Without this,
+          // spacing between segments was purely a side effect of each
+          // section's own (inconsistent) margin — some sections' colored
+          // backgrounds butt flush against the next with 0px gap, others
+          // leave 16-24px, and there was no single place to even out —
+          // hence "uneven spacing between segments". This doesn't touch any
+          // section's own internal padding, just guarantees a consistent
+          // minimum between them.
+          for (final section in sections) ...[
             Consumer(
               builder: (context, ref, _) =>
                   HomeSectionRegistry.build(context, ref, section),
             ),
-          const SizedBox(height: 100),
+            const SizedBox(height: 12),
+          ],
+          const SizedBox(height: 88),
         ],
       ),
     );
