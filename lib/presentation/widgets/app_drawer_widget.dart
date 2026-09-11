@@ -9,10 +9,9 @@ import 'package:patelmart/presentation/providers/cart_provider.dart';
 import 'package:patelmart/presentation/providers/location_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../providers/app_shell_providers.dart';
+import 'confirmation_dialog.dart';
 
 // Provider for the profile repository (removed local definition, use the global one from profile_repository.dart)
-
-
 
 class AppDrawerWidget extends ConsumerWidget {
   const AppDrawerWidget({super.key});
@@ -43,19 +42,17 @@ class AppDrawerWidget extends ConsumerWidget {
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
-              Expanded(
-                child: _buildUserGreeting(context, ref),
-              ),
+              Expanded(child: _buildUserGreeting(context, ref)),
             ],
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Location row
           _buildLocationRow(context, ref),
-          
+
           const SizedBox(height: 8),
-          
+
           // Logo space (commented out but structure preserved)
           // _buildLogoSection(),
         ],
@@ -65,7 +62,7 @@ class AppDrawerWidget extends ConsumerWidget {
 
   Widget _buildUserGreeting(BuildContext context, WidgetRef ref) {
     final isLoggedIn = ref.watch(quickLoginStatusProvider);
-    
+
     if (!isLoggedIn) {
       return GestureDetector(
         onTap: () {
@@ -88,26 +85,28 @@ class AppDrawerWidget extends ConsumerWidget {
     return Consumer(
       builder: (context, ref, _) {
         final displayNameAsync = ref.watch(userDisplayNameProvider);
-        
+
         return displayNameAsync.when(
-          data: (displayName) => Text(
-            'Hi, $displayName',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
+          data:
+              (displayName) => Text(
+                'Hi, $displayName',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
           loading: () => _buildLoadingGreeting(),
-          error: (error, _) => const Text(
-            'Hi, User',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          error:
+              (error, _) => const Text(
+                'Hi, User',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
         );
       },
     );
@@ -220,10 +219,11 @@ class AppDrawerWidget extends ConsumerWidget {
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: drawerItems.length + 1, // +1 for version info
-        separatorBuilder: (context, index) => 
-            index < drawerItems.length 
-              ? const Divider(height: 1, thickness: 0.5) 
-              : const SizedBox.shrink(),
+        separatorBuilder:
+            (context, index) =>
+                index < drawerItems.length
+                    ? const Divider(height: 1, thickness: 0.5)
+                    : const SizedBox.shrink(),
         itemBuilder: (context, index) {
           if (index < drawerItems.length) {
             final item = drawerItems[index];
@@ -236,45 +236,40 @@ class AppDrawerWidget extends ConsumerWidget {
     );
   }
 
-Widget buildVersionInfo() {
-  return FutureBuilder<PackageInfo>(
-    future: PackageInfo.fromPlatform(),
-    builder: (context, snapshot) {
-      if (snapshot.hasData) {
-        final packageInfo = snapshot.data!;
-        final versionText = packageInfo.buildNumber.isNotEmpty
-            ? 'Version ${packageInfo.version} (${packageInfo.buildNumber})'
-            : 'Version ${packageInfo.version}';
-        
+  Widget buildVersionInfo() {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final packageInfo = snapshot.data!;
+          final versionText =
+              packageInfo.buildNumber.isNotEmpty
+                  ? 'Version ${packageInfo.version} (${packageInfo.buildNumber})'
+                  : 'Version ${packageInfo.version}';
+
+          return Container(
+            color: Colors.white, // Added white background for version info
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              versionText,
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+
         return Container(
-          color: Colors.white, // Added white background for version info
+          color: Colors.white, // Added white background for loading state
           padding: const EdgeInsets.all(16.0),
           child: Text(
-            versionText,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
+            'Loading version...',
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
             textAlign: TextAlign.center,
           ),
         );
-      }
-      
-      return Container(
-        color: Colors.white, // Added white background for loading state
-        padding: const EdgeInsets.all(16.0),
-        child: Text(
-          'Loading version...',
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 14,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      );
-    },
-  );
-}
+      },
+    );
+  }
 }
 
 // Optimized drawer item tile widget
@@ -289,16 +284,16 @@ class _DrawerItemTile extends ConsumerWidget {
       color: Colors.white, // Added white background for each list tile
       child: ListTile(
         leading: Icon(item.icon, color: AppColors.primary),
-        title: Text(
-          item.title,
-          style: const TextStyle(fontSize: 16),
-        ),
-        trailing: item.showCartInfo 
-          ? _buildCartTrailing(ref)
-          : const Icon(Icons.navigate_next),
-        onTap: () => item.isDeleteAccount 
-          ? _handleDeleteAccount(context, ref)
-          : _navigateFromDrawer(context, item.route),
+        title: Text(item.title, style: const TextStyle(fontSize: 16)),
+        trailing:
+            item.showCartInfo
+                ? _buildCartTrailing(ref)
+                : const Icon(Icons.navigate_next),
+        onTap:
+            () =>
+                item.isDeleteAccount
+                    ? _handleDeleteAccount(context, ref)
+                    : _navigateFromDrawer(context, item.route),
       ),
     );
   }
@@ -306,9 +301,9 @@ class _DrawerItemTile extends ConsumerWidget {
   Widget _buildCartTrailing(WidgetRef ref) {
     final cartCount = ref.watch(cartCountProvider);
     final cartTotal = ref.watch(cartTotalProvider);
-    
+
     return cartCount > 0
-      ? Column(
+        ? Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
@@ -322,52 +317,36 @@ class _DrawerItemTile extends ConsumerWidget {
             ),
             Text(
               '$cartCount ${cartCount == 1 ? 'item' : 'items'}',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: AppColors.primary, fontSize: 12),
             ),
           ],
         )
-      : const Icon(Icons.navigate_next);
+        : const Icon(Icons.navigate_next);
   }
 
-  void _handleDeleteAccount(BuildContext context, WidgetRef ref) {
+  Future<void> _handleDeleteAccount(BuildContext context, WidgetRef ref) async {
     Navigator.pop(context); // Close drawer first
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text('Are you sure you want to delete your account? This action cannot be undone and you will be signed out.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              // Perform sign out logic (same as account screen)
-              await ref.read(logoutProvider)();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('You have been signed out'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-                // After logout, navigate to home screen
-                context.pushReplacement('/home');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            child: const Text('Delete Account', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Account',
+      message:
+          'Are you sure you want to delete your account? This action cannot be undone and you will be signed out.',
+      confirmLabel: 'Delete Account',
     );
+    if (confirmed != true || !context.mounted) return;
+
+    // Perform sign out logic (same as account screen)
+    await ref.read(logoutProvider)();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have been signed out'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // After logout, navigate to home screen
+      context.pushReplacement('/home');
+    }
   }
 
   void _navigateFromDrawer(BuildContext context, String route) {
@@ -394,5 +373,3 @@ class _DrawerItem {
     this.isDeleteAccount = false,
   });
 }
-
-

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../presentation/widgets/app_drawer_widget.dart';
+import '../../../presentation/widgets/confirmation_dialog.dart';
 import '../../../core/widgets/bottom_navigation_widget.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/cart_provider.dart';
@@ -34,18 +35,20 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   Future<void> _checkAuthStatus() async {
     final logger = ref.read(loggerProvider);
     logger.log('Checking authentication status on AccountScreen');
-    
+
     try {
       // Get auth repository and check login status
       final isLoggedIn = await ref.read(authRepositoryProvider).isSignedIn();
-      
-      logger.log('Authentication status: ${isLoggedIn ? 'Logged in' : 'Not logged in'}');
-      
+
+      logger.log(
+        'Authentication status: ${isLoggedIn ? 'Logged in' : 'Not logged in'}',
+      );
+
       if (mounted) {
         setState(() {
           _isCheckingAuth = false;
         });
-        
+
         // If not logged in, redirect to login
         if (!isLoggedIn && mounted) {
           logger.log('User not logged in, redirecting to login screen');
@@ -70,12 +73,14 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   // Custom back navigation handler
   Future<bool> _handleBackPress() async {
     final logger = ref.read(loggerProvider);
-    logger.log('Hardware back button pressed on AccountScreen - navigating to home');
-    
+    logger.log(
+      'Hardware back button pressed on AccountScreen - navigating to home',
+    );
+
     try {
       // Navigate to home using go
       context.go('/home');
-      
+
       // Return false to prevent default back navigation
       return false;
     } catch (e) {
@@ -104,9 +109,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -116,7 +119,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         if (!didPop) {
           final logger = ref.read(loggerProvider);
           logger.log('PopScope: Back navigation intercepted - going to home');
-          
+
           // Navigate to home
           if (context.mounted) {
             context.go('/home');
@@ -128,8 +131,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         child: Scaffold(
           backgroundColor: Colors.white,
           appBar: _buildAppBar(context, ref),
-          drawer: const AppDrawerWidget(), // ✅ Using reusable drawer instead of custom one
-          
+          drawer:
+              const AppDrawerWidget(), // ✅ Using reusable drawer instead of custom one
+
           body: SafeArea(
             child: Column(
               children: [
@@ -146,7 +150,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         },
                       ),
                       _buildDivider(),
-                      
+
                       _buildMenuItem(
                         context,
                         icon: Icons.shopping_bag_outlined,
@@ -156,7 +160,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         },
                       ),
                       _buildDivider(),
-                      
+
                       _buildMenuItem(
                         context,
                         icon: Icons.bookmark_border_outlined,
@@ -166,7 +170,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         },
                       ),
                       _buildDivider(),
-                      
+
                       _buildMenuItem(
                         context,
                         icon: Icons.replay_outlined,
@@ -176,7 +180,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         },
                       ),
                       _buildDivider(),
-                      
+
                       _buildMenuItem(
                         context,
                         icon: Icons.location_on_outlined,
@@ -186,7 +190,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         },
                       ),
                       _buildDivider(),
-                      
+
                       _buildMenuItem(
                         context,
                         icon: Icons.savings_outlined,
@@ -196,7 +200,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         },
                       ),
                       _buildDivider(),
-                      
+
                       _buildMenuItem(
                         context,
                         icon: Icons.chat_bubble_outline,
@@ -207,7 +211,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         },
                       ),
                       _buildDivider(),
-                      
+
                       // Always show Sign Out since we've already confirmed login status
                       _buildMenuItem(
                         context,
@@ -219,7 +223,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                         },
                       ),
                       _buildDivider(),
-                      
+
                       // Savings banner
                       Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -231,12 +235,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               ],
             ),
           ),
-          
+
           bottomNavigationBar: BottomNavigationWidget(
             currentIndex: navIndex,
             onTap: (index) {
-              if (navIndex == index) return; // Don't navigate if already on this tab
-              
+              if (navIndex == index)
+                return; // Don't navigate if already on this tab
+
               switch (index) {
                 case 0: // Home
                   context.go('/home');
@@ -264,7 +269,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
     final cartCount = ref.watch(cartCountProvider);
     final logger = ref.read(loggerProvider);
-    
+
     return AppBar(
       backgroundColor: AppColors.primary,
       foregroundColor: Colors.white,
@@ -272,18 +277,17 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       centerTitle: false, // Change to false to align title to the left
       title: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          const BrandLogo(height: 42, fallbackColor: Colors.white),
-        ],
+        children: [const BrandLogo(height: 42, fallbackColor: Colors.white)],
       ),
       titleSpacing: 0, // Reduce spacing to move logo closer to drawer icon
       leading: Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () {
-            Scaffold.of(context).openDrawer();
-          },
-        ),
+        builder:
+            (context) => IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white),
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+            ),
       ),
       actions: [
         // Wishlist/Favorites icon
@@ -301,7 +305,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           clipBehavior: Clip.none,
           children: [
             IconButton(
-              icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+              icon: const Icon(
+                Icons.shopping_cart_outlined,
+                color: Colors.white,
+              ),
               onPressed: () {
                 logger.log('Cart button pressed from account screen');
                 if (context.mounted) {
@@ -347,32 +354,18 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(
-        icon,
-        color: Colors.grey[600],
-        size: 24,
-      ),
+      leading: Icon(icon, color: Colors.grey[600], size: 24),
       title: Text(
         title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: Colors.grey,
-      ),
+      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,
     );
   }
 
   Widget _buildDivider() {
-    return Divider(
-      height: 1,
-      thickness: 1,
-      color: Colors.grey[200],
-    );
+    return Divider(height: 1, thickness: 1, color: Colors.grey[200]);
   }
 
   Widget _buildSavingsBanner(BuildContext context, WidgetRef ref) {
@@ -399,10 +392,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'on every order',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 15, color: Colors.grey[700]),
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
@@ -413,7 +403,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
@@ -447,40 +440,32 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     );
   }
 
-  void _showSignOutConfirmation(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              // Perform sign out logic here
-              await ref.read(logoutProvider)();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('You have been signed out'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-                // After logout, push to login screen
-                context.pushReplacement('/home');
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
+  Future<void> _showSignOutConfirmation(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      icon: Icons.logout,
+      iconColor: AppColors.primary,
+      confirmLabel: 'Sign Out',
+      confirmColor: AppColors.primary,
     );
+    if (confirmed != true || !context.mounted) return;
+
+    // Perform sign out logic here
+    await ref.read(logoutProvider)();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have been signed out'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // After logout, push to login screen
+      context.pushReplacement('/home');
+    }
   }
 }

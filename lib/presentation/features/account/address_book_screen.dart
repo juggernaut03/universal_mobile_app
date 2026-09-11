@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/logger.dart';
 import '../../../presentation/widgets/back_button_wrapper.dart';
+import '../../../presentation/widgets/confirmation_dialog.dart';
 import '../../../core/widgets/error_widgets.dart';
 import '../../../data/models/address_model.dart';
 import '../../providers/auth_providers.dart';
@@ -17,8 +18,6 @@ import '../../../di/repository_providers.dart';
 import '../../../di/infrastructure_providers.dart';
 import '../../providers/address_provider.dart';
 
-
-
 // Main Address Book Screen
 class AddressBookScreen extends ConsumerWidget {
   const AddressBookScreen({super.key});
@@ -26,12 +25,14 @@ class AddressBookScreen extends ConsumerWidget {
   // Custom back navigation handler - matches the pattern from other screens
   Future<bool> _handleBackPress(BuildContext context, WidgetRef ref) async {
     final logger = ref.read(loggerProvider);
-    logger.log('Hardware back button pressed on AddressBookScreen - navigating to account');
-    
+    logger.log(
+      'Hardware back button pressed on AddressBookScreen - navigating to account',
+    );
+
     try {
       // Navigate to account using go
       context.go('/account');
-      
+
       // Return false to prevent default back navigation
       return false;
     } catch (e) {
@@ -49,14 +50,16 @@ class AddressBookScreen extends ConsumerWidget {
     // Use the updated address list provider with centralized access key management
     final addressesAsyncValue = ref.watch(addressListProvider);
     final logger = ref.read(loggerProvider);
-    
+
     return PopScope(
       canPop: false, // Prevent default pop behavior
       onPopInvoked: (bool didPop) async {
         if (!didPop) {
           final logger = ref.read(loggerProvider);
-          logger.log('PopScope: Back navigation intercepted on AddressBookScreen - going to account');
-          
+          logger.log(
+            'PopScope: Back navigation intercepted on AddressBookScreen - going to account',
+          );
+
           // Navigate to account
           if (context.mounted) {
             context.go('/account');
@@ -89,9 +92,12 @@ class AddressBookScreen extends ConsumerWidget {
                   logger.log('Rendering ${addresses.length} addresses');
                   return _buildAddressList(context, ref, addresses);
                 },
-                loading: () => Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
+                loading:
+                    () => Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
+                    ),
                 error: (error, _) {
                   logger.error('Error loading addresses: $error');
                   return AppErrorWidget(
@@ -108,7 +114,10 @@ class AddressBookScreen extends ConsumerWidget {
               icon: const Icon(Icons.add, color: Colors.white),
               label: const Text(
                 'Add Address',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -117,66 +126,76 @@ class AddressBookScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildAddressList(BuildContext context, WidgetRef ref, List<Address> addresses) {
+  Widget _buildAddressList(
+    BuildContext context,
+    WidgetRef ref,
+    List<Address> addresses,
+  ) {
     if (addresses.isEmpty) {
       return LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primary.withOpacity(0.08),
-                      ),
-                      child: Icon(
-                        Icons.location_on_outlined,
-                        size: 64,
-                        color: AppColors.primary.withOpacity(0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'No saved addresses',
-                      style: AppTextStyles.h5.copyWith(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Add a delivery address to check out faster next time.',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () => context.push('/add-address'),
-                      icon: const Icon(Icons.add),
-                      label: const Text('ADD NEW ADDRESS'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+        builder:
+            (context, constraints) => SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(28),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.primary.withOpacity(0.08),
+                          ),
+                          child: Icon(
+                            Icons.location_on_outlined,
+                            size: 64,
+                            color: AppColors.primary.withOpacity(0.6),
+                          ),
                         ),
-                        elevation: 0,
-                      ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No saved addresses',
+                          style: AppTextStyles.h5.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add a delivery address to check out faster next time.',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () => context.push('/add-address'),
+                          icon: const Icon(Icons.add),
+                          label: const Text('ADD NEW ADDRESS'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
       );
     }
 
@@ -194,22 +213,26 @@ class AddressBookScreen extends ConsumerWidget {
   /// naive '${line1}, ${line2}' the old layout used printed a trailing ", "
   /// (or a bare "test, test") whenever a field was empty or duplicated.
   String _formatAddressLines(Address address) {
-    final parts = [
-      address.deliveryAddrLine1,
-      address.deliveryAddrLine2,
-      address.landmark,
-    ].where((p) => p.trim().isNotEmpty).toSet(); // dedupe accidental repeats
+    final parts =
+        [address.deliveryAddrLine1, address.deliveryAddrLine2, address.landmark]
+            .where((p) => p.trim().isNotEmpty)
+            .toSet(); // dedupe accidental repeats
 
     return parts.join(', ');
   }
 
   String _formatCityLine(Address address) {
-    return [address.deliveryAddrCity, address.deliveryAddrPincode]
-        .where((p) => p.trim().isNotEmpty)
-        .join(' - ');
+    return [
+      address.deliveryAddrCity,
+      address.deliveryAddrPincode,
+    ].where((p) => p.trim().isNotEmpty).join(' - ');
   }
 
-  Widget _buildAddressCard(BuildContext context, WidgetRef ref, Address address) {
+  Widget _buildAddressCard(
+    BuildContext context,
+    WidgetRef ref,
+    Address address,
+  ) {
     final isDefault = address.isDefault.toLowerCase() == 'yes';
     final logger = ref.read(loggerProvider);
 
@@ -219,7 +242,10 @@ class AddressBookScreen extends ConsumerWidget {
         color: isDefault ? AppColors.primary.withOpacity(0.04) : Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDefault ? AppColors.primary.withOpacity(0.35) : AppColors.borderLight,
+          color:
+              isDefault
+                  ? AppColors.primary.withOpacity(0.35)
+                  : AppColors.borderLight,
         ),
         boxShadow: [
           BoxShadow(
@@ -243,7 +269,11 @@ class AddressBookScreen extends ConsumerWidget {
                   shape: BoxShape.circle,
                   color: AppColors.primary.withOpacity(0.12),
                 ),
-                child: Icon(Icons.location_on, color: AppColors.primary, size: 22),
+                child: Icon(
+                  Icons.location_on,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -260,7 +290,11 @@ class AddressBookScreen extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Icon(Icons.phone_outlined, size: 13, color: AppColors.textSecondary),
+                        Icon(
+                          Icons.phone_outlined,
+                          size: 13,
+                          color: AppColors.textSecondary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           address.mobileNumber,
@@ -276,7 +310,10 @@ class AddressBookScreen extends ConsumerWidget {
               ),
               if (isDefault)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(20),
@@ -284,7 +321,11 @@ class AddressBookScreen extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_circle, size: 12, color: Colors.white),
+                      const Icon(
+                        Icons.check_circle,
+                        size: 12,
+                        color: Colors.white,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'DEFAULT',
@@ -323,7 +364,9 @@ class AddressBookScreen extends ConsumerWidget {
                   icon: Icons.edit_outlined,
                   label: 'Edit',
                   color: AppColors.primary,
-                  onTap: () => _navigateToEditAddress(context, ref, address, logger),
+                  onTap:
+                      () =>
+                          _navigateToEditAddress(context, ref, address, logger),
                 ),
               ),
               if (!isDefault) ...[
@@ -343,7 +386,13 @@ class AddressBookScreen extends ConsumerWidget {
                   icon: Icons.delete_outline,
                   label: 'Delete',
                   color: AppColors.error,
-                  onTap: () => _showDeleteConfirmation(context, ref, address, logger),
+                  onTap:
+                      () => _showDeleteConfirmation(
+                        context,
+                        ref,
+                        address,
+                        logger,
+                      ),
                 ),
               ),
             ],
@@ -353,14 +402,19 @@ class AddressBookScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _navigateToEditAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
+  Future<void> _navigateToEditAddress(
+    BuildContext context,
+    WidgetRef ref,
+    Address address,
+    Logger logger,
+  ) async {
     logger.log('Preparing to edit address: ${address.id}');
-    
+
     try {
       // Get current app data to update the address with current pincode and mobile
       String currentPincode = address.deliveryAddrPincode; // fallback
       String currentMobile = address.mobileNumber; // fallback
-      
+
       // Get current selected pincode from the app
       try {
         final selectedPincode = ref.read(selectedPincodeProvider);
@@ -368,12 +422,14 @@ class AddressBookScreen extends ConsumerWidget {
           currentPincode = selectedPincode;
           logger.log('Using current app pincode: $currentPincode');
         } else {
-          logger.warning('No current pincode selected, using stored address pincode: $currentPincode');
+          logger.warning(
+            'No current pincode selected, using stored address pincode: $currentPincode',
+          );
         }
       } catch (e) {
         logger.error('Error getting current pincode: $e');
       }
-      
+
       // Get current user mobile from auth provider
       try {
         final userProfile = await ref.read(userProfileProvider.future);
@@ -381,36 +437,40 @@ class AddressBookScreen extends ConsumerWidget {
           currentMobile = userProfile.mobile;
           logger.log('Using current user mobile: $currentMobile');
         } else {
-          logger.warning('No current user mobile, using stored address mobile: $currentMobile');
+          logger.warning(
+            'No current user mobile, using stored address mobile: $currentMobile',
+          );
         }
       } catch (e) {
         logger.error('Error getting current user mobile: $e');
       }
-      
+
       // Create an updated address with current app data for pincode and mobile
       final updatedAddress = address.copyWith(
         deliveryAddrPincode: currentPincode,
         mobileNumber: currentMobile,
       );
-      
+
       // Store the updated address in shared preferences for the edit screen to access
       final prefs = await SharedPreferences.getInstance();
       final addressJson = jsonEncode(updatedAddress.toJson());
-      
-      logger.log('Saving updated address to edit with current app data: $addressJson');
+
+      logger.log(
+        'Saving updated address to edit with current app data: $addressJson',
+      );
       await prefs.setString('address_to_edit', addressJson);
-      
+
       if (context.mounted) {
         context.push('/edit-address');
       }
     } catch (e) {
       logger.error('Error preparing address for editing: $e');
-      
+
       // Fallback: use original address if updating fails
       final prefs = await SharedPreferences.getInstance();
       final addressJson = jsonEncode(address.toJson());
       await prefs.setString('address_to_edit', addressJson);
-      
+
       if (context.mounted) {
         context.push('/edit-address');
       }
@@ -421,7 +481,12 @@ class AddressBookScreen extends ConsumerWidget {
   // Set default via the universal backend (update-address with is_default Yes)
   // See the comment on _deleteAddress above — same fix, same reason: pop via
   // the dialog's own context, not the list row's.
-  Future<void> _setAsDefault(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
+  Future<void> _setAsDefault(
+    BuildContext context,
+    WidgetRef ref,
+    Address address,
+    Logger logger,
+  ) async {
     logger.log('Setting address as default: ${address.id}');
 
     late BuildContext dialogContext;
@@ -455,10 +520,11 @@ class AddressBookScreen extends ConsumerWidget {
             error != null
                 ? 'Error setting address as default: $error'
                 : success
-                    ? 'Address set as default'
-                    : 'Failed to set address as default',
+                ? 'Address set as default'
+                : 'Failed to set address as default',
           ),
-          backgroundColor: (error == null && success) ? Colors.green : Colors.red,
+          backgroundColor:
+              (error == null && success) ? Colors.green : Colors.red,
         ),
       );
 
@@ -474,42 +540,20 @@ class AddressBookScreen extends ConsumerWidget {
     }
   }
 
-  void _showDeleteConfirmation(BuildContext context, WidgetRef ref, Address address, Logger logger) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.error.withOpacity(0.1),
-          ),
-          child: Icon(Icons.delete_outline, color: AppColors.error, size: 28),
-        ),
-        title: const Text('Delete Address'),
-        content: const Text('Are you sure you want to delete this address?'),
-        actionsAlignment: MainAxisAlignment.spaceBetween,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
-          ),
-          TextButton(
-            onPressed: () {
-              // Close the confirmation dialog
-              Navigator.pop(context);
-              // Call the delete function
-              _deleteAddress(context, ref, address, logger);
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.error,
-            ),
-            child: const Text('DELETE'),
-          ),
-        ],
-      ),
+  Future<void> _showDeleteConfirmation(
+    BuildContext context,
+    WidgetRef ref,
+    Address address,
+    Logger logger,
+  ) async {
+    final confirmed = await ConfirmationDialog.show(
+      context,
+      title: 'Delete Address',
+      message: 'Are you sure you want to delete this address?',
     );
+    if (confirmed == true && context.mounted) {
+      _deleteAddress(context, ref, address, logger);
+    }
   }
 
   // Delete via the universal backend (DELETE /api/address-crud/delete-address/:id)
@@ -522,7 +566,12 @@ class AddressBookScreen extends ConsumerWidget {
   // forever, even after the delete had already succeeded server-side. Popping
   // via the dialog's own captured context fixes that: it only depends on the
   // dialog itself still being up, which is exactly what we're closing.
-  Future<void> _deleteAddress(BuildContext context, WidgetRef ref, Address address, Logger logger) async {
+  Future<void> _deleteAddress(
+    BuildContext context,
+    WidgetRef ref,
+    Address address,
+    Logger logger,
+  ) async {
     logger.log('Deleting address: ${address.id}');
 
     late BuildContext dialogContext;
@@ -557,8 +606,8 @@ class AddressBookScreen extends ConsumerWidget {
           error != null
               ? 'Error deleting address: $error'
               : success
-                  ? 'Address deleted successfully'
-                  : 'Failed to delete address',
+              ? 'Address deleted successfully'
+              : 'Failed to delete address',
         ),
         backgroundColor: (error == null && success) ? Colors.green : Colors.red,
       ),
@@ -622,5 +671,3 @@ class _AddressActionButton extends StatelessWidget {
     );
   }
 }
-
-
