@@ -57,36 +57,45 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
     final label = (section.config['label'] ?? 'Ends in').toString();
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(vertical: 12),
-      color: homeSectionBackground(section.style.backgroundColor) ?? AppColors.primaryLighter,
+      color:
+          homeSectionBackground(section.style.backgroundColor) ??
+          AppColors.primaryLighter,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           HomeSectionHeading(
             title: section.title.isNotEmpty ? section.title : 'Flash sale',
-            trailing: endsAt == null
-                ? null
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.timer_outlined, size: 14, color: AppColors.error),
-                      const SizedBox(width: 4),
-                      Text('$label ', style: AppTextStyles.bodySmall.copyWith(fontSize: 11)),
-                      CountdownText(
-                        endsAt: endsAt,
-                        clock: ref.watch(clockProvider),
-                        style: AppTextStyles.bodySmall.copyWith(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+            trailing:
+                endsAt == null
+                    ? null
+                    : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.timer_outlined,
+                          size: 14,
                           color: AppColors.error,
                         ),
-                        // Drop the section the moment it lapses, without waiting
-                        // for the next feed refresh.
-                        onExpired: () => setState(() => _expired = true),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$label ',
+                          style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+                        ),
+                        CountdownText(
+                          endsAt: endsAt,
+                          clock: ref.watch(clockProvider),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.error,
+                          ),
+                          // Drop the section the moment it lapses, without waiting
+                          // for the next feed refresh.
+                          onExpired: () => setState(() => _expired = true),
+                        ),
+                      ],
+                    ),
           ),
           SizedBox(
             height: kHomeProductCardHeight,
@@ -95,8 +104,8 @@ class _FlashSaleSectionState extends ConsumerState<FlashSaleSection> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: products.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) =>
-                  HomeProductCard(product: products[index]),
+              itemBuilder:
+                  (context, index) => HomeProductCard(product: products[index]),
             ),
           ),
         ],
@@ -138,27 +147,25 @@ class BuyAgainSection extends ConsumerWidget {
 
         if (products.isEmpty) return const SizedBox.shrink();
 
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              HomeSectionHeading(
-                title: section.title.isNotEmpty ? section.title : 'Buy again',
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HomeSectionHeading(
+              title: section.title.isNotEmpty ? section.title : 'Buy again',
+            ),
+            SizedBox(
+              height: kHomeProductCardHeight,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: products.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder:
+                    (context, index) =>
+                        HomeProductCard(product: products[index]),
               ),
-              SizedBox(
-                height: kHomeProductCardHeight,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: products.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) =>
-                      HomeProductCard(product: products[index]),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       },
       // A signed-out or first-time shopper has no history; showing an empty
@@ -187,17 +194,21 @@ class FreeDeliveryProgressSection extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final threshold = double.tryParse('${section.config['threshold'] ?? ''}') ?? 0;
-    if (threshold <= 0 || cartTotal >= threshold) return const SizedBox.shrink();
+    final threshold =
+        double.tryParse('${section.config['threshold'] ?? ''}') ?? 0;
+    if (threshold <= 0 || cartTotal >= threshold)
+      return const SizedBox.shrink();
 
     final remaining = threshold - cartTotal;
     final progress = (cartTotal / threshold).clamp(0.0, 1.0);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: homeSectionBackground(section.style.backgroundColor) ?? AppColors.successLight,
+        color:
+            homeSectionBackground(section.style.backgroundColor) ??
+            AppColors.successLight,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -205,14 +216,20 @@ class FreeDeliveryProgressSection extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.local_shipping_outlined, size: 18, color: AppColors.success),
+              Icon(
+                Icons.local_shipping_outlined,
+                size: 18,
+                color: AppColors.success,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   section.title.isNotEmpty
                       ? section.title
                       : 'Add ₹${remaining.toStringAsFixed(0)} more for free delivery',
-                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -249,7 +266,6 @@ class UspStripSection extends StatelessWidget {
     if (entries.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: homeSectionBackground(section.style.backgroundColor),
       child: Row(
@@ -259,7 +275,11 @@ class UspStripSection extends StatelessWidget {
             Expanded(
               child: Column(
                 children: [
-                  Icon(Icons.verified_outlined, size: 22, color: AppColors.primary),
+                  Icon(
+                    Icons.verified_outlined,
+                    size: 22,
+                    color: AppColors.primary,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     (entry['label'] ?? '').toString(),
