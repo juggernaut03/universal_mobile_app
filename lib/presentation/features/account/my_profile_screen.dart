@@ -214,68 +214,88 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       return;
     }
 
-    // Update state to loading
-    ref.read(profileEditingProvider.notifier).state = 
+    // Update state to saving. This used to be `isLoading`, the same flag
+    // build() uses to swap the entire body for a bare spinner on the
+    // screen's *initial* fetch — reusing it here tore the whole Form (and
+    // whichever field still held focus, typically the last one the user
+    // typed in) out of the tree for the duration of every save. That was
+    // very likely what triggered "Looking up a deactivated widget's
+    // ancestor is unsafe" below: removing a focused element from the tree
+    // as a side effect of this same setState-driven rebuild is a known
+    // trigger for that exact assertion. isSaving only drives the Save
+    // button's own inline spinner, so the Form stays mounted throughout.
+    ref.read(profileEditingProvider.notifier).state =
         ref.read(profileEditingProvider).copyWith(
-          isLoading: true,
+          isSaving: true,
           errorMessage: null, // Clear previous errors
         );
 
     try {
       logger.log('Saving profile data...');
-      
+
       // Get profile repository
       final profileRepository = ref.read(profileRepositoryProvider);
-      
+
       // Call API to update profile
       final success = await profileRepository.updateUserProfile(
         firstName: _firstNameController.text,
         lastName: _lastNameController.text,
         emailId: _emailController.text.isNotEmpty ? _emailController.text : null,
       );
-      
+
       if (success) {
         logger.log('Profile updated successfully');
-        
+
         // Update the state with success
-        ref.read(profileEditingProvider.notifier).state = 
+        ref.read(profileEditingProvider.notifier).state =
             ref.read(profileEditingProvider).copyWith(
-              isLoading: false,
+              isSaving: false,
               isSuccess: true,
               errorMessage: null,
               firstName: _firstNameController.text,
               lastName: _lastNameController.text,
               email: _emailController.text,
             );
-            
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile updated successfully!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
+
+        // Show success message. Wrapped in its own try/catch: this is
+        // purely cosmetic feedback on a save that has *already* succeeded
+        // above, so if showing it hits a framework hiccup (e.g. a
+        // still-deactivating ancestor from the rebuild triggered by the
+        // state update just above), that must not fall through to the
+        // outer catch and overwrite the already-correct success state with
+        // a raw framework error message — which is exactly what made a
+        // successful save look like it had failed.
+        try {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Profile updated successfully!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } catch (e) {
+          logger.warning('Could not show profile-saved snackbar: $e');
         }
       } else {
         logger.error('Profile update failed');
-        
+
         // Update state with error
-        ref.read(profileEditingProvider.notifier).state = 
+        ref.read(profileEditingProvider.notifier).state =
             ref.read(profileEditingProvider).copyWith(
-              isLoading: false,
+              isSaving: false,
               isSuccess: false,
               errorMessage: 'Failed to update profile',
             );
       }
     } catch (e) {
       logger.error('Error saving profile: $e');
-      
+
       // Update state with error
-      ref.read(profileEditingProvider.notifier).state = 
+      ref.read(profileEditingProvider.notifier).state =
           ref.read(profileEditingProvider).copyWith(
-            isLoading: false,
+            isSaving: false,
             isSuccess: false,
             errorMessage: 'Failed to update profile: ${e.toString()}',
           );
@@ -487,7 +507,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: profileState.isLoading ? null : _saveProfile,
+                            onPressed: profileState.isSaving ? null : _saveProfile,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary, // Purple color from screenshot
                               foregroundColor: Colors.white,
@@ -501,20 +521,20 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                               ),
                               elevation: 0,
                             ),
-                            child: profileState.isLoading
+                            child: profileState.isSaving
                                 ? const CircularProgressIndicator(
                                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                   )
                                 : const Text('SAVE CHANGES'),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 40),
-                        
+
                         // Delete Account
                         Center(
                           child: TextButton(
-                            onPressed: profileState.isLoading ? null : _confirmDeleteAccount,
+                            onPressed: profileState.isSaving ? null : _confirmDeleteAccount,
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.red,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
