@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import '../../../providers/seasonal_picks_widget_providers.dart';
+import '../sections/home_product_card.dart' show homeSectionBackground;
 
 
 
@@ -49,28 +50,33 @@ class SeasonalPicksWidget extends ConsumerWidget {
     return bannerAsync.when(
       data: (banners) {
         if (banners.isEmpty) return const SizedBox();
-        
+
+        final banner = banners.first;
+        final background = homeSectionBackground(banner.backgroundColor);
+
+        // Edge to edge — no horizontal margin, no rounded corners — same
+        // treatment as the Best Seller banner, plus the section's own
+        // background_color (already sent by the backend on every seasonal
+        // section, just not read here before) filling the strip around it.
         return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
-              imageUrl: banners.first.imageUrl,
-              width: double.infinity,
-              fit: BoxFit.fitWidth,
-              placeholder: (_, __) => Container(
-                height: 120,
-                color: Colors.grey[200],
-                child: const Center(
-                  child: CircularProgressIndicator(),
-                ),
+          width: double.infinity,
+          color: background,
+          child: CachedNetworkImage(
+            imageUrl: banner.imageUrl,
+            width: double.infinity,
+            fit: BoxFit.fitWidth,
+            placeholder: (_, __) => Container(
+              height: 120,
+              color: Colors.grey[200],
+              child: const Center(
+                child: CircularProgressIndicator(),
               ),
-              errorWidget: (_, __, ___) => Container(
-                height: 120,
-                color: Colors.grey[200],
-                child: const Center(
-                  child: Icon(Icons.error_outline, color: Colors.grey),
-                ),
+            ),
+            errorWidget: (_, __, ___) => Container(
+              height: 120,
+              color: Colors.grey[200],
+              child: const Center(
+                child: Icon(Icons.error_outline, color: Colors.grey),
               ),
             ),
           ),

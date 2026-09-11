@@ -338,7 +338,12 @@ class BrandStripSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 96,
+            // 62 (image) + 6 (spacing) + up to 2 lines of bodySmall (12px)
+            // text — 96 was 8px too short whenever a brand name actually
+            // wrapped to a second line, producing a real RenderFlex
+            // overflow ("BOTTOM OVERFLOWED BY 8.0 PIXELS") for names like
+            // "SATTHWA"/"SURESH", not just a visual nitpick.
+            height: 108,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
