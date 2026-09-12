@@ -7,12 +7,6 @@ import 'package:patelmart/presentation/providers/outlet_provider.dart';
 import '../../../providers/seasonal_picks_widget_providers.dart';
 import '../sections/home_product_card.dart' show homeSectionBackground;
 
-
-
-
-
-
-
 /// The main seasonal picks widget
 class SeasonalPicksWidget extends ConsumerWidget {
   const SeasonalPicksWidget({super.key});
@@ -21,92 +15,108 @@ class SeasonalPicksWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Get the current outlet to determine store code
     final outletAsync = ref.watch(selectedOutletProvider);
-    
+
     return outletAsync.when(
       data: (outlet) {
         if (outlet == null) return const SizedBox();
-        
+
         final storeCode = outlet.storeCode;
-        
-        return Column(
-          children: [
-            // Banner section
-            _buildBanner(context, ref, storeCode),
-            
-            // Categories section
-            _buildCategories(context, ref, storeCode),
-          ],
+
+        // Both the banner and the category tiles below it belong to the same
+        // seasonal section and share its one background_color — read once
+        // here (bannerProvider is already fetched for the banner itself, so
+        // this doesn't cost a second request) and paint the whole block with
+        // it, so the category-tile strip isn't left on a plain white
+        // background like it was before.
+        final background = ref
+            .watch(bannerProvider(storeCode))
+            .maybeWhen(
+              data:
+                  (banners) =>
+                      banners.isEmpty
+                          ? null
+                          : homeSectionBackground(
+                            banners.first.backgroundColor,
+                          ),
+              orElse: () => null,
+            );
+
+        return Container(
+          width: double.infinity,
+          color: background,
+          child: Column(
+            children: [
+              // Banner section
+              _buildBanner(context, ref, storeCode),
+
+              // Categories section
+              _buildCategories(context, ref, storeCode),
+            ],
+          ),
         );
       },
       loading: () => _buildLoadingState(),
       error: (error, stackTrace) => _buildErrorState(context, error),
     );
   }
-  
+
   /// Build the banner image
   Widget _buildBanner(BuildContext context, WidgetRef ref, String storeCode) {
     final bannerAsync = ref.watch(bannerProvider(storeCode));
-    
+
     return bannerAsync.when(
       data: (banners) {
         if (banners.isEmpty) return const SizedBox();
 
         final banner = banners.first;
-        final background = homeSectionBackground(banner.backgroundColor);
 
-        // Edge to edge — no horizontal margin, no rounded corners — same
-        // treatment as the Best Seller banner, plus the section's own
-        // background_color (already sent by the backend on every seasonal
-        // section, just not read here before) filling the strip around it.
-        return Container(
+        // Section background is now applied once by the outer Container in
+        // build(), covering both this banner and the category strip below.
+        return CachedNetworkImage(
+          imageUrl: banner.imageUrl,
           width: double.infinity,
-          color: background,
-          child: CachedNetworkImage(
-            imageUrl: banner.imageUrl,
-            width: double.infinity,
-            fit: BoxFit.fitWidth,
-            placeholder: (_, __) => Container(
-              height: 120,
-              color: Colors.grey[200],
-              child: const Center(
-                child: CircularProgressIndicator(),
+          fit: BoxFit.fitWidth,
+          placeholder:
+              (_, __) => Container(
+                height: 120,
+                color: Colors.grey[200],
+                child: const Center(child: CircularProgressIndicator()),
               ),
-            ),
-            errorWidget: (_, __, ___) => Container(
-              height: 120,
-              color: Colors.grey[200],
-              child: const Center(
-                child: Icon(Icons.error_outline, color: Colors.grey),
+          errorWidget:
+              (_, __, ___) => Container(
+                height: 120,
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Icon(Icons.error_outline, color: Colors.grey),
+                ),
               ),
-            ),
-          ),
         );
       },
-      loading: () => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        height: 120,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      error: (error, _) => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        height: 120,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Center(
-          child: Icon(Icons.error_outline, color: Colors.grey),
-        ),
-      ),
+      loading:
+          () => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+      error:
+          (error, _) => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: Icon(Icons.error_outline, color: Colors.grey),
+            ),
+          ),
     );
   }
-  
+
   /// Categories per row. The tile size is derived from this and the screen
   /// width, not the other way round — so 2 categories and 8 categories render
   /// at the identical size, and the row simply has empty trailing space or
@@ -116,13 +126,19 @@ class SeasonalPicksWidget extends ConsumerWidget {
   static const double _horizontalPadding = 16;
 
   double _tileSize(BuildContext context) {
-    final usableWidth = MediaQuery.of(context).size.width - (_horizontalPadding * 2);
-    final size = (usableWidth - (_tileSpacing * (_tilesPerRow - 1))) / _tilesPerRow;
+    final usableWidth =
+        MediaQuery.of(context).size.width - (_horizontalPadding * 2);
+    final size =
+        (usableWidth - (_tileSpacing * (_tilesPerRow - 1))) / _tilesPerRow;
     return size.clamp(64, 110);
   }
 
   /// Build the horizontal category list - fixed tile size, 4 per row
-  Widget _buildCategories(BuildContext context, WidgetRef ref, String storeCode) {
+  Widget _buildCategories(
+    BuildContext context,
+    WidgetRef ref,
+    String storeCode,
+  ) {
     final categoriesAsync = ref.watch(categoriesProvider(storeCode));
     final tileSize = _tileSize(context);
 
@@ -150,56 +166,60 @@ class SeasonalPicksWidget extends ConsumerWidget {
           ),
         );
       },
-      loading: () => Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        height: tileSize + 24,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          itemCount: _tilesPerRow, // Show placeholder items
-          padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
-          itemBuilder: (context, index) {
-            return Container(
-              width: tileSize,
-              height: tileSize,
-              margin: EdgeInsets.only(
-                right: index == _tilesPerRow - 1 ? 0 : _tileSpacing,
+      loading:
+          () => Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            height: tileSize + 24,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _tilesPerRow, // Show placeholder items
+              padding: const EdgeInsets.symmetric(
+                horizontal: _horizontalPadding,
               ),
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            );
-          },
-        ),
-      ),
-      error: (error, _) => Container(
-        height: 100,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, color: Colors.grey[400], size: 24),
-              const SizedBox(height: 8),
-              Text(
-                'Failed to load categories',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-              ),
-            ],
+              itemBuilder: (context, index) {
+                return Container(
+                  width: tileSize,
+                  height: tileSize,
+                  margin: EdgeInsets.only(
+                    right: index == _tilesPerRow - 1 ? 0 : _tileSpacing,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              },
+            ),
           ),
-        ),
-      ),
+      error:
+          (error, _) => Container(
+            height: 100,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, color: Colors.grey[400], size: 24),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Failed to load categories',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
     );
   }
-  
+
   /// Build individual category item - IMAGE ONLY VERSION
   Widget _buildCategoryItem(
     BuildContext context,
@@ -217,8 +237,11 @@ class SeasonalPicksWidget extends ConsumerWidget {
       child: InkWell(
         onTap: () {
           // Navigate to category
-          if (category.categoryId.isNotEmpty && category.departmentId.isNotEmpty) {
-            context.push('/subcategory/${category.categoryId}/${category.departmentId}/${Uri.encodeComponent(category.categoryName)}');
+          if (category.categoryId.isNotEmpty &&
+              category.departmentId.isNotEmpty) {
+            context.push(
+              '/subcategory/${category.categoryId}/${category.departmentId}/${Uri.encodeComponent(category.categoryName)}',
+            );
           }
         },
         borderRadius: BorderRadius.circular(10),
@@ -229,28 +252,34 @@ class SeasonalPicksWidget extends ConsumerWidget {
             width: size,
             height: size, // Square aspect ratio for better display
             fit: BoxFit.cover,
-            placeholder: (_, __) => Container(
-              width: size,
-              height: size,
-              color: Colors.grey[200],
-              child: const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-            errorWidget: (_, __, ___) => Container(
-              width: size,
-              height: size,
-              color: Colors.grey[200],
-              child: const Center(
-                child: Icon(Icons.image_not_supported, color: Colors.grey, size: 24),
-              ),
-            ),
+            placeholder:
+                (_, __) => Container(
+                  width: size,
+                  height: size,
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+            errorWidget:
+                (_, __, ___) => Container(
+                  width: size,
+                  height: size,
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: Colors.grey,
+                      size: 24,
+                    ),
+                  ),
+                ),
           ),
         ),
       ),
     );
   }
-  
+
   /// Build loading state
   Widget _buildLoadingState() {
     return Container(
@@ -275,7 +304,7 @@ class SeasonalPicksWidget extends ConsumerWidget {
       ),
     );
   }
-  
+
   /// Build error state
   Widget _buildErrorState(BuildContext context, Object error) {
     return Container(
@@ -302,6 +331,3 @@ class SeasonalPicksWidget extends ConsumerWidget {
     );
   }
 }
-
-
-
