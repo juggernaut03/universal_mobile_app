@@ -27,7 +27,38 @@ import FacebookCore
         // STEP 4: Register Flutter plugins
         GeneratedPluginRegistrant.register(with: self)
         print("📦 Flutter plugins registered")
-        
+
+        // STEP 5: Dynamic app icon switching (see AppIconSwitcherPlugin.kt for
+        // the Android side of the same channel).
+        if let controller = window?.rootViewController as? FlutterViewController {
+            let iconChannel = FlutterMethodChannel(
+                name: "app_icon_switcher",
+                binaryMessenger: controller.binaryMessenger
+            )
+            iconChannel.setMethodCallHandler { call, result in
+                guard call.method == "setIcon",
+                      let args = call.arguments as? [String: Any] else {
+                    result(FlutterMethodNotImplemented)
+                    return
+                }
+                // A Dart `null` decodes to NSNull here, which fails this cast
+                // and correctly falls through to nil — nil (or an empty
+                // string) reverts to the primary icon, the only way back to
+                // "default" on iOS since there is no separate catalog entry
+                // for it.
+                let name = args["iosIconName"] as? String
+                let target = (name?.isEmpty ?? true) ? nil : name
+                UIApplication.shared.setAlternateIconName(target) { error in
+                    if let error = error {
+                        print("❌ AppIconSwitcher: failed to set icon '\(name ?? "nil")': \(error.localizedDescription)")
+                        result(FlutterError(code: "SWITCH_FAILED", message: error.localizedDescription, details: nil))
+                    } else {
+                        result(true)
+                    }
+                }
+            }
+        }
+
         // Initialize Facebook SDK
         ApplicationDelegate.shared.application(
             application,

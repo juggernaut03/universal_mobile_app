@@ -13,6 +13,7 @@ import 'data/repositories/project_config_repository.dart';
 import 'presentation/providers/popup_providers.dart';
 import 'presentation/handlers/app_lifecycle_handler.dart';
 import 'di/infrastructure_providers.dart';
+import 'di/service_providers.dart';
 
 class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
@@ -50,6 +51,18 @@ class _MyAppState extends ConsumerState<MyApp> {
     // when the fresh config lands; fetchProjectConfig has already applied it
     // to AppBranding, which AppColors/AppTextStyles read.
     ref.watch(projectConfigProvider);
+
+    // Launcher icon: a side effect, not something this widget renders, so a
+    // listener rather than folding it into the watch above — same config
+    // value, just acted on once per actual change instead of on every
+    // rebuild this widget happens to go through.
+    ref.listen<AsyncValue<ProjectConfig?>>(projectConfigProvider, (previous, next) {
+      final config = next.valueOrNull;
+      if (config != null) {
+        ref.read(appIconServiceProvider).applyIfChanged(config.activeAppIcon);
+      }
+    });
+
     final branding = AppBranding.instance;
     final brandPrimary = branding.primary;
     final appTitle = branding.appName;

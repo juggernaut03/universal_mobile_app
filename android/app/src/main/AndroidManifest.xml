@@ -63,13 +63,55 @@
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme" />
-                           
+        </activity>
+
+        <!--
+          Dynamic launcher icon (see AppIconSwitcherPlugin.kt).
+
+          The LAUNCHER intent-filter used to live directly on MainActivity —
+          moved to these aliases so exactly one icon shows at a time instead
+          of stacking a second launcher entry per icon. All three point at
+          the same MainActivity; only android:icon (and which one is
+          enabled) differs. "default" starts enabled so a fresh install
+          always has exactly one enabled alias.
+        -->
+        <activity-alias
+            android:name=".icons.DefaultIcon"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/launcher_icon"
+            android:label="@string/app_name"
+            android:enabled="true"
+            android:exported="true">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity>
-        
+        </activity-alias>
+        <activity-alias
+            android:name=".icons.FestivalIcon"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/launcher_icon_festival"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".icons.PremiumIcon"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/launcher_icon_premium"
+            android:label="@string/app_name"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity-alias>
+
         <!-- Simplified Firebase configuration -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

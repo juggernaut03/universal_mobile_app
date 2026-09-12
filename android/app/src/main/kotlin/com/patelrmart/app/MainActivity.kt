@@ -9,5 +9,8 @@ class MainActivity : FlutterActivity() {
         
         // Register Facebook Pixel Plugin
         flutterEngine.plugins.add(FacebookPixelPlugin())
+
+        // Register App Icon Switcher Plugin
+        flutterEngine.plugins.add(AppIconSwitcherPlugin())
     }
 }
