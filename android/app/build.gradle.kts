@@ -127,8 +127,18 @@ android {
             // No signingConfig assignment here on purpose — each flavor
             // above sets its own, and buildType would otherwise win the
             // merge and stomp every flavor's real signing key.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            //
+            // R8/resource shrinking were off across every flavor, which is
+            // why Play Console warned "no deobfuscation file associated
+            // with this App Bundle" — there was nothing generating one.
+            // proguard-rules.pro carries the extra keep rules R8 needs
+            // beyond what each plugin's own consumer-rules.pro supplies.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             isDebuggable = false
         }
     }
