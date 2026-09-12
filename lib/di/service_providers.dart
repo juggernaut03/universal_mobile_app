@@ -16,6 +16,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/services/api_service.dart';
+import '../data/services/app_icon_service.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/firebase_notification_service.dart';
 import '../data/services/order_payment_processing_service.dart';
@@ -55,6 +56,10 @@ import '../data/services/home_analytics_service.dart';
 /// three independent instances.
 final cartSessionManagerProvider = Provider<CartSessionManager>((ref) {
   return CartSessionManager(logger: ref.watch(loggerProvider));
+});
+
+final appIconServiceProvider = Provider<AppIconService>((ref) {
+  return AppIconService();
 });
 
 final cartStorageServiceProvider = Provider<CartStorageService>((ref) {

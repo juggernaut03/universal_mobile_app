@@ -56,6 +56,13 @@ class ProjectConfig {
   String get contactEmail => _str('contact_email');
   String get contactPhone => _str('contact_phone');
 
+  /// Which pre-installed launcher icon should be showing right now. See
+  /// AppIconService for how this gets applied.
+  String get activeAppIcon {
+    final value = _str('active_app_icon');
+    return value.isEmpty ? 'default' : value;
+  }
+
   /// Display title with build-time fallback
   String get displayName => appName.isNotEmpty
       ? appName
