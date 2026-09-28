@@ -650,21 +650,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: productImage.isNotEmpty
-                          ? CachedNetworkImageWidget(
-                              imageUrl: productImage,
-                              fit: BoxFit.contain,
-                              width: 100,
-                              height: 100,
-                            )
-                          : Container(
-                              color: AppColors.neutral100,
-                              child: Icon(
-                                Icons.shopping_bag_outlined,
-                                size: 40,
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
+                      child: CachedNetworkImageWidget(
+                        imageUrl: productImage,
+                        fit: BoxFit.contain,
+                        width: 100,
+                        height: 100,
+                      ),
                     ),
                   ),
                   
