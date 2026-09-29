@@ -145,11 +145,34 @@ class Order {
             maxQuantityAllowed: 10,
           );
 
+          // Set once (models/Order.js orderItemSchema) the first time an
+          // admin edits this line post-placement — absent on every
+          // untouched line, so these checks are all "was this line ever
+          // touched", not "what does it currently say".
+          final currentQuantity = item['quantity'] is int
+              ? item['quantity'] as int
+              : int.tryParse(item['quantity']?.toString() ?? '') ?? 1;
+          final originalQuantity = item['original_quantity'] is int
+              ? item['original_quantity'] as int
+              : int.tryParse(item['original_quantity']?.toString() ?? '');
+          final wasRemoved = item['removed'] == true;
+
+          if (wasRemoved) {
+            unavailableItems.add(pcode);
+          } else if (originalQuantity != null && originalQuantity != currentQuantity) {
+            // The UI (order_detail_screen.dart) renders CartItem.quantity
+            // struck through against updatedQuantities[pcode] beside it, so
+            // the item itself carries the ORIGINAL quantity here and the
+            // server-revised one goes in the map — the two are swapped
+            // relative to what the API itself calls them.
+            updatedQuantities[pcode] = currentQuantity;
+          }
+
           items.add(CartItem(
             product: productModel,
-            quantity: item['quantity'] is int
-                ? item['quantity']
-                : int.tryParse(item['quantity']?.toString() ?? '') ?? 1,
+            quantity: (wasRemoved || originalQuantity != null)
+                ? (originalQuantity ?? currentQuantity)
+                : currentQuantity,
           ));
         } catch (e) {
           if (kDebugMode) print('Error parsing order item: $e');
