@@ -253,17 +253,12 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
       notes.add('Pickup Name: $pickupName');
     }
 
-    // Add profile name (using mobile since no explicit name field exists)
-    final profileName = userProfile?.mobile ?? '';
-    if (profileName.isNotEmpty) {
-      notes.add('Profile Name: $profileName');
-    }
-
-    // Add mobile number
-    final mobile = userProfile?.mobile ?? '';
-    if (mobile.isNotEmpty) {
-      notes.add('Mobile: $mobile');
-    }
+    // Deliberately NOT adding profile name / mobile here — the admin panel's
+    // order list already shows the customer's mobile in its own column, so
+    // appending it here just duplicated it into the Note field (and, with no
+    // typed instructions, showed up as the ENTIRE note — "Profile Name:
+    // <mobile> | Mobile: <mobile>" — standing in for what should've been
+    // empty).
 
     // Join with " | " separator
     return notes.join(' | ');
