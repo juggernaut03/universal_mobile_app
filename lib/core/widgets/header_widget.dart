@@ -16,7 +16,7 @@ class HeaderWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.primary,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), // Reduced vertical padding
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0), // Reduced vertical padding
       child: Row(
         children: [
           const Icon(

@@ -97,13 +97,18 @@ class OrderDetailScreen extends ConsumerWidget {
                       
                       // Order Number - Use actual_order_id if available
                       _buildInfoRow(
-                        'Order Number:', 
-                        order.actualOrderId != null 
-                            ? '#${order.actualOrderId}' 
+                        'Order Number:',
+                        order.actualOrderId != null
+                            ? '#${order.actualOrderId}'
                             : '#${order.orderId}'
                       ),
                       const SizedBox(height: 12),
-                      
+
+                      if (order.storeCode != null) ...[
+                        _buildInfoRow('Branch:', order.storeCode!),
+                        const SizedBox(height: 12),
+                      ],
+
                       // Order Date and Time - Use order_date_time
                       _buildInfoRow(
                         'Ordered Date:', 

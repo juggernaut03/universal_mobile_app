@@ -307,8 +307,8 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
     return CompositedTransformTarget(
       link: _layerLink,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-        height: 46,
+        margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+        height: 44,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -356,7 +356,7 @@ class _SearchWidgetState extends ConsumerState<SearchWidget> {
             border: InputBorder.none,
             // Updated content padding for better vertical centering
             contentPadding: const EdgeInsets.symmetric(
-              vertical: 13.0, // Increased for better centering
+              vertical: 11.0,
               horizontal: 0.0,
             ),
             // Add these properties for better alignment

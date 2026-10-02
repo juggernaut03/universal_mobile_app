@@ -261,95 +261,105 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            isSelfPickup ? 'Choose Pickup Time' : 'Choose Delivery Time',
-            style: AppTextStyles.h5,
-          ),
-        ),
-        
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text(
-            isSelfPickup ? 'Select pickup time slot' : 'Select delivery time slot',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSecondary,
+        // Everything above the Continue button scrolls as one page — title,
+        // date tabs, time slots and order total — instead of only the time
+        // slot grid being scrollable with the rest pinned.
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    isSelfPickup ? 'Choose Pickup Time' : 'Choose Delivery Time',
+                    style: AppTextStyles.h5,
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    isSelfPickup ? 'Select pickup time slot' : 'Select delivery time slot',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Date tabs
+                Container(
+                  height: 48,
+                  margin: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: _isLoadingDates
+                    ? ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: 3,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: EdgeInsets.only(right: index < 2 ? 12.0 : 0),
+                            child: Container(
+                              width: 120,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    : ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _availableDates.length,
+                        itemBuilder: (context, index) {
+                          final date = _availableDates[index];
+                          final isSelected = _selectedDate?.day == date.day &&
+                                            _selectedDate?.month == date.month &&
+                                            _selectedDate?.year == date.year;
+
+                          return Padding(
+                            padding: EdgeInsets.only(right: index < _availableDates.length - 1 ? 12.0 : 0),
+                            child: InkWell(
+                              onTap: () => _selectDate(date),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppColors.primary : Colors.transparent,
+                                  border: Border.all(
+                                    color: isSelected ? AppColors.primary : Colors.grey[300]!,
+                                  ),
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _formatDateDisplay(date),
+                                    style: AppTextStyles.bodyMedium.copyWith(
+                                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Time slots
+                _buildTimeSlots(),
+
+                // Order Total Section
+                _buildOrderTotal(),
+              ],
             ),
           ),
         ),
-        
-        const SizedBox(height: 16),
-        
-        // Date tabs
-        Container(
-          height: 48,
-          margin: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: _isLoadingDates
-            ? ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: 3,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: EdgeInsets.only(right: index < 2 ? 12.0 : 0),
-                    child: Container(
-                      width: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                    ),
-                  );
-                },
-              )
-            : ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _availableDates.length,
-                itemBuilder: (context, index) {
-                  final date = _availableDates[index];
-                  final isSelected = _selectedDate?.day == date.day && 
-                                    _selectedDate?.month == date.month &&
-                                    _selectedDate?.year == date.year;
-                  
-                  return Padding(
-                    padding: EdgeInsets.only(right: index < _availableDates.length - 1 ? 12.0 : 0),
-                    child: InkWell(
-                      onTap: () => _selectDate(date),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : Colors.transparent,
-                          border: Border.all(
-                            color: isSelected ? AppColors.primary : Colors.grey[300]!,
-                          ),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _formatDateDisplay(date),
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: isSelected ? Colors.white : AppColors.textPrimary,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-        ),
-        
-        const SizedBox(height: 24),
-        
-        // Time slots
-        Expanded(
-          child: _buildTimeSlots(),
-        ),
-        
-        // Order Total Section
-        _buildOrderTotal(),
-        
+
         // Continue Button
         Padding(
           padding: EdgeInsets.only(
@@ -480,11 +490,14 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
           ),
         ),
         const SizedBox(height: 16),
-        
-        // Time slot grid
-        Expanded(
-          child: GridView.builder(
+
+        // Time slot grid — shrink-wrapped since this Column now sits
+        // inside the step's own outer SingleChildScrollView rather than
+        // under a bounded Expanded.
+        GridView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: ResponsiveUtils.isSmall(context) ? 2 : 3,
               childAspectRatio: 2.5,
@@ -539,7 +552,6 @@ class _DeliveryTimeStepState extends ConsumerState<DeliveryTimeStep> {
               );
             },
           ),
-        ),
       ],
     );
   }

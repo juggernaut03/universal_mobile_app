@@ -114,8 +114,25 @@ class OrderTrackingWidget extends StatelessWidget {
                     height: 50,
                     width: double.infinity,
                     fit: BoxFit.contain,
-                    // Hide the spinner placeholder — image is cached and loads instantly
-                    loadingWidget: const SizedBox.shrink(),
+                    // A real placeholder (not a hidden SizedBox) — the image
+                    // isn't always already cached, and hiding the loading
+                    // state left a blank gap where the banner should be
+                    // while it fetched.
+                    loadingWidget: Container(
+                      height: 50,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],

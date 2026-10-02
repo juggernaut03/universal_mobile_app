@@ -156,44 +156,53 @@ Widget build(BuildContext context) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Text(
-          'Delivery Address',
-          style: AppTextStyles.h5,
-        ),
-      ),
-      
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: Text(
-          'Select delivery address',
-          style: AppTextStyles.bodyMedium.copyWith(
-            color: AppColors.textSecondary,
+      // Everything above the Continue button scrolls as one page — title,
+      // address list and order total — instead of only the address list
+      // being scrollable with the rest pinned.
+      Expanded(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Delivery Address',
+                  style: AppTextStyles.h5,
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  'Select delivery address',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48.0),
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_addresses.isEmpty)
+                _buildNoAddressesView()
+              else
+                _buildAddressList(),
+
+              // Order Total Section
+              _buildOrderTotal(),
+            ],
           ),
         ),
       ),
-      
-      const SizedBox(height: 16),
-      
-      if (_isLoading)
-        const Expanded(
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
-        )
-      else if (_addresses.isEmpty)
-        Expanded(
-          child: _buildNoAddressesView(),
-        )
-      else
-        Expanded(
-          child: _buildAddressList(),
-        ),
-        
-      // Order Total Section
-      _buildOrderTotal(),
-      
+
       // Continue Button
       Padding(
         padding: EdgeInsets.only(
@@ -273,6 +282,8 @@ Widget build(BuildContext context) {
   Widget _buildAddressList() {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: _addresses.length + 1, // +1 for the "Add Address" button
       itemBuilder: (context, index) {
         if (index == _addresses.length) {

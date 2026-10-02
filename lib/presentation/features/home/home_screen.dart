@@ -46,6 +46,8 @@ import '../../providers/seasonal_picks_widget_providers.dart';
 import '../../providers/notifications_provider.dart';
 import '../../providers/loyalty_provider.dart';
 import '../../providers/seasonal_category_widget_providers.dart';
+import '../../providers/connectivity_provider.dart';
+import '../../../core/widgets/error_widgets.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -607,7 +609,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     floating: false,
                     pinned: true,
                     backgroundColor: AppColors.primary,
-                    elevation: 2,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
                     leading: Builder(
                       builder: (context) => IconButton(
                         icon: const Icon(Icons.menu, color: Colors.white),
@@ -700,7 +703,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 left: 0,
                 right: 0,
                 child: Material(
-                  elevation: 4,
+                  elevation: 0,
                   child: Container(
                     height: 56,
                     color: AppColors.primary,
@@ -916,6 +919,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   /// stays compiled in so the rollout flag can be flipped back without a
   /// release.
   Widget _buildScrollableContent() {
+    // Device has no network link at all — show one clear message instead of
+    // letting every banner/category widget fail independently and render
+    // its own broken-looking "unavailable" placeholder.
+    if (ref.watch(isOfflineProvider)) {
+      return LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: constraints.maxHeight > 0 ? constraints.maxHeight : 500,
+            child: AppErrorWidget(
+              errorType: ErrorType.network,
+              onRetry: _refreshHomeData,
+            ),
+          ),
+        ),
+      );
+    }
     if (ref.watch(homeFeedEnabledProvider)) {
       return _buildFeedContent();
     }
@@ -928,8 +948,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return SingleChildScrollView(
       child: Column(
         children: [
-          const SizedBox(height: 8),
-          _buildOrderTracking(),
           const SizedBox(height: 4),
           // A fixed gap between every pair of sections, on top of whatever
           // margin each section already carries internally. Without this,
@@ -940,12 +958,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           // hence "uneven spacing between segments". This doesn't touch any
           // section's own internal padding, just guarantees a consistent
           // minimum between them.
-          for (final section in sections) ...[
+          for (final (index, section) in sections.indexed) ...[
             Consumer(
               builder: (context, ref, _) =>
                   HomeSectionRegistry.build(context, ref, section),
             ),
             const SizedBox(height: 12),
+            // Order tracker sits below the first merchandising section
+            // rather than above everything, so a shopper sees the home
+            // page's own content before the "track your order" chrome.
+            if (index == 0) ...[
+              _buildOrderTracking(),
+              const SizedBox(height: 12),
+            ],
           ],
           const SizedBox(height: 88),
         ],
@@ -959,10 +984,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       child: Column(
         children: [
           // REDUCED SPACING: Smaller gap after search
-          const SizedBox(height: 8), // Reduced from 16 to 8
-
-          // Order Tracking Widget Positioned AFTER Search Bar
-          _buildOrderTracking(),
           const SizedBox(height: 4),
 
           // Popular Categories - using RepaintBoundary for better performance
@@ -978,6 +999,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               enablePullToRefresh: false, // Disabled - using home screen's unified refresh
             ),
           ),
+
+          // Order tracker sits below the first merchandising section rather
+          // than above everything, so a shopper sees the home page's own
+          // content before the "track your order" chrome.
+          _buildOrderTracking(),
+          const SizedBox(height: 2),
 
           // Promotional Banner - wrapped in RepaintBoundary
           RepaintBoundary(

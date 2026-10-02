@@ -23,6 +23,9 @@ class Order {
   final DateTime? orderDateTime; // This is the primary field for order date/time
   final int? actualOrderId; // This is the display order ID
   final double? refundAmount; // Refund amount returned to the customer
+  // Branch/store the order was placed at — only present on the order-detail
+  // shape (routes/orders.js GET /:orderNumber), not the my-orders list shape.
+  final String? storeCode;
   // Map of product pcode -> server-revised quantity (e.g. when stock changed
   // after order placement). When an entry exists, the UI strikes out the
   // originally ordered quantity and shows this value beside it.
@@ -47,6 +50,7 @@ class Order {
     this.orderDateTime,
     this.actualOrderId,
     this.refundAmount,
+    this.storeCode,
     this.updatedQuantities = const {},
     this.unavailableItems = const {},
   });
@@ -68,6 +72,7 @@ class Order {
       'orderDateTime': orderDateTime?.toIso8601String(),
       'actualOrderId': actualOrderId,
       'refundAmount': refundAmount,
+      'storeCode': storeCode,
       'items': items.map((item) => {
         'productId': item.product.pCode,
         'productName': item.product.productName,
@@ -258,6 +263,9 @@ class Order {
       orderDateTime: placedAt, // Store the converted local time
       actualOrderId: actualOrderId,
       refundAmount: refundAmount, // Refund issued to the customer, if any
+      storeCode: (json['store_code'] as String?)?.trim().isNotEmpty == true
+          ? json['store_code'] as String
+          : null,
       updatedQuantities: updatedQuantities,
       unavailableItems: unavailableItems,
     );

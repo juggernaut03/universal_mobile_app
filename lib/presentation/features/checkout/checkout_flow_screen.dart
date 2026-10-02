@@ -877,19 +877,34 @@ class _CheckoutFlowScreenState extends ConsumerState<CheckoutFlowScreen> {
               // Show detailed order summary in a modal bottom sheet
               _showOrderDetailsBottomSheet(context);
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Row(
                 children: [
-                  Text(
-                    'View Order details',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.primary,
+                  Icon(
+                    Icons.receipt_long,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'View Order details',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   Icon(
                     Icons.arrow_forward_ios,
-                    size: 12,
+                    size: 14,
                     color: AppColors.primary,
                   ),
                 ],
