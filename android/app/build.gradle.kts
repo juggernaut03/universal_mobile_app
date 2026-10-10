@@ -114,6 +114,17 @@ android {
             resValue("string", "app_name", "Shree Mega Mart")
             signingConfig = signingConfigs.findByName("shreemegamart") ?: signingConfigs.getByName("debug")
         }
+        // Internal test/demo tenant (RET0001, a data clone of Shree Mega
+        // Mart) — own applicationId so it installs alongside a real tenant
+        // app on the same test device instead of overwriting it. No
+        // keystore of its own; debug-signed only, never meant for a store
+        // listing.
+        create("demo") {
+            dimension = "tenant"
+            applicationId = "com.universaldemo.androidapp"
+            resValue("string", "app_name", "Demo Store")
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     buildTypes {
