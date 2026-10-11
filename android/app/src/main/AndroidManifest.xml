@@ -63,6 +63,28 @@
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme" />
+
+            <!--
+              App Links — the promo/download page (Universal_admin_panel's
+              ecomadmin.shalviadvision.com/<projectcode>) opens straight into
+              the app if it's already installed, instead of the Play Store.
+              android:pathPrefix is set per flavor via manifestPlaceholders
+              (android/app/build.gradle.kts) so each tenant's app only ever
+              claims its own project code, not another tenant's. Verification
+              needs assetlinks.json hosted at that domain listing this app's
+              release-signing SHA256 fingerprint — only flavors with a real
+              (non-debug) keystore can actually verify; see
+              Universal_admin_panel/public/.well-known/assetlinks.json.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="ecomadmin.shalviadvision.com"
+                    android:pathPrefix="${appLinkPathPrefix}" />
+            </intent-filter>
         </activity>
 
         <!--

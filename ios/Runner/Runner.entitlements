@@ -5,7 +5,17 @@
     <!-- Push Notifications Capability -->
     <key>aps-environment</key>
     <string>development</string>
-    
+
+    <!-- Universal Links — shared across every flavor (CODE_SIGN_ENTITLEMENTS
+         points every build config at this one file). Which paths each app
+         actually handles is scoped per tenant in the hosted
+         apple-app-site-association JSON, not here — the domain itself is
+         the same for every tenant. -->
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:ecomadmin.shalviadvision.com</string>
+    </array>
+
     <!-- Background App Refresh -->
     <!-- <key>com.apple.developer.background-modes</key>
     <array>

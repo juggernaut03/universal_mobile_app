@@ -84,35 +84,49 @@ android {
     // Store listing/installs keep updating in place.
     flavorDimensions += "tenant"
     productFlavors {
+        // appLinkPathPrefix fills the App Links intent-filter's
+        // android:pathPrefix (see AndroidManifest.xml) with this tenant's
+        // own project code, so each app only ever claims its own promo
+        // page (ecomadmin.shalviadvision.com/<projectcode>), never another
+        // tenant's. Every flavor needs a value here regardless of signing
+        // status — the manifest placeholder must resolve for any flavor to
+        // build at all; only tenants with a real (non-debug) keystore can
+        // actually get the link verified, see
+        // Universal_admin_panel/public/.well-known/assetlinks.json.
         create("pagariya") {
             dimension = "tenant"
             applicationId = "com.patelrmart.app"
             resValue("string", "app_name", "Pagariya Mart")
             signingConfig = signingConfigs.findByName("pagariya") ?: signingConfigs.getByName("debug")
+            manifestPlaceholders["appLinkPathPrefix"] = "/RET5677"
         }
         create("myneedmart") {
             dimension = "tenant"
             applicationId = "com.myneedmart.androidapp"
             resValue("string", "app_name", "My Need Mart")
             signingConfig = signingConfigs.findByName("myneedmart") ?: signingConfigs.getByName("debug")
+            manifestPlaceholders["appLinkPathPrefix"] = "/RET6978"
         }
         create("grahakpeth") {
             dimension = "tenant"
             applicationId = "com.grahakpeth.androidapp"
             resValue("string", "app_name", "Grahak Peth")
             signingConfig = signingConfigs.findByName("grahakpeth") ?: signingConfigs.getByName("debug")
+            manifestPlaceholders["appLinkPathPrefix"] = "/RET9575"
         }
         create("sansarpariwar") {
             dimension = "tenant"
             applicationId = "com.sansarpariwar.androidapp"
             resValue("string", "app_name", "Sansar Pariwar")
             signingConfig = signingConfigs.findByName("sansarpariwar") ?: signingConfigs.getByName("debug")
+            manifestPlaceholders["appLinkPathPrefix"] = "/RET6602"
         }
         create("shreemegamart") {
             dimension = "tenant"
             applicationId = "com.shreemegamart.androidapp"
             resValue("string", "app_name", "Shree Mega Mart")
             signingConfig = signingConfigs.findByName("shreemegamart") ?: signingConfigs.getByName("debug")
+            manifestPlaceholders["appLinkPathPrefix"] = "/RET2690"
         }
         // Internal test/demo tenant (RET0001, a data clone of Shree Mega
         // Mart) — own applicationId so it installs alongside a real tenant
@@ -124,6 +138,7 @@ android {
             applicationId = "com.universaldemo.androidapp"
             resValue("string", "app_name", "Demo Store")
             signingConfig = signingConfigs.getByName("debug")
+            manifestPlaceholders["appLinkPathPrefix"] = "/RET0001"
         }
     }
 

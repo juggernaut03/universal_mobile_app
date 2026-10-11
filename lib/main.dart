@@ -21,6 +21,7 @@ import 'presentation/providers/popup_providers.dart';
 import 'data/repositories/project_config_repository.dart';
 import 'core/branding/app_branding.dart';
 import 'data/services/firebase_notification_service.dart';
+import 'core/deep_link_service.dart';
 // FCM TOKEN IMPORTS
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/favorites_provider.dart';
@@ -385,7 +386,12 @@ class _AppWithLifecycleAndNotificationHandlerState extends ConsumerState<AppWith
       
       // STEP 1: Initialize popup system first (lighter)
       _initializePopupSystem();
-      
+
+      // Start listening for App Links / Universal Links now that the first
+      // frame has built (navigatorKey has a context). Independent of the
+      // steps below — never block app startup on it.
+      DeepLinkService.initialize();
+
       // STEP 2: Clear product cache so fresh prices are always fetched on startup
       await _clearProductCacheOnStartup();
       
