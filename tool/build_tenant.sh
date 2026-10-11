@@ -55,9 +55,12 @@ if [[ ! -f "$DEFINE_FILE" ]]; then
   exit 1
 fi
 
-# iOS flavors are added incrementally; only myneedmart is wired in Xcode today.
-# Pagariya iOS still uses the default Runner scheme (com.patelrmart.iosapp).
-IOS_FLAVORS=(myneedmart)
+# iOS flavors are added incrementally — only tenants with their own
+# Xcode scheme + build configuration are listed here (confirmed via
+# ios/Runner.xcodeproj/xcshareddata/xcschemes/*.xcscheme). grahakpeth and
+# sansarpariwar aren't wired in Xcode yet. Pagariya iOS still uses the
+# default Runner scheme (com.patelrmart.iosapp).
+IOS_FLAVORS=(myneedmart shreemegamart)
 
 cd "$ROOT_DIR"
 
