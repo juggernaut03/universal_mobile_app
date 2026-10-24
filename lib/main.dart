@@ -199,9 +199,14 @@ void main() async {
         ],
         child: Consumer(
           builder: (context, ref, child) {
-            // Initialize Facebook Pixel after Firebase
+            // Initialize Facebook Pixel after Firebase. navigatorKey's
+            // context (not this one, which sits above MaterialApp.router)
+            // is what lets the ATT consent dialog actually show.
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              FacebookPixelIntegration.initialize(ref);
+              FacebookPixelIntegration.initialize(
+                ref,
+                context: navigatorKey.currentContext,
+              );
             });
             
             return const AppWithLifecycleAndNotificationHandler();

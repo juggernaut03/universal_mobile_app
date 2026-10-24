@@ -16,11 +16,20 @@ class FacebookPixelService {
   bool _isInitialized = false;
   bool _isEnabled = FacebookPixelConfig.enableTracking;
   
-  /// Initialize Facebook SDK and Pixel
-  Future<void> initialize() async {
+  /// Initialize Facebook SDK and Pixel.
+  ///
+  /// [allowAdvertiserTracking] is the App Tracking Transparency decision
+  /// (always `true` on Android, which has no ATT framework — see
+  /// [TrackingConsentService]). When `false`, advertiser-ID collection stays
+  /// off for the life of this install; non-tracking app-events logging
+  /// (auto log app events) is unaffected, since that doesn't read the IDFA.
+  Future<void> initialize({bool allowAdvertiserTracking = true}) async {
     if (_isInitialized || !_isEnabled) return;
-    
+
     try {
+      final collectAdvertiserId =
+          allowAdvertiserTracking && FacebookPixelConfig.enableAdvertiserIdCollection;
+
       // Initialize Facebook SDK via platform channel
       await _channel.invokeMethod('initialize', {
         'appId': FacebookPixelConfig.facebookAppId,
@@ -28,15 +37,19 @@ class FacebookPixelService {
         'pixelId': FacebookPixelConfig.pixelId,
         'displayName': AppBranding.instance.appName,
         'enableAutoLogAppEvents': FacebookPixelConfig.enableAutoLogAppEvents,
-        'enableAdvertiserIdCollection': FacebookPixelConfig.enableAdvertiserIdCollection,
+        'enableAdvertiserIdCollection': collectAdvertiserId,
         'enableCodelessEvents': FacebookPixelConfig.enableCodelessEvents,
         'enableDebugLogs': FacebookPixelConfig.debugMode,
       });
-      
+
       _isInitialized = true;
-      
+
+      if (!allowAdvertiserTracking) {
+        await setAdvertiserTrackingEnabled(false);
+      }
+
       if (kDebugMode) {
-        log('✅ Facebook Pixel initialized successfully');
+        log('✅ Facebook Pixel initialized successfully (advertiserTracking=$allowAdvertiserTracking)');
       }
     } catch (e) {
       if (kDebugMode) {

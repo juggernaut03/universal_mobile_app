@@ -71,6 +71,7 @@ dependencies:
   flutter_html: ^3.0.0
   package_info_plus: ^8.3.0
   google_fonts: ^8.2.0
+  app_tracking_transparency: ^2.0.6+1
 
 dev_dependencies:
   flutter_test:
