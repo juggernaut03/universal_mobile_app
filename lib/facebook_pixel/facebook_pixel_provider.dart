@@ -7,13 +7,6 @@ final facebookPixelProvider = Provider<FacebookPixelService>((ref) {
   return FacebookPixelService.instance;
 });
 
-/// Facebook Pixel Initialization Provider
-/// Handles initialization of Facebook Pixel
-final facebookPixelInitializationProvider = FutureProvider<void>((ref) async {
-  final facebookPixel = ref.read(facebookPixelProvider);
-  await facebookPixel.initialize();
-});
-
 /// Facebook Pixel Tracking Provider
 /// Provides methods for tracking events
 final facebookPixelTrackingProvider = Provider<FacebookPixelTracking>((ref) {

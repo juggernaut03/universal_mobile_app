@@ -1,21 +1,32 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'facebook_pixel_provider.dart';
 import 'package:flutter/foundation.dart';
+import '../core/privacy/tracking_consent_service.dart';
 
 /// Facebook Pixel Integration
 /// Provides easy integration methods for Facebook Pixel tracking
 class FacebookPixelIntegration {
-  /// Initialize Facebook Pixel in the app
-  /// Call this in main.dart after Firebase initialization
-  static Future<void> initialize(WidgetRef ref) async {
+  /// Initialize Facebook Pixel in the app.
+  /// Call this in main.dart after Firebase initialization.
+  ///
+  /// [context] is used to show the pre-permission consent explainer before
+  /// the native App Tracking Transparency prompt (iOS only). Pass the
+  /// widget tree's current context — typically `navigatorKey.currentContext`
+  /// at this point in the launch sequence, since MaterialApp's own Navigator
+  /// is what the dialog needs.
+  static Future<void> initialize(WidgetRef ref, {BuildContext? context}) async {
     try {
-      // Initialize Facebook Pixel
-      await ref.read(facebookPixelInitializationProvider.future);
-      
+      final allowAdvertiserTracking =
+          await TrackingConsentService.requestConsent(context);
+
+      final facebookPixel = ref.read(facebookPixelProvider);
+      await facebookPixel.initialize(allowAdvertiserTracking: allowAdvertiserTracking);
+
       // Track app launch event
       final tracking = ref.read(facebookPixelTrackingProvider);
       await tracking.trackAppLaunch();
-      
+
       if (kDebugMode) print('✅ Facebook Pixel initialized and app launch tracked');
     } catch (e) {
       if (kDebugMode) print('❌ Facebook Pixel initialization failed: $e');
