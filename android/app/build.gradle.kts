@@ -20,6 +20,7 @@ val flavorKeystoreFiles = mapOf(
     "grahakpeth" to "key.grahakpeth.properties",
     "sansarpariwar" to "key.sansarpariwar.properties",
     "shreemegamart" to "key.shreemegamart.properties",
+    "demo" to "key.demo.properties",
 )
 
 plugins {
@@ -130,14 +131,17 @@ android {
         }
         // Internal test/demo tenant (RET0001, a data clone of Shree Mega
         // Mart) — own applicationId so it installs alongside a real tenant
-        // app on the same test device instead of overwriting it. No
-        // keystore of its own; debug-signed only, never meant for a store
-        // listing.
+        // app on the same test device instead of overwriting it. Signed
+        // with its own release keystore (key.demo.properties) so it can be
+        // handed out as a demo build; google-services.json for this flavor
+        // is a placeholder (project_number 000000000000) — push
+        // notifications don't work on this flavor until a real Firebase
+        // app is registered for this applicationId.
         create("demo") {
             dimension = "tenant"
-            applicationId = "com.universaldemo.androidapp"
+            applicationId = "com.shalviretail.androidapp"
             resValue("string", "app_name", "Demo Store")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("demo") ?: signingConfigs.getByName("debug")
             manifestPlaceholders["appLinkPathPrefix"] = "/RET0001"
         }
     }
