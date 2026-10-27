@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "universal-demo-placeholder",
-    "storage_bucket": "universal-demo-placeholder.firebasestorage.app"
+    "project_number": "325391080565",
+    "project_id": "shalvi-retail-notifications",
+    "storage_bucket": "shalvi-retail-notifications.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000001",
+        "mobilesdk_app_id": "1:325391080565:android:1184a14712c76d5c21ec3c",
         "android_client_info": {
-          "package_name": "com.universaldemo.androidapp"
+          "package_name": "com.shalviretail.androidapp"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDevPlaceholderNotARealKey00000000001"
+          "current_key": "AIzaSyCpA79i4-JLOmWYePsJlcnyTFBmERSB6xE"
         }
       ],
       "services": {

@@ -141,10 +141,14 @@ void main() async {
             sound: true,
           );
           logger.log('✅ iOS foreground notification presentation configured');
-          
-          // Early permission request for iOS (non-blocking)
-          _requestIOSPermissionsEarly(logger);
-          
+
+          // Notification permission is requested after App Tracking
+          // Transparency resolves (see the postFrameCallback in runApp
+          // below) — iOS only presents one system permission alert at a
+          // time, and requesting this one independently on a fixed delay
+          // raced the ATT prompt, which Apple's review flagged as
+          // "unable to locate" (it was being silently suppressed).
+
         } catch (e) {
           logger.log('⚠️ iOS Firebase configuration warning: $e');
           // Continue - this is not critical for app startup
@@ -202,11 +206,17 @@ void main() async {
             // Initialize Facebook Pixel after Firebase. navigatorKey's
             // context (not this one, which sits above MaterialApp.router)
             // is what lets the ATT consent dialog actually show.
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              FacebookPixelIntegration.initialize(
+            //
+            // The notification-permission request only fires after this
+            // resolves — it must not race the ATT system alert (see the
+            // comment above _requestIOSPermissionsEarly's removed call
+            // site further up this file).
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              await FacebookPixelIntegration.initialize(
                 ref,
                 context: navigatorKey.currentContext,
               );
+              _requestIOSPermissionsEarly(logger);
             });
             
             return const AppWithLifecycleAndNotificationHandler();
