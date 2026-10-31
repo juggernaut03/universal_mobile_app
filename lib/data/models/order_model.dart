@@ -33,6 +33,23 @@ class Order {
   // Pcodes for items the server marked product_available_status == not_available.
   // The UI strikes out the whole row and shows a "Not Available" badge.
   final Set<String> unavailableItems;
+  // Bill breakdown from order_summary. subtotal is the item total after deal
+  // prices; the discounts below come off it, then delivery and packing are
+  // added to give totalAmount.
+  final double subtotal;
+  final double dealSavings;
+  final double offerDiscount;
+  final String? offerTitle;
+  final String? offerCouponCode;
+  final double loyaltyDiscount;
+  final String? loyaltyRewardName;
+  // Part of discount_amount not covered by the offer / loyalty breakdown
+  // (orders placed before the breakdown was stored).
+  final double otherDiscount;
+  final double packingFee;
+  final double freeDeliveryWaived;
+  final String? freeDeliveryTitle;
+  final String? freeDeliveryCouponCode;
 
   Order({
     required this.orderId,
@@ -53,6 +70,18 @@ class Order {
     this.storeCode,
     this.updatedQuantities = const {},
     this.unavailableItems = const {},
+    this.subtotal = 0,
+    this.dealSavings = 0,
+    this.offerDiscount = 0,
+    this.offerTitle,
+    this.offerCouponCode,
+    this.loyaltyDiscount = 0,
+    this.loyaltyRewardName,
+    this.otherDiscount = 0,
+    this.packingFee = 0,
+    this.freeDeliveryWaived = 0,
+    this.freeDeliveryTitle,
+    this.freeDeliveryCouponCode,
   });
 
   // Convert order to JSON
@@ -201,8 +230,33 @@ class Order {
     final dealSavings = toDouble(summary['deal_savings']);
     final totalAmount = toDouble(summary['total_amount']);
 
+    final packingFee = toDouble(summary['packing_fee']);
+
+    String? nonEmpty(dynamic value) {
+      final text = value?.toString().trim() ?? '';
+      return text.isEmpty ? null : text;
+    }
+
+    final appliedOffer = summary['applied_offer'] is Map
+        ? summary['applied_offer'] as Map
+        : const {};
+    final loyalty = summary['applied_loyalty_redemption'] is Map
+        ? summary['applied_loyalty_redemption'] as Map
+        : const {};
+    final freeDelivery = summary['free_delivery_offer'] is Map
+        ? summary['free_delivery_offer'] as Map
+        : const {};
+    final offerDiscount = toDouble(appliedOffer['discount_amount']);
+    final loyaltyDiscount = toDouble(loyalty['discount_amount']);
+    final freeDeliveryWaived = toDouble(freeDelivery['waived_amount']);
+    final otherDiscount = max(
+      0.0,
+      ((discountAmount - offerDiscount - loyaltyDiscount) * 100).round() / 100,
+    );
+
     final totalMrp = subtotal; // MRP not tracked server-side; show subtotal
-    final correctSavings = max(0.0, discountAmount + dealSavings);
+    final correctSavings =
+        max(0.0, discountAmount + dealSavings + freeDeliveryWaived);
 
     // Delivery slot (list shape has it flattened, detail shape nests it)
     final deliveryInfo = json['delivery_info'] is Map
@@ -268,6 +322,18 @@ class Order {
           : null,
       updatedQuantities: updatedQuantities,
       unavailableItems: unavailableItems,
+      subtotal: subtotal,
+      dealSavings: dealSavings,
+      offerDiscount: offerDiscount,
+      offerTitle: nonEmpty(appliedOffer['title']),
+      offerCouponCode: nonEmpty(appliedOffer['coupon_code']),
+      loyaltyDiscount: loyaltyDiscount,
+      loyaltyRewardName: nonEmpty(loyalty['reward_name']),
+      otherDiscount: otherDiscount,
+      packingFee: packingFee,
+      freeDeliveryWaived: freeDeliveryWaived,
+      freeDeliveryTitle: nonEmpty(freeDelivery['title']),
+      freeDeliveryCouponCode: nonEmpty(freeDelivery['coupon_code']),
     );
   }
 

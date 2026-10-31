@@ -87,16 +87,18 @@ Future<void> _loadAddresses() async {
     
     ref.read(loggerProvider).log('Loaded ${_addresses.length} addresses in checkout');
     
-    // If we have a previously selected address, find it in the list
-    if (widget.checkoutData.selectedAddress != null) {
-      final matchingAddress = _addresses.firstWhere(
-        (address) => address.id == widget.checkoutData.selectedAddress!.id,
-        orElse: () => _addresses.isNotEmpty ? _addresses.first : widget.checkoutData.selectedAddress!,
+    // Keep the address already picked in this checkout if it still exists;
+    // otherwise preselect the customer's default address (falling back to
+    // the first one when none is marked default).
+    if (_addresses.isNotEmpty) {
+      final previousId = widget.checkoutData.selectedAddress?.id;
+      _selectedAddress = _addresses.firstWhere(
+        (address) => address.id == previousId,
+        orElse: () => _addresses.firstWhere(
+          _isDefaultAddress,
+          orElse: () => _addresses.first,
+        ),
       );
-      _selectedAddress = matchingAddress;
-    } else if (_addresses.isNotEmpty) {
-      // If no previously selected address, select the first one
-      _selectedAddress = _addresses.first;
     }
     
     // Update the checkout data
@@ -122,6 +124,9 @@ Future<void> _loadAddresses() async {
     _isLoading = false;
   });
 }
+
+bool _isDefaultAddress(Address address) =>
+    address.isDefault.trim().toLowerCase() == 'yes';
 
 void _selectAddress(Address address) {
   setState(() {
@@ -397,7 +402,7 @@ Widget build(BuildContext context) {
                               style: AppTextStyles.bodyMedium,
                             ),
                             
-                            if (address.isDefault == 'Yes') ...[
+                            if (_isDefaultAddress(address)) ...[
                               const SizedBox(height: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(

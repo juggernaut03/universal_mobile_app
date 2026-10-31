@@ -471,81 +471,160 @@ class OrderDetailScreen extends ConsumerWidget {
     );
   }
 
+  String _rupees(double amount) =>
+      '₹${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)}';
+
+  /// One bill line: label (with an optional second line naming the offer /
+  /// voucher / coupon) and its amount on the right.
+  Widget _buildBillRow(
+    String label,
+    String amount, {
+    String? detail,
+    Color? amountColor,
+    bool bold = false,
+    String? struckAmount,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: bold ? Colors.black : Colors.grey[600],
+                  fontSize: 13,
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              if (detail != null && detail.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    detail,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        if (struckAmount != null) ...[
+          Text(
+            struckAmount,
+            style: const TextStyle(
+              color: Colors.grey,
+              fontSize: 13,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
+        Text(
+          amount,
+          style: TextStyle(
+            color: amountColor ?? Colors.black,
+            fontSize: 13,
+            fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPaymentDetails(Order order) {
     final delivery = order.deliveryAmount ?? 0.0;
-    final cartTotal = order.totalAmount - delivery;
+    // Orders without a stored subtotal: work it back out from the total.
+    final cartTotal = order.subtotal > 0
+        ? order.subtotal
+        : order.totalAmount -
+            delivery -
+            order.packingFee +
+            order.offerDiscount +
+            order.loyaltyDiscount +
+            order.otherDiscount;
     final savings = order.savings;
     final refund = order.refundAmount ?? 0.0;
+    final green = Colors.green[700];
+
+    String? joinDetail(List<String?> parts) {
+      final text = parts.whereType<String>().where((p) => p.isNotEmpty).join(' · ');
+      return text.isEmpty ? null : text;
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           _buildInfoRow('Payment Mode:', order.paymentMethod),
-          const SizedBox(height: 12),
-          _buildInfoRow('Total Amount:', '₹${order.totalAmount.toStringAsFixed(order.totalAmount.truncateToDouble() == order.totalAmount ? 0 : 2)}'),
-          const SizedBox(height: 12),
-          _buildInfoRow('Cart Total:', '₹${cartTotal.toStringAsFixed(cartTotal.truncateToDouble() == cartTotal ? 0 : 2)}'),
-          const SizedBox(height: 12),
-          
-          // Delivery Charges
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 120,
-                child: Text(
-                  'Delivery Charges:',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Row(
-                  children: [
-                    if (delivery == 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: Colors.amber[50],
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: const Text(
-                          'Special Offer',
-                          style: TextStyle(
-                            color: Colors.amber,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(width: 6),
-                    Text(
-                      delivery > 0 ? '₹${delivery.toStringAsFixed(delivery.truncateToDouble() == delivery ? 0 : 2)}' : '₹49',
-                      style: TextStyle(
-                        color: delivery > 0 ? Colors.black : Colors.grey,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        decoration: delivery > 0 ? TextDecoration.none : TextDecoration.lineThrough,
-                      ),
-                    ),
-                    if (delivery == 0)
-                      const Text(
-                        ' ₹0',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+          const SizedBox(height: 16),
+          _buildBillRow('Cart Total', _rupees(cartTotal)),
+
+          if (order.dealSavings > 0) ...[
+            const SizedBox(height: 10),
+            _buildBillRow(
+              'Deal Savings',
+              _rupees(order.dealSavings),
+              detail: 'Already included in the cart total',
+              amountColor: green,
+            ),
+          ],
+
+          if (order.offerDiscount > 0) ...[
+            const SizedBox(height: 10),
+            _buildBillRow(
+              'Offer Discount',
+              '− ${_rupees(order.offerDiscount)}',
+              detail: joinDetail([
+                order.offerTitle,
+                if (order.offerCouponCode != null) 'Code: ${order.offerCouponCode}',
+              ]),
+              amountColor: green,
+            ),
+          ],
+
+          if (order.loyaltyDiscount > 0) ...[
+            const SizedBox(height: 10),
+            _buildBillRow(
+              'Loyalty Voucher',
+              '− ${_rupees(order.loyaltyDiscount)}',
+              detail: order.loyaltyRewardName,
+              amountColor: green,
+            ),
+          ],
+
+          if (order.otherDiscount > 0) ...[
+            const SizedBox(height: 10),
+            _buildBillRow('Discount', '− ${_rupees(order.otherDiscount)}', amountColor: green),
+          ],
+
+          const SizedBox(height: 10),
+          _buildBillRow(
+            'Delivery Charges',
+            delivery > 0 ? _rupees(delivery) : 'FREE',
+            amountColor: delivery > 0 ? null : green,
+            struckAmount: order.freeDeliveryWaived > 0
+                ? _rupees(delivery + order.freeDeliveryWaived)
+                : null,
+            detail: order.freeDeliveryWaived > 0
+                ? joinDetail([
+                    order.freeDeliveryTitle ?? 'Free delivery offer',
+                    if (order.freeDeliveryCouponCode != null)
+                      'Code: ${order.freeDeliveryCouponCode}',
+                  ])
+                : null,
           ),
-          
+
+          if (order.packingFee > 0) ...[
+            const SizedBox(height: 10),
+            _buildBillRow('Packing Fee', _rupees(order.packingFee)),
+          ],
+
+          const Divider(height: 24),
+          _buildBillRow('Total Amount', _rupees(order.totalAmount), bold: true),
+
           if (savings > 0) ...[
             const SizedBox(height: 12),
             Container(
