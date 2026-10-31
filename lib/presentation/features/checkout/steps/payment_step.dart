@@ -29,7 +29,11 @@ import '../../../../domain/entities/auth_session.dart';
 import 'package:flutter/foundation.dart';
 import '../../../providers/loyalty_provider.dart';
 import '../../../providers/steal_deals_provider.dart'
-    show selectedCartOfferProvider, dealProductOfferInfoProvider;
+    show
+        selectedCartOfferProvider,
+        dealProductOfferInfoProvider,
+        appliedCouponProvider,
+        appliedFreeDeliveryOfferProvider;
 import '../checkout_models.dart';
 import '../widgets/loyalty_reward_picker.dart';
 import '../widgets/cart_offer_picker.dart';
@@ -438,8 +442,13 @@ Future<void> _placeOrder() async {
     
     // Get delivery/packing charges
     final deliveryChargesState = ref.read(deliveryChargesProvider);
-    final deliveryCharge = deliveryChargesState.deliveryCharge;
     final isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+    // A free-delivery offer waives the distance-based fee only — handling and
+    // package fees still apply (same as utils/orderService.js on the server,
+    // which only waives it when free_delivery_offer_id is sent below).
+    final freeDeliveryOffer = isSelfPickup ? null : ref.read(appliedFreeDeliveryOfferProvider);
+    final waivedDeliveryFee = freeDeliveryOffer != null ? deliveryChargesState.distanceCharge : 0.0;
+    final deliveryCharge = deliveryChargesState.deliveryCharge - waivedDeliveryFee;
     // Self-pickup carries only the packing fee, never the delivery/handling
     // charge — this is the amount actually charged via Razorpay below, so
     // getting it right matters more than the display-only widgets.
@@ -456,6 +465,8 @@ Future<void> _placeOrder() async {
     final cartOfferDiscount =
         (selectedCartOffer != null && selectedCartOffer.unlocked) ? selectedCartOffer.effectiveDiscount : 0.0;
     final offerId = cartOfferDiscount > 0 ? selectedCartOffer?.id : null;
+    final freeDeliveryOfferId = waivedDeliveryFee > 0 ? freeDeliveryOffer?.id : null;
+    final couponCode = ref.read(appliedCouponProvider)?.code;
 
     // Subtotal after the cart offer, before loyalty — matches the backend's
     // own stacking order (utils/orderService.js applies the cart discount
@@ -741,6 +752,8 @@ Future<void> _placeOrder() async {
       deliveryDistance: ref.read(deliveryChargesProvider).distance,
       loyaltyRedemptionId: loyaltyRedemptionId,
       offerId: offerId,
+      freeDeliveryOfferId: freeDeliveryOfferId,
+      couponCode: couponCode,
       dealItems: dealItems,
     );
 
@@ -794,6 +807,7 @@ Future<void> _placeOrder() async {
         // Same for a cart-discount offer — it's not a reusable coupon, so
         // don't leave it selected for the next order.
         ref.read(selectedCartOfferProvider.notifier).state = null;
+        ref.read(appliedCouponProvider.notifier).state = null;
         // _safeSetState, and before the mounted check rather than after it:
         // clearCart() and clearFromPrefs() are awaits, so the step can be gone
         // by the time they return, and a plain setState then throws
@@ -836,6 +850,7 @@ Future<void> _placeOrder() async {
         // Same for a cart-discount offer — it's not a reusable coupon, so
         // don't leave it selected for the next order.
         ref.read(selectedCartOfferProvider.notifier).state = null;
+        ref.read(appliedCouponProvider.notifier).state = null;
         // _safeSetState, and before the mounted check rather than after it:
         // clearCart() and clearFromPrefs() are awaits, so the step can be gone
         // by the time they return, and a plain setState then throws
@@ -924,6 +939,7 @@ Future<void> _placeOrder() async {
         ref.read(selectedLoyaltyRedemptionProvider.notifier).state = null;
         ref.read(loyaltyRefreshProvider.notifier).state++;
         ref.read(selectedCartOfferProvider.notifier).state = null;
+        ref.read(appliedCouponProvider.notifier).state = null;
       } catch (cleanupError) {
         logger.error('Post-order cleanup failed: $cleanupError');
       }
@@ -1556,17 +1572,21 @@ Future<void> _placeOrder() async {
         
         // Get delivery charges
         final deliveryChargesState = ref.watch(deliveryChargesProvider);
-        final deliveryCharge = deliveryChargesState.deliveryCharge;
-        final isFreeDelivery = deliveryChargesState.freeDeliveryEligible;
+        final isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
+        // A free-delivery offer waives the distance-based fee — see the
+        // matching comment in _placeOrder.
+        final hasFreeDeliveryOffer = !isSelfPickup && ref.watch(appliedFreeDeliveryOfferProvider) != null;
         final distance = deliveryChargesState.distance;
         // See the matching comment in delivery_time_step.dart: handling/
         // packaging are store-configured flat fees that free delivery does
         // NOT waive.
-        final distanceCharge = deliveryChargesState.distanceCharge;
+        final distanceCharge = hasFreeDeliveryOffer ? 0.0 : deliveryChargesState.distanceCharge;
+        final deliveryCharge = deliveryChargesState.deliveryCharge -
+            (hasFreeDeliveryOffer ? deliveryChargesState.distanceCharge : 0.0);
+        final isFreeDelivery = deliveryChargesState.freeDeliveryEligible || hasFreeDeliveryOffer;
         final handlingFee = deliveryChargesState.handlingFee;
         final packageFee = deliveryChargesState.packageFee;
         final packingFee = deliveryChargesState.packingFee;
-        final isSelfPickup = widget.checkoutData.deliveryMethod == DeliveryMethod.selfPickup;
 
         // Cart-discount offer, if applied — see CartOfferRow. Display-only,
         // same as the loyalty voucher below; the server re-validates and

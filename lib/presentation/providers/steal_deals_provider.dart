@@ -104,6 +104,30 @@ final cartOffersProvider = Provider<List<CartOffer>>((ref) => ref.watch(_cartOff
 /// selectedLoyaltyRedemptionProvider.
 final selectedCartOfferProvider = StateProvider<CartOffer?>((ref) => null);
 
+/// The best free_delivery offer for the current cart (unlocked, or the
+/// nearest to unlocking), synced by stealDealsOffersProvider like
+/// cartOffersProvider above.
+final _freeDeliveryOfferState = StateProvider<FreeDeliveryOffer?>((ref) => null);
+final freeDeliveryOfferProvider =
+    Provider<FreeDeliveryOffer?>((ref) => ref.watch(_freeDeliveryOfferState));
+
+/// A coupon code the shopper entered and the server accepted (see
+/// CouponCodeField). A discount coupon is also set as
+/// selectedCartOfferProvider; a free-delivery coupon feeds
+/// appliedFreeDeliveryOfferProvider. Re-checked against the server on every
+/// cart change and dropped if it stops applying. Cleared on order placement.
+final appliedCouponProvider = StateProvider<AppliedCoupon?>((ref) => null);
+
+/// The free-delivery offer that applies to checkout right now, if any: a
+/// free-delivery coupon, else the automatic one once unlocked. Its id goes
+/// out as free_delivery_offer_id and the delivery fee is shown as FREE.
+final appliedFreeDeliveryOfferProvider = Provider<FreeDeliveryOffer?>((ref) {
+  final couponOffer = ref.watch(appliedCouponProvider)?.freeDeliveryOffer;
+  if (couponOffer != null && couponOffer.unlocked) return couponOffer;
+  final auto = ref.watch(freeDeliveryOfferProvider);
+  return (auto != null && auto.unlocked) ? auto : null;
+});
+
 /// Provider that fetches offers from the get_offer API and returns
 /// the product details for each offer's offer_p_code (array of codes).
 /// Uses keepAlive + previous data caching to avoid flickering on cart changes.
@@ -123,6 +147,8 @@ final stealDealsOffersProvider =
     logger.log('StealDeals: no outlet selected yet — skipping fetch');
     ref.read(_cartOffersState.notifier).state = const [];
     ref.read(selectedCartOfferProvider.notifier).state = null;
+    ref.read(_freeDeliveryOfferState.notifier).state = null;
+    ref.read(appliedCouponProvider.notifier).state = null;
     return const [];
   }
 
@@ -177,10 +203,40 @@ final stealDealsOffersProvider =
     final cartOffers =
         apiResponse.cartDiscountOffers.map((o) => CartOffer.fromJson(o)).toList();
     ref.read(_cartOffersState.notifier).state = cartOffers;
+    final rawFreeDelivery = apiResponse.freeDeliveryOffer;
+    ref.read(_freeDeliveryOfferState.notifier).state =
+        rawFreeDelivery == null ? null : FreeDeliveryOffer.fromJson(rawFreeDelivery);
+
+    // An applied coupon isn't in the automatic list — re-check it against
+    // the new cart instead, refreshing its discount or dropping it.
+    final coupon = ref.read(appliedCouponProvider);
+    if (coupon != null) {
+      try {
+        final raw = await apiService.applyCoupon(
+          code: coupon.code,
+          storeCode: storeCode,
+          cartTotal: cartSnapshot.total,
+        );
+        final refreshed = AppliedCoupon.fromJson(coupon.code, raw);
+        ref.read(appliedCouponProvider.notifier).state = refreshed;
+        if (refreshed.discountOffer != null) {
+          ref.read(selectedCartOfferProvider.notifier).state = refreshed.discountOffer;
+        }
+      } catch (e) {
+        logger.log('StealDeals: coupon ${coupon.code} no longer applies: $e');
+        ref.read(appliedCouponProvider.notifier).state = null;
+        if (coupon.discountOffer != null &&
+            ref.read(selectedCartOfferProvider)?.id == coupon.discountOffer!.id) {
+          ref.read(selectedCartOfferProvider.notifier).state = null;
+        }
+      }
+    }
 
     final currentSelection = ref.read(selectedCartOfferProvider);
+    final selectedCoupon = ref.read(appliedCouponProvider)?.discountOffer;
     final selectionStillValid = currentSelection != null &&
-        cartOffers.any((o) => o.id == currentSelection.id && o.unlocked);
+        ((selectedCoupon != null && selectedCoupon.id == currentSelection.id) ||
+            cartOffers.any((o) => o.id == currentSelection.id && o.unlocked));
     if (!selectionStillValid) {
       final bestOfferId = apiResponse.bestOffer?['_id']?.toString();
       CartOffer? best;
@@ -193,6 +249,11 @@ final stealDealsOffersProvider =
         }
       }
       ref.read(selectedCartOfferProvider.notifier).state = best;
+    } else if (selectedCoupon?.id != currentSelection.id) {
+      // Still valid: swap in the fresh copy so its discount tracks the cart
+      // (a % or category offer's amount changes as items change).
+      ref.read(selectedCartOfferProvider.notifier).state =
+          cartOffers.firstWhere((o) => o.id == currentSelection.id);
     }
 
     final offers = apiResponse.offers;

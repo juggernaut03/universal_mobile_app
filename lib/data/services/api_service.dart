@@ -189,6 +189,9 @@ class ApiService {
           : <Map<String, dynamic>>[];
       final bestOffer =
           data['best_offer'] is Map ? Map<String, dynamic>.from(data['best_offer'] as Map) : null;
+      final freeDeliveryOffer = data['free_delivery_offer'] is Map
+          ? Map<String, dynamic>.from(data['free_delivery_offer'] as Map)
+          : null;
 
       final List<Map<String, dynamic>> offers = [];
 
@@ -225,11 +228,35 @@ class ApiService {
         offers: offers,
         cartDiscountOffers: cartDiscountOffers,
         bestOffer: bestOffer,
+        freeDeliveryOffer: freeDeliveryOffer,
       );
     } catch (e) {
       _logger.error('Error fetching offers: $e');
       rethrow;
     }
+  }
+
+  /// POST /api/offers/apply-coupon — checks a coupon code against the
+  /// shopper's cart. Returns the offer (same shape as /for-cart's entries);
+  /// throws ApiException with the server's reason ("Invalid coupon code",
+  /// "This offer is only for your 1st order", ...) when it can't be used.
+  Future<Map<String, dynamic>> applyCoupon({
+    required String code,
+    required String storeCode,
+    required double cartTotal,
+  }) async {
+    final response = await _apiClient.postWithAuth(
+      ApiConstants.offersApplyCoupon,
+      body: {
+        'code': code,
+        'store_code': storeCode,
+        'cart_total': cartTotal.toStringAsFixed(2),
+      },
+    );
+    if (response is Map && response['data'] is Map) {
+      return Map<String, dynamic>.from(response['data'] as Map);
+    }
+    throw ApiException(message: 'Could not apply coupon');
   }
 
   /// The legacy offer-screen endpoint has no universal equivalent — return an
@@ -255,6 +282,10 @@ class OfferApiResponse {
   final List<Map<String, dynamic>> cartDiscountOffers;
   final Map<String, dynamic>? bestOffer;
 
+  /// GET /offers/for-cart's `free_delivery_offer` — the best unlocked one,
+  /// or the nearest to unlocking; null when there are none.
+  final Map<String, dynamic>? freeDeliveryOffer;
+
   OfferApiResponse({
     required this.offers,
     this.pannelBgColor = '',
@@ -264,5 +295,6 @@ class OfferApiResponse {
     this.pannelUnlockBgColor = '',
     this.cartDiscountOffers = const [],
     this.bestOffer,
+    this.freeDeliveryOffer,
   });
 }
