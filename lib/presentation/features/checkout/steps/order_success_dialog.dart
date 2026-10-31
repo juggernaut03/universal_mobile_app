@@ -196,8 +196,15 @@ void showOrderSuccessDialog(
           ),
           ElevatedButton(
             onPressed: () {
+              // Grab the router first: going home disposes the checkout context.
+              final router = GoRouter.of(context);
               Navigator.of(context).pop(); // Close dialog
-              context.go('/'); // Navigate to home
+              // Reset the stack to home, then open My Orders on top of it so
+              // its back button returns home rather than to checkout.
+              router.go('/');
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                router.push('/my-orders');
+              });
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
