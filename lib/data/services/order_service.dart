@@ -82,6 +82,13 @@ class OrderService {
     int? paymentModeId,
     double? deliveryDistance,
     String? offerId,
+    // A free_delivery offer the shopper qualifies for (automatic or from a
+    // coupon) - the server waives the delivery fee only when this is sent,
+    // so the amount charged here and the server's total agree.
+    String? freeDeliveryOfferId,
+    // The coupon code behind offerId / freeDeliveryOfferId, if any - the
+    // server won't apply a coupon-only offer without it.
+    String? couponCode,
     // A LoyaltyRedemption id (from GET /api/loyalty/redemptions/active) the
     // customer chose to apply. The server validates it, computes the
     // discount itself, and marks it used atomically with the order - see
@@ -161,6 +168,9 @@ class OrderService {
         'delivery_charges': deliveryCharges,
         if (deliveryDistance != null) 'delivery_distance': deliveryDistance,
         if (offerId != null && offerId.isNotEmpty) 'offer_id': offerId,
+        if (freeDeliveryOfferId != null && freeDeliveryOfferId.isNotEmpty)
+          'free_delivery_offer_id': freeDeliveryOfferId,
+        if (couponCode != null && couponCode.isNotEmpty) 'coupon_code': couponCode,
         if (loyaltyRedemptionId != null && loyaltyRedemptionId.isNotEmpty)
           'loyalty_redemption_id': loyaltyRedemptionId,
         if (dealItems != null && dealItems.isNotEmpty) 'deal_items': dealItems,

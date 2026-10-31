@@ -76,6 +76,7 @@ class ApiConstants {
   static const String deliveryChargesCalculate = '$baseUrl/delivery-charges/calculate';
   static const String paymentModesGet = '$baseUrl/payment-modes/get-payment-modes';
   static const String offersForCart = '$baseUrl/offers/for-cart';
+  static const String offersApplyCoupon = '$baseUrl/offers/apply-coupon';
 
   // ---- Orders ----
   static const String ordersPlace = '$baseUrl/orders/place-order';
