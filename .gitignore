@@ -48,3 +48,8 @@ app.*.map.json
 /android/*.jks
 /android/*.keystore
 /android/key*.properties
+
+# Local-only folders — kept on disk, never committed
+/docs/
+/dart_defines/
+/scripts/
